@@ -7,6 +7,7 @@ import {
   TabListProps,
 } from 'expo-router/ui';
 import { SymbolView } from 'expo-symbols';
+import type { ComponentProps } from 'react';
 import { Pressable, useColorScheme, View, StyleSheet } from 'react-native';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -33,12 +34,17 @@ export default function AppTabs() {
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+// Expo Router's slot ref still uses the older View component type.
+type TabButtonProps = Omit<TabTriggerSlotProps, 'ref'> &
+  Pick<ComponentProps<typeof Pressable>, 'ref'>;
+
+export function TabButton({ children, isFocused, ...props }: TabButtonProps) {
   return (
     <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
       <ThemedView
         type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
+        style={styles.tabButtonView}
+      >
         <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
           {children}
         </ThemedText>

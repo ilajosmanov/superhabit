@@ -1,6 +1,14 @@
 {
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "[javascript][javascriptreact][typescript][typescriptreact]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "file",
+  "oxc.disableNestedConfig": true,
+  "oxc.fmt.disableNestedConfig": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll": "explicit",
+    "source.fixAll.oxc": "explicit",
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
   }

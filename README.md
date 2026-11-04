@@ -1,56 +1,42 @@
-# Welcome to your Expo app 👋
+# Superhabit
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A sports challenge and habit-tracking app for iOS and Android, built with Expo and React Native.
 
-## Get started
+## Android setup
 
-1. Install dependencies
+Requires Node.js 22.18+ (22.x), pnpm, JDK 17, and the Android SDK command-line tools. Configure `JAVA_HOME`, `ANDROID_HOME`, and add the SDK tools to `PATH`.
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Install the required Android packages:
 
 ```bash
-npm run reset-project
+android sdk install platform-tools platforms/android-37.0 build-tools/37.0.0 ndk/27.1.12297006
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+Enable USB debugging on your Android phone, connect it, and authorize your computer. From the project directory:
 
-### Other setup steps
+```bash
+pnpm install
+adb devices
+pnpm android
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Development
 
-## Learn more
+Expo and Metro run the app; Vite+ handles checks and logic tests:
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+pnpm start             # development server
+pnpm check             # formatting, lint, and type checks
+pnpm check:fix         # apply formatting and safe lint fixes
+pnpm typecheck         # Expo's TypeScript compiler check
+pnpm test              # run logic tests
+pnpm test:watch        # watch logic tests
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Edit screens in `src/app/`. Rebuild with `pnpm android` after changing native dependencies or configuration. Add SDK packages with `pnpm exec expo install <package>`.
 
-## Join the community
+Place logic tests beside their source as `src/**/*.test.ts`, importing test APIs from `vite-plus/test`. No app tests exist yet; empty suites are temporarily allowed. These Node tests cover plain TypeScript logic; native UI and camera behavior need component and device tests separately.
 
-Join our community of developers creating universal apps.
+CI runs checks and tests on pushes and pull requests. When upgrading Vite+, align the Vite alias and Vitest pin in `pnpm-workspace.yaml` with `pnpm exec vp toolchain`.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Local iOS builds require macOS and Xcode. See the [Expo setup guide](https://docs.expo.dev/get-started/set-up-your-environment/).

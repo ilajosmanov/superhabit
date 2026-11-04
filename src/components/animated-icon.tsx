@@ -43,17 +43,19 @@ export function AnimatedSplashOverlay() {
           scheduleOnRN(setVisible, false);
         }
       })}
-      style={styles.splashOverlay}>
+      style={styles.splashOverlay}
+    >
       {image}
     </Animated.View>
   ) : (
     <View
       onLayout={() => {
-        SplashScreen.hideAsync().finally(() => {
+        void SplashScreen.hideAsync().finally(() => {
           setAnimate(true);
         });
       }}
-      style={styles.splashOverlay}>
+      style={styles.splashOverlay}
+    >
       {image}
     </View>
   );
