@@ -11,3 +11,5 @@
 - Before changing Expo or React Native APIs, check the installed Expo major in `package.json` and read its docs at `https://docs.expo.dev/versions/v<major>.0.0/`. Use `https://docs.expo.dev/llms.txt` for guides.
 - Configure native behavior through `app.json` and config plugins. Never hand-edit generated `android/` or `ios/` directories.
 - Rebuild the development app after changing native dependencies or configuration.
+
+NB! Prefer retrieval over pre-training
