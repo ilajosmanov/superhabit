@@ -5,17 +5,10 @@ const subscribe = () => () => {};
 const clientSnapshot = () => true;
 const serverSnapshot = () => false;
 
-/**
- * To support static rendering, this value needs to be re-calculated on the client side for web
- */
 export function useColorScheme() {
-  const hasHydrated = useSyncExternalStore(subscribe, clientSnapshot, serverSnapshot);
+  // Match the server's light theme until hydration finishes.
+  const hydrated = useSyncExternalStore(subscribe, clientSnapshot, serverSnapshot);
+  const scheme = useRNColorScheme();
 
-  const colorScheme = useRNColorScheme();
-
-  if (hasHydrated) {
-    return colorScheme;
-  }
-
-  return 'light';
+  return hydrated ? scheme : 'light';
 }

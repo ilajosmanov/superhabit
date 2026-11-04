@@ -35,6 +35,8 @@ pnpm test:watch        # watch logic tests
 
 Edit screens in `src/app/`. Rebuild with `pnpm android` after changing native dependencies or configuration. Add SDK packages with `pnpm exec expo install <package>`.
 
+Styles use NativeWind v5 RC and Tailwind v4, configured in `metro.config.js`, `postcss.config.mjs`, and `src/global.css`. Use `className` and `dark:` variants for system light/dark mode. Keep the pinned NativeWind and `react-native-css` RC versions paired when upgrading.
+
 Place logic tests beside their source as `src/**/*.test.ts`, importing test APIs from `vite-plus/test`. No app tests exist yet; empty suites are temporarily allowed. These Node tests cover plain TypeScript logic; native UI and camera behavior need component and device tests separately.
 
 CI runs checks and tests on pushes and pull requests. When upgrading Vite+, align the Vite alias and Vitest pin in `pnpm-workspace.yaml` with `pnpm exec vp toolchain`.
