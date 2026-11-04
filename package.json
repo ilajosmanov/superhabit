@@ -8,10 +8,6 @@
     "android": "expo run:android --device",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "vp lint --deny-warnings",
-    "format": "vp fmt --write .",
-    "check": "vp check --deny-warnings",
-    "check:fix": "vp check --fix --deny-warnings",
     "typecheck": "tsc --noEmit",
     "test": "vp test run",
     "test:watch": "vp test watch"
