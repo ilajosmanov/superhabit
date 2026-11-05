@@ -2,3 +2,28 @@
 @import 'tailwindcss/preflight.css' layer(base);
 @import 'tailwindcss/utilities.css';
 @import 'nativewind/theme';
+
+/* "Gym floor" palette from the design canvas. Only these colors exist; Tailwind's defaults are removed. */
+@theme {
+  --color-*: initial;
+  --color-ground: #0d0e0b; /* app background */
+  --color-surface: #181914; /* cards, highlighted rows */
+  --color-line: #2e3028; /* hairline dividers, empty progress */
+  --color-edge: #3a3c33; /* outlined buttons and chips, future ticks */
+  --color-chalk: #f2f0e8; /* primary text */
+  --color-soft: #c9c8bc; /* body copy */
+  --color-muted: #a3a396; /* labels, secondary text */
+  --color-subtle: #8c8d80; /* table headers, footnotes */
+  --color-faint: #7a7b70; /* large denominators ("/ 30") only; too dim for small text */
+  --color-accent: #f2b544;
+  --color-warn: #ff6a55; /* no-reps, missed days */
+}
+
+/* Fonts are linked natively by the expo-font plugin in app.json under these family names.
+   Declared after nativewind/theme so they replace its per-platform system font defaults.
+   font-size sets NativeWind's rem (default 14) so Tailwind sizes equal design px: p-4 = 16, text-base = 16. */
+:root {
+  font-size: 16px;
+  --font-sans: Geist;
+  --font-mono: 'Geist Mono';
+}

@@ -25,5 +25,6 @@ jobs:
           run-install: false
       - run: vp install --frozen-lockfile
       - run: vp run check
+      - run: vp run lint:kt
       - run: vp run typecheck
       - run: vp run test

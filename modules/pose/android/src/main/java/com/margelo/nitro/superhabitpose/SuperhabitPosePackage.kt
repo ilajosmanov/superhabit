@@ -7,7 +7,10 @@ import com.facebook.react.module.model.ReactModuleInfoProvider
 
 // Only exists so RN autolinking loads the native library; the HybridObject is registered by Nitro.
 class SuperhabitPosePackage : BaseReactPackage() {
-  override fun getModule(name: String, reactContext: ReactApplicationContext): NativeModule? = null
+  override fun getModule(
+    name: String,
+    reactContext: ReactApplicationContext
+  ): NativeModule? = null
 
   override fun getReactModuleInfoProvider(): ReactModuleInfoProvider = ReactModuleInfoProvider { HashMap() }
 

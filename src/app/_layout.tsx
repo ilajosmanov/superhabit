@@ -7,7 +7,7 @@ export default function RootLayout() {
   return (
     <>
       <Slot />
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
     </>
   );
 }

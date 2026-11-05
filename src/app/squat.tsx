@@ -15,6 +15,7 @@ import type { PoseDetection } from 'superhabit-pose';
 
 import { FRAME_ASPECT } from '@/pose/squat';
 import { squatSession } from '@/pose/squatSession';
+import { colors } from '@/theme';
 
 const CAMERA = 'front';
 const fmtMs = (ms: number | null) => (ms === null ? '—' : `${(ms / 1000).toFixed(1)}s`);
@@ -37,8 +38,10 @@ function toViewPoints(preview: CameraRef | null, result: PoseDetection): SkPoint
 export default function SquatTest() {
   if (Platform.OS !== 'android') {
     return (
-      <View className="flex-1 items-center justify-center bg-[#0D0E0B] p-6">
-        <Text className="text-center text-[#F2F0E8]">Pose tracking is available on Android.</Text>
+      <View className="flex-1 items-center justify-center bg-ground p-6">
+        <Text className="text-center font-sans text-chalk">
+          Pose tracking is available on Android.
+        </Text>
       </View>
     );
   }
@@ -106,21 +109,23 @@ function AndroidSquatTest() {
 
   if (!hasPermission) {
     return (
-      <View className="flex-1 items-center justify-center gap-4 bg-[#0D0E0B] p-6">
-        <Text className="text-center text-[#F2F0E8]">Camera access is needed to count reps.</Text>
+      <View className="flex-1 items-center justify-center gap-4 bg-ground p-6">
+        <Text className="text-center font-sans text-chalk">
+          Camera access is needed to count reps.
+        </Text>
         <Pressable
           onPress={() => void requestPermission()}
-          className="h-12 items-center justify-center rounded-full bg-[#F2B544] px-6"
+          className="h-12 items-center justify-center rounded-full bg-accent px-6"
           accessibilityRole="button"
         >
-          <Text className="text-[15px] font-medium text-[#0D0E0B]">Allow camera</Text>
+          <Text className="font-sans text-base font-medium text-ground">Allow camera</Text>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 justify-center bg-[#0D0E0B]">
+    <View className="flex-1 justify-center bg-ground">
       {/* Layout only; CameraX's sensor-to-view transform maps the dots to the preview. */}
       <View style={{ width: '100%', aspectRatio: FRAME_ASPECT }}>
         <Camera
@@ -133,24 +138,28 @@ function AndroidSquatTest() {
           outputs={[frameOutput]}
         />
         <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Points points={dots} mode="points" color="#F2B544" strokeWidth={10} strokeCap="round" />
+          <Points
+            points={dots}
+            mode="points"
+            color={colors.accent}
+            strokeWidth={10}
+            strokeCap="round"
+          />
         </Canvas>
       </View>
 
-      <View className="absolute inset-x-3 bottom-8 gap-2 rounded-3xl border border-[#2E3028] bg-[#0D0E0BE6] p-4">
+      <View className="absolute inset-x-3 bottom-8 gap-2 rounded-3xl border border-line bg-ground/90 p-4">
         <View className="flex-row items-end justify-between">
-          <Text className="text-[96px] font-extralight leading-[96px] text-[#F2F0E8]">{reps}</Text>
+          <Text className="font-sans text-8xl font-extralight leading-none text-chalk">{reps}</Text>
           <View className="items-end gap-1 pb-3">
-            <Text className="font-mono text-xs tracking-widest text-[#A3A396]">
+            <Text className="font-mono text-xs tracking-widest text-muted">
               {phase.toUpperCase()}
             </Text>
-            <Text className="font-mono text-xs tracking-widest text-[#FF6A55]">
-              NO-REPS {noReps}
-            </Text>
+            <Text className="font-mono text-xs tracking-widest text-warn">NO-REPS {noReps}</Text>
           </View>
         </View>
         {rep && (
-          <Text className="font-mono text-xs tracking-widest text-[#A3A396]">
+          <Text className="font-mono text-xs tracking-widest text-muted">
             {Math.round(rep.depth)}° · SYM {Math.round(rep.symmetry)}° · {fmtMs(rep.downMs)}↓{' '}
             {fmtMs(rep.upMs)}↑ · LEAN {Math.round(rep.lean)}°
             {rep.cues.length ? ` · ${rep.cues.join(', ')}` : ''}
@@ -158,10 +167,10 @@ function AndroidSquatTest() {
         )}
         <Pressable
           onPress={() => session.send({ type: 'reset' })}
-          className="h-12 items-center justify-center rounded-full bg-[#F2B544]"
+          className="h-12 items-center justify-center rounded-full bg-accent"
           accessibilityRole="button"
         >
-          <Text className="text-[15px] font-medium text-[#0D0E0B]">Reset</Text>
+          <Text className="font-sans text-base font-medium text-ground">Reset</Text>
         </Pressable>
       </View>
     </View>

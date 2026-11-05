@@ -48,3 +48,6 @@ example
 # local native modules: build output
 modules/*/android/build/
 modules/*/android/.cxx/
+
+# kotlin-language-server cache
+kls_database.db
