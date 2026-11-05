@@ -4,6 +4,15 @@
 - Pin development tooling versions. When upgrading Vite+, align the Vite alias and Vitest version in `pnpm-workspace.yaml` with `vp toolchain`.
 - Put plain TypeScript tests beside their source as `src/**/*.test.ts`; import test APIs from `vite-plus/test`. Native component tests need a separate setup.
 
+## React rules
+
+Each kind of state has one owner. Lint enforces most of this; do not disable it.
+
+- Lifecycles (native resources, timers, speech, sessions): XState v5 actors (`fromCallback` with a cleanup function, `fromPromise`) invoked by a machine. Screens in `src/app/` may not import `useEffect` or `useLayoutEffect`.
+- Per-frame data (pose points, angles): Reanimated shared values drawn with Skia. It never goes into React state.
+- Native results are pushed (`scheduleOnRN` from the frame worklet), never polled with timers.
+- Logic stays in plain, tested functions (`src/pose/squat.ts`); machines call them and components only render selected state (`useSelector`).
+
 ## Expo rules
 
 - Expo ships breaking changes every SDK release. APIs you remember are likely renamed, moved, or removed. Before writing any code that touches an Expo, EAS, or React Native API:

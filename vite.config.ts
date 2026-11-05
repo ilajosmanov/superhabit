@@ -26,7 +26,39 @@ export default defineConfig({
     rules: {
       'react/rules-of-hooks': 'error',
       'react/exhaustive-deps': 'error',
+      // React Compiler rules: no derived state, setState in effects/render, impure render, ref misuse.
+      ...Object.fromEntries(
+        [
+          'no-deriving-state-in-effects',
+          'set-state-in-effect',
+          'set-state-in-render',
+          'purity',
+          'refs',
+          'immutability',
+          'static-components',
+        ].map((rule) => [`react/${rule}`, 'error']),
+      ),
     },
+    overrides: [
+      {
+        // Screens compose state; lifecycles live in XState actors, per-frame data in shared values.
+        files: ['src/app/**'],
+        rules: {
+          'no-restricted-imports': [
+            'error',
+            {
+              paths: [
+                {
+                  name: 'react',
+                  importNames: ['useEffect', 'useLayoutEffect'],
+                  message: 'Use an XState actor for lifecycles; see AGENTS.md.',
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ],
   },
   fmt: {
     singleQuote: true,
