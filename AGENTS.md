@@ -11,6 +11,7 @@ Each kind of state has one owner. Lint enforces most of this; do not disable it.
 - Lifecycles (native resources, timers, speech, sessions): XState v5 actors (`fromCallback` with a cleanup function, `fromPromise`) invoked by a machine. Screens in `src/app/` may not import `useEffect` or `useLayoutEffect`.
 - Per-frame data (pose points, angles): Reanimated shared values drawn with Skia. It never goes into React state.
 - Native results are pushed (`scheduleOnRN` from the frame worklet), never polled with timers.
+- React Compiler memoizes everything: never write `useMemo`, `useCallback` or `memo`. Dev builds fail when it can't compile a component (`panicThreshold` in `babel.config.js`); fix the code, don't opt out with `'use no memo'`.
 - Logic stays in plain, tested functions (`src/pose/squat.ts`); machines call them and components only render selected state (`useSelector`).
 
 ## Expo rules

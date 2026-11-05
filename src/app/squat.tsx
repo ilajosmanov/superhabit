@@ -20,6 +20,20 @@ import { squatSession } from '@/pose/squatSession';
 const CAMERA = 'front';
 const fmtMs = (ms: number | null) => (ms === null ? '—' : `${(ms / 1000).toFixed(1)}s`);
 
+/** Visible landmarks in preview coordinates; the native transform includes front-camera mirroring. */
+function toViewPoints(preview: CameraRef | null, result: PoseDetection): SkPoint[] {
+  if (!preview) return [];
+  try {
+    return result.cameraLandmarks
+      .filter((_, i) => (result.landmarks[i]?.visibility ?? 0) > 0.5)
+      .map((point) => preview.convertCameraPointToViewPoint(point))
+      .filter(({ x, y }) => Number.isFinite(x) && Number.isFinite(y));
+  } catch {
+    // CameraX has no sensor-to-view transform until the preview is ready.
+    return [];
+  }
+}
+
 // Spike: test squat rep counting on a real device. Prop the phone up, 2–3 m away, whole body in frame.
 export default function SquatTest() {
   if (Platform.OS !== 'android') {
@@ -62,22 +76,7 @@ function AndroidSquatTest() {
   const onResult = (result: PoseDetection | undefined) => {
     if (!result) return;
     session.send({ type: 'pose', result });
-    const preview = camera.current;
-    try {
-      dots.set(
-        preview
-          ? result.cameraLandmarks
-              .map((point, i) => ({ point, visibility: result.landmarks[i]?.visibility ?? 0 }))
-              .filter(({ visibility }) => visibility > 0.5)
-              // The native preview transform includes front-camera mirroring.
-              .map(({ point }) => preview.convertCameraPointToViewPoint(point))
-              .filter(({ x, y }) => Number.isFinite(x) && Number.isFinite(y))
-          : [],
-      );
-    } catch {
-      // CameraX has no sensor-to-view transform until the preview is ready.
-      dots.set([]);
-    }
+    dots.set(toViewPoints(camera.current, result));
   };
 
   const frameOutput = useFrameOutput({
@@ -85,30 +84,33 @@ function AndroidSquatTest() {
     pixelFormat: 'rgb', // CameraX converts to RGBA; the native detector copies it to a Bitmap.
     onFrame(frame) {
       'worklet';
+      // No `finally` here or below: React Compiler skips any component that uses one.
       let accepted = false;
       try {
         if (landmarker) {
           accepted = asyncRunner.runAsync(() => {
             'worklet';
+            // The runner only clears its busy flag when this task returns normally, so never throw.
             try {
+              let detected = true;
               try {
                 landmarker.detect(frame);
-              } finally {
-                frame.dispose();
+              } catch (error) {
+                detected = false;
+                console.error('[squat] frame processing failed', error);
               }
+              frame.dispose();
               // Push each detection to JS instead of polling for it.
-              scheduleOnRN(onResult, landmarker.result);
+              if (detected) scheduleOnRN(onResult, landmarker.result);
             } catch (error) {
-              // The runner only clears its busy flag when this task returns normally.
               console.error('[squat] frame processing failed', error);
             }
           });
         }
       } catch (error) {
         console.error('[squat] frame scheduling failed', error);
-      } finally {
-        if (!accepted) frame.dispose();
       }
+      if (!accepted) frame.dispose();
     },
   });
 
