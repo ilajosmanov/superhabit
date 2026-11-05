@@ -4,11 +4,6 @@
 - Pin development tooling versions. When upgrading Vite+, align the Vite alias and Vitest version in `pnpm-workspace.yaml` with `vp toolchain`.
 - Put plain TypeScript tests beside their source as `src/**/*.test.ts`; import test APIs from `vite-plus/test`. Native component tests need a separate setup.
 
-## Verification
-
-- Prove user-facing changes on the phone with the `verify-superhabit` skill (`.claude/skills/verify-superhabit/`), not only with tests.
-- When a feature is done, propose running `/pstack:maintain-verification-skill` so the feature map covers it and stays accurate. Propose it; don't run it unasked.
-
 ## React rules
 
 Each kind of state has one owner. Lint enforces most of this; do not disable it.
