@@ -11,6 +11,8 @@ type Events =
   | { type: 'pose'; result: PoseDetection }
   | { type: 'reset' };
 
+type Context = { landmarker: PoseLandmarker | null; squat: SquatState };
+
 /** Owns the native detector for as long as the session runs. */
 const landmarker = fromCallback<Events>(({ sendBack }) => {
   const instance = createPoseLandmarker();
@@ -18,12 +20,10 @@ const landmarker = fromCallback<Events>(({ sendBack }) => {
   return () => instance.close();
 });
 
+type Actors = { landmarker: typeof landmarker; speech: typeof speech };
+
 /** One squat session: detector and speech lifecycles, plus the rep counter fed by pose results. */
-export const squatSession = setup({
-  types: {} as {
-    context: { landmarker: PoseLandmarker | null; squat: SquatState };
-    events: Events;
-  },
+export const squatSession = setup<Context, Events, Actors>({
   actors: { landmarker, speech },
 }).createMachine({
   context: { landmarker: null, squat: initialSquat },

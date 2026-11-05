@@ -4,6 +4,15 @@
 - Pin development tooling versions. When upgrading Vite+, align the Vite alias and Vitest version in `pnpm-workspace.yaml` with `vp toolchain`.
 - Put plain TypeScript tests beside their source as `src/**/*.test.ts`; import test APIs from `vite-plus/test`. Native component tests need a separate setup.
 
+## TypeScript rules
+
+No type assertions: `as`, `<T>x` and `!` are lint errors. Make the types correct instead:
+
+- Name the types (`type Context = …`) and pass them as generics: `setup<Context, Events, Actors>(…)`, `fromCallback<Events>(…)`, `useSharedValue<SkPoint[]>([])`.
+- Annotate values (`const pose: Pose = …`) or use `satisfies` to check a literal without widening.
+- Narrow with checks: early returns, `in`, discriminated unions. In tests, `assert(value)` from `vite-plus/test` narrows.
+- Never cast to silence an error. If a library type is wrong, fix the types at that boundary.
+
 ## React rules
 
 Each kind of state has one owner. Lint enforces most of this; do not disable it.

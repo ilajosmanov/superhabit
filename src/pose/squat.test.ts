@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vite-plus/test';
+import { assert, describe, expect, it } from 'vite-plus/test';
 
 import {
   initialSquat,
@@ -96,7 +96,8 @@ describe('stepSquat', () => {
       [175, 8066, 10000],
       [deg, 10066, 12000],
     ]);
-    const lastSeenAt = previous.lastSeenAt!;
+    const { lastSeenAt } = previous;
+    assert(lastSeenAt !== undefined);
     const lost = stepSquat(previous, null, lastSeenAt + 1001);
     expect(lost).toMatchObject({ reps: 1, noReps: 1, phase: 'waiting', min: 180, lastSeenAt });
     expect(lost.lastDepth).toBeCloseTo(120);
@@ -197,7 +198,8 @@ describe('glitches, hip depth and rep report', () => {
     // Side-on, knee width is depth and not trustworthy.
     const side = measure(body({ thigh: 70, shin: 25, side: true }));
     expect(side?.valgus).toBeNull();
-    expect(side?.hip).toBeCloseTo(bottom!.hip);
+    assert(bottom);
+    expect(side?.hip).toBeCloseTo(bottom.hip);
   });
 
   it('smooths away a single-frame spike', () => {
@@ -221,7 +223,8 @@ describe('glitches, hip depth and rep report', () => {
 
   it('requires the hips to drop, so kneeling or leaning in is not a rep', () => {
     const kneel = measure(body({ thigh: 0, shin: 90 })); // knees at 90°, hips not lowered
-    expect(Math.max(...kneel!.legs)).toBeCloseTo(90);
+    assert(kneel);
+    expect(Math.max(...kneel.legs)).toBeCloseTo(90);
     const s = play([
       [standing, 0, 2000],
       [kneel, 2066, 4000],
@@ -239,7 +242,8 @@ describe('glitches, hip depth and rep report', () => {
     ]);
     expect(initialSquat.lastRep).toBeNull();
     expect(s.reps).toBe(1);
-    const rep = s.lastRep!;
+    const rep = s.lastRep;
+    assert(rep);
     expect(rep).toMatchObject({ counted: true, symmetry: 0, lean: 0, valgus: 1, cues: [] });
     expect(rep.depth).toBeCloseTo(85, 0);
     expect(rep.downMs).toBeGreaterThan(1000);
@@ -255,9 +259,11 @@ describe('glitches, hip depth and rep report', () => {
     ]);
     expect(s.reps).toBe(1);
     expect(s.lastRep).toMatchObject({ cues: ['Chest up', 'Knees out', 'Slow down'] });
-    expect(s.lastRep!.lean).toBeCloseTo(50);
-    expect(s.lastRep!.valgus).toBeCloseTo(0.6);
-    expect(s.lastRep!.downMs! + s.lastRep!.upMs!).toBeLessThan(800);
+    const rep = s.lastRep;
+    assert(rep && rep.downMs !== null && rep.upMs !== null);
+    expect(rep.lean).toBeCloseTo(50);
+    expect(rep.valgus).toBeCloseTo(0.6);
+    expect(rep.downMs + rep.upMs).toBeLessThan(800);
   });
 
   it('cues uneven legs and a shallow no-rep', () => {
@@ -275,7 +281,8 @@ describe('glitches, hip depth and rep report', () => {
       [at(175), 0, 2000],
       [uneven, 2066, 4000],
       [at(175), 4066, 6000],
-    ]).lastRep!;
+    ]).lastRep;
+    assert(rep);
     expect(rep.symmetry).toBeGreaterThan(10);
     expect(rep.cues).toEqual(['Even out your legs']);
   });
