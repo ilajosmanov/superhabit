@@ -85,7 +85,9 @@ export function measure(pose: Pose): Sample | null {
   // Thigh-relative hip drop is scale-free and, in 3D, the same seen from the front or the side;
   // a shoulder–ankle ratio would also move with torso lean.
   const thigh = (dist(w[23], w[25]) + dist(w[24], w[26])) / 2;
-  const shoulders = w[11] && w[12] ? mid(w[11], w[12]) : hips;
+  // Off-frame shoulders are guesses; without them lean reads 0 (hips == shoulders).
+  const seen = [11, 12].every((i) => pose.image[i] && inFrame(pose.image[i]));
+  const shoulders = seen && w[11] && w[12] ? mid(w[11], w[12]) : hips;
   const lean = (Math.acos((hips.y - shoulders.y) / dist(hips, shoulders)) * 180) / Math.PI;
   // Hips spread along x more than depth means the body faces the camera.
   const front = Math.abs(w[24].x - w[23].x) > Math.abs(w[24].z - w[23].z);
@@ -98,6 +100,9 @@ export function measure(pose: Pose): Sample | null {
 }
 
 export const HIP_BOTTOM = 0.7; // hip ratio at or below this = the hips really dropped (thigh ≥ ~45° from vertical)
+// A shallow attempt only counts as a no-rep once the hips started to drop (thigh ≥ ~18°), so kneeling
+// or bending to the phone stays silent. A real 140° half squat reads ~0.92; tune on device.
+export const HIP_STARTED = 0.95;
 // Starting values from FormCheck / LearnOpenCV / SquatCoachAI write-ups; tune on device.
 const CUE_SYMMETRY = 10; // deg mean |L−R|
 const CUE_FAST_MS = 800; // full rep
@@ -116,6 +121,7 @@ export type RepReport = {
 };
 
 type Attempt = {
+  hip: number; // lowest hip ratio
   sym: number;
   n: number;
   lean: number;
@@ -129,7 +135,6 @@ export type SquatState = {
   noReps: number;
   phase: 'waiting' | 'up' | 'down';
   min: number; // lowest held knee angle since last standing
-  lastDepth: number | null; // lowest angle of the last finished attempt
   lastRep: RepReport | null;
   lastSeenAt?: number; // monotonic time of the last valid angle, when supplied by the caller
   // Mutable and stateful: call stepSquat once per sample and never replay an old state.
@@ -138,14 +143,20 @@ export type SquatState = {
   attempt: Attempt;
 };
 
-const fresh = (at?: number): Attempt => ({ sym: 0, n: 0, lean: 0, valgus: null, startAt: at });
+const fresh = (at?: number): Attempt => ({
+  hip: Infinity,
+  sym: 0,
+  n: 0,
+  lean: 0,
+  valgus: null,
+  startAt: at,
+});
 
 export const initialSquat: SquatState = {
   reps: 0,
   noReps: 0,
   phase: 'waiting',
   min: 180,
-  lastDepth: null,
   lastRep: null,
   attempt: fresh(),
 };
@@ -165,7 +176,7 @@ function report(a: Attempt, depth: number, counted: boolean, nowMs?: number): Re
   return { counted, depth, symmetry, downMs, upMs, lean: a.lean, valgus: a.valgus, cues };
 }
 
-// ~15 Hz input. 1 Hz min cutoff + small beta (angle units are degrees, so speeds reach ~200°/s):
+// Input at detector speed (~15–30 Hz); the filter uses real timestamps. 1 Hz min cutoff + small beta (angle units are degrees, so speeds reach ~200°/s):
 // a one-frame spike is cut to under half, while a real 1 s rep loses only a few degrees of depth.
 const newFilter = () => new OneEuroFilter(15, 1, 0.01);
 
@@ -193,6 +204,7 @@ export function stepSquat(s: SquatState, sample: Sample | null, nowMs?: number):
   const a = s.attempt;
   const attempt: Attempt = {
     ...a,
+    hip: Math.min(a.hip, sample.hip),
     sym: a.sym + Math.abs(sample.legs[0] - sample.legs[1]),
     n: a.n + 1,
     lean: Math.max(a.lean, sample.lean),
@@ -204,10 +216,10 @@ export function stepSquat(s: SquatState, sample: Sample | null, nowMs?: number):
   };
   const min = Math.min(s.min, low);
   if (high >= UP) {
-    const done = { ...s, phase: 'up' as const, min: 180, attempt: fresh(nowMs), lastDepth: min };
+    const done = { ...s, phase: 'up' as const, min: 180, attempt: fresh(nowMs) };
     if (s.phase === 'down')
       return { ...done, reps: s.reps + 1, lastRep: report(attempt, min, true, nowMs) };
-    if (min < SHALLOW)
+    if (min < SHALLOW && attempt.hip <= HIP_STARTED)
       return { ...done, noReps: s.noReps + 1, lastRep: report(attempt, min, false, nowMs) };
     return { ...s, min: 180, attempt: fresh(nowMs) };
   }

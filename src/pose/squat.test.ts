@@ -10,6 +10,7 @@ import {
   type Sample,
   type SquatState,
 } from './squat';
+import { body } from './__fixtures__/body';
 
 // A knee-only sample with the hips dropped, so these tests exercise the knee state machine.
 const at = (deg: number | null): Sample | null =>
@@ -21,7 +22,7 @@ const run = (angles: (number | null)[], from: SquatState = initialSquat) =>
       Array.from({ length: 200 }).reduce<SquatState>((s) => stepSquat(s, at(deg)), state),
     from,
   );
-const FRAME = 66; // ms, the device polling interval
+const FRAME = 66; // ms between detector results
 // [sample, fromMs, toMs]: hold a sample, polling every frame.
 const play = (spans: [Sample | null, fromMs: number, toMs?: number][], start = initialSquat) =>
   spans.reduce((state, [sample, from, to = from]) => {
@@ -43,27 +44,27 @@ describe('stepSquat', () => {
       reps: 0,
       noReps: 0,
       phase: 'waiting',
-      lastDepth: null,
+      lastRep: null,
     });
-    expect(run([90, 175])).toMatchObject({ reps: 0, noReps: 0, phase: 'up', lastDepth: null });
-    expect(run([120, 175])).toMatchObject({ reps: 0, noReps: 0, phase: 'up', lastDepth: null });
-    expect(run([90, 175, 90, 175])).toMatchObject({ reps: 1, noReps: 0, lastDepth: 90 });
+    expect(run([90, 175])).toMatchObject({ reps: 0, noReps: 0, phase: 'up', lastRep: null });
+    expect(run([120, 175])).toMatchObject({ reps: 0, noReps: 0, phase: 'up', lastRep: null });
+    expect(run([90, 175, 90, 175])).toMatchObject({ reps: 1, noReps: 0, lastRep: { depth: 90 } });
   });
 
   it('accepts the exact standing and depth thresholds', () => {
     const s = run([160, 100, 160]);
     expect(s).toMatchObject({ reps: 1, noReps: 0, phase: 'up' });
-    expect(s.lastDepth).toBeCloseTo(100); // the filter settles to within float rounding
+    expect(s.lastRep?.depth).toBeCloseTo(100); // the filter settles to within float rounding
   });
 
   it('counts a full-depth rep once', () => {
     const s = run([175, 140, 95, 85, 85, 90, 130, 170, 175]);
-    expect(s).toMatchObject({ reps: 1, noReps: 0, phase: 'up', lastDepth: 85 });
+    expect(s).toMatchObject({ reps: 1, noReps: 0, phase: 'up', lastRep: { depth: 85 } });
   });
 
   it('flags a half squat as a no-rep', () => {
     const s = run([175, 150, 120, 150, 170]);
-    expect(s).toMatchObject({ reps: 0, noReps: 1, lastDepth: 120 });
+    expect(s).toMatchObject({ reps: 0, noReps: 1, lastRep: { depth: 120 } });
   });
 
   it('ignores frames without a pose and small wobbles while standing', () => {
@@ -84,7 +85,7 @@ describe('stepSquat', () => {
       [175, 3980, 6000], // last 90° sample was at 2980 ms
     ]);
     expect(s).toMatchObject({ reps: 1, noReps: 0 });
-    expect(s.lastDepth).toBeCloseTo(90);
+    expect(s.lastRep?.depth).toBeCloseTo(90);
   });
 
   it.each([90, 120])('cancels an unfinished %s° attempt after losing tracking', (deg) => {
@@ -100,7 +101,7 @@ describe('stepSquat', () => {
     assert(lastSeenAt !== undefined);
     const lost = stepSquat(previous, null, lastSeenAt + 1001);
     expect(lost).toMatchObject({ reps: 1, noReps: 1, phase: 'waiting', min: 180, lastSeenAt });
-    expect(lost.lastDepth).toBeCloseTo(120);
+    expect(lost.lastRep?.depth).toBeCloseTo(120);
     expect(lost.filter).toBeUndefined();
     // After the filter reset, standing is read immediately and must be held for two samples.
     const back = stepSquat(lost, at(175), lastSeenAt + 1100);
@@ -118,7 +119,7 @@ describe('stepSquat', () => {
       [90, 2066, 4000],
       [175, 5100, 7000],
     ]);
-    expect(resumed).toMatchObject({ reps: 0, noReps: 0, phase: 'up', lastDepth: null });
+    expect(resumed).toMatchObject({ reps: 0, noReps: 0, phase: 'up', lastRep: null });
     expect(
       runTimed(
         [
@@ -138,7 +139,7 @@ describe('stepSquat', () => {
         [NaN, 4500],
         [175, 5100, 7000],
       ]),
-    ).toMatchObject({ reps: 0, noReps: 0, lastDepth: null });
+    ).toMatchObject({ reps: 0, noReps: 0, lastRep: null });
   });
 
   it.each([NaN, Infinity, -Infinity, -1, 181])(
@@ -149,43 +150,18 @@ describe('stepSquat', () => {
       expect(run([175], stepSquat(down, at(invalid)))).toMatchObject({
         reps: 1,
         noReps: 0,
-        lastDepth: 90,
+        lastRep: { depth: 90 },
       });
       expect(run([175, invalid, 120, 175])).toMatchObject({
         reps: 0,
         noReps: 1,
-        lastDepth: 120,
+        lastRep: { depth: 120 },
       });
     },
   );
 });
 
 describe('glitches, hip depth and rep report', () => {
-  type Body = { thigh?: number; shin?: number; lean?: number; knees?: number; side?: boolean };
-  /**
-   * World landmarks (metres, y down, origin at the hips, camera toward −z); image points all in frame.
-   * `thigh` / `shin` tilt from vertical, so the knee angle is 180 − thigh − shin.
-   * `knees`: knee half-width with ankles at 0.1 (valgus ratio = knees / 0.1).
-   */
-  const body = ({ thigh = 0, shin = 0, lean = 0, knees = 0.1, side = false }: Body): Pose => {
-    const rad = Math.PI / 180;
-    const L = 0.45;
-    const world = Array.from({ length: 33 }, (): Point => ({ x: 0, y: 0, z: 0, visibility: 0.9 }));
-    const put = (i: number, x: number, y: number, z: number) => {
-      world[i] = side ? { x: z, y, z: x, visibility: 0.9 } : { x, y, z, visibility: 0.9 };
-    };
-    for (const sign of [-1, 1]) {
-      const [shoulder, hip, knee, ankle] = sign < 0 ? [11, 23, 25, 27] : [12, 24, 26, 28];
-      const ky = L * Math.cos(thigh * rad);
-      const kz = -L * Math.sin(thigh * rad);
-      put(shoulder, sign * 0.18, -0.5 * Math.cos(lean * rad), -0.5 * Math.sin(lean * rad));
-      put(hip, sign * 0.1, 0, 0);
-      put(knee, sign * knees, ky, kz);
-      put(ankle, sign * 0.1, ky + L * Math.cos(shin * rad), kz + L * Math.sin(shin * rad));
-    }
-    const image = world.map((): Point => ({ x: 0.5, y: 0.5, z: 0, visibility: 0.9 }));
-    return { image, world };
-  };
   const standing = measure(body({}));
   const bottom = measure(body({ thigh: 70, shin: 25 })); // 85° knee, hips well down
 
@@ -194,6 +170,10 @@ describe('glitches, hip depth and rep report', () => {
     expect(standing?.hip).toBeCloseTo(1);
     expect(bottom?.hip).toBeCloseTo(Math.cos((70 * Math.PI) / 180));
     expect(measure(body({ lean: 30 }))?.lean).toBeCloseTo(30);
+    // Shoulders above the frame are model guesses, so lean is not measured.
+    const cropped = body({ lean: 30 });
+    cropped.image[11] = { ...cropped.image[11], y: -0.1 };
+    expect(measure(cropped)?.lean).toBe(0);
     expect(measure(body({ knees: 0.06 }))?.valgus).toBeCloseTo(0.6);
     // Side-on, knee width is depth and not trustworthy.
     const side = measure(body({ thigh: 70, shin: 25, side: true }));
@@ -230,8 +210,18 @@ describe('glitches, hip depth and rep report', () => {
       [kneel, 2066, 4000],
       [standing, 4066, 6000],
     ]);
-    expect(s.reps).toBe(0);
-    expect(s.phase).toBe('up');
+    // Not even a no-rep: the voice must stay quiet when you kneel or bend to the phone.
+    expect(s).toMatchObject({ reps: 0, noReps: 0, phase: 'up', lastRep: null });
+  });
+
+  it('still calls a real half squat a no-rep', () => {
+    const half = measure(body({ thigh: 25, shin: 20 })); // 135° knee, hips slightly down
+    const s = play([
+      [standing, 0, 2000],
+      [half, 2066, 4000],
+      [standing, 4066, 6000],
+    ]);
+    expect(s).toMatchObject({ reps: 0, noReps: 1, lastRep: { cues: ['Go deeper'] } });
   });
 
   it('reports a clean rep with no cues', () => {
@@ -375,7 +365,7 @@ describe('kneeAngle', () => {
     expect(run([175, kneeAngle(p), 120, 175])).toMatchObject({
       reps: 0,
       noReps: 1,
-      lastDepth: 120,
+      lastRep: { depth: 120 },
     });
   });
 

@@ -57,7 +57,6 @@ function AndroidSquatTest() {
     reps,
     noReps,
     phase,
-    lastDepth,
     lastRep: rep,
   } = useSelector(
     session,
@@ -65,7 +64,6 @@ function AndroidSquatTest() {
       reps: squat.reps,
       noReps: squat.noReps,
       phase: squat.phase,
-      lastDepth: squat.lastDepth,
       lastRep: squat.lastRep,
     }),
     shallowEqual,
@@ -153,9 +151,6 @@ function AndroidSquatTest() {
           <View className="items-end gap-1 pb-3">
             <Text className="font-mono text-xs tracking-widest text-[#A3A396]">
               {phase.toUpperCase()}
-            </Text>
-            <Text className="font-mono text-xs tracking-widest text-[#A3A396]">
-              LAST DEPTH {lastDepth === null ? '—' : `${Math.round(lastDepth)}°`}
             </Text>
             <Text className="font-mono text-xs tracking-widest text-[#FF6A55]">
               NO-REPS {noReps}
