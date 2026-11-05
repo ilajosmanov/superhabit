@@ -1,3 +1,4 @@
+import type { PoseDetection } from 'superhabit-pose';
 import { describe, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
 
@@ -6,7 +7,9 @@ import { body } from './__fixtures__/body';
 
 const close = vi.fn();
 const speak = vi.fn();
-vi.mock('superhabit-pose', () => ({ createPoseLandmarker: () => ({ close }) }));
+// The fake native detector: the session sets `onResult`, the test calls it like native would.
+const native: { close: typeof close; onResult?: (result: PoseDetection) => void } = { close };
+vi.mock('superhabit-pose', () => ({ createPoseLandmarker: () => native }));
 vi.mock('expo-speech', () => ({ speak, stop: vi.fn() }));
 
 const { squatSession } = await import('./squatSession');
@@ -36,15 +39,18 @@ describe('squatSession', () => {
     actor.stop();
   });
 
-  it('says the count when a rep lands', () => {
-    const actor = createActor(squatSession).start();
+  it('counts and speaks from native results, and hands each frame to the screen', () => {
+    const onPose = vi.fn();
+    const actor = createActor(squatSession, { input: { onPose } }).start();
     const spans: [Pose, number, number][] = [
       [body({}), 0, 2000],
       [body({ thigh: 70, shin: 25 }), 2066, 3500],
       [body({}), 3566, 5000],
     ];
+    let frames = 0;
     for (const [pose, from, to] of spans)
-      for (let t = from; t <= to; t += 66) actor.send({ type: 'pose', result: detection(pose, t) });
+      for (let t = from; t <= to; t += 66, frames++) native.onResult?.(detection(pose, t));
+    expect(onPose).toHaveBeenCalledTimes(frames);
     expect(actor.getSnapshot().context.squat.reps).toBe(1);
     expect(speak).toHaveBeenCalledOnce();
     expect(speak).toHaveBeenCalledWith('1', expect.anything());

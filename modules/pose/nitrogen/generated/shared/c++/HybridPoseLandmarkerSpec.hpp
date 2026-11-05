@@ -19,6 +19,7 @@ namespace margelo::nitro::superhabitpose { struct PoseDetection; }
 namespace margelo::nitro::camera { class HybridFrameSpec; }
 
 #include "PoseDetection.hpp"
+#include <functional>
 #include <optional>
 #include <memory>
 #include <VisionCamera/HybridFrameSpec.hpp>
@@ -50,7 +51,8 @@ namespace margelo::nitro::superhabitpose {
 
     public:
       // Properties
-      virtual std::optional<PoseDetection> getResult() = 0;
+      virtual std::optional<std::function<void(const PoseDetection& /* result */)>> getOnResult() = 0;
+      virtual void setOnResult(const std::optional<std::function<void(const PoseDetection& /* result */)>>& onResult) = 0;
 
     public:
       // Methods

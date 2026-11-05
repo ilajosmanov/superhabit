@@ -17,7 +17,10 @@ namespace margelo::nitro::superhabitpose { struct PoseCameraPoint; }
 namespace margelo::nitro::camera { class HybridFrameSpec; }
 
 #include "PoseDetection.hpp"
+#include <functional>
 #include <optional>
+#include "JFunc_void_PoseDetection.hpp"
+#include <NitroModules/JNICallable.hpp>
 #include "JPoseDetection.hpp"
 #include "PoseLandmark.hpp"
 #include <vector>
@@ -58,10 +61,22 @@ namespace margelo::nitro::superhabitpose {
   }
 
   // Properties
-  std::optional<PoseDetection> JHybridPoseLandmarkerSpec::getResult() {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JPoseDetection>()>("getResult");
+  std::optional<std::function<void(const PoseDetection& /* result */)>> JHybridPoseLandmarkerSpec::getOnResult() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void_PoseDetection::javaobject>()>("getOnResult_cxx");
     auto __result = method(_javaPart);
-    return __result != nullptr ? std::make_optional(__result->toCpp()) : std::nullopt;
+    return __result != nullptr ? std::make_optional([&]() -> std::function<void(const PoseDetection& /* result */)> {
+      if (__result->isInstanceOf(JFunc_void_PoseDetection_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_PoseDetection_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void_PoseDetection, void(PoseDetection)>(std::move(__resultRef));
+      }
+    }()) : std::nullopt;
+  }
+  void JHybridPoseLandmarkerSpec::setOnResult(const std::optional<std::function<void(const PoseDetection& /* result */)>>& onResult) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_PoseDetection::javaobject> /* onResult */)>("setOnResult_cxx");
+    method(_javaPart, onResult.has_value() ? JFunc_void_PoseDetection_cxx::fromCpp(onResult.value()) : nullptr);
   }
 
   // Methods

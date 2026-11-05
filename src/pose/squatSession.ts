@@ -11,11 +11,15 @@ type Events =
   | { type: 'pose'; result: PoseDetection }
   | { type: 'reset' };
 
-type Context = { landmarker: PoseLandmarker | null; squat: SquatState };
+type OnPose = (result: PoseDetection) => void;
+/** `onPose`: per-frame hook for the screen (e.g. drawing joints into a shared value). */
+type Input = { onPose?: OnPose } | undefined;
+type Context = { landmarker: PoseLandmarker | null; squat: SquatState; onPose?: OnPose };
 
-/** Owns the native detector for as long as the session runs. */
+/** Owns the native detector for as long as the session runs; native pushes each result to JS. */
 const landmarker = fromCallback<Events>(({ sendBack }) => {
   const instance = createPoseLandmarker();
+  instance.onResult = (result) => sendBack({ type: 'pose', result });
   sendBack({ type: 'ready', landmarker: instance });
   return () => instance.close();
 });
@@ -23,16 +27,18 @@ const landmarker = fromCallback<Events>(({ sendBack }) => {
 type Actors = { landmarker: typeof landmarker; speech: typeof speech };
 
 /** One squat session: detector and speech lifecycles, plus the rep counter fed by pose results. */
-export const squatSession = setup<Context, Events, Actors>({
+// Positional generics up to TInput (no type assertions allowed): children, actions, guards, delays, tags.
+export const squatSession = setup<Context, Events, Actors, {}, {}, {}, never, string, Input>({
   actors: { landmarker, speech },
 }).createMachine({
-  context: { landmarker: null, squat: initialSquat },
+  context: ({ input }) => ({ landmarker: null, squat: initialSquat, onPose: input?.onPose }),
   invoke: [{ src: 'landmarker' }, { src: 'speech', id: 'speech' }],
   on: {
     ready: { actions: assign({ landmarker: ({ event }) => event.landmarker }) },
     pose: {
       // stepSquat advances a stateful filter, so it runs exactly once per result, never in render.
       actions: enqueueActions(({ context, event, enqueue }) => {
+        context.onPose?.(event.result);
         const pose: Pose = { image: event.result.landmarks, world: event.result.worldLandmarks };
         const prev = context.squat;
         const squat = stepSquat(prev, measure(pose), event.result.timestampMs);

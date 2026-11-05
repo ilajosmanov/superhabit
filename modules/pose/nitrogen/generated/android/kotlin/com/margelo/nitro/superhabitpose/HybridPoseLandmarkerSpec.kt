@@ -27,9 +27,19 @@ import com.margelo.nitro.core.HybridObject
 )
 abstract class HybridPoseLandmarkerSpec: HybridObject() {
   // Properties
-  @get:DoNotStrip
-  @get:Keep
-  abstract val result: PoseDetection?
+  abstract var onResult: ((result: PoseDetection) -> Unit)?
+  
+  private var onResult_cxx: Func_void_PoseDetection?
+    @Keep
+    @DoNotStrip
+    get() {
+      return onResult?.let { Func_void_PoseDetection_java(it) }
+    }
+    @Keep
+    @DoNotStrip
+    set(value) {
+      onResult = value?.let { it }
+    }
 
   // Methods
   @DoNotStrip

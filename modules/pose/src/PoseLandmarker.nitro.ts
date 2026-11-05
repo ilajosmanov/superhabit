@@ -28,8 +28,11 @@ export interface PoseDetection {
 export interface PoseLandmarker extends HybridObject<{ android: 'kotlin' }> {
   /** Run on a camera frame from a VisionCamera frame-processor worklet (pixelFormat 'rgb'). */
   detect(frame: Frame): void;
-  /** One atomic frame snapshot; undefined before detection, after an error, or after close(). */
-  readonly result: PoseDetection | undefined;
+  /**
+   * Called on the JS thread with every detection (empty arrays when no person), straight from native,
+   * so results never cross worklet runtimes. Not called after an error or close().
+   */
+  onResult: ((result: PoseDetection) => void) | undefined;
   /** Terminal, idempotent shutdown. Pending worklet calls safely do nothing after this returns. */
   close(): void;
 }

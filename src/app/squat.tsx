@@ -11,7 +11,6 @@ import {
   useFrameOutput,
   type CameraRef,
 } from 'react-native-vision-camera';
-import { scheduleOnRN } from 'react-native-worklets';
 import type { PoseDetection } from 'superhabit-pose';
 
 import { FRAME_ASPECT } from '@/pose/squat';
@@ -50,7 +49,11 @@ function AndroidSquatTest() {
   const { hasPermission, requestPermission } = useCameraPermission();
   const asyncRunner = useAsyncRunner();
   const camera = useRef<CameraRef>(null);
-  const session = useActorRef(squatSession);
+  // Drawn by Skia on the UI thread straight from this shared value.
+  const dots = useSharedValue<SkPoint[]>([]);
+  const session = useActorRef(squatSession, {
+    input: { onPose: (result) => dots.set(toViewPoints(camera.current, result)) },
+  });
   const landmarker = useSelector(session, (s) => s.context.landmarker);
   // Only discrete counter changes re-render; per-frame data stays out of React state.
   const {
@@ -68,14 +71,6 @@ function AndroidSquatTest() {
     }),
     shallowEqual,
   );
-  // Drawn by Skia on the UI thread straight from this shared value.
-  const dots = useSharedValue<SkPoint[]>([]);
-
-  const onResult = (result: PoseDetection | undefined) => {
-    if (!result) return;
-    session.send({ type: 'pose', result });
-    dots.set(toViewPoints(camera.current, result));
-  };
 
   const frameOutput = useFrameOutput({
     targetResolution: CommonResolutions.VGA_4_3,
@@ -89,19 +84,16 @@ function AndroidSquatTest() {
           accepted = asyncRunner.runAsync(() => {
             'worklet';
             // The runner only clears its busy flag when this task returns normally, so never throw.
+            // Results reach JS through the detector's native onResult callback, not across runtimes.
             try {
-              let detected = true;
               try {
                 landmarker.detect(frame);
               } catch (error) {
-                detected = false;
                 console.error('[squat] frame processing failed', error);
               }
               frame.dispose();
-              // Push each detection to JS instead of polling for it.
-              if (detected) scheduleOnRN(onResult, landmarker.result);
             } catch (error) {
-              console.error('[squat] frame processing failed', error);
+              console.error('[squat] frame dispose failed', error);
             }
           });
         }

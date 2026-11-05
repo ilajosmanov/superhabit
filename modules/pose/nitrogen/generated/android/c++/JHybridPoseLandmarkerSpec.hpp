@@ -50,7 +50,8 @@ namespace margelo::nitro::superhabitpose {
 
   public:
     // Properties
-    std::optional<PoseDetection> getResult() override;
+    std::optional<std::function<void(const PoseDetection& /* result */)>> getOnResult() override;
+    void setOnResult(const std::optional<std::function<void(const PoseDetection& /* result */)>>& onResult) override;
 
   public:
     // Methods

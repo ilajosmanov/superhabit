@@ -16,15 +16,18 @@ import com.margelo.nitro.camera.public.NativeFrame
 class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
   private var landmarker: PoseLandmarker? = null
   private var closed = false
+  private var delegate = Delegate.GPU
 
-  private fun create(): PoseLandmarker {
+  private fun create(delegate: Delegate): PoseLandmarker {
     val context = NitroModules.applicationContext ?: error("React context not ready")
-    val options = PoseLandmarker.PoseLandmarkerOptions.builder()
+    val options = PoseLandmarker.PoseLandmarkerOptions
+      .builder()
       .setBaseOptions(
-        BaseOptions.builder()
+        BaseOptions
+          .builder()
           .setModelAssetPath("pose_landmarker_full.task")
-          .setDelegate(Delegate.CPU) // shortcut: CPU for reliability; try GPU if frame time is too high.
-          .build(),
+          .setDelegate(delegate)
+          .build()
       )
       // VIDEO mode tracks the body between frames (smoother, fewer jumps) and stays synchronous.
       .setRunningMode(RunningMode.VIDEO)
@@ -35,9 +38,8 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
 
   private var lastTimestampMs = 0L
 
-  // Publish both sets and their coordinate mapping together; JS reads without blocking inference.
-  @Volatile private var latestResult: PoseDetection? = null
-  override val result: PoseDetection? get() = latestResult
+  // Nitro hands each call to the JS thread asynchronously, so inference never waits on JS.
+  @Volatile override var onResult: ((result: PoseDetection) -> Unit)? = null
 
   @Synchronized
   override fun detect(frame: HybridFrameSpec) {
@@ -46,47 +48,51 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
     try {
       val proxy = (frame as? NativeFrame)?.image
       if (proxy == null) {
-        latestResult = null
         return warnOnce("frame is not a NativeFrame")
       }
       if (proxy.format != PixelFormat.RGBA_8888) {
-        latestResult = null
         return warnOnce("expected RGBA frames (pixelFormat 'rgb'), got format ${proxy.format}")
       }
       // CameraX timestamps are nanoseconds; VIDEO requires strictly increasing milliseconds.
       val ts = maxOf(proxy.imageInfo.timestamp / 1_000_000, lastTimestampMs + 1)
       lastTimestampMs = ts
-      val detector = landmarker ?: create().also { landmarker = it }
+      val started = System.nanoTime()
+      val detector = landmarker ?: createDetector().also { landmarker = it }
       // CameraX RGBA proxies have no media.Image. MPImage.close() also recycles this Bitmap.
       val detected = BitmapImageBuilder(proxy.toBitmap()).build().use { image ->
         detector.detectForVideo(
           image,
           ImageProcessingOptions.builder().setRotationDegrees(proxy.imageInfo.rotationDegrees).build(),
-          ts,
+          ts
         )
       }
       val pose = detected.landmarks().firstOrNull()
       val world = detected.worldLandmarks().firstOrNull()
-      val landmarks = pose?.map {
-        PoseLandmark(it.x().toDouble(), it.y().toDouble(), it.z().toDouble(), it.visibility().orElse(0f).toDouble())
-      }?.toTypedArray() ?: emptyArray()
-      val worldLandmarks = world?.map {
-        PoseLandmark(it.x().toDouble(), it.y().toDouble(), it.z().toDouble(), it.visibility().orElse(0f).toDouble())
-      }?.toTypedArray() ?: emptyArray()
+      val landmarks = pose
+        ?.map {
+          PoseLandmark(it.x().toDouble(), it.y().toDouble(), it.z().toDouble(), it.visibility().orElse(0f).toDouble())
+        }?.toTypedArray() ?: emptyArray()
+      val worldLandmarks = world
+        ?.map {
+          PoseLandmark(it.x().toDouble(), it.y().toDouble(), it.z().toDouble(), it.visibility().orElse(0f).toDouble())
+        }?.toTypedArray() ?: emptyArray()
       // Rotation options affect inference, but MediaPipe projects results back to the raw bitmap.
       // Sensor coordinates let the preview apply its own rotation, mirroring, crop and letterboxing.
-      val cameraLandmarks = landmarks.map {
-        val point = frame.convertFramePointToCameraPoint(Point(it.x * proxy.width, it.y * proxy.height))
-        PoseCameraPoint(point.x, point.y)
-      }.toTypedArray()
-      latestResult = PoseDetection(
-        timestampMs = ts.toDouble(),
-        landmarks = landmarks,
-        worldLandmarks = worldLandmarks,
-        cameraLandmarks = cameraLandmarks,
+      val cameraLandmarks = landmarks
+        .map {
+          val point = frame.convertFramePointToCameraPoint(Point(it.x * proxy.width, it.y * proxy.height))
+          PoseCameraPoint(point.x, point.y)
+        }.toTypedArray()
+      logSpeed(System.nanoTime() - started)
+      onResult?.invoke(
+        PoseDetection(
+          timestampMs = ts.toDouble(),
+          landmarks = landmarks,
+          worldLandmarks = worldLandmarks,
+          cameraLandmarks = cameraLandmarks
+        )
       )
     } catch (e: Exception) {
-      latestResult = null
       Log.e(TAG, "detect failed", e)
     }
   }
@@ -95,7 +101,7 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
   override fun close() {
     if (closed) return
     closed = true
-    latestResult = null
+    onResult = null
     val detector = landmarker
     landmarker = null
     try {
@@ -108,6 +114,38 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
   override fun dispose() {
     close()
     super.dispose()
+  }
+
+  // GPU is faster and runs cooler over a whole workout; some drivers refuse it, so fall back to CPU.
+  // shortcut: only catches a GPU that fails to start, not one that runs with wrong output; add a
+  // device denylist if field reports show that.
+  private fun createDetector(): PoseLandmarker {
+    val detector = try {
+      create(Delegate.GPU)
+    } catch (e: Exception) {
+      Log.w(TAG, "GPU delegate failed, using CPU", e)
+      delegate = Delegate.CPU
+      create(Delegate.CPU)
+    }
+    Log.i(TAG, "delegate: $delegate")
+    return detector
+  }
+
+  private var windowStart = 0L
+  private var frames = 0
+  private var busyNs = 0L
+
+  // Read with `adb logcat -s PoseLandmarker`: results per second and time per frame (copy + inference).
+  private fun logSpeed(ns: Long) {
+    val now = System.nanoTime()
+    if (frames == 0) windowStart = now - ns
+    frames++
+    busyNs += ns
+    val elapsed = now - windowStart
+    if (elapsed < 5_000_000_000L) return
+    Log.i(TAG, "%.1f fps, %.1f ms/frame (%s)".format(frames * 1e9 / elapsed, busyNs / 1e6 / frames, delegate))
+    frames = 0
+    busyNs = 0L
   }
 
   private var warned = false
