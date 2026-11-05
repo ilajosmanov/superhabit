@@ -51,3 +51,6 @@ modules/*/android/.cxx/
 
 # kotlin-language-server cache
 kls_database.db
+
+# verification evidence (verify-superhabit skill)
+.verify/

@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+# sv: drive the Superhabit Android dev build on a USB phone for verification.
+# Usage: sv <launch|doctor|reload|ui|has|tap|wait|open|shot|log|perm|evidence|cleanup> [args]
+set -euo pipefail
+# No `grep -q` in pipes: it exits early and pipefail turns the writer's SIGPIPE into a failure.
+
+PKG=com.anonymous.superhabit
+SESSION=superhabit-verify
+ROOT=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
+STATE=${XDG_RUNTIME_DIR:-/tmp}/$SESSION
+RUN_ID=${RUN_ID:-$(cat "$STATE/run-id" 2>/dev/null || date +%Y%m%d-%H%M%S)}
+EVIDENCE=$ROOT/.verify/$RUN_ID
+
+die() { echo "sv: $*" >&2; exit 1; }
+say() { echo "sv: $*" >&2; }
+
+device() {
+  local ids
+  ids=$(adb devices | awk 'NR>1 && $2=="device" {print $1}')
+  [ -n "$ids" ] || die "no adb device in state 'device' (plug in the phone, accept USB debugging)"
+  [ "$(wc -l <<<"$ids")" = 1 ] || die "several adb devices; unplug all but the phone (expo's device prompt would pick blindly)"
+  echo "$ids"
+}
+
+locked() { adb shell dumpsys window | grep 'isKeyguardShowing=true' >/dev/null; }
+
+# Metro colours words separately ("Android" and "Bundled"), so strip ANSI codes before matching.
+metro_log() { sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g' "$EVIDENCE/metro.log" 2>/dev/null | tr '\r' '\n'; }
+bundles() { metro_log | grep -c 'Android Bundled' || true; }
+
+metro_pid() { ss -ltnpH 'sport = :8081' 2>/dev/null | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2; }
+
+# True when the Metro listener descends from our tmux pane, i.e. we started it.
+metro_is_ours() {
+  local pid pane
+  pid=$(metro_pid) || return 1
+  [ -n "$pid" ] || return 1
+  pane=$(tmux list-panes -t "$SESSION" -F '#{pane_pid}' 2>/dev/null) || return 1
+  while [ -n "$pid" ] && [ "$pid" -gt 1 ]; do
+    [ "$pid" = "$pane" ] && return 0
+    pid=$(awk '{print $4}' "/proc/$pid/stat" 2>/dev/null) || return 1
+  done
+  return 1
+}
+
+dump() {
+  # uiautomator waits for an idle UI; retry because the live camera preview rarely idles on the first try.
+  local i xml
+  for i in 1 2 3 4 5; do
+    xml=$(adb exec-out uiautomator dump /dev/tty 2>/dev/null | sed 's/UI hierchary dumped to.*//')
+    if grep -q '<hierarchy' <<<"$xml"; then echo "$xml"; return 0; fi
+    sleep 1
+  done
+  die "uiautomator dump failed (screen off, locked, or UI never idle)"
+}
+
+# Prints "x y" for the centre of the first node whose text or content-desc equals $1.
+centre() {
+  dump | python3 -I -c '
+import re, sys, xml.etree.ElementTree as ET
+want = sys.argv[1]
+for n in ET.fromstring(sys.stdin.read()).iter("node"):
+    if want in (n.get("text"), n.get("content-desc")):
+        a, b, c, d = map(int, re.findall(r"\d+", n.get("bounds")))
+        print((a + c) // 2, (b + d) // 2); break
+else:
+    sys.exit(1)
+' "$1"
+}
+
+cmd=${1:-help}; shift || true
+case $cmd in
+  launch)
+    device >/dev/null
+    tmux has-session -t "$SESSION" 2>/dev/null && die "session $SESSION already exists; run 'sv doctor' or 'sv cleanup'"
+    [ -z "$(metro_pid)" ] || die "port 8081 is taken by a Metro this run did not start (pid $(metro_pid)); ask the user before touching it"
+    locked && die "phone is locked; ask the user to unlock it"
+    mkdir -p "$STATE" "$EVIDENCE"
+    echo "$RUN_ID" >"$STATE/run-id"
+    adb shell settings get global stay_on_while_plugged_in >"$STATE/stay-on"
+    adb shell svc power stayon usb
+    adb logcat -c
+    # Metro keeps a real TTY (its r/j keys work via tmux send-keys); pipe-pane copies the output to the log.
+    tmux new-session -d -s "$SESSION" -x 200 -y 50 -c "$ROOT"
+    tmux pipe-pane -t "$SESSION" -o "cat >>'$EVIDENCE/metro.log'"
+    tmux send-keys -t "$SESSION" "vp run android; exit" Enter
+    say "building + installing + starting Metro (first build takes minutes)…"
+    picked=0
+    for _ in $(seq 1 600); do
+      [ "$(bundles)" -gt 0 ] && break
+      # expo asks "Select a device/emulator" even with one device; `device` above guarantees it is ours.
+      if [ $picked = 0 ] && metro_log | grep 'Select a device' >/dev/null; then
+        tmux send-keys -t "$SESSION" Enter; picked=1
+      fi
+      tmux has-session -t "$SESSION" 2>/dev/null || die "vp run android exited; see $EVIDENCE/metro.log"
+      sleep 1
+    done
+    [ "$(bundles)" -gt 0 ] || die "no bundle served within 10 min; see $EVIDENCE/metro.log"
+    "$0" wait 'Hello World' 30 >/dev/null
+    say "ready. run id $RUN_ID, evidence in $EVIDENCE"
+    ;;
+  doctor)
+    ok=1
+    check() { if eval "$2" >/dev/null 2>&1; then echo "ok   $1"; else echo "FAIL $1"; ok=0; fi; }
+    check "one adb device ($(device 2>/dev/null || echo none))" device
+    check "phone unlocked" '! locked'
+    check "tmux session $SESSION exists (we launched)" "tmux has-session -t $SESSION"
+    check "Metro on 8081 is ours" metro_is_ours
+    check "Metro reports packager-status:running" "curl -sf -m 2 localhost:8081/status | grep running"
+    check "adb reverse tcp:8081 set" "adb reverse --list | grep 'tcp:8081 tcp:8081'"
+    check "app process alive" "adb shell pidof $PKG"
+    check "app is the resumed activity" "adb shell dumpsys activity activities | grep topResumedActivity | grep $PKG"
+    echo "run id: $RUN_ID  evidence: $EVIDENCE"
+    [ $ok = 1 ]
+    ;;
+  reload)
+    # Cold start: the app re-fetches the bundle from Metro, so it runs the current source.
+    metro_is_ours || die "Metro is not ours; run 'sv launch' first"
+    n=$(bundles)
+    adb shell am force-stop $PKG
+    adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1 >/dev/null
+    for _ in $(seq 1 60); do [ "$(bundles)" -gt "$n" ] && break; sleep 1; done
+    "$0" wait 'Hello World' 30 >/dev/null
+    say "reloaded from Metro"
+    ;;
+  ui) dump ;;
+  has) dump | grep -F "\"$1\"" >/dev/null ;;
+  tap)
+    xy=$(centre "$1") || die "no node with text/content-desc '$1'"
+    # shellcheck disable=SC2086
+    adb shell input tap $xy
+    ;;
+  wait)
+    t=${2:-15}
+    for _ in $(seq 1 "$t"); do "$0" has "$1" 2>/dev/null && { echo found; exit 0; }; sleep 1; done
+    die "'$1' not on screen after ${t}s"
+    ;;
+  open) adb shell am start -W -a android.intent.action.VIEW -d "superhabit://${1#/}" $PKG >/dev/null ;;
+  shot)
+    out=$EVIDENCE/${1:?usage: sv shot <name>}.png
+    mkdir -p "$(dirname "$out")"; adb exec-out screencap -p >"$out"; echo "$out"
+    ;;
+  log)
+    out=$EVIDENCE/${1:?usage: sv log <name>}.log
+    mkdir -p "$(dirname "$out")"; adb logcat -d -s ReactNativeJS:V >"$out"; echo "$out"
+    ;;
+  perm)
+    # perm revoke|grant: camera permission. launch records the original; cleanup restores it.
+    mkdir -p "$STATE"
+    if [ ! -f "$STATE/camera" ]; then
+      if adb shell dumpsys package $PKG | grep 'CAMERA: granted=true' >/dev/null; then echo grant; else echo revoke; fi >"$STATE/camera"
+    fi
+    adb shell pm "$1" $PKG android.permission.CAMERA
+    ;;
+  evidence) mkdir -p "$EVIDENCE"; echo "$EVIDENCE" ;;
+  cleanup)
+    tmux kill-session -t "$SESSION" 2>/dev/null && say "stopped Metro (tmux $SESSION)" || true
+    [ -f "$STATE/camera" ] && adb shell pm "$(cat "$STATE/camera")" $PKG android.permission.CAMERA && say "camera permission restored"
+    if [ -f "$STATE/stay-on" ]; then
+      v=$(cat "$STATE/stay-on"); [ "$v" = 0 ] && adb shell svc power stayon false || adb shell settings put global stay_on_while_plugged_in "$v"
+    fi
+    rm -rf "$STATE"
+    say "evidence kept in $EVIDENCE"
+    ;;
+  *) sed -n '2,3p' "$0"; exit 1 ;;
+esac
