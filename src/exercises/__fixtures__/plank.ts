@@ -1,5 +1,8 @@
 // Synthetic side-on push-up poses for tests.
-import type { Point, Pose } from '../geometry';
+import type { PoseLandmark } from 'superhabit-pose';
+import { Joint } from 'superhabit-pose/joints';
+
+import type { Pose } from '../geometry';
 
 type Plank = {
   /** Elbow angle, deg: 180 = arms straight. Standing: the forearm curls forward. */
@@ -66,14 +69,41 @@ export const plank = ({
     }
   }
 
-  const world = Array.from({ length: 33 }, (): Point => ({ x: 0, y: 0, z: 0, visibility: 0.9 }));
-  const image = world.map((): Point => ({ x: 0.5, y: 0.5, z: 0, visibility: 0.9 }));
+  const world = Array.from({ length: 33 }, (): PoseLandmark => ({
+    x: 0,
+    y: 0,
+    z: 0,
+    visibility: 0.9,
+  }));
+  const image = world.map((): PoseLandmark => ({ x: 0.5, y: 0.5, z: 0, visibility: 0.9 }));
   // Straight legs: the knee sits halfway between hip and ankle.
   knee ??= [(hip[0] + ankle[0]) / 2, (hip[1] + ankle[1]) / 2];
   const joints = [shoulder, el, wrist, hip, knee, ankle];
   const sides = [
-    { ids: [11, 13, 15, 23, 25, 27], z: 0, seen: visible !== 'right' },
-    { ids: [12, 14, 16, 24, 26, 28], z: -0.36, seen: visible !== 'left' },
+    {
+      ids: [
+        Joint.LEFT_SHOULDER,
+        Joint.LEFT_ELBOW,
+        Joint.LEFT_WRIST,
+        Joint.LEFT_HIP,
+        Joint.LEFT_KNEE,
+        Joint.LEFT_ANKLE,
+      ],
+      z: 0,
+      seen: visible !== 'right',
+    },
+    {
+      ids: [
+        Joint.RIGHT_SHOULDER,
+        Joint.RIGHT_ELBOW,
+        Joint.RIGHT_WRIST,
+        Joint.RIGHT_HIP,
+        Joint.RIGHT_KNEE,
+        Joint.RIGHT_ANKLE,
+      ],
+      z: -0.36,
+      seen: visible !== 'left',
+    },
   ];
   for (const { ids, z, seen } of sides)
     ids.forEach((i, j) => {
@@ -82,5 +112,5 @@ export const plank = ({
       world[i] = { x, y, z, visibility };
       image[i] = { x: 0.2 + x * 0.5, y: 0.8 + y * 0.4, z: 0, visibility };
     });
-  return { image, world };
+  return { landmarks: image, worldLandmarks: world };
 };

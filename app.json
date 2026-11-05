@@ -21,7 +21,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.superhabit",
+      "package": "com.ilajosmanov.superhabit",
       "permissions": ["android.permission.CAMERA"]
     },
     "web": {
@@ -33,7 +33,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#0d0e0b",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }

@@ -1,7 +1,7 @@
 import * as Speech from 'expo-speech';
 import { fromCallback } from 'xstate';
 
-export type SayEvent = { type: 'say'; text: string };
+type SayEvent = { type: 'say'; text: string };
 
 /** Speaks each `say` event, cutting off the previous phrase; goes silent when the actor stops. */
 export const speech = fromCallback<SayEvent>(({ receive }) => {

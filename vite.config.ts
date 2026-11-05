@@ -44,8 +44,8 @@ export default defineConfig({
     },
     overrides: [
       {
-        // Screens compose state; lifecycles live in XState actors, per-frame data in shared values.
-        files: ['src/app/**'],
+        // Screens and components compose state; lifecycles live in XState actors, per-frame data in shared values.
+        files: ['src/app/**', 'src/components/**'],
         rules: {
           'no-restricted-imports': [
             'error',

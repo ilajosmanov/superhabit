@@ -2,30 +2,44 @@
 // Every measure is a 3D angle between joints, so it does not depend on how the phone lies.
 // shortcut: no gravity check, so "push-ups in the air" standing with arms forward would count;
 // add an accelerometer gravity vector if that shows up on device.
-import { OneEuroFilter } from '1eurofilter';
+import { Joint } from 'superhabit-pose/joints';
 
 import { angle, inFrame, type Pose } from './geometry';
+import { expire, hold, initialRepState, timing, type RepState } from './rep-counter';
 
 // [shoulder, elbow, wrist, hip, knee, ankle]. Side-on, the far arm is often hidden, so only the better-seen side is used.
 const SIDES = [
-  [11, 13, 15, 23, 25, 27], // left
-  [12, 14, 16, 24, 26, 28], // right
+  [
+    Joint.LEFT_SHOULDER,
+    Joint.LEFT_ELBOW,
+    Joint.LEFT_WRIST,
+    Joint.LEFT_HIP,
+    Joint.LEFT_KNEE,
+    Joint.LEFT_ANKLE,
+  ],
+  [
+    Joint.RIGHT_SHOULDER,
+    Joint.RIGHT_ELBOW,
+    Joint.RIGHT_WRIST,
+    Joint.RIGHT_HIP,
+    Joint.RIGHT_KNEE,
+    Joint.RIGHT_ANKLE,
+  ],
 ] as const;
 
 // Starting guesses; tune on device.
-export const PUSHUP_DOWN = 90; // elbow at or below = deep enough
-export const PUSHUP_UP = 150; // elbow at or above = arms straight (soft lockouts read ~160)
-export const PUSHUP_SHALLOW = 120; // bent past this without reaching DOWN = no-rep
-export const BODY_MIN = 150; // shoulder–hip–ankle below this = sagging, piked or kneeling: not a push-up
-export const REACH_MIN = 40; // hip–shoulder–wrist below this = arms by the sides (standing), not a plank
+const PUSHUP_DOWN = 90; // elbow at or below = deep enough
+const PUSHUP_UP = 150; // elbow at or above = arms straight (soft lockouts read ~160)
+const PUSHUP_SHALLOW = 120; // bent past this without reaching DOWN = no-rep
+const BODY_MIN = 150; // shoulder–hip–ankle below this = sagging, piked or kneeling: not a push-up
+const REACH_MIN = 40; // hip–shoulder–wrist below this = arms by the sides (standing), not a plank
 // Knee height above the wrist, in forearm lengths, at the top: ~0.5–0.8 on the toes, ~0–0.2 on the knees.
-export const KNEES_MIN = 0.35;
-export const PUSHUP_TRACKING_TIMEOUT_MS = 1000;
+const KNEES_MIN = 0.35;
 const CUE_BODY = 165; // counted, but still worth a cue
 const CUE_FAST_MS = 600;
 
 /** One frame, better-seen side only. Degrees. */
-export type PushupSample = {
+type PushupSample = {
   /** shoulder–elbow–wrist: ~170 at the top, ~70–90 at the bottom. */
   elbow: number;
   /** shoulder–hip–ankle (shoulder–hip–knee when the heels are out of view): 180 = straight body. */
@@ -40,7 +54,10 @@ export type PushupSample = {
 };
 
 /** Null unless the better-seen arm, hip and knee or ankle are in frame and every angle is finite. */
-export function measurePushup({ image, world }: Pose): PushupSample | null {
+export function measurePushup({
+  landmarks: image,
+  worldLandmarks: world,
+}: Pose): PushupSample | null {
   const ok = (i: number) => inFrame(image[i]) && !!world[i];
   const seen = (side: readonly number[]) =>
     Math.min(...side.slice(0, 5).map((i) => image[i]?.visibility ?? 0));
@@ -61,7 +78,7 @@ export function measurePushup({ image, world }: Pose): PushupSample | null {
   return Object.values(sample).every(Number.isFinite) ? sample : null;
 }
 
-export type PushupReport = {
+type PushupReport = {
   counted: boolean;
   depth: number; // min smoothed elbow angle
   body: number; // lowest body line over the attempt
@@ -72,30 +89,12 @@ export type PushupReport = {
 
 type Attempt = { body: number; startAt?: number; bottomAt?: number };
 
-export type PushupState = {
-  reps: number;
-  noReps: number;
-  /** 'waiting' = not yet seen in a plank top; nothing counts. */
-  phase: 'waiting' | 'up' | 'down';
-  min: number; // lowest held elbow angle since the last top
-  lastRep: PushupReport | null;
-  lastSeenAt?: number;
-  // Mutable and stateful: call stepPushup once per sample and never replay an old state.
-  filter?: OneEuroFilter;
-  prev?: number;
-  attempt: Attempt;
-};
+/** Tracks the elbow angle; 'waiting' until seen in a plank top. */
+export type PushupState = RepState<Attempt, PushupReport>;
 
 const fresh = (at?: number): Attempt => ({ body: 180, startAt: at });
 
-export const initialPushup: PushupState = {
-  reps: 0,
-  noReps: 0,
-  phase: 'waiting',
-  min: 180,
-  lastRep: null,
-  attempt: fresh(),
-};
+export const initialPushup: PushupState = initialRepState(fresh());
 
 function report(
   a: Attempt,
@@ -104,9 +103,7 @@ function report(
   nowMs?: number,
   kneeling = false,
 ): PushupReport {
-  const downMs =
-    a.bottomAt !== undefined && a.startAt !== undefined ? a.bottomAt - a.startAt : null;
-  const upMs = nowMs !== undefined && a.bottomAt !== undefined ? nowMs - a.bottomAt : null;
+  const { downMs, upMs, fast } = timing(a, nowMs, CUE_FAST_MS);
   const cues = [
     !counted &&
       (kneeling
@@ -115,13 +112,10 @@ function report(
           ? 'Keep your body straight'
           : 'Go lower'),
     counted && a.body < CUE_BODY && 'Keep your body straight',
-    downMs !== null && upMs !== null && downMs + upMs < CUE_FAST_MS && 'Slow down',
+    fast && 'Slow down',
   ].filter((c): c is string => !!c);
   return { counted, depth, body: a.body, downMs, upMs, cues };
 }
-
-// Same filter settings as squats (degrees, ~15–30 Hz).
-const newFilter = () => new OneEuroFilter(15, 1, 0.01);
 
 /**
  * Same cycle as stepSquat, on the smoothed elbow angle: plank top -> elbows <= DOWN with a
@@ -132,21 +126,11 @@ export function stepPushup(
   sample: PushupSample | null,
   nowMs?: number,
 ): PushupState {
-  if (
-    nowMs !== undefined &&
-    s.lastSeenAt !== undefined &&
-    nowMs - s.lastSeenAt > PUSHUP_TRACKING_TIMEOUT_MS &&
-    (s.phase !== 'waiting' || s.filter)
-  ) {
-    s = { ...s, phase: 'waiting', min: 180, filter: undefined, prev: undefined };
-  }
-  if (!sample || !Number.isFinite(sample.elbow) || sample.elbow < 0 || sample.elbow > 180) return s;
-  const filter = s.filter ?? newFilter();
-  const deg = filter.filter(sample.elbow, nowMs === undefined ? undefined : nowMs / 1000);
-  // A threshold only counts once two consecutive samples are past it (NaN: no previous sample yet).
-  const low = Math.max(deg, s.prev ?? NaN);
-  const high = Math.min(deg, s.prev ?? NaN);
-  s = { ...s, filter, prev: deg, lastSeenAt: nowMs ?? s.lastSeenAt };
+  s = expire(s, nowMs);
+  const held = sample && hold(s, sample.elbow, nowMs);
+  if (!sample || !held) return s;
+  const { low, high } = held;
+  s = held.s;
   const kneeling = sample.knees < KNEES_MIN;
   const plank = sample.body >= BODY_MIN && sample.reach >= REACH_MIN && !kneeling;
   if (s.phase === 'waiting')

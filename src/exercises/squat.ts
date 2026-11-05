@@ -1,18 +1,19 @@
 // Squat rep counter on MediaPipe Pose Landmarker output (33 joints, MediaPipe order).
-import { OneEuroFilter } from '1eurofilter';
+import type { PoseLandmark } from 'superhabit-pose';
+import { Joint } from 'superhabit-pose/joints';
 
-import { angle, inFrame, type Point, type Pose } from './geometry';
+import { angle, inFrame, type Pose } from './geometry';
+import { expire, hold, initialRepState, timing, type RepState } from './rep-counter';
 
 const MAX_ASYMMETRY = 35; // degrees between left and right knee
 const LEGS = [
-  [23, 25, 27], // left hip, knee, ankle
-  [24, 26, 28], // right
+  [Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE],
+  [Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE],
 ] as const;
 
-export const DOWN = 100; // knee angle at or below this = deep enough
-export const UP = 160; // back to standing
-export const SHALLOW = 140; // went this low without reaching DOWN = no-rep
-export const TRACKING_TIMEOUT_MS = 1000; // tolerate brief dropouts, but require standing after losing tracking
+const DOWN = 100; // knee angle at or below this = deep enough
+const UP = 160; // back to standing
+const SHALLOW = 140; // went this low without reaching DOWN = no-rep
 
 /**
  * Knee angle of the straighter leg: a squat bends both knees, so a single-leg
@@ -24,7 +25,7 @@ export function kneeAngle(pose: Pose): number | null {
 }
 
 /** [left, right] 3D knee angles, or null unless both legs are fully in frame and agree. */
-export function legAngles({ image, world }: Pose): [number, number] | null {
+function legAngles({ landmarks: image, worldLandmarks: world }: Pose): [number, number] | null {
   const out: number[] = [];
   for (const [h, k, a] of LEGS) {
     if (![image[h], image[k], image[a]].every(inFrame)) return null;
@@ -39,12 +40,12 @@ export function legAngles({ image, world }: Pose): [number, number] | null {
   return [out[0], out[1]];
 }
 
-const mid = (a: Point, b: Point) => ({
+const mid = (a: PoseLandmark, b: PoseLandmark) => ({
   x: (a.x + b.x) / 2,
   y: (a.y + b.y) / 2,
   z: (a.z + b.z) / 2,
 });
-const dist = (a: Point | ReturnType<typeof mid>, b: Point | ReturnType<typeof mid>) =>
+const dist = (a: PoseLandmark | ReturnType<typeof mid>, b: PoseLandmark | ReturnType<typeof mid>) =>
   Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 
 /** One frame's measurements; `hip` and `lean` come from world landmarks (metres, y down). */
@@ -61,37 +62,47 @@ export type Sample = {
 export function measure(pose: Pose): Sample | null {
   const legs = legAngles(pose);
   if (!legs) return null;
-  const w = pose.world;
-  const hips = mid(w[23], w[24]);
-  const knees = mid(w[25], w[26]);
+  const w = pose.worldLandmarks;
+  const hips = mid(w[Joint.LEFT_HIP], w[Joint.RIGHT_HIP]);
+  const knees = mid(w[Joint.LEFT_KNEE], w[Joint.RIGHT_KNEE]);
   // Thigh-relative hip drop is scale-free and, in 3D, the same seen from the front or the side;
   // a shoulder–ankle ratio would also move with torso lean.
-  const thigh = (dist(w[23], w[25]) + dist(w[24], w[26])) / 2;
+  const thigh =
+    (dist(w[Joint.LEFT_HIP], w[Joint.LEFT_KNEE]) + dist(w[Joint.RIGHT_HIP], w[Joint.RIGHT_KNEE])) /
+    2;
   // Off-frame shoulders are guesses; without them lean reads 0 (hips == shoulders).
-  const seen = [11, 12].every((i) => inFrame(pose.image[i]));
-  const shoulders = seen && w[11] && w[12] ? mid(w[11], w[12]) : hips;
+  const seen = [Joint.LEFT_SHOULDER, Joint.RIGHT_SHOULDER].every((i) => inFrame(pose.landmarks[i]));
+  const shoulders =
+    seen && w[Joint.LEFT_SHOULDER] && w[Joint.RIGHT_SHOULDER]
+      ? mid(w[Joint.LEFT_SHOULDER], w[Joint.RIGHT_SHOULDER])
+      : hips;
   const lean = (Math.acos((hips.y - shoulders.y) / dist(hips, shoulders)) * 180) / Math.PI;
   // Hips spread along x more than depth means the body faces the camera.
-  const front = Math.abs(w[24].x - w[23].x) > Math.abs(w[24].z - w[23].z);
+  const front =
+    Math.abs(w[Joint.RIGHT_HIP].x - w[Joint.LEFT_HIP].x) >
+    Math.abs(w[Joint.RIGHT_HIP].z - w[Joint.LEFT_HIP].z);
   return {
     legs,
     hip: (knees.y - hips.y) / thigh,
     lean: Number.isFinite(lean) ? lean : 0,
-    valgus: front ? Math.abs(w[26].x - w[25].x) / Math.abs(w[28].x - w[27].x) : null,
+    valgus: front
+      ? Math.abs(w[Joint.RIGHT_KNEE].x - w[Joint.LEFT_KNEE].x) /
+        Math.abs(w[Joint.RIGHT_ANKLE].x - w[Joint.LEFT_ANKLE].x)
+      : null,
   };
 }
 
-export const HIP_BOTTOM = 0.7; // hip ratio at or below this = the hips really dropped (thigh ≥ ~45° from vertical)
+const HIP_BOTTOM = 0.7; // hip ratio at or below this = the hips really dropped (thigh ≥ ~45° from vertical)
 // A shallow attempt only counts as a no-rep once the hips started to drop (thigh ≥ ~18°), so kneeling
 // or bending to the phone stays silent. A real 140° half squat reads ~0.92; tune on device.
-export const HIP_STARTED = 0.95;
+const HIP_STARTED = 0.95;
 // Starting values from FormCheck / LearnOpenCV / SquatCoachAI write-ups; tune on device.
 const CUE_SYMMETRY = 10; // deg mean |L−R|
 const CUE_FAST_MS = 800; // full rep
 const CUE_LEAN = 45; // deg
 const CUE_VALGUS = 0.8; // knee width / ankle width
 
-export type RepReport = {
+type RepReport = {
   counted: boolean;
   depth: number; // min smoothed knee angle
   symmetry: number; // mean |L−R| knee angle over the attempt, deg
@@ -112,18 +123,8 @@ type Attempt = {
   bottomAt?: number;
 };
 
-export type SquatState = {
-  reps: number;
-  noReps: number;
-  phase: 'waiting' | 'up' | 'down';
-  min: number; // lowest held knee angle since last standing
-  lastRep: RepReport | null;
-  lastSeenAt?: number; // monotonic time of the last valid angle, when supplied by the caller
-  // Mutable and stateful: call stepSquat once per sample and never replay an old state.
-  filter?: OneEuroFilter;
-  prev?: number; // previous smoothed angle, for the two-sample hold
-  attempt: Attempt;
-};
+/** Tracks the knee angle of the straighter leg. */
+export type SquatState = RepState<Attempt, RepReport>;
 
 const fresh = (at?: number): Attempt => ({
   hip: Infinity,
@@ -134,51 +135,27 @@ const fresh = (at?: number): Attempt => ({
   startAt: at,
 });
 
-export const initialSquat: SquatState = {
-  reps: 0,
-  noReps: 0,
-  phase: 'waiting',
-  min: 180,
-  lastRep: null,
-  attempt: fresh(),
-};
+export const initialSquat: SquatState = initialRepState(fresh());
 
 function report(a: Attempt, depth: number, counted: boolean, nowMs?: number): RepReport {
-  const downMs =
-    a.bottomAt !== undefined && a.startAt !== undefined ? a.bottomAt - a.startAt : null;
-  const upMs = nowMs !== undefined && a.bottomAt !== undefined ? nowMs - a.bottomAt : null;
+  const { downMs, upMs, fast } = timing(a, nowMs, CUE_FAST_MS);
   const symmetry = a.n ? a.sym / a.n : 0;
   const cues = [
     !counted && 'Go deeper',
     symmetry > CUE_SYMMETRY && 'Even out your legs',
     a.lean > CUE_LEAN && 'Chest up',
     a.valgus !== null && a.valgus < CUE_VALGUS && 'Knees out',
-    downMs !== null && upMs !== null && downMs + upMs < CUE_FAST_MS && 'Slow down',
+    fast && 'Slow down',
   ].filter((c): c is string => !!c);
   return { counted, depth, symmetry, downMs, upMs, lean: a.lean, valgus: a.valgus, cues };
 }
 
-// Input at detector speed (~15–30 Hz); the filter uses real timestamps. 1 Hz min cutoff + small beta (angle units are degrees, so speeds reach ~200°/s):
-// a one-frame spike is cut to under half, while a real 1 s rep loses only a few degrees of depth.
-const newFilter = () => new OneEuroFilter(15, 1, 0.01);
-
 export function stepSquat(s: SquatState, sample: Sample | null, nowMs?: number): SquatState {
-  if (
-    nowMs !== undefined &&
-    s.lastSeenAt !== undefined &&
-    nowMs - s.lastSeenAt > TRACKING_TIMEOUT_MS &&
-    (s.phase !== 'waiting' || s.filter)
-  ) {
-    s = { ...s, phase: 'waiting', min: 180, filter: undefined, prev: undefined };
-  }
-  const raw = sample && Math.max(...sample.legs);
-  if (!sample || raw === null || !Number.isFinite(raw) || raw < 0 || raw > 180) return s;
-  const filter = s.filter ?? newFilter();
-  const deg = filter.filter(raw, nowMs === undefined ? undefined : nowMs / 1000);
-  // A threshold only counts once two consecutive samples are past it (NaN: no previous sample yet).
-  const low = Math.max(deg, s.prev ?? NaN);
-  const high = Math.min(deg, s.prev ?? NaN);
-  s = { ...s, filter, prev: deg, lastSeenAt: nowMs ?? s.lastSeenAt };
+  s = expire(s, nowMs);
+  const held = sample && hold(s, Math.max(...sample.legs), nowMs);
+  if (!sample || !held) return s;
+  const { low, high } = held;
+  s = held.s;
   // Starting or resetting while crouched must not credit only the ascent as a full rep.
   if (s.phase === 'waiting')
     return high >= UP ? { ...s, phase: 'up', min: 180, attempt: fresh(nowMs) } : s;

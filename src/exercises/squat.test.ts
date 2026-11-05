@@ -1,7 +1,9 @@
+import type { PoseLandmark } from 'superhabit-pose';
 import { assert, describe, expect, it } from 'vite-plus/test';
+import { Joint } from 'superhabit-pose/joints';
 
 import { initialSquat, kneeAngle, measure, stepSquat, type Sample, type SquatState } from './squat';
-import type { Point, Pose } from './geometry';
+import type { Pose } from './geometry';
 import { body } from './__fixtures__/body';
 
 // A knee-only sample with the hips dropped, so these tests exercise the knee state machine.
@@ -164,7 +166,7 @@ describe('glitches, hip depth and rep report', () => {
     expect(measure(body({ lean: 30 }))?.lean).toBeCloseTo(30);
     // Shoulders above the frame are model guesses, so lean is not measured.
     const cropped = body({ lean: 30 });
-    cropped.image[11] = { ...cropped.image[11], y: -0.1 };
+    cropped.landmarks[Joint.LEFT_SHOULDER] = { ...cropped.landmarks[Joint.LEFT_SHOULDER], y: -0.1 };
     expect(measure(cropped)?.lean).toBe(0);
     expect(measure(body({ knees: 0.06 }))?.valgus).toBeCloseTo(0.6);
     // Side-on, knee width is depth and not trustworthy.
@@ -292,7 +294,7 @@ describe('kneeAngle', () => {
   // Image and world points share coordinates here; only the angle maths uses `world`.
   const pose = (left: Leg, right: Leg, vis = 0.9): Pose => {
     const make = () =>
-      Array.from({ length: 33 }, (): Point => ({ x: 0.5, y: 0.5, z: 0, visibility: vis }));
+      Array.from({ length: 33 }, (): PoseLandmark => ({ x: 0.5, y: 0.5, z: 0, visibility: vis }));
     const image = make();
     const world = make();
     const put = (idx: number[], leg: Leg) =>
@@ -301,9 +303,9 @@ describe('kneeAngle', () => {
         image[i] = { x, y, z: 0, visibility: vis };
         world[i] = { x, y, z, visibility: vis };
       });
-    put([23, 25, 27], left);
-    put([24, 26, 28], right);
-    return { image, world };
+    put([Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE], left);
+    put([Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE], right);
+    return { landmarks: image, worldLandmarks: world };
   };
 
   it('reads straight legs as ~180°', () => {
@@ -354,7 +356,7 @@ describe('kneeAngle', () => {
 
   it('uses image visibility, not optional world-landmark visibility, to accept joints', () => {
     const p = pose(bentTowardCamera, bentTowardCamera);
-    p.world.forEach((point) => {
+    p.worldLandmarks.forEach((point) => {
       point.visibility = 0;
     });
     expect(kneeAngle(p)).toBeCloseTo(90);
@@ -362,7 +364,7 @@ describe('kneeAngle', () => {
 
   it('returns null for coincident world joints without corrupting the next attempt', () => {
     const p = pose(straight, straight);
-    p.world[23] = { ...p.world[25] };
+    p.worldLandmarks[Joint.LEFT_HIP] = { ...p.worldLandmarks[Joint.LEFT_KNEE] };
     expect(kneeAngle(p)).toBeNull();
     expect(run([175, kneeAngle(p), 120, 175])).toMatchObject({
       reps: 0,
@@ -373,7 +375,7 @@ describe('kneeAngle', () => {
 
   it.each([NaN, Infinity, -Infinity])('returns null for invalid world coordinates (%s)', (x) => {
     const p = pose(straight, straight);
-    p.world[23].x = x;
+    p.worldLandmarks[Joint.LEFT_HIP].x = x;
     expect(kneeAngle(p)).toBeNull();
   });
 

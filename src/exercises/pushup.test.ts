@@ -1,4 +1,5 @@
 import { assert, describe, expect, it } from 'vite-plus/test';
+import { Joint } from 'superhabit-pose/joints';
 
 import { initialPushup, measurePushup, stepPushup, type PushupState } from './pushup';
 import type { Pose } from './geometry';
@@ -14,7 +15,7 @@ const play = (spans: [Pose | null, from: number, to?: number][], start = initial
   }, start);
 // The camera loses the near ankle (low on the floor, or past the frame edge).
 const heelsOut = (pose: Pose): Pose => {
-  pose.image[27] = { ...pose.image[27], visibility: 0.2 };
+  pose.landmarks[Joint.LEFT_ANKLE] = { ...pose.landmarks[Joint.LEFT_ANKLE], visibility: 0.2 };
   return pose;
 };
 // Top, bottom, top, 1.5 s each.
@@ -39,13 +40,13 @@ describe('measurePushup', () => {
 
   it('measures the other side when the better-seen knee is hidden', () => {
     const pose = plank({ elbow: 80, visible: 'both' });
-    pose.image[25] = { ...pose.image[25], visibility: 0.1 };
+    pose.landmarks[Joint.LEFT_KNEE] = { ...pose.landmarks[Joint.LEFT_KNEE], visibility: 0.1 };
     expect(measurePushup(pose)?.elbow).toBeCloseTo(80);
   });
 
   it('is null when the seen arm leaves the frame', () => {
     const cropped = plank({});
-    cropped.image[15] = { ...cropped.image[15], x: 1.1 };
+    cropped.landmarks[Joint.LEFT_WRIST] = { ...cropped.landmarks[Joint.LEFT_WRIST], x: 1.1 };
     expect(measurePushup(cropped)).toBeNull();
   });
 

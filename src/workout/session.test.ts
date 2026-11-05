@@ -2,10 +2,10 @@ import type { PoseDetection } from 'superhabit-pose';
 import { describe, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
 
-import type { Challenge } from './exercises';
-import type { Pose } from './geometry';
-import { body } from './__fixtures__/body';
-import { plank } from './__fixtures__/plank';
+import type { Challenge } from './challenges';
+import type { Pose } from '@/exercises/registry';
+import { body } from '@/exercises/__fixtures__/body';
+import { plank } from '@/exercises/__fixtures__/plank';
 
 const speak = vi.fn();
 const lockAsync = vi.fn(async () => {});
@@ -28,18 +28,18 @@ let clock = 0;
 let frames = 0;
 // Holds each pose 1.5 s at detector speed, continuing the clock across calls.
 const play = (...poses: Pose[]) => {
-  for (const { image, world } of poses)
+  for (const pose of poses)
     for (const end = clock + 1500; clock <= end; clock += 66, frames++)
       native.onResult?.({
         timestampMs: clock,
-        landmarks: image,
-        worldLandmarks: world,
+        ...pose,
         cameraLandmarks: [],
       });
 };
 const squat = () => play(body({}), body({ thigh: 70, shin: 25 }), body({}));
 const pushup = () => play(plank({ elbow: 170 }), plank({ elbow: 80 }), plank({ elbow: 170 }));
 
+const squatTest: Challenge = { name: 'Squat test', sets: [{ exercise: 'squat', reps: Infinity }] };
 const challenge: Challenge = {
   name: 't',
   sets: [
@@ -50,7 +50,7 @@ const challenge: Challenge = {
 
 describe('workoutSession', () => {
   it('opens the detector on start and closes it on stop', () => {
-    const actor = createActor(workoutSession).start();
+    const actor = createActor(workoutSession, { input: { challenge } }).start();
     expect(actor.getSnapshot().context.landmarker).toBe(native);
     actor.stop();
     expect(native.close).toHaveBeenCalledOnce();
@@ -122,7 +122,7 @@ describe('workoutSession', () => {
 
   it('keeps the squat test open-ended, speaks each rep and hands every frame to the screen', () => {
     const onPose = vi.fn();
-    const actor = createActor(workoutSession, { input: { onPose } }).start();
+    const actor = createActor(workoutSession, { input: { challenge: squatTest, onPose } }).start();
     frames = 0;
     squat();
     squat();

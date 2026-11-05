@@ -8,14 +8,14 @@ import { speech } from '@/feedback/speech';
 import {
   EXERCISES,
   initialCounters,
-  squatTest,
-  type Challenge,
   type Counters,
   type Exercise,
   type ExerciseId,
+  type Pose,
   type Tally,
-} from './exercises';
-import type { Pose } from './geometry';
+} from '@/exercises/registry';
+
+import type { Challenge } from './challenges';
 
 type Events =
   | { type: 'ready'; landmarker: PoseLandmarker }
@@ -24,8 +24,7 @@ type Events =
   | { type: 'next' }; // counting: end the set now; switching: the phone is in place, start the next set
 
 type OnPose = (result: PoseDetection) => void;
-/** The challenge defaults to the squat test. */
-type Input = { challenge?: Challenge; onPose?: OnPose } | undefined;
+type Input = { challenge: Challenge; onPose?: OnPose };
 type Orientation = Exercise<Tally>['orientation'];
 
 /** One counter per exercise at the top level. `set` indexes `challenge.sets`; during switching it is still the finished set. */
@@ -94,8 +93,8 @@ export const workoutSession = setup<Context, Events, Actors, {}, {}, {}, never, 
   context: ({ input }) => ({
     ...initialCounters,
     landmarker: null,
-    onPose: input?.onPose,
-    challenge: input?.challenge ?? squatTest,
+    onPose: input.onPose,
+    challenge: input.challenge,
     set: 0,
   }),
   invoke: [
@@ -112,22 +111,21 @@ export const workoutSession = setup<Context, Events, Actors, {}, {}, {}, never, 
     counting: {
       on: {
         pose: {
-          // Counters advance a stateful filter, so each steps exactly once per result, never in render.
+          // Each result steps the current counter once, here; context is the only record of the count.
           actions: enqueueActions(({ context, event, enqueue }) => {
             context.onPose?.(event.result);
             const { exercise: id, reps: target } = current(context);
-            const pose: Pose = {
-              image: event.result.landmarks,
-              world: event.result.worldLandmarks,
-            };
             const prev: Tally = context[id];
-            const { next, patch } = stepCounter(context, id, pose, event.result.timestampMs);
+            const { next, patch } = stepCounter(
+              context,
+              id,
+              event.result,
+              event.result.timestampMs,
+            );
             enqueue.assign(patch);
             // The set's last rep is announced by `ending` instead.
             const text = next.reps < target && repPhrase(prev, next, next.lastRep?.cues);
             if (text) enqueue(sendTo('speech', { type: 'say', text }));
-            // Debug: read with `adb logcat -s ReactNativeJS`.
-            if (prev.phase !== 'down' && next.phase === 'down') console.log(`[${id}] DOWN`);
           }),
         },
         reset: { actions: assign(initialCounters) },
@@ -159,6 +157,8 @@ export const workoutSession = setup<Context, Events, Actors, {}, {}, {}, never, 
           target: 'counting',
           // Rotate only now: the between-sets prompt stays in the finished set's orientation.
           actions: [
+            // shortcut: advancing discards completed set results; capture them separately from live
+            // counters before adding a challenge summary, workout history or progress tracking.
             assign(({ context }) => ({ ...initialCounters, set: context.set + 1 })),
             sendTo('orientation', ({ context }) => ({
               type: 'lock',
@@ -173,7 +173,7 @@ export const workoutSession = setup<Context, Events, Actors, {}, {}, {}, never, 
 });
 
 /** What the screen renders. Hides the keyed counters and per-exercise report types. */
-export type View = {
+export type SessionView = {
   stage: 'counting' | 'switching' | 'finished';
   /** The current set; in switching and finished, the set just done. */
   name: string;
@@ -193,7 +193,7 @@ export type View = {
 };
 
 /** Selector for useSelector(..., shallowEqual). Pure. */
-export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>): View {
+export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>): SessionView {
   const c = snapshot.context;
   const { exercise: id, reps: target } = current(c);
   const tally: Tally = c[id];
