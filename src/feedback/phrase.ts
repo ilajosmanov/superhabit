@@ -9,3 +9,16 @@ export function repPhrase(
   if (next.noReps > prev.noReps) return cues?.[0] ?? 'Deeper';
   return null;
 }
+
+/**
+ * Said on a set's last rep instead of repPhrase: the count, then what comes next.
+ * `next.reps` Infinity = open-ended set, said without a number.
+ */
+export function setPhrase(
+  reps: number,
+  next: { reps: number; name: string; place: string } | null,
+): string {
+  if (!next) return `${reps}. Challenge done.`;
+  const what = Number.isFinite(next.reps) ? `${next.reps} ${next.name}` : next.name;
+  return `${reps}, set done. Next, ${what}. ${next.place}.`;
+}

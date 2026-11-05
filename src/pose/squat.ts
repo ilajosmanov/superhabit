@@ -1,14 +1,8 @@
 // Squat rep counter on MediaPipe Pose Landmarker output (33 joints, MediaPipe order).
 import { OneEuroFilter } from '1eurofilter';
 
-export type Point = { x: number; y: number; z: number; visibility: number };
-/** `image`: 0..1 frame coords (to check the joint is really in view). `world`: metres (for angles). */
-export type Pose = { image: Point[]; world: Point[] };
+import { angle, inFrame, type Point, type Pose } from './geometry';
 
-// Portrait preview layout; the camera preview maps the actual frame coordinates.
-export const FRAME_ASPECT = 3 / 4;
-
-const MIN_VISIBILITY = 0.5;
 const MAX_ASYMMETRY = 35; // degrees between left and right knee
 const LEGS = [
   [23, 25, 27], // left hip, knee, ankle
@@ -20,14 +14,6 @@ export const UP = 160; // back to standing
 export const SHALLOW = 140; // went this low without reaching DOWN = no-rep
 export const TRACKING_TIMEOUT_MS = 1000; // tolerate brief dropouts, but require standing after losing tracking
 
-function angle(a: Point, b: Point, c: Point): number {
-  const v1 = [a.x - b.x, a.y - b.y, a.z - b.z];
-  const v2 = [c.x - b.x, c.y - b.y, c.z - b.z];
-  const dot = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
-  const cos = dot / (Math.hypot(...v1) * Math.hypot(...v2));
-  return (Math.acos(Math.min(1, Math.max(-1, cos))) * 180) / Math.PI;
-}
-
 /**
  * Knee angle of the straighter leg: a squat bends both knees, so a single-leg
  * move (leg circle, knee raise) never reaches "down". Null unless both legs are seen.
@@ -37,15 +23,11 @@ export function kneeAngle(pose: Pose): number | null {
   return legs && Math.max(...legs);
 }
 
-// Joints outside the frame are extrapolated by the model; don't trust them.
-const inFrame = (p: Point) =>
-  p.visibility >= MIN_VISIBILITY && p.x > 0 && p.x < 1 && p.y > 0 && p.y < 1;
-
 /** [left, right] 3D knee angles, or null unless both legs are fully in frame and agree. */
 export function legAngles({ image, world }: Pose): [number, number] | null {
   const out: number[] = [];
   for (const [h, k, a] of LEGS) {
-    if (![image[h], image[k], image[a]].every((p) => p && inFrame(p))) return null;
+    if (![image[h], image[k], image[a]].every(inFrame)) return null;
     if (!world[h] || !world[k] || !world[a]) return null;
     const deg = angle(world[h], world[k], world[a]);
     // Coincident joints or invalid coordinates have no angle; don't poison the rep's minimum.
@@ -86,7 +68,7 @@ export function measure(pose: Pose): Sample | null {
   // a shoulder–ankle ratio would also move with torso lean.
   const thigh = (dist(w[23], w[25]) + dist(w[24], w[26])) / 2;
   // Off-frame shoulders are guesses; without them lean reads 0 (hips == shoulders).
-  const seen = [11, 12].every((i) => pose.image[i] && inFrame(pose.image[i]));
+  const seen = [11, 12].every((i) => inFrame(pose.image[i]));
   const shoulders = seen && w[11] && w[12] ? mid(w[11], w[12]) : hips;
   const lean = (Math.acos((hips.y - shoulders.y) / dist(hips, shoulders)) * 180) / Math.PI;
   // Hips spread along x more than depth means the body faces the camera.

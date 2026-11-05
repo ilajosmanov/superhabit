@@ -1,5 +1,5 @@
 // Synthetic MediaPipe poses for tests.
-import type { Point, Pose } from '../squat';
+import type { Point, Pose } from '../geometry';
 
 type Body = { thigh?: number; shin?: number; lean?: number; knees?: number; side?: boolean };
 /**

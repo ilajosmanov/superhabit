@@ -1,15 +1,7 @@
 import { assert, describe, expect, it } from 'vite-plus/test';
 
-import {
-  initialSquat,
-  kneeAngle,
-  measure,
-  stepSquat,
-  type Point,
-  type Pose,
-  type Sample,
-  type SquatState,
-} from './squat';
+import { initialSquat, kneeAngle, measure, stepSquat, type Sample, type SquatState } from './squat';
+import type { Point, Pose } from './geometry';
 import { body } from './__fixtures__/body';
 
 // A knee-only sample with the hips dropped, so these tests exercise the knee state machine.
@@ -324,6 +316,16 @@ describe('kneeAngle', () => {
 
   it('measures the knee in 3D, so a front-facing squat still reads as bent', () => {
     expect(kneeAngle(pose(bentTowardCamera, bentTowardCamera))).toBeCloseTo(90);
+  });
+
+  it('drops a frame where hip and knee coincide, so it never reads as a deep rep', () => {
+    // Both legs: one bad leg alone is already dropped by the asymmetry check.
+    const collapsed: Leg = [
+      [0.5, 0.6],
+      [0.5, 0.6],
+      [0.5, 0.8],
+    ];
+    expect(kneeAngle(pose(collapsed, collapsed))).toBeNull();
   });
 
   it('ignores one bent leg, so a leg circle is not a squat', () => {
