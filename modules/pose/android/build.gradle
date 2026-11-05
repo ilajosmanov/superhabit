@@ -1,0 +1,70 @@
+def reactNativeArchitectures() {
+  def value = rootProject.getProperties().get("reactNativeArchitectures")
+  return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+apply from: '../nitrogen/generated/android/superhabitpose+autolinking.gradle'
+apply plugin: "com.facebook.react"
+
+android {
+  namespace "com.margelo.nitro.superhabitpose"
+  compileSdkVersion 37
+
+  defaultConfig {
+    minSdkVersion 26
+    externalNativeBuild {
+      cmake {
+        cppFlags "-frtti -fexceptions -Wall -fstack-protector-all"
+        arguments "-DANDROID_STL=c++_shared", "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+        abiFilters(*reactNativeArchitectures())
+      }
+    }
+  }
+
+  externalNativeBuild {
+    cmake {
+      path "CMakeLists.txt"
+    }
+  }
+
+  packagingOptions {
+    excludes = [
+      "META-INF",
+      "META-INF/**",
+      "**/libc++_shared.so",
+      "**/libfbjni.so",
+      "**/libjsi.so",
+      "**/libfolly_json.so",
+      "**/libfolly_runtime.so",
+      "**/libglog.so",
+      "**/libhermes.so",
+      "**/libhermes-executor-debug.so",
+      "**/libhermes_executor.so",
+      "**/libreactnative.so",
+      "**/libreactnativejni.so",
+      "**/libturbomodulejsijni.so",
+      "**/libreact_nativemodule_core.so",
+      "**/libjscexecutor.so"
+    ]
+  }
+
+  buildFeatures {
+    prefab true
+  }
+
+  // The .task model is a zip; compressing it again would force a copy at load time.
+  androidResources {
+    noCompress += ["task"]
+  }
+}
+
+dependencies {
+  implementation "com.facebook.react:react-android"
+  implementation project(":react-native-nitro-modules")
+  implementation project(":react-native-vision-camera")
+  implementation "com.google.mediapipe:tasks-vision:1.2.2"
+  // ImageProxy type only; VisionCamera ships CameraX at runtime.
+  compileOnly "androidx.camera:camera-core:1.7.0-alpha03"
+}

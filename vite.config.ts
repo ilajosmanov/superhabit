@@ -1,7 +1,15 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite-plus';
 
-const generated = ['android/**', 'ios/**', '.expo/**', 'dist/**', 'coverage/**'];
+const generated = [
+  'android/**',
+  'ios/**',
+  '.expo/**',
+  'dist/**',
+  'coverage/**',
+  'modules/*/android/build/**',
+  'modules/*/android/.cxx/**',
+];
 
 export default defineConfig({
   // Expo uses Metro; Vite+ provides checks and logic tests.
@@ -27,8 +35,6 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
-    // Remove once the first app logic tests are added.
-    passWithNoTests: true,
     clearMocks: true,
     restoreMocks: true,
   },
