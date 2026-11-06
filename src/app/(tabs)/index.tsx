@@ -5,10 +5,10 @@ import { ExerciseTile } from '@/components/exercise-tile';
 import { ARROW_RIGHT, Glyph } from '@/components/glyph';
 import { Screen } from '@/components/screen';
 import { colors } from '@/theme';
-import { CHALLENGES, summary, type Challenge } from '@/workout/challenges';
+import { CHALLENGES, summary, totalReps, type Challenge } from '@/workout/challenges';
 
-const totalReps = ({ sets }: Challenge) => {
-  const reps = sets.reduce((n, { reps }) => n + reps, 0);
+const repsLabel = (challenge: Challenge) => {
+  const reps = totalReps(challenge);
   return Number.isFinite(reps) ? `${reps} REPS` : 'NO LIMIT';
 };
 
@@ -34,7 +34,7 @@ export default function ChallengesScreen() {
                   <Text className="font-sans text-sm text-muted">{summary(challenge)}</Text>
                 </View>
                 <Text className="font-mono text-xs tracking-wider text-muted">
-                  {totalReps(challenge)}
+                  {repsLabel(challenge)}
                 </Text>
               </View>
             </Pressable>
@@ -72,7 +72,7 @@ function FeaturedCard({ id, challenge }: { id: string; challenge: Challenge }) {
               <ExerciseTile key={exercise} id={exercise} />
             ))}
             <Text className="ml-auto font-mono text-xs tracking-wider text-muted">
-              {totalReps(challenge)}
+              {repsLabel(challenge)}
             </Text>
           </View>
         </Pressable>

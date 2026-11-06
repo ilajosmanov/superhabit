@@ -11,7 +11,19 @@ export default function RootLayout() {
       {/* Native stack: platform push animations and system back. Screens draw their own headers. */}
       <Stack
         screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.ground } }}
-      />
+      >
+        {/* Pushed pages get the platform toolbar: the system back arrow, untitled (the page draws its own title). */}
+        <Stack.Screen
+          name="challenge/[id]"
+          options={{
+            headerShown: true,
+            title: '',
+            headerTintColor: colors.chalk,
+            headerStyle: { backgroundColor: colors.ground },
+            headerShadowVisible: false,
+          }}
+        />
+      </Stack>
       <StatusBar style="light" />
     </>
   );

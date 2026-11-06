@@ -51,11 +51,7 @@ export const EXERCISES: { [K in ExerciseId]: Exercise<Counters[K]> } = {
       'M13.4 6a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M15 9l-3 8M12 17l9 1M21 18l-1 8M14 11.5l10 .5M6 26h20',
     orientation: 'portrait',
     place: 'Stand the phone upright',
-    steps: [
-      'Prop it up on its short edge',
-      '2 to 3 m away, facing you',
-      'Head to feet in frame, then tap Continue',
-    ],
+    steps: ['Prop it up on its short edge', '2 to 3 m away, facing you', 'Head to feet in frame'],
     hint: 'Counting starts once you stand tall.',
     initial: initialSquat,
     step: (s, pose, t) => stepSquat(s, measure(pose), t),
@@ -71,7 +67,7 @@ export const EXERCISES: { [K in ExerciseId]: Exercise<Counters[K]> } = {
     steps: [
       'Lay it on the floor on its long edge',
       'About 2 m away, side-on to you',
-      'Head to feet in frame, then tap Continue',
+      'Head to feet in frame',
     ],
     hint: 'Counting starts once you hold a plank.',
     initial: initialPushup,

@@ -32,3 +32,6 @@ export function summary({ sets }: Challenge): string {
     .join(', then ');
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
+
+/** Reps across all sets; Infinity when any set is open-ended. */
+export const totalReps = ({ sets }: Challenge) => sets.reduce((n, { reps }) => n + reps, 0);

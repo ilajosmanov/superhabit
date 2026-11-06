@@ -1,51 +1,63 @@
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Glyph } from '@/components/glyph';
-import { colors } from '@/theme';
-
-const BELL = 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0';
-
-/** A tab screen: 44px hairline header with the bell, 48px title, 32px between sections. */
+/**
+ * Every screen's skeleton: 48px title, 32px between sections.
+ * Tab screens pass a `label` (44px hairline row pinned under the status bar; content scrolls beneath it). Pushed screens omit it: they sit
+ * under the native stack header, which already clears the status bar, and may pin a `footer`.
+ */
 export function Screen({
   label,
   title,
+  intro,
+  footer,
   children,
 }: {
-  label: string;
+  label?: string;
   title: string;
+  /** One paragraph under the title. */
+  intro?: string;
+  /** Pinned under the scroll, above the system bar: the screen's one action. */
+  footer?: ReactNode;
   children?: ReactNode;
 }) {
-  const { top } = useSafeAreaInsets();
+  const { top, bottom } = useSafeAreaInsets();
   return (
-    <ScrollView
-      className="flex-1 bg-ground"
-      contentContainerClassName="gap-8 px-6 pb-8"
-      contentContainerStyle={{ paddingTop: top + 20 }}
-    >
-      <View className="h-11 flex-row items-center justify-between border-b border-line">
-        <Text className="font-mono text-xs tracking-widest text-muted">{label}</Text>
-        {/* shortcut: the bell does nothing until notifications exist; give it an onPress then. */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Notifications"
-          android_ripple={{ color: colors.line, borderless: true, radius: 22 }}
-          className="-mr-3 size-11 items-center justify-center"
-        >
-          <Glyph d={BELL} size={20} />
-        </Pressable>
-      </View>
+    <View className="flex-1 bg-ground">
+      {label && (
+        <View className="px-6" style={{ paddingTop: top + 20 }}>
+          <View className="h-11 justify-center border-b border-line">
+            <Text className="font-mono text-xs tracking-widest text-muted">{label}</Text>
+          </View>
+        </View>
+      )}
 
-      <Text
-        accessibilityRole="header"
-        maxFontSizeMultiplier={1.3}
-        className="font-sans text-5xl font-extralight leading-tight tracking-tighter text-chalk"
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        contentContainerClassName="gap-8 px-6 pb-8"
+        contentContainerStyle={{ paddingTop: label ? 32 : 8 }}
       >
-        {title}
-      </Text>
+        <View className="gap-3">
+          <Text
+            accessibilityRole="header"
+            maxFontSizeMultiplier={1.3}
+            className="font-sans text-5xl font-extralight leading-tight tracking-tighter text-chalk"
+          >
+            {title}
+          </Text>
+          {intro && <Text className="font-sans text-base leading-normal text-soft">{intro}</Text>}
+        </View>
 
-      {children}
-    </ScrollView>
+        {children}
+      </ScrollView>
+
+      {footer && (
+        <View className="px-6 pt-4" style={{ paddingBottom: bottom + 16 }}>
+          {footer}
+        </View>
+      )}
+    </View>
   );
 }
