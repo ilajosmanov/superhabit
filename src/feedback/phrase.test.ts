@@ -1,5 +1,5 @@
 import { expect, test } from 'vite-plus/test';
-import { repPhrase, setPhrase } from './phrase';
+import { framePhrase, repPhrase, setPhrase, startPhrase } from './phrase';
 
 const at = (reps: number, noReps = 0) => ({ reps, noReps });
 
@@ -25,4 +25,16 @@ test('set phrase says the count, then the next set or the end', () => {
     '7, set done. Next, push-ups. Turn the phone sideways.',
   );
   expect(setPhrase(20, null)).toBe('20. Challenge done.');
+});
+
+test('says Go only when the start position is first seen', () => {
+  expect(startPhrase('waiting', 'up')).toBe('Go');
+  expect(startPhrase('waiting', 'waiting')).toBeNull();
+  expect(startPhrase('down', 'up')).toBeNull();
+});
+
+test('names the first part out of frame', () => {
+  expect(framePhrase(['feet', 'hips'])).toBe('Your feet are out of frame');
+  expect(framePhrase(['head'])).toBe('Your head is out of frame');
+  expect(framePhrase([])).toBeNull();
 });

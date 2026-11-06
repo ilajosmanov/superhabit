@@ -12,6 +12,7 @@ import com.margelo.nitro.NitroModules
 import com.margelo.nitro.camera.HybridFrameSpec
 import com.margelo.nitro.camera.Point
 import com.margelo.nitro.camera.public.NativeFrame
+import java.util.Optional
 
 class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
   private var landmarker: PoseLandmarker? = null
@@ -68,14 +69,13 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
       }
       val pose = detected.landmarks().firstOrNull()
       val world = detected.worldLandmarks().firstOrNull()
+      // NormalizedLandmark and Landmark share no supertype, so both map through their fields.
+      fun landmark(x: Float, y: Float, z: Float, visibility: Optional<Float>) =
+        PoseLandmark(x.toDouble(), y.toDouble(), z.toDouble(), visibility.orElse(0f).toDouble())
       val landmarks = pose
-        ?.map {
-          PoseLandmark(it.x().toDouble(), it.y().toDouble(), it.z().toDouble(), it.visibility().orElse(0f).toDouble())
-        }?.toTypedArray() ?: emptyArray()
+        ?.map { landmark(it.x(), it.y(), it.z(), it.visibility()) }?.toTypedArray() ?: emptyArray()
       val worldLandmarks = world
-        ?.map {
-          PoseLandmark(it.x().toDouble(), it.y().toDouble(), it.z().toDouble(), it.visibility().orElse(0f).toDouble())
-        }?.toTypedArray() ?: emptyArray()
+        ?.map { landmark(it.x(), it.y(), it.z(), it.visibility()) }?.toTypedArray() ?: emptyArray()
       // Rotation options affect inference, but MediaPipe projects results back to the raw bitmap.
       // Sensor coordinates let the preview apply its own rotation, mirroring, crop and letterboxing.
       val cameraLandmarks = landmarks

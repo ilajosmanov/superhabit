@@ -11,6 +11,7 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { Glyph } from '@/components/glyph';
+import { PhoneSetup } from '@/components/phone-setup';
 import { Screen } from '@/components/screen';
 import { EXERCISES } from '@/exercises/registry';
 import { colors } from '@/theme';
@@ -152,15 +153,7 @@ export default function ChallengeDetailScreen() {
 
       <View className="gap-4">
         <Text className="font-mono text-xs tracking-widest text-muted">BEFORE YOU START</Text>
-        <Text className="font-sans text-2xl font-light text-chalk">{first.place}</Text>
-        <View className="gap-2.5">
-          {first.steps.map((step, i) => (
-            <View key={step} className="flex-row gap-3">
-              <Text className="w-5 pt-0.5 font-mono text-xs text-muted">{`0${i + 1}`}</Text>
-              <Text className="flex-1 font-sans text-base text-soft">{step}</Text>
-            </View>
-          ))}
-        </View>
+        <PhoneSetup exercise={first} />
       </View>
     </Screen>
   );

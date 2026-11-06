@@ -2,7 +2,7 @@
 import type { PoseLandmark } from 'superhabit-pose';
 import { Joint } from 'superhabit-pose/joints';
 
-import { angle, inFrame, type Pose } from './geometry';
+import { angle, inFrame, type Joints, type Pose } from './geometry';
 import { expire, hold, initialRepState, timing, type RepState } from './rep-counter';
 
 const MAX_ASYMMETRY = 35; // degrees between left and right knee
@@ -11,8 +11,8 @@ const LEGS = [
   [Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE],
 ] as const;
 
-const DOWN = 100; // knee angle at or below this = deep enough
-const UP = 160; // back to standing
+export const DOWN = 100; // knee angle at or below this = deep enough
+export const UP = 160; // back to standing
 const SHALLOW = 140; // went this low without reaching DOWN = no-rep
 
 /**
@@ -57,12 +57,15 @@ export type Sample = {
   lean: number;
   /** Knee width / ankle width when facing the camera, null when side-on. */
   valgus: number | null;
+  /** [hip, knee, ankle] of the better-seen leg, for drawing. */
+  joints: Joints;
 };
 
 export function measure(pose: Pose): Sample | null {
   const legs = legAngles(pose);
   if (!legs) return null;
   const w = pose.worldLandmarks;
+  const visible = (leg: Joints) => Math.min(...leg.map((i) => pose.landmarks[i].visibility));
   const hips = mid(w[Joint.LEFT_HIP], w[Joint.RIGHT_HIP]);
   const knees = mid(w[Joint.LEFT_KNEE], w[Joint.RIGHT_KNEE]);
   // Thigh-relative hip drop is scale-free and, in 3D, the same seen from the front or the side;
@@ -89,6 +92,7 @@ export function measure(pose: Pose): Sample | null {
       ? Math.abs(w[Joint.RIGHT_KNEE].x - w[Joint.LEFT_KNEE].x) /
         Math.abs(w[Joint.RIGHT_ANKLE].x - w[Joint.LEFT_ANKLE].x)
       : null,
+    joints: visible(LEGS[1]) > visible(LEGS[0]) ? LEGS[1] : LEGS[0],
   };
 }
 
@@ -137,7 +141,7 @@ const fresh = (at?: number): Attempt => ({
 
 export const initialSquat: SquatState = initialRepState(fresh());
 
-function report(a: Attempt, depth: number, counted: boolean, nowMs?: number): RepReport {
+function report(a: Attempt, depth: number, counted: boolean, nowMs: number): RepReport {
   const { downMs, upMs, fast } = timing(a, nowMs, CUE_FAST_MS);
   const symmetry = a.n ? a.sym / a.n : 0;
   const cues = [
@@ -150,7 +154,7 @@ function report(a: Attempt, depth: number, counted: boolean, nowMs?: number): Re
   return { counted, depth, symmetry, downMs, upMs, lean: a.lean, valgus: a.valgus, cues };
 }
 
-export function stepSquat(s: SquatState, sample: Sample | null, nowMs?: number): SquatState {
+export function stepSquat(s: SquatState, sample: Sample | null, nowMs: number): SquatState {
   s = expire(s, nowMs);
   const held = sample && hold(s, Math.max(...sample.legs), nowMs);
   if (!sample || !held) return s;

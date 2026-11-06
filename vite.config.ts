@@ -45,7 +45,7 @@ export default defineConfig({
     overrides: [
       {
         // Screens and components compose state; lifecycles live in XState actors, per-frame data in shared values.
-        files: ['src/app/**', 'src/components/**'],
+        files: ['src/app/**', 'src/components/**', 'src/workout/components/**'],
         rules: {
           'no-restricted-imports': [
             'error',

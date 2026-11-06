@@ -6,17 +6,23 @@ import { initialSquat, kneeAngle, measure, stepSquat, type Sample, type SquatSta
 import type { Pose } from './geometry';
 import { body } from './__fixtures__/body';
 
+const joints = [Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE] as const;
 // A knee-only sample with the hips dropped, so these tests exercise the knee state machine.
 const at = (deg: number | null): Sample | null =>
-  deg === null ? null : { legs: [deg, deg], hip: 0, lean: 0, valgus: null };
-// Each angle is held long enough for the smoothing filter to settle on it exactly.
+  deg === null ? null : { legs: [deg, deg], hip: 0, lean: 0, valgus: null, joints };
+const FRAME = 66; // ms between detector results
+// The next frame's time after `s`'s last valid angle.
+const later = (s: SquatState) => (s.lastSeenAt ?? 0) + FRAME;
+// Each valid angle is held long enough for the smoothing filter to settle on it; anything else is one bad frame.
 const run = (angles: (number | null)[], from: SquatState = initialSquat) =>
   angles.reduce(
     (state, deg) =>
-      Array.from({ length: 200 }).reduce<SquatState>((s) => stepSquat(s, at(deg)), state),
+      Array.from({ length: deg !== null && deg >= 0 && deg <= 180 ? 200 : 1 }).reduce<SquatState>(
+        (s, _, i) => stepSquat(s, at(deg), later(state) + i * FRAME),
+        state,
+      ),
     from,
   );
-const FRAME = 66; // ms between detector results
 // [sample, fromMs, toMs]: hold a sample, polling every frame.
 const play = (spans: [Sample | null, fromMs: number, toMs?: number][], start = initialSquat) =>
   spans.reduce((state, [sample, from, to = from]) => {
@@ -58,7 +64,8 @@ describe('stepSquat', () => {
 
   it('flags a half squat as a no-rep', () => {
     const s = run([175, 150, 120, 150, 170]);
-    expect(s).toMatchObject({ reps: 0, noReps: 1, lastRep: { depth: 120 } });
+    expect(s).toMatchObject({ reps: 0, noReps: 1 });
+    expect(s.lastRep?.depth).toBeCloseTo(120);
   });
 
   it('ignores frames without a pose and small wobbles while standing', () => {
@@ -140,8 +147,8 @@ describe('stepSquat', () => {
     'ignores invalid angles (%s) without losing a pending rep or corrupting its depth',
     (invalid) => {
       const down = run([175, 90]);
-      expect(stepSquat(down, at(invalid))).toBe(down);
-      expect(run([175], stepSquat(down, at(invalid)))).toMatchObject({
+      expect(stepSquat(down, at(invalid), later(down))).toBe(down);
+      expect(run([175], stepSquat(down, at(invalid), later(down)))).toMatchObject({
         reps: 1,
         noReps: 0,
         lastRep: { depth: 90 },
@@ -174,6 +181,13 @@ describe('glitches, hip depth and rep report', () => {
     expect(side?.valgus).toBeNull();
     assert(bottom);
     expect(side?.hip).toBeCloseTo(bottom.hip);
+  });
+
+  it('reports the hip, knee and ankle of the better-seen leg', () => {
+    expect(standing?.joints).toEqual([Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE]);
+    const pose = body({});
+    pose.landmarks[Joint.LEFT_KNEE] = { ...pose.landmarks[Joint.LEFT_KNEE], visibility: 0.6 };
+    expect(measure(pose)?.joints).toEqual([Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE]);
   });
 
   it('smooths away a single-frame spike', () => {
@@ -251,7 +265,7 @@ describe('glitches, hip depth and rep report', () => {
   });
 
   it('cues uneven legs and a shallow no-rep', () => {
-    const uneven: Sample = { legs: [95, 75], hip: 0, lean: 0, valgus: null };
+    const uneven: Sample = { legs: [95, 75], hip: 0, lean: 0, valgus: null, joints };
     const s = play([
       [at(175), 0, 2000],
       [uneven, 2066, 4000],

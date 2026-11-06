@@ -38,6 +38,19 @@ describe('measurePushup', () => {
     expect(measurePushup(plank({ standing: true }))?.reach).toBeLessThan(40);
   });
 
+  it('reports the shoulder, elbow and wrist of the side it measured', () => {
+    expect(measurePushup(plank({}))?.joints).toEqual([
+      Joint.LEFT_SHOULDER,
+      Joint.LEFT_ELBOW,
+      Joint.LEFT_WRIST,
+    ]);
+    expect(measurePushup(plank({ visible: 'right' }))?.joints).toEqual([
+      Joint.RIGHT_SHOULDER,
+      Joint.RIGHT_ELBOW,
+      Joint.RIGHT_WRIST,
+    ]);
+  });
+
   it('measures the other side when the better-seen knee is hidden', () => {
     const pose = plank({ elbow: 80, visible: 'both' });
     pose.landmarks[Joint.LEFT_KNEE] = { ...pose.landmarks[Joint.LEFT_KNEE], visibility: 0.1 };

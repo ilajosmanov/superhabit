@@ -14,7 +14,7 @@ export type RepState<A extends Timing, R> = {
   phase: Phase;
   min: number; // lowest held angle since the last top
   lastRep: R | null;
-  lastSeenAt?: number; // monotonic time of the last valid angle, when supplied by the caller
+  lastSeenAt?: number; // monotonic time of the last valid angle
   filter?: Smooth;
   prev?: number; // previous smoothed angle, for the two-sample hold
   attempt: A;
@@ -34,9 +34,8 @@ export const initialRepState = <A extends Timing, R>(attempt: A): RepState<A, R>
 });
 
 /** Drops the attempt and the filter once tracking has been lost for longer than the timeout. */
-export function expire<S extends AnyRepState>(s: S, nowMs?: number): S {
+export function expire<S extends AnyRepState>(s: S, nowMs: number): S {
   if (
-    nowMs === undefined ||
     s.lastSeenAt === undefined ||
     nowMs - s.lastSeenAt <= TRACKING_TIMEOUT_MS ||
     (s.phase === 'waiting' && !s.filter)
@@ -50,20 +49,20 @@ export function expire<S extends AnyRepState>(s: S, nowMs?: number): S {
  * are past it: `low` is the angle to compare with "down" thresholds, `high` with "up" ones
  * (NaN: no previous sample yet). Null for an invalid angle; the caller keeps its state.
  */
-export function hold<S extends AnyRepState>(s: S, deg: number | null, nowMs?: number) {
+export function hold<S extends AnyRepState>(s: S, deg: number | null, nowMs: number) {
   if (deg === null || !Number.isFinite(deg) || deg < 0 || deg > 180) return null;
-  const filter = smooth(s.filter, deg, nowMs === undefined ? undefined : nowMs / 1000);
+  const filter = smooth(s.filter, deg, nowMs / 1000);
   return {
-    s: { ...s, filter, prev: filter.x, lastSeenAt: nowMs ?? s.lastSeenAt },
+    s: { ...s, filter, prev: filter.x, lastSeenAt: nowMs },
     low: Math.max(filter.x, s.prev ?? NaN),
     high: Math.min(filter.x, s.prev ?? NaN),
   };
 }
 
-/** Down and up durations of an attempt ending at `nowMs` (null without timestamps); `fast` = full rep under `fastMs`. */
-export function timing(a: Timing, nowMs: number | undefined, fastMs: number) {
+/** Down and up durations of an attempt ending at `nowMs` (null without its timestamps); `fast` = full rep under `fastMs`. */
+export function timing(a: Timing, nowMs: number, fastMs: number) {
   const downMs =
     a.bottomAt !== undefined && a.startAt !== undefined ? a.bottomAt - a.startAt : null;
-  const upMs = nowMs !== undefined && a.bottomAt !== undefined ? nowMs - a.bottomAt : null;
+  const upMs = a.bottomAt !== undefined ? nowMs - a.bottomAt : null;
   return { downMs, upMs, fast: downMs !== null && upMs !== null && downMs + upMs < fastMs };
 }

@@ -1,52 +1,100 @@
-import { Canvas, Points, type SkPoint } from '@shopify/react-native-skia';
-import type { RefObject } from 'react';
+import { Canvas, Path, Skia, select, type SkPoint } from '@shopify/react-native-skia';
+import { useState, type RefObject } from 'react';
 import { StyleSheet, View } from 'react-native';
-import type { SharedValue } from 'react-native-reanimated';
+import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
 import {
   Camera,
   CommonResolutions,
   useAsyncRunner,
   useFrameOutput,
+  useOrientation,
   type CameraRef,
+  type CameraVideoOutput,
 } from 'react-native-vision-camera';
 import type { PoseDetection, PoseLandmarker } from 'superhabit-pose';
 
+import { JOINTS, skeleton, type Dot, type Segment } from '@/components/skeleton';
 import { colors } from '@/theme';
 
-const CAMERA = 'front';
-// The VGA 4:3 frame, as width / height in portrait.
-const FRAME_ASPECT = 3 / 4;
-
-/** Visible landmarks in preview coordinates; the native transform includes front-camera mirroring. */
-export function toViewPoints(preview: CameraRef | null, result: PoseDetection): SkPoint[] {
-  if (!preview) return [];
+/**
+ * 33 entries in MediaPipe order, view coordinates; null where not visible (visibility <= 0.5) or not finite.
+ * The native transform includes the preview's cover scaling and, on the front camera, its mirroring.
+ */
+export function toViewJoints(preview: CameraRef | null, result: PoseDetection): (SkPoint | null)[] {
+  const none = () => Array.from({ length: JOINTS }, () => null);
+  if (!preview) return none();
   try {
-    return result.cameraLandmarks
-      .filter((_, i) => (result.landmarks[i]?.visibility ?? 0) > 0.5)
-      .map((point) => preview.convertCameraPointToViewPoint(point))
-      .filter(({ x, y }) => Number.isFinite(x) && Number.isFinite(y));
+    return Array.from({ length: JOINTS }, (_, i) => {
+      const point = result.cameraLandmarks[i];
+      if (!point || (result.landmarks[i]?.visibility ?? 0) <= 0.5) return null;
+      const view = preview.convertCameraPointToViewPoint(point);
+      return Number.isFinite(view.x) && Number.isFinite(view.y) ? view : null;
+    });
   } catch {
     // CameraX has no sensor-to-view transform until the preview is ready.
-    return [];
+    return none();
   }
 }
 
-/** Front camera feeding every frame to the landmarker, with the pose dots drawn over the preview. */
+function segments(segs: readonly Segment[]) {
+  'worklet';
+  const builder = Skia.PathBuilder.Make();
+  for (const [p, q] of segs) builder.moveTo(p.x, p.y).lineTo(q.x, q.y);
+  return builder.detach();
+}
+
+function circles(dots: readonly Dot[]) {
+  'worklet';
+  const builder = Skia.PathBuilder.Make();
+  for (const { x, y, r } of dots) builder.addCircle(x, y, r);
+  return builder.detach();
+}
+
+/** A camera filling its parent, feeding every frame to the landmarker, with the skeleton drawn over it. */
 export function PoseCamera({
   cameraRef,
   landmarker,
-  dots,
   isActive,
-  landscape,
+  joints,
+  highlight,
+  tone,
+  video,
+  camera,
+  showSkeleton,
+  onReady,
+  onVideoLost,
 }: {
   cameraRef: RefObject<CameraRef | null>;
   landmarker: PoseLandmarker | null;
-  /** Drawn by Skia on the UI thread straight from this shared value. */
-  dots: SharedValue<SkPoint[]>;
   isActive: boolean;
-  landscape: boolean;
+  /** Drawn by Skia on the UI thread straight from this shared value. */
+  joints: SharedValue<(SkPoint | null)[]>;
+  /** [a, vertex, c] of the measured angle; drawn thicker, with an angle arc at the vertex. */
+  highlight: SharedValue<readonly [number, number, number] | null>;
+  /** 'idle' = grey skeleton (waiting), 'live' = chalk bones + amber joints, 'noRep' = the highlighted limb red. */
+  tone: 'idle' | 'live' | 'noRep';
+  /** Extra output for filming sets; dropped after a camera error so tracking keeps working without it. */
+  video?: CameraVideoOutput;
+  /** Switching reconfigures the session; VisionCamera picks the default device at that position. */
+  camera: 'front' | 'back';
+  /** Off skips drawing only: detection and the shared values keep running for the gauge. */
+  showSkeleton: boolean;
+  /** The preview streams frames, on start and again once a camera switch has rebound the session. */
+  onReady: () => void;
+  /** The video output was dropped after a camera error: nothing more can be filmed. */
+  onVideoLost: () => void;
 }) {
+  // Not every device binds preview + frames + video at once; CameraX then fails the whole configure.
+  // shortcut: stays dropped after a flip, though the other camera might bind video; reset it (and the camcorder) if that matters.
+  const [videoFailed, setVideoFailed] = useState(false);
   const asyncRunner = useAsyncRunner();
+  // VisionCamera caches the preview's sensor-to-view matrix and refreshes it only on layout. A 180°
+  // flip changes no size, so the skeleton would draw upside down: a 1dp taller box forces the relayout.
+  // shortcut: works around VisionCamera 5.2.4's HybridPreviewView; drop once it refreshes on display change.
+  // shortcut: a 180° flip mid-take leaves the rest of that file upside down (CameraX sets the muxer
+  // orientation once per file); roll a new take on the flip if people film that way.
+  const interfaceOrientation = useOrientation('interface');
+  const relayout = interfaceOrientation === 'left' || interfaceOrientation === 'down';
   const frameOutput = useFrameOutput({
     targetResolution: CommonResolutions.VGA_4_3,
     pixelFormat: 'rgb', // CameraX converts to RGBA; the native detector copies it to a Bitmap.
@@ -79,33 +127,85 @@ export function PoseCamera({
     },
   });
 
+  // One UI-thread pass per pose builds every layer; `select` hands each Path its own key.
+  const paths = useDerivedValue(() => {
+    const shape = skeleton(joints.get(), highlight.get());
+    const arc = Skia.PathBuilder.Make();
+    if (shape.arc) {
+      const { x, y, r, start, sweep } = shape.arc;
+      arc.addArc(Skia.XYWHRect(x - r, y - r, r * 2, r * 2), start, sweep);
+    }
+    return {
+      near: segments(shape.near),
+      far: segments(shape.far),
+      limb: segments(shape.limb),
+      arc: arc.detach(),
+      dots: circles(shape.dots),
+      limbDots: circles(shape.limbDots),
+    };
+  });
+
+  const idle = tone === 'idle';
+  const dot = idle ? colors.subtle : colors.accent;
+  const limbDot = tone === 'noRep' ? colors.warn : dot;
+  const bone = {
+    style: 'stroke',
+    strokeCap: 'round',
+    strokeJoin: 'round',
+    strokeWidth: 3,
+  } as const;
+  const outline = { style: 'stroke', strokeWidth: 2.5, color: colors.ground } as const;
+
   return (
-    // Layout only; CameraX's sensor-to-view transform maps the dots to the preview.
-    <View
-      style={
-        landscape
-          ? { height: '100%', aspectRatio: 1 / FRAME_ASPECT }
-          : { width: '100%', aspectRatio: FRAME_ASPECT }
-      }
-    >
+    <View style={StyleSheet.absoluteFill}>
       <Camera
         ref={cameraRef}
-        style={{ flex: 1 }}
-        device={CAMERA}
+        // Bottom only: the top-left origin stays the Canvas's, so view points still line up.
+        style={[StyleSheet.absoluteFill, relayout && { bottom: -1 }]}
+        device={camera}
         isActive={isActive}
         orientationSource="interface"
-        resizeMode="contain"
-        outputs={[frameOutput]}
+        resizeMode="cover"
+        outputs={video && !videoFailed ? [frameOutput, video] : [frameOutput]}
+        onPreviewStarted={onReady}
+        onError={(error) => {
+          console.error('[camera]', error);
+          if (video && !videoFailed) {
+            setVideoFailed(true);
+            onVideoLost();
+          }
+        }}
       />
-      <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Points
-          points={dots}
-          mode="points"
-          color={colors.accent}
-          strokeWidth={10}
-          strokeCap="round"
-        />
-      </Canvas>
+      {showSkeleton && (
+        <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Path
+            path={select(paths, 'far')}
+            {...bone}
+            color={colors.chalk}
+            opacity={idle ? 0.3 : 0.45}
+          />
+          <Path
+            path={select(paths, 'near')}
+            {...bone}
+            color={colors.chalk}
+            opacity={idle ? 0.5 : 1}
+          />
+          <Path
+            path={select(paths, 'limb')}
+            {...bone}
+            color={tone === 'noRep' ? colors.warn : colors.chalk}
+            opacity={idle ? 0.5 : 1}
+            strokeWidth={idle ? 3 : 4}
+          />
+          {tone === 'live' && (
+            <Path path={select(paths, 'arc')} {...bone} color={colors.accent} strokeWidth={2.5} />
+          )}
+          <Path path={select(paths, 'dots')} color={dot} />
+          <Path path={select(paths, 'dots')} {...outline} />
+          <Path path={select(paths, 'limbDots')} color={limbDot} />
+          <Path path={select(paths, 'limbDots')} {...outline} />
+        </Canvas>
+      )}
     </View>
   );
 }

@@ -4,7 +4,7 @@
 // add an accelerometer gravity vector if that shows up on device.
 import { Joint } from 'superhabit-pose/joints';
 
-import { angle, inFrame, type Pose } from './geometry';
+import { angle, inFrame, type Joints, type Pose } from './geometry';
 import { expire, hold, initialRepState, timing, type RepState } from './rep-counter';
 
 // [shoulder, elbow, wrist, hip, knee, ankle]. Side-on, the far arm is often hidden, so only the better-seen side is used.
@@ -28,8 +28,8 @@ const SIDES = [
 ] as const;
 
 // Starting guesses; tune on device.
-const PUSHUP_DOWN = 90; // elbow at or below = deep enough
-const PUSHUP_UP = 150; // elbow at or above = arms straight (soft lockouts read ~160)
+export const PUSHUP_DOWN = 90; // elbow at or below = deep enough
+export const PUSHUP_UP = 150; // elbow at or above = arms straight (soft lockouts read ~160)
 const PUSHUP_SHALLOW = 120; // bent past this without reaching DOWN = no-rep
 const BODY_MIN = 150; // shoulder–hip–ankle below this = sagging, piked or kneeling: not a push-up
 const REACH_MIN = 40; // hip–shoulder–wrist below this = arms by the sides (standing), not a plank
@@ -39,7 +39,7 @@ const CUE_BODY = 165; // counted, but still worth a cue
 const CUE_FAST_MS = 600;
 
 /** One frame, better-seen side only. Degrees. */
-type PushupSample = {
+export type PushupSample = {
   /** shoulder–elbow–wrist: ~170 at the top, ~70–90 at the bottom. */
   elbow: number;
   /** shoulder–hip–ankle (shoulder–hip–knee when the heels are out of view): 180 = straight body. */
@@ -51,6 +51,8 @@ type PushupSample = {
    * upright, so it stands in for "up from the floor" without knowing how the phone lies.
    */
   knees: number;
+  /** [shoulder, elbow, wrist] of the side measured. */
+  joints: Joints;
 };
 
 /** Null unless the better-seen arm, hip and knee or ankle are in frame and every angle is finite. */
@@ -69,13 +71,14 @@ export function measurePushup({
   const up = [world[e].x - world[w].x, world[e].y - world[w].y, world[e].z - world[w].z];
   const forearm = Math.hypot(...up);
   const knee = [world[k].x - world[w].x, world[k].y - world[w].y, world[k].z - world[w].z];
-  const sample = {
+  const angles = {
     elbow: angle(world[s], world[e], world[w]),
     body: angle(world[s], world[h], world[foot]),
     reach: angle(world[h], world[s], world[w]),
     knees: (knee[0] * up[0] + knee[1] * up[1] + knee[2] * up[2]) / forearm ** 2,
   };
-  return Object.values(sample).every(Number.isFinite) ? sample : null;
+  const joints: Joints = [s, e, w];
+  return Object.values(angles).every(Number.isFinite) ? { ...angles, joints } : null;
 }
 
 type PushupReport = {
@@ -100,7 +103,7 @@ function report(
   a: Attempt,
   depth: number,
   counted: boolean,
-  nowMs?: number,
+  nowMs: number,
   kneeling = false,
 ): PushupReport {
   const { downMs, upMs, fast } = timing(a, nowMs, CUE_FAST_MS);
@@ -124,7 +127,7 @@ function report(
 export function stepPushup(
   s: PushupState,
   sample: PushupSample | null,
-  nowMs?: number,
+  nowMs: number,
 ): PushupState {
   s = expire(s, nowMs);
   const held = sample && hold(s, sample.elbow, nowMs);

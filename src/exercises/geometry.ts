@@ -1,11 +1,15 @@
 // Joint geometry shared by every exercise counter (MediaPipe Pose Landmarker: 33 joints, MediaPipe order).
 import type { PoseDetection, PoseLandmark } from 'superhabit-pose';
+import { Joint } from 'superhabit-pose/joints';
 
 /**
  * One frame's joints, as the detector gives them: `landmarks` in 0..1 frame coords (to check a
  * joint is really in view), `worldLandmarks` in metres (for angles). Index both with `Joint`.
  */
 export type Pose = Pick<PoseDetection, 'landmarks' | 'worldLandmarks'>;
+
+/** MediaPipe indices [a, vertex, c] of a measured angle. */
+export type Joints = readonly [number, number, number];
 
 const MIN_VISIBILITY = 0.5;
 
@@ -21,3 +25,17 @@ export function angle(a: PoseLandmark, b: PoseLandmark, c: PoseLandmark): number
 // Joints outside the frame are extrapolated by the model; don't trust them.
 export const inFrame = (p: PoseLandmark | undefined) =>
   !!p && p.visibility >= MIN_VISIBILITY && p.x > 0 && p.x < 1 && p.y > 0 && p.y < 1;
+
+export type BodyPart = 'head' | 'hands' | 'hips' | 'feet';
+
+// Either side will do: side-on, the far limbs hide behind the body.
+const PART_JOINTS: Record<BodyPart, readonly number[]> = {
+  head: [Joint.NOSE, Joint.LEFT_SHOULDER, Joint.RIGHT_SHOULDER],
+  hands: [Joint.LEFT_WRIST, Joint.RIGHT_WRIST],
+  hips: [Joint.LEFT_HIP, Joint.RIGHT_HIP],
+  feet: [Joint.LEFT_ANKLE, Joint.RIGHT_ANKLE],
+};
+
+/** The `parts` with none of their joints in frame, in `parts` order. */
+export const outOfFrame = (landmarks: Pose['landmarks'], parts: readonly BodyPart[]) =>
+  parts.filter((part) => !PART_JOINTS[part].some((i) => inFrame(landmarks[i])));

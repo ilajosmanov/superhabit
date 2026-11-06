@@ -1,3 +1,5 @@
+import type { BodyPart, Phase } from '@/exercises/registry';
+
 /** What to say when counts change; null = stay silent (no change, or reset). */
 export function repPhrase(
   prev: { reps: number; noReps: number },
@@ -21,4 +23,14 @@ export function setPhrase(
   if (!next) return `${reps}. Challenge done.`;
   const what = Number.isFinite(next.reps) ? `${next.reps} ${next.name}` : next.name;
   return `${reps}, set done. Next, ${what}. ${next.place}.`;
+}
+
+/** 'Go' as the counter first sees the start position; null otherwise. */
+export const startPhrase = (prev: Phase, next: Phase) =>
+  prev === 'waiting' && next === 'up' ? 'Go' : null;
+
+/** Names the first part out of frame; null when all are in. */
+export function framePhrase(missing: readonly BodyPart[]): string | null {
+  const [part] = missing;
+  return part ? `Your ${part} ${part === 'head' ? 'is' : 'are'} out of frame` : null;
 }
