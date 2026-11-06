@@ -10,7 +10,10 @@ export type RecorderEvent =
   | { type: 'save'; exercise: ExerciseId; labels: Trace['labels'] }
   | { type: 'drop' };
 
-/** Buffers one step's counting frames; saves Trace v1 files only when enabled by the dev route. */
+/** Buffers one step's counting frames; saves Trace v1 files when `record` is on (dev builds). */
+/** Written when a trace is too short to measure its rate: the detector's usual pace. */
+const NOMINAL_FPS = 15;
+
 export const recorder = fromCallback<RecorderEvent, boolean>(({ input: on, receive }) => {
   if (!on) return;
   // shortcut: unbounded buffer; cap it if long holds run out of memory.
@@ -44,7 +47,9 @@ export const recorder = fromCallback<RecorderEvent, boolean>(({ input: on, recei
         labels: event.labels,
         // Pause gaps can round the average down to zero; Trace v1 requires a positive rate.
         fps:
-          frames.length < 2 ? 15 : Math.max(1, Math.round((1000 * (frames.length - 1)) / last.t)),
+          frames.length < 2
+            ? NOMINAL_FPS
+            : Math.max(1, Math.round((1000 * (frames.length - 1)) / last.t)),
         frames,
       };
       drop();
@@ -53,6 +58,9 @@ export const recorder = fromCallback<RecorderEvent, boolean>(({ input: on, recei
         dir.create({ intermediates: true, idempotent: true });
         void new File(dir, name)
           .write(JSON.stringify(trace))
+          .then(() =>
+            console.info('[recorder] saved', name, trace.frames.length, 'frames', trace.labels),
+          )
           .catch((error) => console.warn('[recorder] could not write', error));
       } catch (error) {
         console.warn('[recorder] could not write', error);

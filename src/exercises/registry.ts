@@ -11,7 +11,7 @@ import type { HoldState } from './hold';
 import { plank, type PlankSample } from './plank';
 import { pushup, type PushupSample, type PushupState } from './pushup';
 import { situp, type SitupSample, type SitupState } from './situp';
-import { squat, type Sample, type SquatState } from './squat';
+import { squat, type SquatSample, type SquatState } from './squat';
 
 // The exercise input: one frame's joints. Other folders import these from here, not from geometry.
 export type { BodyPart, Pose } from './geometry';
@@ -32,7 +32,7 @@ export type Counters = {
   'mountain-climber': MountainClimberState;
 };
 export type Samples = {
-  squat: Sample;
+  squat: SquatSample;
   pushup: PushupSample;
   plank: PlankSample;
   situp: SitupSample;

@@ -1,5 +1,5 @@
 import { Canvas, Path, Skia, select, type SkPoint } from '@shopify/react-native-skia';
-import { useState, type RefObject } from 'react';
+import type { RefObject } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
 import {
@@ -14,10 +14,11 @@ import {
 import type { PoseDetection, PoseLandmarker } from 'superhabit-pose';
 
 import { JOINTS, skeleton, type Dot, type Segment } from './skeleton';
+import { MIN_VISIBILITY } from '@/exercises/geometry';
 import { colors } from '@/theme';
 
 /**
- * 33 entries in MediaPipe order, view coordinates; null where not visible (visibility <= 0.5) or not finite.
+ * 33 entries in MediaPipe order, view coordinates; null where not visible enough or not finite.
  * The native transform includes the preview's cover scaling and, on the front camera, its mirroring.
  */
 export function toViewJoints(preview: CameraRef | null, result: PoseDetection): (SkPoint | null)[] {
@@ -26,7 +27,7 @@ export function toViewJoints(preview: CameraRef | null, result: PoseDetection): 
   try {
     return Array.from({ length: JOINTS }, (_, i) => {
       const point = result.cameraLandmarks[i];
-      if (!point || (result.landmarks[i]?.visibility ?? 0) <= 0.5) return null;
+      if (!point || (result.landmarks[i]?.visibility ?? 0) < MIN_VISIBILITY) return null;
       const view = preview.convertCameraPointToViewPoint(point);
       return Number.isFinite(view.x) && Number.isFinite(view.y) ? view : null;
     });
@@ -73,7 +74,7 @@ export function PoseCamera({
   highlight: SharedValue<readonly [number, number, number] | null>;
   /** 'idle' = grey skeleton (waiting), 'live' = chalk bones + amber joints, 'noRep' = the highlighted limb red. */
   tone: 'idle' | 'live' | 'noRep';
-  /** Extra output for filming sets; dropped after a camera error so tracking keeps working without it. */
+  /** Extra output for filming sets; the session drops it after `onVideoLost` so tracking keeps working without it. */
   video?: CameraVideoOutput;
   /** Switching reconfigures the session; VisionCamera picks the default device at that position. */
   camera: 'front' | 'back';
@@ -84,9 +85,6 @@ export function PoseCamera({
   /** The video output was dropped after a camera error: nothing more can be filmed. */
   onVideoLost: () => void;
 }) {
-  // Not every device binds preview + frames + video at once; CameraX then fails the whole configure.
-  // shortcut: stays dropped after a flip, though the other camera might bind video; reset it (and the camcorder) if that matters.
-  const [videoFailed, setVideoFailed] = useState(false);
   const asyncRunner = useAsyncRunner();
   // VisionCamera caches the preview's sensor-to-view matrix and refreshes it only on layout. A 180°
   // flip changes no size, so the skeleton would draw upside down: a 1dp taller box forces the relayout.
@@ -100,29 +98,21 @@ export function PoseCamera({
     pixelFormat: 'rgb', // CameraX converts to RGBA; the native detector copies it to a Bitmap.
     onFrame(frame) {
       'worklet';
-      // No `finally` here or below: React Compiler skips any component that uses one.
-      let accepted = false;
-      try {
-        if (landmarker) {
-          accepted = asyncRunner.runAsync(() => {
-            'worklet';
-            // The runner only clears its busy flag when this task returns normally, so never throw.
-            // Results reach JS through the detector's native onResult callback, not across runtimes.
-            try {
-              try {
-                landmarker.detect(frame);
-              } catch (error) {
-                console.error('[pose] frame processing failed', error);
-              }
-              frame.dispose();
-            } catch (error) {
-              console.error('[pose] frame dispose failed', error);
-            }
-          });
-        }
-      } catch (error) {
-        console.error('[pose] frame scheduling failed', error);
-      }
+      // runAsync returns false while the runner is busy; then this frame is dropped here.
+      const accepted =
+        landmarker !== null &&
+        asyncRunner.runAsync(() => {
+          'worklet';
+          // The runner only clears its busy flag when this task returns normally, so never throw.
+          // Results reach JS through the detector's native onResult callback, not across runtimes.
+          // No `finally`: React Compiler skips any component that uses one.
+          try {
+            landmarker.detect(frame);
+          } catch (error) {
+            console.error('[pose] frame processing failed', error);
+          }
+          frame.dispose();
+        });
       if (!accepted) frame.dispose();
     },
   });
@@ -166,14 +156,14 @@ export function PoseCamera({
         isActive={isActive}
         orientationSource="interface"
         resizeMode="cover"
-        outputs={video && !videoFailed ? [frameOutput, video] : [frameOutput]}
+        outputs={video ? [frameOutput, video] : [frameOutput]}
         onPreviewStarted={onReady}
+        // Not every device binds preview + frames + video at once; CameraX then fails the whole configure.
+        // shortcut: any camera error drops video for the rest of the session, even after a flip to a camera
+        // that might bind it; reset it (and the camcorder) if that matters.
         onError={(error) => {
           console.error('[camera]', error);
-          if (video && !videoFailed) {
-            setVideoFailed(true);
-            onVideoLost();
-          }
+          if (video) onVideoLost();
         }}
       />
       {showSkeleton && (

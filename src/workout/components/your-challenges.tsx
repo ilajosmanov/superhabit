@@ -13,9 +13,10 @@ const tick = () =>
     ? Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Segment_Tick)
     : Haptics.selectionAsync());
 
+// shortcut: unrendered, as are JoinedCard, StepsButton, /steps/[id] and catalogEntry; wire in when joined challenges are stored.
 /**
  * The challenges you joined, due today first. One: its card. Several: a swipe row where the next
- * card's edge shows. shortcut: nothing renders this until joined challenges are stored.
+ * card's edge shows.
  */
 export function YourChallenges({ progress }: { progress: readonly Joined[] }) {
   const { width } = useWindowDimensions();

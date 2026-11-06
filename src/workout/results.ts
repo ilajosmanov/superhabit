@@ -1,25 +1,24 @@
-import type { ExerciseId } from '@/exercises/registry';
+import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 import type { Goal } from './plan';
 
 /** Where a filmed rep sits: its file and the rep's bottom on that file's timeline. */
-export type Clip = { uri: string; atMs: number };
+// shortcut: clip URIs live in Paths.cache/reps, which the camcorder prunes on every start; persisting a result must move its best clip to Paths.document or drop clips.
+type Clip = { uri: string; atMs: number };
 
 /** `cue`: the first form cue, if any; `clip`: where the rep's bottom is filmed, absent when it was not. */
 export type Attempt = { counted: boolean; depth: number; cue: string | null; clip?: Clip };
 export type StepResult = {
-  day: number;
   exercise: ExerciseId;
   round: number;
   /** Wall-clock timestamps, separate from the detector clock used for reps and holds. */
   startedAt: number;
   endedAt: number;
-  name: string;
   goal: Goal;
-  gauge: { down: number; up: number } | null;
   reps: number;
   noReps: number;
   heldMs: number;
   attempts: readonly Attempt[];
+  // shortcut: stats is a formatted string; keep the numbers when results persist.
   stats: string | null;
 };
 
@@ -35,20 +34,22 @@ export const clipTime = (startMs: number, countedAtMs: number, upMs: number | nu
   countedAtMs - (upMs ?? 0) - startMs;
 
 /**
- * Deepest filmed counted rep by its margin past its exercise's `down`, for rising or falling gauges;
- * first wins ties. Exercises without a gauge have no comparable depth.
+ * Deepest filmed counted rep by how far past its exercise's `down` it went, in gauge spans so a
+ * jumping jack's 0..1 spread compares with a squat's degrees; first wins ties. Exercises without
+ * a gauge have no comparable depth.
  */
 export function bestRep(sets: readonly StepResult[]): BestRep | null {
   let best: BestRep | null = null;
   let margin = Infinity;
-  for (const { exercise, name, gauge, attempts } of sets) {
+  for (const { exercise, attempts } of sets) {
+    const { name, gauge } = EXERCISES[exercise];
     if (!gauge) continue;
     const { down, up } = gauge;
     let rep = 0;
     for (const { counted, depth, clip } of attempts) {
       if (!counted) continue;
       rep++;
-      const past = (depth - down) * Math.sign(up - down);
+      const past = (depth - down) / (up - down);
       if (clip && past < margin) {
         best = { ...clip, exercise, name, rep, depth };
         margin = past;

@@ -1,20 +1,19 @@
 import { cycle, type CycleConfig, type CycleState } from './cycle';
+import type { Side } from './geometry';
 import type { Counter, Progress, Rep } from './progress';
 
-export type Side = 'left' | 'right';
 export type SidedConfig<M, A, R extends Rep> = Omit<CycleConfig<M, A, R>, 'signal'> & {
   /** Null means this side is unseen; never substitute the other side's signal. */
   signal(m: M, side: Side): number | null;
-  /** Pair counts one more clean left AND right; side counts every clean side rep. */
-  per: 'pair' | 'side';
 };
 export type SidedState<A, R extends Rep> = Progress & {
+  lastRep: R | null;
   left: CycleState<A, R>;
   right: CycleState<A, R>;
   lastSide: Side | null;
 };
 
-/** Two independent cycles sharing an exercise's rules and an explicit counting unit. */
+/** Two independent cycles sharing an exercise's rules; every clean side rep counts. */
 export function sided<M, A, R extends Rep>(c: SidedConfig<M, A, R>): Counter<SidedState<A, R>, M> {
   const left = cycle({ ...c, signal: (m: M) => c.signal(m, 'left') });
   const right = cycle({ ...c, signal: (m: M) => c.signal(m, 'right') });
@@ -57,7 +56,7 @@ export function sided<M, A, R extends Rep>(c: SidedConfig<M, A, R>): Counter<Sid
       left: l,
       right: r,
       lastSide,
-      reps: c.per === 'pair' ? Math.min(l.reps, r.reps) : l.reps + r.reps,
+      reps: l.reps + r.reps,
       noReps: l.noReps + r.noReps,
       phase,
       lastRep: reported === 'right' ? r.lastRep : reported === 'left' ? l.lastRep : s.lastRep,
@@ -77,26 +76,19 @@ export function sided<M, A, R extends Rep>(c: SidedConfig<M, A, R>): Counter<Sid
       lastSide: null,
     }),
     live: (s) => {
-      // A shallow attempt need not change phase. Prefer its current signal to a stale
-      // reading from the side that last changed phase, while keeping waiting sides out.
-      if (
-        s.left.phase !== 'waiting' &&
-        (s.left.lastSeenAt ?? -Infinity) > (s.right.lastSeenAt ?? -Infinity)
-      )
-        return left.live(s.left);
-      if (
-        s.right.phase !== 'waiting' &&
-        (s.right.lastSeenAt ?? -Infinity) > (s.left.lastSeenAt ?? -Infinity)
-      )
-        return right.live(s.right);
-      const latest = s.lastSide === 'right' ? s.right : s.left;
-      if (latest.phase === 'waiting') {
-        if (s.left.phase !== 'waiting') return left.live(s.left);
-        if (s.right.phase !== 'waiting') return right.live(s.right);
-      }
-      if (s.lastSide === 'left') return left.live(s.left);
-      if (s.lastSide === 'right') return right.live(s.right);
-      return { signal: null, lowest: null };
+      const sides = { left, right };
+      // Of the sides in a cycle: the one seen last, then the deeper one (a leg driving down beats
+      // one resting at the top on the same frame), then the last to change phase.
+      const [side] = (['left', 'right'] as const)
+        .filter((side) => s[side].phase !== 'waiting')
+        .sort(
+          (a, b) =>
+            (s[b].lastSeenAt ?? -Infinity) - (s[a].lastSeenAt ?? -Infinity) ||
+            s[a].min - s[b].min ||
+            Number(b === s.lastSide) - Number(a === s.lastSide),
+        );
+      const shown = side ?? s.lastSide;
+      return shown ? sides[shown].live(s[shown]) : { signal: null, lowest: null };
     },
   };
 }

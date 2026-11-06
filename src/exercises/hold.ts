@@ -3,10 +3,11 @@ import type { Counter, Progress } from './progress';
 export type HoldConfig<M> = {
   /** Null = in shape; otherwise the first failing check's cue. */
   check(m: M): string | null;
-  enterMs?: number; // default 300
-  graceMs?: number; // default 800
   lostCue: string;
 };
+
+const ENTER_MS = 300;
+const GRACE_MS = 800;
 
 export type HoldState = Progress & {
   /** Start of the in-shape streak while entering. */
@@ -21,8 +22,6 @@ export type HoldState = Progress & {
 
 /** A hold clock driven entirely by detector timestamps, including entry and forgiven gaps. */
 export function hold<M>(c: HoldConfig<M>): Counter<HoldState, M> {
-  const enterMs = c.enterMs ?? 300;
-  const graceMs = c.graceMs ?? 800;
   const initial: HoldState = {
     reps: 0,
     noReps: 0,
@@ -51,7 +50,7 @@ export function hold<M>(c: HoldConfig<M>): Counter<HoldState, M> {
   function step(s: HoldState, sample: M | null, nowMs: number): HoldState {
     if (s.lastAt !== null && nowMs <= s.lastAt) return s;
     // Entry also needs observed frames within the grace window.
-    if (s.phase === 'waiting' && s.lastAt !== null && nowMs - s.lastAt > graceMs) {
+    if (s.phase === 'waiting' && s.lastAt !== null && nowMs - s.lastAt > GRACE_MS) {
       s = { ...s, since: nowMs };
     }
     const formCue = sample === null ? null : c.check(sample);
@@ -59,7 +58,7 @@ export function hold<M>(c: HoldConfig<M>): Counter<HoldState, M> {
     s = { ...s, lastAt: nowMs, cue: formCue ?? s.cue };
 
     // Apply a break before accepting a good frame after a detector stall.
-    if (s.phase === 'active' && s.lastIn !== null && nowMs - s.lastIn > graceMs) {
+    if (s.phase === 'active' && s.lastIn !== null && nowMs - s.lastIn > GRACE_MS) {
       s = {
         ...s,
         phase: 'waiting',
@@ -82,7 +81,7 @@ export function hold<M>(c: HoldConfig<M>): Counter<HoldState, M> {
         return { ...s, heldMs: s.heldMs + nowMs - s.lastIn, lastIn: nowMs, cue: null };
       }
       const since = s.since ?? nowMs;
-      if (nowMs - since >= enterMs) {
+      if (nowMs - since >= ENTER_MS) {
         return {
           ...s,
           phase: 'active',

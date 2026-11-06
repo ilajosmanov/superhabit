@@ -16,7 +16,7 @@ export interface PoseCameraPoint {
 
 export interface PoseDetection {
   timestampMs: number;
-  /** Normalized coordinates in the original, unrotated image buffer. Empty when no person. */
+  /** Normalized 0..1 coordinates, rotated upright to the screen. Empty when no person. */
   landmarks: PoseLandmark[];
   /** Metres, origin between the hips. Use these for 3D angles, image landmarks for visibility. */
   worldLandmarks: PoseLandmark[];

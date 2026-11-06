@@ -14,6 +14,7 @@ android {
 
   defaultConfig {
     minSdkVersion 26
+    consumerProguardFiles "proguard-rules.pro"
     externalNativeBuild {
       cmake {
         cppFlags "-frtti -fexceptions -Wall -fstack-protector-all"

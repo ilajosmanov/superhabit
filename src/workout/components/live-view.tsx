@@ -1,7 +1,8 @@
 import { Text, View } from 'react-native';
 
 import { Caption, Clock, CloseButton, Frame, MuteButton } from './controls';
-import { SetPlatter, type PlatterProps } from './set-platter';
+import type { PlatterProps } from './platter-header';
+import { SetPlatter } from './set-platter';
 
 /**
  * Boards 09–13 over the full-bleed camera: the free camera area (✕ and clock, the coach's caption,
@@ -12,7 +13,7 @@ export function LiveView(props: PlatterProps) {
   const paused = view.stage === 'paused';
   // While counting ✕ only pauses: ending is one more tap on the paused platter, so a stray tap loses nothing.
   const close = (
-    <CloseButton onPress={onPause} label="End challenge" hint="Pauses first; then resume or end" />
+    <CloseButton onPress={onPause} label="Pause" hint="Pauses first; then resume or end" />
   );
   const clock = (
     <Clock
@@ -38,7 +39,7 @@ export function LiveView(props: PlatterProps) {
             <View className="flex-row items-center justify-between">
               {close}
               {clock}
-              <MuteButton muted={view.muted} onPress={onToggleVoice} glass />
+              <MuteButton muted={view.muted} onPress={onToggleVoice} />
             </View>
           )}
           {(paused || view.countdown !== null) && (

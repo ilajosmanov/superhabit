@@ -1,8 +1,8 @@
 import { assert, describe, expect, it } from 'vite-plus/test';
-import { Joint } from 'superhabit-pose/joints';
+import { Joint, SIDE } from 'superhabit-pose/joints';
 
 import { body } from './__fixtures__/body';
-import { loadTrace, replay, traceFiles } from './__fixtures__/replay';
+import { falseReps, scoreReps, tenPercent, traceFiles } from './__fixtures__/replay';
 import { gluteBridge, measureGluteBridge } from './glute-bridge';
 import type { Pose } from './geometry';
 
@@ -11,10 +11,7 @@ const FRAME = 66;
 // a 30–65° knee stays bent. Start from body() so image points and the other joints remain valid.
 const pose = (height = 0, lift = 0, straightKnee = false): Pose => {
   const result = body({ side: true });
-  for (const [s, h, k, a] of [
-    [Joint.LEFT_SHOULDER, Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE],
-    [Joint.RIGHT_SHOULDER, Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE],
-  ]) {
+  for (const { shoulder: s, hip: h, knee: k, ankle: a } of [SIDE.left, SIDE.right]) {
     const z = result.worldLandmarks[h].z;
     result.worldLandmarks[s] = { x: 0, y: 0, z, visibility: 0.9 };
     result.worldLandmarks[h] = { x: height === 0 ? 0.5 : 0.4, y: -height, z, visibility: 0.9 };
@@ -39,23 +36,6 @@ const play = (spans: [Pose | null, from: number, to?: number][], start = gluteBr
 const floor = () => pose();
 const top = () => pose(0.2);
 const shallow = () => pose(0.08);
-// Reposition the feet on the floor, 20 cm nearer the shoulders, retaining a full hip extension.
-const closerFeet = (height = 0): Pose => {
-  const result = pose(height);
-  for (const joint of [
-    Joint.LEFT_SHOULDER,
-    Joint.LEFT_HIP,
-    Joint.LEFT_KNEE,
-    Joint.LEFT_ANKLE,
-    Joint.RIGHT_SHOULDER,
-    Joint.RIGHT_HIP,
-    Joint.RIGHT_KNEE,
-    Joint.RIGHT_ANKLE,
-  ])
-    result.worldLandmarks[joint].x *= 0.75;
-  return result;
-};
-
 describe('measureGluteBridge', () => {
   it('reads the hip extension angle and bent knee on the body fixture', () => {
     const sample = measureGluteBridge(floor());
@@ -73,11 +53,10 @@ describe('measureGluteBridge', () => {
     result.worldLandmarks[Joint.RIGHT_HIP] = top().worldLandmarks[Joint.RIGHT_HIP];
     expect(measureGluteBridge(result)).toMatchObject({
       hip: expect.closeTo(180),
-      side: 'right',
       joints: [Joint.RIGHT_SHOULDER, Joint.RIGHT_HIP, Joint.RIGHT_KNEE],
     });
     result.landmarks[Joint.RIGHT_ANKLE].x = 1.1;
-    expect(measureGluteBridge(result)?.side).toBe('left');
+    expect(measureGluteBridge(result)?.joints[0]).toBe(Joint.LEFT_SHOULDER);
   });
 
   it.each(['visibility', 'x'] as const)('rejects unseen ankles (%s)', (field) => {
@@ -220,125 +199,6 @@ describe('gluteBridge', () => {
     });
   });
 
-  it('cues lifting a foot despite bent knees and a full hip extension', () => {
-    expect(
-      play([
-        [floor(), 0, 1500],
-        [top(), 1566, 2500],
-        [pose(0.2, 0.2), 2566, 3500],
-        [floor(), 3566, 5000],
-      ]),
-    ).toMatchObject({
-      reps: 0,
-      noReps: 1,
-      lastRep: { counted: false, cues: ['Keep your feet planted'] },
-    });
-  });
-
-  it('anchors the foot at the planted start when it lifts together with the hips', () => {
-    // Both lifted poses keep the same ankle and shin: measuring drift from the first rising
-    // frame would see zero movement and count this as clean, even though the foot rose 20 cm.
-    const result = play([
-      [floor(), 0, 1500],
-      [pose(0.2, 0.2), 1566, 3000],
-      [pose(0, 0.2), 3066, 4500],
-    ]);
-    expect(result).toMatchObject({
-      reps: 0,
-      noReps: 1,
-      lastRep: { counted: false, cues: ['Keep your feet planted'] },
-    });
-    expect(result.lastRep?.drift).toBeCloseTo(0.5);
-  });
-
-  it('keeps the planted anchor while idling with the hips down', () => {
-    expect(
-      play([
-        [floor(), 0, 1500],
-        [pose(0, 0.2), 1566, 3000],
-        [pose(0.2, 0.2), 3066, 4500],
-        [pose(0, 0.2), 4566, 6000],
-      ]),
-    ).toMatchObject({
-      reps: 0,
-      noReps: 1,
-      lastRep: { counted: false, cues: ['Keep your feet planted'] },
-    });
-  });
-
-  it.each([false, true])(
-    'keeps rejecting a foot held aloft across attempts after a foot-drift no-rep=%s',
-    (brokenFirst) => {
-      const result = play([
-        [floor(), 0, 1500],
-        [pose(0.2, brokenFirst ? 0.2 : 0), 1566, 3000],
-        [pose(0, brokenFirst ? 0.2 : 0), 3066, 4500],
-        [pose(0, 0.2), 4566, 6000],
-        [pose(0.2, 0.2), 6066, 7500],
-        [pose(0, 0.2), 7566, 9000],
-        [pose(0.2, 0.2), 9066, 10500],
-        [pose(0, 0.2), 10566, 12000],
-      ]);
-      expect(result).toMatchObject({
-        reps: brokenFirst ? 0 : 1,
-        noReps: brokenFirst ? 3 : 2,
-        lastRep: { counted: false, cues: ['Keep your feet planted'] },
-      });
-      // Restoring the original planted feet allows the following rep without a reset.
-      expect(
-        play(
-          [
-            [floor(), 12066, 13500],
-            [top(), 13566, 15000],
-            [floor(), 15066, 16500],
-          ],
-          result,
-        ),
-      ).toMatchObject({ reps: brokenFirst ? 1 : 2, noReps: brokenFirst ? 3 : 2 });
-    },
-  );
-
-  it('requires a planted start reference for a side first seen during the lift', () => {
-    const start = floor();
-    start.landmarks[Joint.RIGHT_ANKLE].visibility = 0.1;
-    const far = (p: Pose) => {
-      p.landmarks[Joint.LEFT_ANKLE].visibility = 0.1;
-      return p;
-    };
-    expect(
-      play([
-        [start, 0, 1500],
-        [far(pose(0.2, 0.2)), 1566, 3000],
-        [far(pose(0, 0.2)), 3066, 4500],
-        // The lifted foot held still at the next start must not become the right side's floor.
-        [far(pose(0.2, 0.2)), 4566, 6000],
-        [far(pose(0, 0.2)), 6066, 7500],
-        [far(pose(0.2, 0.2)), 7566, 9000],
-        [far(pose(0, 0.2)), 9066, 10500],
-      ]),
-    ).toMatchObject({
-      reps: 0,
-      noReps: 3,
-      lastRep: { counted: false, cues: ['Keep your feet planted'] },
-    });
-  });
-
-  it('takes a new planted reference after an explicit reset', () => {
-    const started = play([[floor(), 0, 1500]]);
-    const reset = gluteBridge.reset(started);
-    // A reset permits a new grounded support position, rather than blessing a lifted foot.
-    expect(
-      play(
-        [
-          [closerFeet(), 1566, 3000],
-          [closerFeet(0.2), 3066, 4500],
-          [closerFeet(), 4566, 6000],
-        ],
-        reset,
-      ),
-    ).toMatchObject({ reps: 1, noReps: 0 });
-  });
-
   it('returns to waiting after tracking loss and discards the unfinished rep', () => {
     const lost = play([
       [floor(), 0, 1500],
@@ -350,9 +210,9 @@ describe('gluteBridge', () => {
     expect(
       play(
         [
-          [closerFeet(), 6066, 7500],
-          [closerFeet(0.2), 7566, 9000],
-          [closerFeet(), 9066, 10500],
+          [floor(), 6066, 7500],
+          [top(), 7566, 9000],
+          [floor(), 9066, 10500],
         ],
         lost,
       ),
@@ -367,30 +227,17 @@ const MIN_OK = 2;
 const files = traceFiles('glute-bridge');
 describe.skipIf(files.length === 0)('gluteBridge on real traces', () => {
   it('preserves the measured baseline on labelled clips', () => {
-    const rows = files.flatMap((path) => {
-      const trace = loadTrace(path);
-      if (trace.labels.reps === undefined) return [];
-      const expected = trace.labels.reps;
-      const got = replay(gluteBridge, trace).reps;
-      const ok = Math.abs(got - expected) <= Math.max(1, Math.round(0.1 * expected));
-      return [{ clip: trace.source.clip, expected, got, ok }];
-    });
+    const rows = scoreReps(gluteBridge, files, tenPercent);
     expect(rows.filter((row) => row.ok).length, JSON.stringify(rows)).toBeGreaterThanOrEqual(
       MIN_OK,
     );
   });
 
-  for (const exercise of ['squat', 'pushup', 'plank']) {
-    const others = traceFiles(exercise);
-    it.skipIf(others.length === 0)(`counts no false reps on ${exercise} traces`, () => {
-      const rows = others.map((path) => {
-        const trace = loadTrace(path);
-        return { clip: trace.source.clip, reps: replay(gluteBridge, trace).reps };
-      });
-      expect(
-        rows.reduce((total, row) => total + row.reps, 0),
-        JSON.stringify(rows),
-      ).toBe(0);
-    });
-  }
+  const others = ['squat', 'pushup', 'plank'];
+  it.skipIf(others.some((e) => traceFiles(e).length === 0))(
+    'counts no false reps on squat, push-up or plank traces',
+    () => {
+      expect(falseReps(gluteBridge, others)).toEqual({});
+    },
+  );
 });

@@ -57,7 +57,6 @@ export default defineConfig({
   // Expo uses Metro; Vite+ provides checks and logic tests.
   resolve: {
     alias: {
-      '@/assets': fileURLToPath(new URL('./assets', import.meta.url)),
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },

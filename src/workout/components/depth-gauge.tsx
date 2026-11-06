@@ -7,11 +7,7 @@ import Animated, {
 
 import { colors } from '@/theme';
 
-/** 0 (top) … 1 (bottom) on a depth track: 180° (straight) at the top, 30° past `down` at the bottom. */
-export function depthAt(angle: number, down: number) {
-  'worklet';
-  return Math.min(1, Math.max(0, (180 - angle) / (210 - down)));
-}
+import { depthAt, depthText, type Gauge } from './depth';
 
 const pct = (x: number): `${number}%` => {
   'worklet';
@@ -22,20 +18,20 @@ const pct = (x: number): `${number}%` => {
 const AnimatedText = Animated.createAnimatedComponent(TextInput);
 
 /**
- * The live depth gauge: fill down to this rep's lowest angle, a tick at `down`, a bar at the current angle,
- * and the angle under it. Per-frame values come only from the shared values, on the UI thread.
+ * The live depth gauge: fill down to this rep's deepest value, a tick at `gauge.down`, a bar at the
+ * current value, and the value under it. Per-frame values come only from the shared values, on the UI thread.
  */
 export function DepthGauge({
   angle,
   lowest,
-  down,
+  gauge,
   warn,
   lastDepth,
   track,
 }: {
   angle: SharedValue<number | null>;
   lowest: SharedValue<number | null>;
-  down: number;
+  gauge: Gauge;
   /** The latest rep was a no-rep: fill in warn. */
   warn: boolean;
   /** The latest rep's depth, for the spoken summary. */
@@ -45,21 +41,21 @@ export function DepthGauge({
 }) {
   const fill = useAnimatedStyle(() => {
     const l = lowest.get();
-    return { height: pct(l === null ? 0 : depthAt(l, down)) };
+    return { height: pct(l === null ? 0 : depthAt(l, gauge)) };
   });
   const marker = useAnimatedStyle(() => {
     const a = angle.get();
-    return { opacity: a === null ? 0 : 1, top: pct(depthAt(a ?? 180, down)) };
+    return { opacity: a === null ? 0 : 1, top: pct(depthAt(a ?? gauge.up, gauge)) };
   });
   // `text` is the native prop behind `value`; it is not in TextInputProps.
   const readout = useAnimatedProps<TextInputProps & { text: string }>(() => {
     const a = angle.get();
-    return { text: a === null ? '—' : `${Math.round(a)}°` };
+    return { text: a === null ? '—' : depthText(a, gauge) };
   });
-  const tick = pct(depthAt(down, down));
+  const tick = pct(depthAt(gauge.down, gauge));
   const summary =
-    `Depth gauge, deep enough at ${down} degrees.` +
-    (lastDepth === null ? '' : ` Last rep reached ${Math.round(lastDepth)} degrees.`);
+    `Depth gauge, deep enough at ${depthText(gauge.down, gauge)}.` +
+    (lastDepth === null ? '' : ` Last rep reached ${depthText(lastDepth, gauge)}.`);
 
   return (
     <View accessible accessibilityLabel={summary} className="w-13 items-end gap-2">
@@ -81,7 +77,7 @@ export function DepthGauge({
           className="absolute right-5.5 -mt-2 font-mono text-xs leading-4 text-muted"
           style={{ top: tick }}
         >
-          {down}°
+          {depthText(gauge.down, gauge)}
         </Text>
         <Animated.View
           style={[

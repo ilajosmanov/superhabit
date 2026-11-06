@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { challengeDay, CHALLENGES, summary, totalReps, totalSeconds } from './challenges';
-import { defineChallenge, expand, MAX, reps, seconds, validate, type Session } from './plan';
+import { challengeDay, CHALLENGES, detail, summary, totalReps, totalSeconds } from './challenges';
+import { defineChallenge, MAX, reps, seconds, type Session } from './plan';
 
 describe('challengeDay', () => {
   const allDone = new Set(['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05']);
@@ -94,69 +94,78 @@ const circuit = challenge([
   },
 ]);
 
-describe('CHALLENGES', () => {
-  it.each([...CHALLENGES])('%s has a valid plan', (_id, entry) => {
-    expect(validate(entry.session)).toEqual([]);
+it('describes every shipped challenge in one sentence', () => {
+  expect([...CHALLENGES].map(([id, entry]) => [id, summary(entry)])).toEqual([
+    ['squat-pushup', '3 squats, then 3 push-ups'],
+    ['plank-minute', 'Plank 10 s'],
+    ['floor-circuit', '3 rounds: 3 push-ups, then plank 10 s'],
+    ['two-max-sets', '2 rounds: squats, as many as you can'],
+    ['squat-hundred', '3 squats'],
+    ['pushup-fifty', '3 push-ups'],
+    ['jumping-jack-max', 'Jumping jacks, as many as you can'],
+    ['lunge-max', 'Lunges, as many as you can'],
+    ['situp-max', 'Sit-ups, as many as you can'],
+    ['glute-bridge-max', 'Glute bridges, as many as you can'],
+    ['mountain-climber-max', 'Mountain climbers, as many as you can'],
+    ['squat', 'Squats, as many as you can'],
+    ['pushup', 'Push-ups, as many as you can'],
+  ]);
+});
+
+describe('detail', () => {
+  it('counts reps of a rep-only challenge and rotates the phone between placements', () => {
+    const squatPushup = challenge([
+      {
+        steps: [
+          { exercise: 'squat', goal: reps(3) },
+          { exercise: 'pushup', goal: reps(3) },
+        ],
+        rounds: 1,
+      },
+    ]);
+    expect(detail(squatPushup)).toMatchObject({
+      total: 6,
+      countsReps: true,
+      tracking: 'The camera counts. Only full-range reps score.',
+      phone: 'ROTATES',
+      first: { name: 'squats' },
+    });
+    expect(detail(squatPushup).sets).toHaveLength(2);
   });
 
-  it('keeps the existing catalog order and sets the challenge durations', () => {
-    expect([...CHALLENGES].map(([id, entry]) => [id, entry.days, entry.restartOnMiss])).toEqual([
-      ['squat-pushup', 30, false],
-      ['plank-minute', 21, false],
-      ['floor-circuit', 30, false],
-      ['two-max-sets', 14, false],
-      ['squat-hundred', 21, false],
-      ['pushup-fifty', 21, false],
-      ['jumping-jack-max', 14, false],
-      ['lunge-max', 14, false],
-      ['situp-max', 14, false],
-      ['glute-bridge-max', 14, false],
-      ['mountain-climber-max', 14, false],
-      ['squat', 1, false],
-      ['pushup', 1, false],
+  it('times a hold-only challenge in seconds, phone sideways', () => {
+    const plankMinute = challenge([
+      { steps: [{ exercise: 'plank', goal: seconds(60) }], rounds: 1 },
+    ]);
+    expect(detail(plankMinute)).toMatchObject({
+      total: 60,
+      countsReps: false,
+      tracking: 'The camera times your hold. Stay in position to keep the clock running.',
+      phone: 'SIDEWAYS',
+    });
+  });
+
+  it('counts reps and times holds in a mixed circuit, leaving rests out of the sets', () => {
+    expect(detail(circuit)).toMatchObject({
+      total: 30,
+      countsReps: true,
+      tracking: 'The camera counts full-range reps and times your holds.',
+      phone: 'SIDEWAYS',
+    });
+    expect(detail(circuit).sets.map((set) => set.exercise)).toEqual([
+      'pushup',
+      'plank',
+      'pushup',
+      'plank',
+      'pushup',
+      'plank',
     ]);
   });
 
-  it.each([
-    {
-      id: 'plank-minute',
-      description: 'Plank 60 s',
-      reps: 0,
-      seconds: 60,
-      exercises: ['plank'],
-      rests: [],
-    },
-    {
-      id: 'floor-circuit',
-      description: '3 rounds: 10 push-ups, then plank 30 s',
-      reps: 30,
-      seconds: 90,
-      exercises: ['pushup', 'plank', 'pushup', 'plank', 'pushup', 'plank'],
-      rests: [30, 30],
-    },
-    {
-      id: 'two-max-sets',
-      description: '2 rounds: squats, as many as you can',
-      reps: Infinity,
-      seconds: 0,
-      exercises: ['squat', 'squat'],
-      rests: [60],
-    },
-  ])('$id offers its catalog goals and rests', (expected) => {
-    const entry = CHALLENGES.get(expected.id);
-    if (!entry) throw new Error(`Missing challenge: ${expected.id}`);
-    expect(summary(entry)).toBe(expected.description);
-    expect(totalReps(entry)).toBe(expected.reps);
-    expect(totalSeconds(entry)).toBe(expected.seconds);
-    const steps = expand(entry.session);
-    expect(steps.filter((step) => step.exercise !== 'rest').map((step) => step.exercise)).toEqual(
-      expected.exercises,
-    );
+  it('keeps the phone upright for a standing exercise', () => {
     expect(
-      steps
-        .filter((step) => step.exercise === 'rest')
-        .map((step) => (step.goal.type === 'seconds' ? step.goal.n : null)),
-    ).toEqual(expected.rests);
+      detail(challenge([{ steps: [{ exercise: 'squat', goal: MAX }], rounds: 1 }])).phone,
+    ).toBe('UPRIGHT');
   });
 });
 

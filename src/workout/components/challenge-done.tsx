@@ -5,17 +5,16 @@ import { BestRepClip, shareBestRep } from './best-rep-clip';
 import { CLOSE, Glyph } from '@/components/glyph';
 import { EXERCISES } from '@/exercises/registry';
 import type { StepResult } from '@/workout/results';
-import type { SessionView } from '@/workout/session';
+import type { SessionView } from '@/workout/session-view';
 
+import { mss, PrimaryButton } from './controls';
 import { RepStrip } from './rep-strip';
 
-/** 312 -> "5:12". */
-const mss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-
 function SetRow({ set }: { set: StepResult }) {
-  const { name, goal, reps, noReps, heldMs, attempts, gauge, stats } = set;
-  const amount = EXERCISES[set.exercise].kind === 'hold' ? Math.floor(heldMs / 1000) : reps;
-  const unit = EXERCISES[set.exercise].kind === 'hold' ? ' s' : '';
+  const { goal, reps, noReps, heldMs, attempts, stats } = set;
+  const { name, gauge, kind } = EXERCISES[set.exercise];
+  const amount = kind === 'hold' ? Math.floor(heldMs / 1000) : reps;
+  const unit = kind === 'hold' ? ' s' : '';
   return (
     <View className="gap-2.5 border-b border-line py-3.5">
       <View className="flex-row justify-between gap-4">
@@ -32,7 +31,7 @@ function SetRow({ set }: { set: StepResult }) {
         </Text>
       </View>
       <View className="flex-row items-end justify-between gap-4">
-        {gauge && <RepStrip attempts={attempts} down={gauge.down} />}
+        {gauge && <RepStrip attempts={attempts} gauge={gauge} />}
         {stats && (
           <Text className="shrink text-right font-mono text-xs tracking-wider text-muted">
             {stats}
@@ -113,7 +112,7 @@ export function ChallengeDone({
         <View className="border-t border-line">
           {view.results.map((set, i) => (
             // Results only ever append; a challenge may repeat an exercise.
-            <SetRow key={`${i}-${set.name}`} set={set} />
+            <SetRow key={`${i}-${set.exercise}`} set={set} />
           ))}
         </View>
       </ScrollView>
@@ -121,26 +120,20 @@ export function ChallengeDone({
       <View className="gap-3 px-6 pt-3">
         {/* `best` lands a moment after finishing, once its file is final. */}
         {best && <BestRepClip best={best} />}
-        {best && (
-          <Pressable
-            onPress={() => void shareBestRep(best)}
-            accessibilityRole="button"
-            className="h-14 items-center justify-center rounded-full bg-accent"
-          >
-            <Text className="font-sans text-lg font-medium text-ground">Send my best set</Text>
-          </Pressable>
+        {best ? (
+          <>
+            <PrimaryButton onPress={() => void shareBestRep(best)} label="Send my best set" />
+            <Pressable
+              onPress={onClose}
+              accessibilityRole="button"
+              className="-mt-1.5 h-11 items-center justify-center"
+            >
+              <Text className="font-sans text-base text-soft">Done</Text>
+            </Pressable>
+          </>
+        ) : (
+          <PrimaryButton onPress={onClose} label="Done" />
         )}
-        <Pressable
-          onPress={onClose}
-          accessibilityRole="button"
-          className={`items-center justify-center ${best ? '-mt-1.5 h-11' : 'h-14 rounded-full bg-accent'}`}
-        >
-          <Text
-            className={`font-sans ${best ? 'text-base text-soft' : 'text-lg font-medium text-ground'}`}
-          >
-            Done
-          </Text>
-        </Pressable>
       </View>
     </View>
   );

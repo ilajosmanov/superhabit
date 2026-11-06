@@ -2,16 +2,19 @@ import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CLOSE, Glyph, SPEAKER, SPEAKER_OFF, SPEAKER_ON } from '@/components/glyph';
-import { colors } from '@/theme';
+import { CLOSE, Glyph } from '@/components/glyph';
+import { colors, lit as litStyle } from '@/theme';
+
+const SPEAKER = 'M11 5 6 9H3v6h3l5 4V5ZM15.5 8.5a5 5 0 0 1 0 7';
+export const SPEAKER_ON = `${SPEAKER}M18.5 5.5a9 9 0 0 1 0 13`;
+export const SPEAKER_OFF = 'M11 5 6 9H3v6h3l5 4V5ZM16 9.5l5 5M21 9.5l-5 5';
 
 // shortcut: no blur; Android can't blur the camera's SurfaceView. Revisit if the preview moves to a TextureView.
 /** The floating material over the camera: surface at 75 %, a faint chalk hairline. */
 export const GLASS = 'border border-chalk/10 bg-surface/75';
 
-const pad = (n: number) => String(n).padStart(2, '0');
-/** 84 -> "01:24". */
-export const mmss = (s: number) => `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+/** 312 -> "5:12". */
+export const mss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 /**
  * Lays session chrome over the full-bleed camera, 12px in from the safe area (camera cutout, system bars).
@@ -56,25 +59,17 @@ export function CloseButton({
   );
 }
 
-/** Voice coach on/off: glass on the camera (portrait top bar), a filled 36px chip inside the platter. */
-export function MuteButton({
-  muted,
-  onPress,
-  glass = false,
-}: {
-  muted: boolean;
-  onPress: () => void;
-  glass?: boolean;
-}) {
+/** Voice coach on/off, glass on the camera (portrait top bar); the platter uses a `Chip` in landscape. */
+export function MuteButton({ muted, onPress }: { muted: boolean; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="switch"
       accessibilityLabel="Voice coach"
       accessibilityState={{ checked: !muted }}
-      className={`items-center justify-center rounded-full ${glass ? `size-11 ${GLASS}` : 'size-9 bg-chalk/10'}`}
+      className={`size-11 items-center justify-center rounded-full ${GLASS}`}
     >
-      <Glyph d={muted ? SPEAKER_OFF : SPEAKER_ON} size={glass ? 18 : 16} />
+      <Glyph d={muted ? SPEAKER_OFF : SPEAKER_ON} size={18} />
     </Pressable>
   );
 }
@@ -114,7 +109,7 @@ export function Clock({
   recording: boolean;
   waiting: boolean;
 }) {
-  const time = mmss(elapsedS);
+  const time = mss(elapsedS);
   const text = recording ? `REC ${time}` : waiting ? 'NOT RECORDING' : time;
   return (
     <View
@@ -147,14 +142,40 @@ export function Caption({ text }: { text: string }) {
   );
 }
 
-export function Label({ children }: { children: ReactNode }) {
+/**
+ * The amber primary button. `className` sizes it. `lit` makes it the physical key (lit from above, a press
+ * ripple); wrap a lit one in `overflow-hidden rounded-full` so the ripple keeps to its corners.
+ */
+export function PrimaryButton({
+  onPress,
+  label,
+  className = 'h-14',
+  hint,
+  lit = false,
+}: {
+  onPress: () => void;
+  label: string;
+  className?: string;
+  hint?: string;
+  lit?: boolean;
+}) {
   return (
-    <Text
-      numberOfLines={1}
-      className="shrink font-mono text-xs font-medium tracking-widest text-muted"
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityHint={hint}
+      // Ground at 16%, the same shade the hold-to-start fill uses.
+      android_ripple={lit ? { color: `${colors.ground}29`, foreground: true } : undefined}
+      className={`items-center justify-center rounded-full bg-accent px-4 ${className}`}
+      style={lit ? litStyle : undefined}
     >
-      {children}
-    </Text>
+      <Text
+        numberOfLines={1}
+        className={`font-sans text-lg text-ground ${lit ? 'font-semibold tracking-tight' : 'font-medium'}`}
+      >
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 

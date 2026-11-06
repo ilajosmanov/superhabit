@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vite-plus/test';
 
 import type { Rep } from './progress';
-import { sided, type Side, type SidedConfig } from './sided';
+import type { Side } from './geometry';
+import { sided, type SidedConfig } from './sided';
 
 type Sample = { l: number | null; r: number | null };
 type Attempt = { samples: number };
 const counter = (config: Partial<SidedConfig<Sample, Attempt, Rep>> = {}) =>
   sided<Sample, Attempt, Rep>({
     signal: (m, side) => (side === 'left' ? m.l : m.r),
-    per: 'pair',
     up: 160,
     down: 100,
     shallow: 140,
@@ -37,16 +37,16 @@ function player(ex = counter()) {
 }
 
 describe('sided', () => {
-  it('banks clean side totals and counts pairs as each side catches up', () => {
+  it('counts every clean side rep and banks per-side totals', () => {
     const ex = counter();
     const before = structuredClone(ex.initial);
     const p = player(ex);
     p.hold({ l: 170, r: 170 });
-    expect(p.rep('left').reps).toBe(0);
-    expect(p.rep('left').reps).toBe(0);
-    expect(p.rep('right')).toMatchObject({ reps: 1, noReps: 0 });
+    expect(p.rep('left').reps).toBe(1);
+    expect(p.rep('left').reps).toBe(2);
+    expect(p.rep('right')).toMatchObject({ reps: 3, noReps: 0, lastSide: 'right' });
     expect(p.rep('right')).toMatchObject({
-      reps: 2,
+      reps: 4,
       left: { reps: 2 },
       right: { reps: 2 },
       heldMs: 0,
@@ -55,14 +55,7 @@ describe('sided', () => {
     expect(ex.initial).toEqual(before);
   });
 
-  it('counts every clean side when per is side', () => {
-    const p = player(counter({ per: 'side' }));
-    p.hold({ l: 170, r: 170 });
-    expect(p.rep('left').reps).toBe(1);
-    expect(p.rep('right')).toMatchObject({ reps: 2, noReps: 0, lastSide: 'right' });
-  });
-
-  it('counts a failed left separately from a clean right without completing a pair', () => {
+  it('counts a failed left separately from a clean right', () => {
     const p = player();
     p.hold({ l: 170, r: 170 });
     expect(p.rep('left', 130)).toMatchObject({
@@ -72,7 +65,7 @@ describe('sided', () => {
       lastRep: { counted: false, cues: ['Go lower'] },
     });
     expect(p.rep('right')).toMatchObject({
-      reps: 0,
+      reps: 1,
       noReps: 1,
       left: { reps: 0, noReps: 1 },
       right: { reps: 1, noReps: 0 },
@@ -90,7 +83,7 @@ describe('sided', () => {
 
     const repeated = p.rep('left', 130);
     expect(repeated).toMatchObject({
-      reps: 0,
+      reps: 1,
       noReps: 2,
       lastSide: 'left',
       left: { reps: 0, noReps: 2 },
@@ -100,7 +93,7 @@ describe('sided', () => {
   });
 
   it('expires only an unseen left after 1.2 seconds while the right keeps counting', () => {
-    const ex = counter({ per: 'side' });
+    const ex = counter();
     const p = player(ex);
     p.hold({ l: 170, r: 170 });
     const bottom = p.hold({ l: 90, r: 90 });
@@ -163,6 +156,16 @@ describe('sided', () => {
     },
   );
 
+  it('shows the side driving down when both are seen on the same frame', () => {
+    const ex = counter();
+    const p = player(ex);
+    p.hold({ l: 170, r: 170 }, 4);
+    // Neither side changes phase yet: 110 is below shallow but above down.
+    const driving = p.hold({ l: 110, r: 170 }, 4);
+    expect(driving).toMatchObject({ left: { phase: 'up' }, right: { phase: 'up' } });
+    expect(ex.live(driving).signal).toBeLessThan(120);
+  });
+
   it('resets both attempts and keeps totals, requiring start positions again', () => {
     const ex = counter();
     const p = player(ex);
@@ -173,7 +176,7 @@ describe('sided', () => {
     const bottom = p.hold({ l: 90, r: 90 });
     const reset = ex.reset(bottom);
     expect(reset).toMatchObject({
-      reps: 1,
+      reps: 2,
       noReps: 1,
       phase: 'waiting',
       broken: false,
@@ -186,13 +189,13 @@ describe('sided', () => {
     let state = reset;
     const startAt = Math.max(bottom.left.lastSeenAt ?? 0, bottom.right.lastSeenAt ?? 0) + 66;
     for (let i = 0; i < 30; i++) state = ex.step(state, { l: 90, r: 90 }, startAt + i * 66);
-    expect(state).toMatchObject({ reps: 1, noReps: 1, phase: 'waiting' });
+    expect(state).toMatchObject({ reps: 2, noReps: 1, phase: 'waiting' });
     for (let i = 30; i < 60; i++) state = ex.step(state, { l: 170, r: 170 }, startAt + i * 66);
-    expect(state).toMatchObject({ reps: 1, noReps: 1, phase: 'up' });
+    expect(state).toMatchObject({ reps: 2, noReps: 1, phase: 'up' });
   });
 
   it('counts simultaneous completions on both sides while exposing one latest report', () => {
-    const ex = counter({ per: 'side' });
+    const ex = counter();
     const p = player(ex);
     p.hold({ l: 170, r: 170 });
     const bottom = p.hold({ l: 90, r: 80 });

@@ -1,26 +1,17 @@
-import * as ScreenOrientation from 'expo-screen-orientation';
 import { createPoseLandmarker, type PoseDetection, type PoseLandmarker } from 'superhabit-pose';
-import {
-  assign,
-  enqueueActions,
-  fromCallback,
-  raise,
-  sendTo,
-  setup,
-  type SnapshotFrom,
-} from 'xstate';
+import { assign, enqueueActions, fromCallback, raise, sendTo, setup } from 'xstate';
 
-import { framePhrase, repPhrase, setPhrase, startPhrase } from './phrase';
+import { endPhrase, repPhrase, startPhrase } from './phrase';
 import { speech } from './speech';
 import { recorder, type RecorderEvent } from './recorder';
+import { orientationLock } from './orientation-lock';
+import { NONE, settle, type Framing } from './framing';
 
-import type { Exercise, Measured, Orientation } from '@/exercises/exercise';
 import {
   EXERCISES,
   initialCounters,
   outOfFrame,
   orientation,
-  type BodyPart,
   type Counters,
   type ExerciseId,
   type Pose,
@@ -29,7 +20,7 @@ import {
 
 import { bestRep, clipTime, type Attempt, type BestRep, type StepResult } from './results';
 import { camcorder, type VideoOutput } from './camcorder';
-import { done, expand, type Challenge, type FlatSteps, type Goal } from './plan';
+import { done, expand, type Challenge, type FlatSteps } from './plan';
 
 /** Per-frame, never in React state. Called for every detector result, in every stage. */
 export type Live = {
@@ -69,45 +60,49 @@ type OnPose = (result: PoseDetection, live: Live) => void;
 type Input = { challenge: Challenge; onPose?: OnPose; video?: VideoOutput; record?: boolean };
 
 /** One counter per exercise. `step` indexes expanded steps; switching still points to the finished step. */
-type Context = Counters & {
-  landmarker: PoseLandmarker | null;
-  onPose?: OnPose;
-  video?: VideoOutput;
-  record: boolean;
-  steps: FlatSteps;
-  step: number;
-  // shortcut: every run is day 1 until joined challenges persist.
-  day: number;
-  stepS: number;
-  stepStartedAt: number | null;
-  countdown: number;
-  completed: boolean;
-  elapsedS: number;
-  muted: boolean;
-  /** Draw the skeleton over the camera; detection runs either way. */
-  skeleton: boolean;
-  // shortcut: not persisted, every run starts on the front camera; store it if people keep flipping.
-  camera: 'front' | 'back';
-  /** A flip is waiting for the new camera to stream; survives a pause, so resuming can't count old frames. */
-  flipPending: boolean;
-  caption: string | null;
-  /** Committed out-of-frame parts; `candidate` is a differing reading until it has held STABLE_MS. */
-  missing: readonly BodyPart[];
-  candidate: { parts: readonly BodyPart[]; since: number } | null;
-  flash: 'rep' | 'noRep' | null;
-  attempts: readonly Attempt[];
-  results: readonly StepResult[];
-  /** The file being filmed; `startMs` is the first detector frame after it started, null until then. */
-  take: { uri: string; startMs: number | null } | null;
-  /** Set once the camcorder wrapped up the finished session's files. */
-  best: BestRep | null;
-};
+type Context = Counters &
+  Framing & {
+    landmarker: PoseLandmarker | null;
+    /** A detector frame was handled this set; until then nothing is known about framing. */
+    framed: boolean;
+    onPose?: OnPose;
+    video?: VideoOutput;
+    record: boolean;
+    /** The camera dropped the video output: nothing more is filmed this session. */
+    videoLost: boolean;
+    steps: FlatSteps;
+    step: number;
+    stepS: number;
+    stepStartedAt: number | null;
+    countdown: number;
+    /** Ran through the last step, even with zero reps via next; `end` leaves it false. */
+    // shortcut: achievement (every goal met) is not derived yet; compute it from results when done-days persist.
+    reachedEnd: boolean;
+    elapsedS: number;
+    muted: boolean;
+    /** Draw the skeleton over the camera; detection runs either way. */
+    skeleton: boolean;
+    // shortcut: not persisted, every run starts on the front camera; store it if people keep flipping.
+    camera: 'front' | 'back';
+    /** A flip is waiting for the new camera to stream; survives a pause, so resuming can't count old frames. */
+    flipPending: boolean;
+    caption: string | null;
+    flash: 'rep' | 'noRep' | null;
+    attempts: readonly Attempt[];
+    results: readonly StepResult[];
+    /** The file being filmed; `startMs` is the first detector frame after it started, null until then. */
+    take: { uri: string; startMs: number | null } | null;
+    /** Set once the camcorder wrapped up the finished session's files. */
+    best: BestRep | null;
+    /** Results are safe to read: every file is final (failed ones unclipped). */
+    final: boolean;
+  };
 
-const STABLE_MS = 1000;
 const CAPTION_MS = 3000;
 const REP_FLASH_MS = 600;
 const NO_REP_FLASH_MS = 1000;
-const NONE: readonly BodyPart[] = [];
+/** Seconds of "get ready" before a set that keeps the phone where it is. */
+const COUNTDOWN_S = 3;
 const NOT_LIVE: Live = { angle: null, lowest: null, joints: null };
 
 /** What a new or restarted set starts from. */
@@ -116,6 +111,7 @@ const FRESH_SET = {
   attempts: [],
   missing: NONE,
   candidate: null,
+  framed: false,
   stepStartedAt: null,
 } satisfies Partial<Context>;
 
@@ -133,21 +129,6 @@ const ticker = fromCallback(({ sendBack }) => {
   return () => clearInterval(id);
 });
 
-type LockEvent = { type: 'lock'; orientation: Orientation };
-
-/** Locks the UI to the input orientation, re-locks on each `lock`, and restores portrait (the app's) on stop. */
-const orientationLock = fromCallback<LockEvent, Orientation>(({ input, receive }) => {
-  const { lockAsync, OrientationLock } = ScreenOrientation;
-  // LANDSCAPE, not one side: the phone may lie on either long edge.
-  const lock = (o: Orientation) =>
-    void lockAsync(
-      o === 'landscape' ? OrientationLock.LANDSCAPE : OrientationLock.PORTRAIT_UP,
-    ).catch((error) => console.warn('[orientation] could not lock', error));
-  lock(input);
-  receive((event) => lock(event.orientation));
-  return () => lock('portrait');
-});
-
 type Actors = {
   landmarker: typeof landmarker;
   speech: typeof speech;
@@ -157,11 +138,12 @@ type Actors = {
   recorder: typeof recorder;
 };
 
-const current = (c: Context) => c.steps[c.step];
+export const current = (c: Context) => c.steps[c.step];
 const isLast = (c: Context) => c.step === c.steps.length - 1;
+const nextIsRest = (c: Context) => c.steps[c.step + 1]?.exercise === 'rest';
 
 /** Exercise shown by the runner, including when the current step is a rest. */
-function lastExercise(c: Context) {
+export function lastExercise(c: Context) {
   for (let i = c.step; i >= 0; i -= 1) {
     const step = c.steps[i];
     if (step.exercise !== 'rest') return step;
@@ -169,7 +151,7 @@ function lastExercise(c: Context) {
   return c.steps[0];
 }
 
-const samePlacement = (c: Context) => {
+export const samePlacement = (c: Context) => {
   const next = c.steps[c.step + 1];
   return (
     next !== undefined &&
@@ -178,18 +160,13 @@ const samePlacement = (c: Context) => {
   );
 };
 
-/** Rest display objects stay stable across detector frames for the shallowEqual selector. */
-const restViews = new WeakMap<Context, { leftS: number | null }>();
-function restView(c: Context) {
-  const cached = restViews.get(c);
-  if (cached) return cached;
-  const goal = current(c).goal;
-  const view = { leftS: goal.type === 'seconds' ? Math.max(0, goal.n - c.stepS) : null };
-  restViews.set(c, view);
-  return view;
-}
+/** This set has an attempt or held time; from then on 'waiting' means lost, not set-up. */
+export const started = (c: Context) =>
+  c.attempts.length > 0 || c[lastExercise(c).exercise].heldMs > 0;
 
-const repTarget = (goal: Goal) => (goal.type === 'reps' ? goal.n : Infinity);
+/** The UI orientation of the exercise shown. */
+const lockFor = (c: Context) => orientation(EXERCISES[lastExercise(c).exercise].placement);
+
 const flip = (c: Context) => (c.camera === 'front' ? 'back' : 'front');
 
 function saveTrace(c: Context): RecorderEvent {
@@ -239,15 +216,11 @@ function statsOf<K extends ExerciseId>(c: Counters, id: K) {
 function withSet(c: Context): readonly StepResult[] {
   const { exercise: id, goal, round } = lastExercise(c);
   const { reps, noReps, heldMs }: Progress = c[id];
-  const { name, gauge } = EXERCISES[id];
   const set = {
     exercise: id,
-    day: c.day,
     round,
     startedAt: c.stepStartedAt ?? Date.now(),
     endedAt: Date.now(),
-    name,
-    gauge,
     goal,
     reps,
     noReps,
@@ -257,43 +230,16 @@ function withSet(c: Context): readonly StepResult[] {
   return [...c.results, { ...set, stats: statsOf(c, id) }];
 }
 
-const same = (a: readonly BodyPart[], b: readonly BodyPart[]) =>
-  a.length === b.length && a.every((part, i) => part === b[i]);
-
-type Framing = Pick<Context, 'missing' | 'candidate'>;
-
-/**
- * Debounces one frame's out-of-frame reading `parts` (null when not waiting: they only explain 'waiting')
- * into `missing`: on frame time `t`, so it doesn't flicker, a differing reading commits once it has held
- * STABLE_MS. `patch` is null when nothing changes, so `missing` keeps its reference; `phrase` is what to say.
- */
-function settle(
-  { missing, candidate }: Framing,
-  parts: readonly BodyPart[] | null,
-  t: number,
-): { patch: Partial<Framing> | null; phrase: string | null } {
-  if (same(parts ?? NONE, missing))
-    return { patch: candidate ? { candidate: null } : null, phrase: null };
-  if (!parts) return { patch: { missing: NONE, candidate: null }, phrase: null };
-  if (!candidate || !same(parts, candidate.parts))
-    return { patch: { candidate: { parts, since: t } }, phrase: null };
-  if (t - candidate.since < STABLE_MS) return { patch: null, phrase: null };
-  return {
-    patch: { missing: candidate.parts, candidate: null },
-    phrase: framePhrase(candidate.parts),
-  };
-}
-
 /**
  * One challenge run. Detector, speech and orientation lock live for the whole run (root invokes),
  * so the model loads once and the dots keep drawing while the phone is moved.
  *
  *   counting --(target reached | next)--> ending --> finished | resting | countdown | switching
  *      ^ |                                          resting --(timeout | next)--> countdown | switching
- *      | |                                          countdown --(3 seconds)--> counting
+ *      | |                                          countdown --(COUNTDOWN_S | next)--> counting
  *      | |                                          switching --next--> counting (step + 1)
- *      | pause
- *   paused --resume | restart | flipCamera--> counting;  end: counting | paused | switching --> finished
+ *      | pause (also from countdown)
+ *   paused --resume | restart | flipCamera--> counting;  end: any stage but finished --> finished
  *
  * Only `counting` steps a counter; every other stage only hands frames to the screen.
  * Everything said goes through `say`, so the caption is set even when muted.
@@ -305,7 +251,7 @@ const session = setup<
   Events,
   Actors,
   {},
-  { nextStep: undefined },
+  { nextStep: undefined; countFrame: undefined; saveSet: undefined; flipSet: undefined },
   { isLast: undefined; nextIsRest: undefined; samePlacement: undefined; restIsTimed: undefined },
   'rest',
   string,
@@ -315,14 +261,91 @@ const session = setup<
   actions: {
     nextStep: assign(({ context }) => ({
       // During a rest the view still shows the exercise just finished.
-      ...(context.steps[context.step + 1]?.exercise === 'rest' ? {} : FRESH_SET),
+      ...(nextIsRest(context) ? {} : FRESH_SET),
       step: context.step + 1,
       stepS: 0,
     })),
+    // Each result steps the current counter once, here; context is the only record of the count.
+    countFrame: enqueueActions(({ context: c, event, enqueue }) => {
+      if (event.type !== 'pose') return;
+      const { result } = event;
+      if (c.record) enqueue.sendTo('recorder', { type: 'frame', result });
+      const t = result.timestampMs;
+      const { exercise: id, goal } = lastExercise(c);
+      const prev: Progress = c[id];
+      const { next, patch, live } = stepCounter(c, id, result, t);
+      c.onPose?.(result, live);
+      enqueue.assign(patch);
+
+      const { take } = c;
+      if (take && take.startMs === null) enqueue.assign({ take: { ...take, startMs: t } });
+
+      // shortcut: event lines stay on in release builds for lab sessions (adb logcat -s ReactNativeJS);
+      // drop them or gate them with the recorder setting before shipping.
+      if (next.phase !== prev.phase)
+        console.info('[session]', id, 'phase', prev.phase, '->', next.phase);
+      const rep = next.lastRep;
+      if (rep && (next.reps > prev.reps || next.noReps > prev.noReps)) {
+        const { counted, depth } = rep;
+        console.info('[session]', id, counted ? 'rep' : 'no-rep', next.reps, next.noReps);
+        console.info('[session]', id, statsOf({ ...c, ...patch }, id));
+        if (depth !== null) {
+          const attempt: Attempt = { counted, depth, cue: rep.cues[0] ?? null };
+          // Only a bottom filmed by the live take: not before it started, and `taken` clears it once it ends.
+          const atMs = take && take.startMs !== null ? clipTime(take.startMs, t, rep.upMs) : -1;
+          enqueue.assign({
+            attempts: [
+              ...c.attempts,
+              take && atMs >= 0 ? { ...attempt, clip: { uri: take.uri, atMs } } : attempt,
+            ],
+          });
+        }
+        enqueue.assign({ flash: counted ? 'rep' : 'noRep' });
+        enqueue.cancel('flash');
+        const delay = counted ? REP_FLASH_MS : NO_REP_FLASH_MS;
+        enqueue.raise({ type: 'flashOff' }, { id: 'flash', delay });
+      }
+      // `ending` announces the final rep or MAX hold break; "Go" only before the first attempt.
+      const text =
+        (!done(goal, next) ? repPhrase(prev, next, rep?.cues) : null) ??
+        (started(c) ? null : startPhrase(prev.phase, next.phase));
+      if (text) enqueue.raise({ type: 'say', text });
+
+      const parts =
+        next.phase === 'waiting' ? outOfFrame(result.landmarks, EXERCISES[id].parts) : null;
+      const framing = settle(c, parts, t);
+      if (framing.patch) enqueue.assign(framing.patch);
+      // Framing is known once the first reading is all in frame or has settled; until then the
+      // checklist shows every part out, never a false all-clear.
+      if (!c.framed && (!parts?.length || framing.patch?.missing !== undefined))
+        enqueue.assign({ framed: true });
+      if (framing.patch?.missing)
+        console.info('[session]', id, 'out of frame', framing.patch.missing.join(', ') || 'none');
+      if (framing.phrase) enqueue.raise({ type: 'say', text: framing.phrase });
+    }),
+    // The current set (finished or cut short) joins the results; its trace is saved in dev.
+    saveSet: enqueueActions(({ context, enqueue }) => {
+      const { exercise } = lastExercise(context);
+      const { reps, noReps, heldMs } = context[exercise];
+      console.info('[session]', exercise, 'set done', { reps, noReps, heldMs });
+      enqueue.sendTo('recorder', saveTrace(context));
+      enqueue.assign({ results: withSet(context) });
+    }),
+    // Back to the start position on the other camera; waits in counting.flipping for it to stream.
+    flipSet: enqueueActions(({ context, enqueue }) => {
+      enqueue.sendTo('recorder', { type: 'drop' });
+      enqueue.assign({
+        ...FRESH_SET,
+        // A flip inside counting targets its child, so counting's entry does not stamp the start again.
+        stepStartedAt: Date.now(),
+        camera: flip(context),
+        flipPending: true,
+      });
+    }),
   },
   guards: {
     isLast: ({ context }) => isLast(context),
-    nextIsRest: ({ context }) => context.steps[context.step + 1]?.exercise === 'rest',
+    nextIsRest: ({ context }) => nextIsRest(context),
     samePlacement: ({ context }) => samePlacement(context),
     restIsTimed: ({ context }) => current(context).goal.type === 'seconds',
   },
@@ -336,12 +359,12 @@ const session = setup<
 });
 
 const ADVANCE = [
-  { guard: 'isLast', target: 'finished', actions: session.assign({ completed: true }) },
+  { guard: 'isLast', target: 'finished', actions: session.assign({ reachedEnd: true }) },
   { guard: 'nextIsRest', target: 'resting', actions: 'nextStep' },
   {
     guard: 'samePlacement',
     target: 'countdown',
-    actions: ['nextStep', session.assign({ countdown: 3 })],
+    actions: ['nextStep', session.assign({ countdown: COUNTDOWN_S })],
   },
   { target: 'switching' },
 ] satisfies Parameters<typeof session.createStateConfig>[0]['always'];
@@ -352,13 +375,13 @@ export const workoutSession = session.createMachine({
     landmarker: null,
     onPose: input.onPose,
     video: input.video,
+    videoLost: false,
     record: input.record ?? false,
     steps: expand(input.challenge.session),
     step: 0,
-    day: 1,
     stepS: 0,
-    countdown: 3,
-    completed: false,
+    countdown: COUNTDOWN_S,
+    reachedEnd: false,
     elapsedS: 0,
     muted: false,
     skeleton: true,
@@ -369,6 +392,7 @@ export const workoutSession = session.createMachine({
     results: [],
     take: null,
     best: null,
+    final: false,
   }),
   invoke: [
     { src: 'landmarker' },
@@ -376,7 +400,7 @@ export const workoutSession = session.createMachine({
     {
       src: 'orientation',
       id: 'orientation',
-      input: ({ context }) => orientation(EXERCISES[lastExercise(context).exercise].placement),
+      input: ({ context }) => lockFor(context),
     },
     { src: 'camcorder', id: 'camcorder', input: ({ context }) => context.video },
     { src: 'recorder', id: 'recorder', input: ({ context }) => context.record },
@@ -413,7 +437,8 @@ export const workoutSession = session.createMachine({
           });
       }),
     },
-    videoLost: { actions: sendTo('camcorder', { type: 'lost' }) },
+    // The camcorder still owns its files: it keeps wrapping up the takes it has.
+    videoLost: { actions: [sendTo('camcorder', { type: 'lost' }), assign({ videoLost: true })] },
     // Outside counting.flipping (paused mid-flip, or the first start): just note the camera streams.
     cameraReady: { actions: assign({ flipPending: false }) },
     flashOff: { actions: assign({ flash: null }) },
@@ -459,77 +484,16 @@ export const workoutSession = session.createMachine({
         },
       },
       on: {
-        pose: {
-          // Each result steps the current counter once, here; context is the only record of the count.
-          actions: enqueueActions(({ context: c, event: { result }, enqueue }) => {
-            enqueue.sendTo('recorder', { type: 'frame', result });
-            const t = result.timestampMs;
-            const { exercise: id, goal } = lastExercise(c);
-            const prev: Progress = c[id];
-            const { next, patch, live } = stepCounter(c, id, result, t);
-            c.onPose?.(result, live);
-            enqueue.assign(patch);
-
-            const { take } = c;
-            if (take && take.startMs === null) enqueue.assign({ take: { ...take, startMs: t } });
-
-            const rep = next.lastRep;
-            if (rep && (next.reps > prev.reps || next.noReps > prev.noReps)) {
-              const { counted, depth } = rep;
-              if (depth !== null) {
-                const attempt: Attempt = { counted, depth, cue: rep.cues[0] ?? null };
-                // Only a bottom filmed by the live take: not before it started, and `taken` clears it once it ends.
-                const atMs =
-                  take && take.startMs !== null ? clipTime(take.startMs, t, rep.upMs) : -1;
-                enqueue.assign({
-                  attempts: [
-                    ...c.attempts,
-                    take && atMs >= 0 ? { ...attempt, clip: { uri: take.uri, atMs } } : attempt,
-                  ],
-                });
-              }
-              enqueue.assign({ flash: counted ? 'rep' : 'noRep' });
-              enqueue.cancel('flash');
-              const delay = counted ? REP_FLASH_MS : NO_REP_FLASH_MS;
-              enqueue.raise({ type: 'flashOff' }, { id: 'flash', delay });
-            }
-            // `ending` announces the final rep or MAX hold break; "Go" only before the first attempt.
-            const text =
-              (!done(goal, next) ? repPhrase(prev, next, rep?.cues) : null) ??
-              (c.attempts.length || prev.heldMs > 0 ? null : startPhrase(prev.phase, next.phase));
-            if (text) enqueue.raise({ type: 'say', text });
-
-            const parts =
-              next.phase === 'waiting' ? outOfFrame(result.landmarks, EXERCISES[id].parts) : null;
-            const framing = settle(c, parts, t);
-            if (framing.patch) enqueue.assign(framing.patch);
-            if (framing.phrase) enqueue.raise({ type: 'say', text: framing.phrase });
-          }),
-        },
+        pose: { actions: 'countFrame' },
         next: 'ending',
         pause: 'paused',
-        // Back to the start position on the new camera; cuts a take that began before any attempt.
+        // Cuts a take that began before any attempt.
         flipCamera: {
-          guard: ({ context }) => context.attempts.length === 0,
+          guard: ({ context }) => !started(context),
           target: '.flipping',
-          actions: [
-            sendTo('recorder', { type: 'drop' }),
-            assign(({ context }) => ({
-              ...FRESH_SET,
-              // This targets a child of counting, so counting's entry action does not run again.
-              stepStartedAt: Date.now(),
-              camera: flip(context),
-              flipPending: true,
-            })),
-          ],
+          actions: 'flipSet',
         },
-        end: {
-          target: 'finished',
-          actions: [
-            sendTo('recorder', ({ context }) => saveTrace(context)),
-            assign({ results: ({ context }) => withSet(context) }),
-          ],
-        },
+        end: { target: 'finished', actions: 'saveSet' },
       },
       always: {
         guard: ({ context }) =>
@@ -547,65 +511,50 @@ export const workoutSession = session.createMachine({
           actions: [sendTo('recorder', { type: 'drop' }), assign(FRESH_SET)],
         },
         // Earlier sets stay; the take was already cut on entering paused.
-        flipCamera: {
-          target: 'counting.flipping',
-          actions: [
-            sendTo('recorder', { type: 'drop' }),
-            assign(({ context }) => ({
-              ...FRESH_SET,
-              camera: flip(context),
-              flipPending: true,
-            })),
-          ],
-        },
+        flipCamera: { target: 'counting.flipping', actions: 'flipSet' },
         end: [
           {
             guard: ({ context }) => context.stepStartedAt !== null,
             target: 'finished',
-            actions: [
-              sendTo('recorder', ({ context }) => saveTrace(context)),
-              assign({ results: ({ context }) => withSet(context) }),
-            ],
+            actions: 'saveSet',
           },
           { target: 'finished' },
         ],
       },
     },
     ending: {
-      entry: enqueueActions(({ context, enqueue }) => {
-        enqueue.sendTo('recorder', saveTrace(context));
-        enqueue.assign({ results: withSet(context) });
-        const { exercise: id, goal } = lastExercise(context);
-        const { reps, heldMs, broken, lastRep } = context[id];
-        const amount =
-          EXERCISES[id].kind === 'hold' ? `${Math.floor(heldMs / 1000)} seconds` : String(reps);
-        const next = context.steps[context.step + 1];
-        const text = setPhrase(
-          amount,
-          !next
-            ? null
-            : next.exercise === 'rest'
-              ? { rest: next.goal.type === 'seconds' ? next.goal.n : null }
-              : {
-                  what:
-                    next.goal.type === 'reps'
-                      ? `${next.goal.n} ${EXERCISES[next.exercise].name}`
-                      : next.goal.type === 'seconds'
-                        ? `${EXERCISES[next.exercise].name} ${next.goal.n} seconds`
-                        : EXERCISES[next.exercise].name,
-                  place: samePlacement(context) ? null : EXERCISES[next.exercise].place,
-                },
-        );
-        // Speech cuts the previous phrase, so keep a MAX break's cue and completion together.
-        const cue = goal.type === 'max' && broken ? lastRep?.cues[0] : null;
-        enqueue.raise({ type: 'say', text: cue ? `${cue}. ${text}` : text });
-      }),
+      entry: [
+        'saveSet',
+        enqueueActions(({ context, enqueue }) => {
+          const { exercise: id, goal } = lastExercise(context);
+          const { reps, heldMs, broken, lastRep } = context[id];
+          const heldS = Math.floor(heldMs / 1000);
+          const amount =
+            EXERCISES[id].kind === 'hold'
+              ? `${heldS} ${heldS === 1 ? 'second' : 'seconds'}`
+              : String(reps);
+          const next = context.steps[context.step + 1];
+          const upcoming = next
+            ? {
+                name: next.exercise === 'rest' ? null : EXERCISES[next.exercise].name,
+                goal: next.goal,
+                place:
+                  next.exercise === 'rest' || samePlacement(context)
+                    ? null
+                    : EXERCISES[next.exercise].place,
+              }
+            : null;
+          const cue = goal.type === 'max' && broken ? (lastRep?.cues[0] ?? null) : null;
+          enqueue.raise({ type: 'say', text: endPhrase(amount, upcoming, cue) });
+        }),
+      ],
       always: ADVANCE,
     },
     countdown: {
       entry: enqueueActions(({ context, enqueue }) => {
         // Keep the preceding completion phrase audible; the first numeral is visual only.
-        if (context.countdown < 3) enqueue.raise({ type: 'say', text: String(context.countdown) });
+        if (context.countdown < COUNTDOWN_S)
+          enqueue.raise({ type: 'say', text: String(context.countdown) });
       }),
       after: {
         1000: [
@@ -618,8 +567,14 @@ export const workoutSession = session.createMachine({
           { target: 'counting' },
         ],
       },
-      // The platter's button skips the countdown: the next step is already current.
-      on: { pause: 'paused', end: 'finished', next: 'counting' },
+      // `next` skips the countdown: the next step is already current. The position check's
+      // camera chip is live here too.
+      on: {
+        pause: 'paused',
+        end: 'finished',
+        next: 'counting',
+        flipCamera: { target: 'counting.flipping', actions: 'flipSet' },
+      },
     },
     resting: {
       invoke: { src: 'ticker' },
@@ -651,7 +606,7 @@ export const workoutSession = session.createMachine({
             'nextStep',
             sendTo('orientation', ({ context }) => ({
               type: 'lock',
-              orientation: orientation(EXERCISES[lastExercise(context).exercise].placement),
+              orientation: lockFor(context),
             })),
           ],
         },
@@ -662,13 +617,16 @@ export const workoutSession = session.createMachine({
         sendTo('camcorder', { type: 'wrap' }),
         // The Done summary is a portrait page, whatever the last set was.
         sendTo('orientation', { type: 'lock', orientation: 'portrait' }),
+        // shortcut: nothing consumes final yet; the save mutation will.
+        // Without a video output the camcorder never films, so nothing is left to wait for.
+        assign({ final: ({ context }) => context.video === undefined }),
       ],
       // Only now is every file final (failed ones unclipped), so the best is safe to play and the rest can go.
       on: {
         wrapped: {
           actions: enqueueActions(({ context, enqueue }) => {
             const best = bestRep(context.results);
-            enqueue.assign({ best });
+            enqueue.assign({ best, final: true });
             enqueue.sendTo('camcorder', { type: 'keep', uri: best?.uri ?? null });
           }),
         },
@@ -676,86 +634,3 @@ export const workoutSession = session.createMachine({
     },
   },
 });
-
-/** What the screen renders. Hides the keyed counters and per-exercise report types. */
-export type SessionView = ReturnType<typeof sessionView>;
-
-/** Selector for useSelector(..., shallowEqual). Pure. */
-export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>) {
-  const c = snapshot.context;
-  const { exercise: id, goal } = lastExercise(c);
-  const { round, rounds } = current(c);
-  const tally: Progress = c[id];
-  const unit: 'reps' | 'seconds' = EXERCISES[id].kind === 'hold' ? 'seconds' : 'reps';
-  const after = c.steps.slice(c.step + 1).find((step) => step.exercise !== 'rest');
-  // Annotated: an inferred literal would widen to string in the returned object.
-  const stage: 'counting' | 'countdown' | 'resting' | 'paused' | 'switching' | 'finished' =
-    snapshot.matches('switching')
-      ? 'switching'
-      : snapshot.matches('finished')
-        ? 'finished'
-        : snapshot.matches('resting')
-          ? 'resting'
-          : snapshot.matches('countdown')
-            ? 'countdown'
-            : snapshot.matches('paused')
-              ? 'paused'
-              : 'counting';
-  // Annotated to hide the per-exercise counter types.
-  const next: Omit<
-    Exercise<Progress, Measured>,
-    'initial' | 'measure' | 'step' | 'stats' | 'reset' | 'live'
-  > | null = after ? EXERCISES[after.exercise] : null;
-  return {
-    stage,
-    /** The current set's exercise; in switching and finished, the set just done. */
-    exercise: id,
-    name: EXERCISES[id].name,
-    /** Infinity = open-ended. */
-    target: repTarget(goal),
-    unit,
-    heldS: Math.floor(tally.heldMs / 1000),
-    goalS: goal.type === 'seconds' ? goal.n : Infinity,
-    countdown: stage === 'countdown' ? c.countdown : null,
-    rest: stage === 'resting' ? restView(c) : null,
-    samePlacement: samePlacement(c),
-    reps: tally.reps,
-    phase: tally.phase,
-    /** This set has an attempt or held time; from then on 'waiting' means lost, not set-up. */
-    started: c.attempts.length > 0 || tally.heldMs > 0,
-    /** Finished through the last step rather than `end`. */
-    completed: c.completed,
-    /** 1-based. */
-    set: c.steps.slice(0, c.step + 1).filter((step) => step.exercise !== 'rest').length,
-    sets: c.steps.filter((step) => step.exercise !== 'rest').length,
-    round,
-    rounds,
-    /** The set after this one (stable references, for shallowEqual). */
-    next,
-    nextGoal: after?.goal ?? null,
-    /** Whole seconds; ticks while counting, switching or resting. */
-    elapsedS: c.elapsedS,
-    muted: c.muted,
-    skeleton: c.skeleton,
-    camera: c.camera,
-    /** The last phrase the coach said (set even when muted); cleared ~3 s later. */
-    caption: c.caption,
-    /** Body parts out of frame while phase is 'waiting', ~1 s stable; [] when all in or not waiting. */
-    // Ending a set while still waiting would otherwise carry its parts into switching.
-    missing: stage === 'counting' ? c.missing : NONE,
-    /** This set's latest rep call (a stable reference); null before the first. */
-    call: c.attempts.at(-1) ?? null,
-    /** 'rep' for ~600 ms after a counted rep, 'noRep' for ~1000 ms after a no-rep. */
-    flash: c.flash,
-    /** This set, in order. */
-    attempts: c.attempts,
-    /** Current exercise's thresholds, deg. */
-    gauge: EXERCISES[id].gauge,
-    /** Finished sets; on 'finished' includes the last (possibly partial) set. */
-    results: c.results,
-    /** A take is being filmed (the REC dot). */
-    recording: c.take !== null,
-    /** The deepest filmed counted rep of the challenge, once finished and its file is ready; null if none. */
-    best: c.best,
-  };
-}

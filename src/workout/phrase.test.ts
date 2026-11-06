@@ -1,5 +1,6 @@
 import { expect, test } from 'vite-plus/test';
-import { framePhrase, repPhrase, setPhrase, startPhrase } from './phrase';
+import { endPhrase, framePhrase, repPhrase, setPhrase, startPhrase } from './phrase';
+import { MAX, reps, seconds } from './plan';
 
 const at = (reps: number, noReps = 0) => ({ reps, noReps });
 
@@ -53,4 +54,23 @@ test('names the first part out of frame', () => {
   expect(framePhrase(['feet', 'hips'])).toBe('Your feet are out of frame');
   expect(framePhrase(['head'])).toBe('Your head is out of frame');
   expect(framePhrase([])).toBeNull();
+});
+
+test('end phrase words the next goal in its unit and keeps a MAX break cue first', () => {
+  expect(endPhrase('3', { name: 'push-ups', goal: reps(10), place: null }, null)).toBe(
+    '3. Next, 10 push-ups.',
+  );
+  expect(endPhrase('3', { name: 'plank', goal: seconds(30), place: 'Lay the phone' }, null)).toBe(
+    '3, set done. Next, plank 30 seconds. Lay the phone.',
+  );
+  expect(endPhrase('8', { name: 'squats', goal: MAX, place: null }, 'Knees out')).toBe(
+    'Knees out. 8. Next, squats.',
+  );
+});
+
+test('end phrase announces a rest by its goal', () => {
+  expect(endPhrase('5', { name: null, goal: seconds(60), place: null }, null)).toBe(
+    '5, set done. Rest 60 seconds.',
+  );
+  expect(endPhrase('5', { name: null, goal: MAX, place: null }, null)).toBe('5, set done. Rest.');
 });

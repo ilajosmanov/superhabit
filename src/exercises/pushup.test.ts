@@ -1,17 +1,17 @@
 import { assert, describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
-import { initialPushup, measurePushup, stepPushup, type PushupState } from './pushup';
+import { measurePushup, pushup, type PushupState } from './pushup';
 import type { Pose } from './geometry';
 import { plank } from './__fixtures__/plank';
 import { scoreReps, traceFiles } from './__fixtures__/replay';
 
 const FRAME = 66; // ms between detector results
 // [pose, fromMs, toMs]: hold a pose long enough for the smoothing filter to settle.
-const play = (spans: [Pose | null, from: number, to?: number][], start = initialPushup) =>
+const play = (spans: [Pose | null, from: number, to?: number][], start = pushup.initial) =>
   spans.reduce<PushupState>((state, [pose, from, to = from]) => {
     for (let t = from; t <= to; t += FRAME)
-      state = stepPushup(state, pose && measurePushup(pose), t);
+      state = pushup.step(state, pose && measurePushup(pose), t);
     return state;
   }, start);
 // The camera loses the near ankle (low on the floor, or past the frame edge).
@@ -71,7 +71,7 @@ describe('measurePushup', () => {
   });
 });
 
-describe('stepPushup', () => {
+describe('pushup.step', () => {
   it('waits for a plank top before counting', () => {
     expect(play([[plank({ elbow: 80 }), 0, 1500]])).toMatchObject({ phase: 'waiting' });
     const fromBottom = play([
@@ -179,11 +179,7 @@ const MIN_OK = 2;
 const files = traceFiles('pushup');
 describe.skipIf(files.length === 0)('pushup on real traces', () => {
   it('counts within ±1 on enough clips', () => {
-    const rows = scoreReps(
-      { initial: initialPushup, step: stepPushup, measure: measurePushup },
-      files,
-      1,
-    );
+    const rows = scoreReps(pushup, files, 1);
     expect(rows.filter((row) => row.ok).length, JSON.stringify(rows)).toBeGreaterThanOrEqual(
       MIN_OK,
     );

@@ -36,8 +36,8 @@ describe('cycle', () => {
     expect(ex.initial).toEqual(before);
   });
 
-  it('counts a rising signal and reports depth and live values in its original range', () => {
-    const ex = counter({ range: [0, 100], up: 20, down: 80, shallow: 40 });
+  it('counts a rising signal and reports depth and live values unmirrored', () => {
+    const ex = counter({ up: 20, down: 80, shallow: 40 });
     const bottom = play(ex, [20, 90]);
     expect(bottom.phase).toBe('down');
     expect(ex.live(bottom).signal).toBeCloseTo(90);
@@ -45,14 +45,6 @@ describe('cycle', () => {
     const s = hold(ex, bottom, 20, 2 * 200 * 66);
     expect(s.reps).toBe(1);
     expect(s.lastRep?.depth).toBeCloseTo(90);
-  });
-
-  it('ignores samples outside a configured range without changing the filter or progress', () => {
-    const ex = counter({ range: [0, 1], up: 0.8, down: 0.2, shallow: 0.6 });
-    const s = play(ex, [0.9, 0.1]);
-    expect(s.phase).toBe('down');
-    expect(ex.step(s, 1.5, (s.lastSeenAt ?? 0) + 66)).toBe(s);
-    expect(hold(ex, s, 0.9, 2 * 200 * 66).reps).toBe(1);
   });
 
   it('reports a no-rep when the completed attempt fails the clean gate', () => {
@@ -99,6 +91,17 @@ describe('cycle', () => {
       noReps: 1,
       phase: 'up',
     });
+  });
+
+  it('ignores a frame stamped before the last one', () => {
+    const ex = counter();
+    const bottom = play(ex, [170, 90]);
+    const at = bottom.lastSeenAt ?? 0;
+    expect(ex.step(bottom, 170, at - 500)).toBe(bottom);
+    expect(ex.step(bottom, 170, at)).toBe(bottom);
+    const done = hold(ex, bottom, 170, at + 66);
+    expect(done.reps).toBe(1);
+    expect(done.lastRep?.upMs).toBeGreaterThan(0);
   });
 
   it('drops a mid-rep attempt after a 1.2 second tracking gap', () => {

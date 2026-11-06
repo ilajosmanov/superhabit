@@ -1,8 +1,10 @@
 import { useRouter } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-import { colors, lit } from '@/theme';
+import { colors } from '@/theme';
+
+import { PrimaryButton } from './controls';
 
 // A push-up pose drawn like the live skeleton overlay: grey bones, amber joints. Shoulder, hip,
 // knee, ankle, elbow, wrist on a 250×110 grid; the head is the circle.
@@ -68,19 +70,12 @@ export function CameraTestCard() {
         </Text>
       </View>
       <View className="overflow-hidden rounded-full">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityHint="Opens the camera for a push-up test. Nothing to join."
-          // Ground at 16%, the same shade the hold-to-start fill uses.
-          android_ripple={{ color: `${colors.ground}29`, foreground: true }}
+        <PrimaryButton
+          lit
+          label="Find out"
+          hint="Opens the camera for a push-up test. Nothing to join."
           onPress={() => router.push({ pathname: '/workout/[id]', params: { id: 'pushup' } })}
-          className="h-14 items-center justify-center bg-accent"
-          style={lit}
-        >
-          <Text className="font-sans text-lg font-semibold tracking-tight text-ground">
-            Find out
-          </Text>
-        </Pressable>
+        />
       </View>
     </View>
   );

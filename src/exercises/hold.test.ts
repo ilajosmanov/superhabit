@@ -190,22 +190,4 @@ describe('hold', () => {
     expect(broken.lastRep?.cues).toEqual(['Straighten legs']);
     expect(broken).toMatchObject({ heldMs: 660, noReps: 1 });
   });
-
-  it('uses configurable entry and grace durations, including their exact boundaries', () => {
-    const ex = counter({ enterMs: 132, graceMs: 264 });
-    const entering = frames(ex, ex.initial, 0, 0, 66);
-    expect(entering).toMatchObject({ phase: 'waiting', heldMs: 0 });
-    const active = ex.step(entering, 0, 132);
-    expect(active).toMatchObject({ phase: 'active', heldMs: 132 });
-    const atGrace = frames(ex, active, null, 198, 396);
-    expect(atGrace).toMatchObject({ phase: 'active', noReps: 0, heldMs: 132 });
-    const returned = ex.step(active, 0, 396);
-    expect(returned).toMatchObject({ phase: 'active', noReps: 0, heldMs: 396 });
-    expect(ex.step(atGrace, null, 462)).toMatchObject({
-      phase: 'waiting',
-      noReps: 1,
-      heldMs: 132,
-      broken: true,
-    });
-  });
 });

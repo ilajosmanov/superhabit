@@ -1,19 +1,9 @@
-import type { SkPoint } from '@shopify/react-native-skia';
 import { shallowEqual, useActorRef, useSelector } from '@xstate/react';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useLocalSearchParams, usePreventRemove, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef } from 'react';
-import {
-  Dimensions,
-  Linking,
-  Platform,
-  Pressable,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
-import { useSharedValue } from 'react-native-reanimated';
+import { Linking, Platform, Text, useWindowDimensions, View } from 'react-native';
 import {
   CommonResolutions,
   useCameraPermission,
@@ -21,14 +11,16 @@ import {
   type CameraRef,
 } from 'react-native-vision-camera';
 
-import { filterJoints, type JointFilter } from '@/workout/pose/joint-filter';
-import { PoseCamera, toViewJoints } from '@/workout/pose/pose-camera';
+import { usePoseOverlay } from '@/workout/pose/overlay';
+import { PoseCamera } from '@/workout/pose/pose-camera';
 import { CHALLENGES } from '@/workout/challenges';
 import type { Challenge } from '@/workout/plan';
 import { BetweenSets } from '@/workout/components/between-sets';
 import { ChallengeDone } from '@/workout/components/challenge-done';
 import { LiveView } from '@/workout/components/live-view';
-import { sessionView, workoutSession } from '@/workout/session';
+import { PrimaryButton } from '@/workout/components/controls';
+import { workoutSession } from '@/workout/session';
+import { sessionView } from '@/workout/session-view';
 
 function Centered({ text }: { text: string }) {
   return (
@@ -53,15 +45,10 @@ export default function ChallengeScreen() {
           Camera access is needed to count reps.
         </Text>
         {/* Once denied for good (Android's 'denied'), only Settings can grant it. */}
-        <Pressable
+        <PrimaryButton
           onPress={() => void (canRequestPermission ? requestPermission() : Linking.openSettings())}
-          className="h-12 items-center justify-center rounded-full bg-accent px-6"
-          accessibilityRole="button"
-        >
-          <Text className="font-sans text-base font-medium text-ground">
-            {canRequestPermission ? 'Allow camera' : 'Open settings'}
-          </Text>
-        </Pressable>
+          label={canRequestPermission ? 'Allow camera' : 'Open settings'}
+        />
       </View>
     );
   }
@@ -73,36 +60,11 @@ function AndroidSession({ challenge }: { challenge: Challenge }) {
   useKeepAwake();
   const router = useRouter();
   const camera = useRef<CameraRef>(null);
-  // Per-frame data: written from each detector result, read on the UI thread by Skia and the gauge.
-  const joints = useSharedValue<(SkPoint | null)[]>([]);
-  const filter = useRef<JointFilter | null>(null);
-  const highlight = useSharedValue<readonly [number, number, number] | null>(null);
-  const angle = useSharedValue<number | null>(null);
-  const lowest = useSharedValue<number | null>(null);
+  const { joints, highlight, angle, lowest, onPose } = usePoseOverlay(camera);
   // Video only: no audio, so no microphone permission.
   const video = useVideoOutput({ targetResolution: CommonResolutions.HD_16_9, enableAudio: false });
   const session = useActorRef(workoutSession, {
-    input: {
-      challenge,
-      video,
-      record: __DEV__,
-      onPose: (result, live) => {
-        // Read at call time: the window turns when the orientation lock lands.
-        const { width, height } = Dimensions.get('window');
-        const view = toViewJoints(camera.current, result);
-        const smoothed = filterJoints(
-          filter.current,
-          view,
-          result.timestampMs / 1000,
-          Math.hypot(width, height),
-        );
-        filter.current = smoothed.state;
-        joints.set(smoothed.points);
-        highlight.set(live.joints);
-        angle.set(live.angle);
-        lowest.set(live.lowest);
-      },
-    },
+    input: { challenge, video, record: __DEV__, onPose },
   });
   const landmarker = useSelector(session, (s) => s.context.landmarker);
   // Only discrete counter changes re-render; per-frame data stays out of React state.
@@ -145,7 +107,7 @@ function AndroidSession({ challenge }: { challenge: Challenge }) {
         joints={joints}
         highlight={highlight}
         tone={tone}
-        video={video}
+        video={view.filming ? video : undefined}
         camera={view.camera}
         showSkeleton={view.skeleton}
         onReady={send('cameraReady')}

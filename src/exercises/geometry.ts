@@ -1,6 +1,6 @@
 // Joint geometry shared by every exercise counter (MediaPipe Pose Landmarker: 33 joints, MediaPipe order).
 import type { PoseDetection, PoseLandmark } from 'superhabit-pose';
-import { Joint } from 'superhabit-pose/joints';
+import { Joint, SIDE } from 'superhabit-pose/joints';
 
 /**
  * One frame's joints, as the detector gives them: `landmarks` in 0..1 frame coords (to check a
@@ -11,22 +11,67 @@ export type Pose = Pick<PoseDetection, 'landmarks' | 'worldLandmarks'>;
 /** MediaPipe indices [a, vertex, c] of a measured angle. */
 export type Joints = readonly [number, number, number];
 
-const MIN_VISIBILITY = 0.5;
+/** A straight joint or body line, in degrees. */
+export const STRAIGHT = 180;
+
+/** Joints seen below this visibility are guesses; exercises with occluded limbs lower it. */
+export const MIN_VISIBILITY = 0.5;
+
+// World landmarks: metres, y down, origin at the hips.
+export type Vec = { x: number; y: number; z: number };
+export const sub = (a: Vec, b: Vec): Vec => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
+export const add = (a: Vec, b: Vec): Vec => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
+export const scale = (v: Vec, k: number): Vec => ({ x: v.x * k, y: v.y * k, z: v.z * k });
+export const dot = (a: Vec, b: Vec) => a.x * b.x + a.y * b.y + a.z * b.z;
+export const length = (v: Vec) => Math.hypot(v.x, v.y, v.z);
+export const distance = (a: Vec, b: Vec) => length(sub(a, b));
+export const mid = (a: Vec, b: Vec) => scale(add(a, b), 1 / 2);
+export const degrees = (radians: number) => (radians * STRAIGHT) / Math.PI;
+
+/** Angle between two vectors, 0..180 degrees; NaN for a zero vector. */
+export const between = (u: Vec, v: Vec) =>
+  degrees(Math.acos(Math.min(1, Math.max(-1, dot(u, v) / (length(u) * length(v))))));
 
 /** Angle at `b` between `a` and `c`, in 3D. Degrees; NaN for coincident joints. */
-export function angle(a: PoseLandmark, b: PoseLandmark, c: PoseLandmark): number {
-  const v1 = [a.x - b.x, a.y - b.y, a.z - b.z];
-  const v2 = [c.x - b.x, c.y - b.y, c.z - b.z];
-  const dot = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
-  const cos = dot / (Math.hypot(...v1) * Math.hypot(...v2));
-  return (Math.acos(Math.min(1, Math.max(-1, cos))) * 180) / Math.PI;
-}
+export const angle = (a: Vec, b: Vec, c: Vec) => between(sub(a, b), sub(c, b));
+
+const DOWN: Vec = { x: 0, y: 1, z: 0 };
+/** How far a downward vector (a hip minus a shoulder) tilts from vertical, degrees. */
+export const tilt = (v: Vec) => between(v, DOWN);
 
 // Joints outside the frame are extrapolated by the model; don't trust them.
 export const inFrameWithVisibility = (p: PoseLandmark | undefined, minVisibility: number) =>
   !!p && p.visibility >= minVisibility && p.x > 0 && p.x < 1 && p.y > 0 && p.y < 1;
 
 export const inFrame = (p: PoseLandmark | undefined) => inFrameWithVisibility(p, MIN_VISIBILITY);
+
+/** Joint `i` is in frame, visible enough and has a world position. */
+export const seen = (pose: Pose, i: number, minVisibility = MIN_VISIBILITY) =>
+  inFrameWithVisibility(pose.landmarks[i], minVisibility) && !!pose.worldLandmarks[i];
+
+export type Side = keyof typeof SIDE;
+export type SideJoints = (typeof SIDE)[Side];
+
+/**
+ * The side whose `pick`ed joints are all seen, preferring the higher lowest visibility (left on
+ * a tie); null when neither side is complete. Side-on, the far limbs hide.
+ */
+export function bestSide(
+  pose: Pose,
+  pick: (side: SideJoints) => readonly number[],
+  minVisibility = MIN_VISIBILITY,
+): Side | null {
+  const visibility = (side: Side) => {
+    const joints = pick(SIDE[side]);
+    return joints.every((i) => seen(pose, i, minVisibility))
+      ? Math.min(...joints.map((i) => pose.landmarks[i].visibility))
+      : null;
+  };
+  const left = visibility('left');
+  const right = visibility('right');
+  if (right === null) return left === null ? null : 'left';
+  return left === null || right > left ? 'right' : 'left';
+}
 
 export type BodyPart = 'head' | 'hands' | 'hips' | 'feet';
 

@@ -68,12 +68,6 @@ describe('expand', () => {
       { exercise: 'pushup', goal: { type: 'reps', n: 10 }, block: 1, round: 2, rounds: 2 },
     ]);
   });
-
-  it('throws instead of expanding an invalid plan', () => {
-    expect(() =>
-      expand([{ steps: [{ exercise: 'squat', goal: seconds(10) }], rounds: 1 }]),
-    ).toThrow('block 1 step 1: squat takes reps or max, not seconds');
-  });
 });
 
 describe('validate', () => {
@@ -106,8 +100,8 @@ describe('validate', () => {
         {
           steps: [
             { exercise: 'squat', goal: reps(n) },
-            { exercise: 'plank', goal: seconds(n) },
             { exercise: 'rest', goal: seconds(n) },
+            { exercise: 'plank', goal: seconds(n) },
           ],
           rounds: 1,
         },
@@ -122,7 +116,6 @@ describe('validate', () => {
   it('rejects a leading rest even when expansion would drop it', () => {
     const session: Session = [{ steps: [{ exercise: 'rest', goal: seconds(30) }], rounds: 1 }];
     expect(validate(session)).toContain('session must start with an exercise, not rest');
-    expect(() => expand(session)).toThrow('session must start with an exercise, not rest');
   });
 
   it('rejects adjacent rests before dropping the final rest', () => {
@@ -177,6 +170,18 @@ describe('validate', () => {
     ).toEqual(['block 2 round 2: two rests in a row']);
   });
 
+  it('rejects a rest that ends a one-round last block, which the run would drop', () => {
+    const steps = [
+      { exercise: 'squat', goal: reps(3) },
+      { exercise: 'rest', goal: seconds(30) },
+    ] as const;
+    expect(validate([{ steps, rounds: 1 }])).toEqual([
+      'session must end with an exercise, not rest',
+    ]);
+    // With more rounds the rest separates them, so only its last occurrence is dropped.
+    expect(validate([{ steps, rounds: 2 }])).toEqual([]);
+  });
+
   it('accepts the floor circuit and max goals on rep and hold kinds', () => {
     expect(validate(floorCircuit)).toEqual([]);
     expect(
@@ -184,9 +189,9 @@ describe('validate', () => {
         {
           steps: [
             { exercise: 'squat', goal: MAX },
+            { exercise: 'rest', goal: MAX },
             { exercise: 'pushup', goal: MAX },
             { exercise: 'plank', goal: MAX },
-            { exercise: 'rest', goal: MAX },
           ],
           rounds: 1,
         },

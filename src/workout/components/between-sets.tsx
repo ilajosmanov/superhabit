@@ -1,11 +1,11 @@
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { CHECK, Glyph } from '@/components/glyph';
 import { PhoneSetup } from './phone-setup';
 import { colors } from '@/theme';
-import type { SessionView } from '@/workout/session';
+import type { SessionView } from '@/workout/session-view';
 
-import { Clock, CloseButton, Frame, GLASS } from './controls';
+import { Clock, CloseButton, Frame, GLASS, PrimaryButton } from './controls';
 import { RepCount } from './rep-count';
 
 /** Over the live camera: the finished set or rest timer, then the next exercise and any phone setup. */
@@ -20,7 +20,8 @@ export function BetweenSets({
   onContinue: () => void;
   onEnd: () => void;
 }) {
-  const { next, rest, unit } = view;
+  const { next, unit } = view;
+  const resting = view.stage === 'resting';
   if (!next) return null;
   const amount = unit === 'seconds' ? view.heldS : view.reps;
   const target = unit === 'seconds' ? view.goalS : view.target;
@@ -43,11 +44,11 @@ export function BetweenSets({
               <View className="size-11" />
             </View>
           )}
-          {rest ? (
+          {resting ? (
             <View accessibilityLiveRegion="polite" className="gap-2.5 pt-3">
               <Text className="font-mono text-xs font-medium tracking-widest text-soft">REST</Text>
-              {rest.leftS !== null && (
-                <RepCount reps={rest.leftS} target={Infinity} unit="seconds" />
+              {view.restLeftS !== null && (
+                <RepCount reps={view.restLeftS} target={Infinity} unit="seconds" />
               )}
             </View>
           ) : (
@@ -86,15 +87,7 @@ export function BetweenSets({
             </Text>
             {!view.samePlacement && <PhoneSetup exercise={next} />}
           </View>
-          <Pressable
-            onPress={onContinue}
-            className="h-14 items-center justify-center rounded-full bg-accent"
-            accessibilityRole="button"
-          >
-            <Text className="font-sans text-lg font-medium text-ground">
-              {rest ? 'Skip rest' : 'Continue'}
-            </Text>
-          </Pressable>
+          <PrimaryButton onPress={onContinue} label={resting ? 'Skip rest' : 'Continue'} />
           {!view.samePlacement && (
             <Text className="text-center font-sans text-sm text-muted">{next.hint}</Text>
           )}

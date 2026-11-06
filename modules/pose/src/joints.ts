@@ -36,3 +36,23 @@ export const Joint = {
   LEFT_FOOT_INDEX: 31,
   RIGHT_FOOT_INDEX: 32,
 } as const;
+
+/** Each side's limb joints by name, for code that picks the better-seen side. */
+export const SIDE = {
+  left: {
+    shoulder: Joint.LEFT_SHOULDER,
+    elbow: Joint.LEFT_ELBOW,
+    wrist: Joint.LEFT_WRIST,
+    hip: Joint.LEFT_HIP,
+    knee: Joint.LEFT_KNEE,
+    ankle: Joint.LEFT_ANKLE,
+  },
+  right: {
+    shoulder: Joint.RIGHT_SHOULDER,
+    elbow: Joint.RIGHT_ELBOW,
+    wrist: Joint.RIGHT_WRIST,
+    hip: Joint.RIGHT_HIP,
+    knee: Joint.RIGHT_KNEE,
+    ankle: Joint.RIGHT_ANKLE,
+  },
+} as const;

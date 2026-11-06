@@ -1,3 +1,4 @@
+// shortcut: no exercise registers on this kind yet; burpee is the first consumer. Delete if burpee lands on another kind.
 import type { Counter, Progress } from './progress';
 
 export type SequenceConfig<M, P extends string> = {

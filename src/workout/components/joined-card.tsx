@@ -2,10 +2,11 @@ import { Link } from 'expo-router';
 import { Pressable, Text, View, type ViewStyle } from 'react-native';
 
 import { ExerciseStack, StepsButton } from './exercise-stack';
-import { ARROW_RIGHT, CHECK, Glyph } from '@/components/glyph';
+import { CHECK, Glyph } from '@/components/glyph';
 import { colors } from '@/theme';
-import { CHALLENGES } from '@/workout/challenges';
 import type { CatalogEntry } from '@/workout/catalog';
+
+const ARROW_RIGHT = 'M5 12h14M13 6l6 6-6 6';
 
 /** A challenge you joined: today is `day` of `days`. Days before today are done. */
 export type Joined = { id: string; day: number; days: number; doneToday: boolean };
@@ -79,7 +80,7 @@ export function JoinedCard({
 
       {/* One line, so every card in the swipe row stays the same height; (i) lists them all. */}
       <View className="flex-row items-center justify-between border-t border-line pt-4">
-        <ExerciseStack entry={entry} on="surface" />
+        <ExerciseStack entry={entry} />
         <StepsButton entry={entry} />
       </View>
     </Pressable>
@@ -88,14 +89,9 @@ export function JoinedCard({
   return (
     // The wrapper clips the ripple to the card's corners.
     <View className="overflow-hidden rounded-3xl border border-edge bg-surface" style={style}>
-      {/* shortcut: mock entries that can't run yet don't open; drop the check with the data layer. */}
-      {CHALLENGES.has(joined.id) ? (
-        <Link href={{ pathname: '/challenge/[id]', params: { id: joined.id } }} asChild>
-          {body}
-        </Link>
-      ) : (
-        body
-      )}
+      <Link href={{ pathname: '/challenge/[id]', params: { id: joined.id } }} asChild>
+        {body}
+      </Link>
     </View>
   );
 }

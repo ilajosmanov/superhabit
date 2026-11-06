@@ -2,7 +2,7 @@ import { assert, describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
 import { body } from './__fixtures__/body';
-import { loadTrace, replay, traceFiles } from './__fixtures__/replay';
+import { falseReps, scoreReps, tenPercent, traceFiles } from './__fixtures__/replay';
 import type { Pose } from './geometry';
 import { measureSitup, situp } from './situp';
 
@@ -199,30 +199,17 @@ const MIN_OK = 3;
 const files = traceFiles('situp');
 describe.skipIf(files.length === 0)('situp on real traces', () => {
   it('preserves the measured baseline on labelled clips', () => {
-    const rows = files.flatMap((path) => {
-      const trace = loadTrace(path);
-      if (trace.labels.reps === undefined) return [];
-      const expected = trace.labels.reps;
-      const got = replay(situp, trace).reps;
-      const ok = Math.abs(got - expected) <= Math.max(1, Math.round(0.1 * expected));
-      return [{ clip: trace.source.clip, expected, got, ok }];
-    });
+    const rows = scoreReps(situp, files, tenPercent);
     expect(rows.filter((row) => row.ok).length, JSON.stringify(rows)).toBeGreaterThanOrEqual(
       MIN_OK,
     );
   });
 
-  for (const exercise of ['squat', 'pushup', 'plank']) {
-    const others = traceFiles(exercise);
-    it.skipIf(others.length === 0)(`does not count sit-ups on ${exercise} traces`, () => {
-      const rows = others.map((path) => {
-        const trace = loadTrace(path);
-        return { clip: trace.source.clip, reps: replay(situp, trace).reps };
-      });
-      expect(
-        rows.reduce((total, row) => total + row.reps, 0),
-        JSON.stringify(rows),
-      ).toBe(0);
-    });
-  }
+  const others = ['squat', 'pushup', 'plank'];
+  it.skipIf(others.some((e) => traceFiles(e).length === 0))(
+    'counts no sit-ups on squat, push-up or plank traces',
+    () => {
+      expect(falseReps(situp, others)).toEqual({});
+    },
+  );
 });

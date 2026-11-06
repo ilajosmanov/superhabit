@@ -2,10 +2,9 @@ import { assert, describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
 import { measureMountainClimber, mountainClimber } from './mountain-climber';
-import type { Pose } from './geometry';
-import type { Side } from './sided';
+import type { Pose, Side } from './geometry';
 import { plank } from './__fixtures__/plank';
-import { loadTrace, replay, traceFiles } from './__fixtures__/replay';
+import { falseReps, scoreReps, tenPercent, traceFiles } from './__fixtures__/replay';
 
 const LEGS = {
   left: [Joint.LEFT_SHOULDER, Joint.LEFT_HIP, Joint.LEFT_KNEE],
@@ -162,7 +161,7 @@ describe('mountainClimber', () => {
       right: { reps: 1 },
       lastRep: { counted: true, cues: [] },
     });
-    expect(mountainClimber.stats(state)).toMatch(/^60° · [\d.]+s↑$/);
+    expect(mountainClimber.stats(state)).toMatch(/^60° · [\d.]+s↓ [\d.]+s↑$/);
   });
 
   it.each([6, 12])('counts alternating gradual drives with %s frames each way', (frames) => {
@@ -323,42 +322,23 @@ const MIN_OK = 3;
 const files = traceFiles('mountain-climber');
 describe.skipIf(files.length === 0)('mountain climber on real traces', () => {
   it('preserves the measured baseline on labelled clips', () => {
-    const rows = files.flatMap((path) => {
-      const trace = loadTrace(path);
-      if (trace.labels.reps === undefined) return [];
-      const expected = trace.labels.reps;
-      const got = replay(mountainClimber, trace).reps;
-      return [
-        {
-          clip: trace.source.clip,
-          expected,
-          got,
-          ok: Math.abs(got - expected) <= Math.max(1, Math.round(0.1 * expected)),
-        },
-      ];
-    });
+    const rows = scoreReps(mountainClimber, files, tenPercent);
     expect(rows.filter((row) => row.ok).length, JSON.stringify(rows)).toBeGreaterThanOrEqual(
       MIN_OK,
     );
   });
 
   // One false rep in stu7_45.mp4, two in plank_2.mp4 and one in plank_7.mp4;
-  // pin these totals while the exercise remains unregistered.
-  for (const [exercise, maxFalse] of [
-    ['squat', 0],
-    ['pushup', 1],
-    ['plank', 3],
-  ] as const) {
-    const others = traceFiles(exercise);
-    it.skipIf(others.length === 0)(`pins false counts on ${exercise} traces`, () => {
-      const rows = others.map((path) => {
-        const trace = loadTrace(path);
-        return { clip: trace.source.clip, reps: replay(mountainClimber, trace).reps };
+  // pin them while the exercise remains unregistered.
+  const others = ['squat', 'pushup', 'plank'];
+  it.skipIf(others.some((e) => traceFiles(e).length === 0))(
+    'pins false counts on other traces',
+    () => {
+      expect(falseReps(mountainClimber, others)).toEqual({
+        'pushup/repcount-stu7-45': 1,
+        'plank/workoutvids-plank-2': 2,
+        'plank/workoutvids-plank-7': 1,
       });
-      expect(
-        rows.reduce((sum, row) => sum + row.reps, 0),
-        JSON.stringify(rows),
-      ).toBeLessThanOrEqual(maxFalse);
-    });
-  }
+    },
+  );
 });

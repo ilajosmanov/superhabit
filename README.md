@@ -20,6 +20,14 @@ adb devices
 vp run android
 ```
 
+With several devices attached, pick one: `vp run android --device <serial>` (serial from `adb devices`).
+
+To test without the cable, install a release build: it bundles the JavaScript, so it runs without Metro. Rebuild it after each code change. It builds only `arm64-v8a` (every current phone) to cut native compile time.
+
+```bash
+vp run android:release
+```
+
 ## Development
 
 Expo and Metro run the app; Vite+ handles packages, checks, and logic tests:

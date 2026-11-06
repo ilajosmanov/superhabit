@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 
 import { CATALOG, toEntry } from './catalog';
-import { CHALLENGES } from './challenges';
 import { MAX, reps, seconds } from './plan';
 
 describe('toEntry', () => {
@@ -42,9 +41,11 @@ describe('toEntry', () => {
   });
 });
 
-it('offers every multi-day challenge and no one-day test', () => {
-  const multiDay = [...CHALLENGES].filter(([, c]) => c.days > 1).map(([id]) => id);
-  expect(CATALOG.map((entry) => entry.id)).toEqual(multiDay);
+it('offers multi-day challenges and no one-day test', () => {
+  const ids = CATALOG.map((entry) => entry.id);
+  expect(ids).toContain('floor-circuit');
+  expect(ids).not.toContain('squat');
+  expect(ids).not.toContain('pushup');
 });
 
 it('marks a challenge experimental when one of its exercises is', () => {

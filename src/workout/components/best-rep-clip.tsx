@@ -22,14 +22,21 @@ import { EXERCISES, orientation } from '@/exercises/registry';
 import { colors } from '@/theme';
 import type { BestRep } from '@/workout/results';
 
+import { mss } from './controls';
+import { depthText } from './depth';
+
 /** Seconds of lead-in before the rep's bottom, and the window looped from there. */
 const LEAD_S = 1;
 const LOOP_S = 3;
+/** How far before the window a seek may land before it is redone. */
+const SEEK_SLACK_S = 0.5;
 const EXPAND = 'M14 4h6v6M10 20H4v-6M20 4l-6 6M4 20l6-6';
 const SHARE = 'M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6';
 
-const label = ({ name, rep, depth }: BestRep) =>
-  `${name.replace(/s$/, '')} ${rep} · ${Math.round(depth)}°`;
+const label = ({ name, rep, depth, exercise }: BestRep) => {
+  const { gauge } = EXERCISES[exercise];
+  return `${name.replace(/s$/, '')} ${rep}${gauge ? ` · ${depthText(depth, gauge)}` : ''}`;
+};
 const leadIn = (best: BestRep) => Math.max(0, best.atMs / 1000 - LEAD_S);
 
 /**
@@ -50,7 +57,7 @@ export function BestRepClip({ best }: { best: BestRep }) {
   // Keeps playback inside the window; also redoes the first seek if it landed before the file loaded.
   useEventListener(player, 'timeUpdate', ({ currentTime }) => {
     // seekBy, not assigning currentTime: React Compiler forbids mutating the hook's value.
-    if (currentTime >= start + LOOP_S || currentTime < start - 0.5)
+    if (currentTime >= start + LOOP_S || currentTime < start - SEEK_SLACK_S)
       player.seekBy(start - currentTime);
   });
   const landscape = orientation(EXERCISES[best.exercise].placement) === 'landscape';
@@ -81,7 +88,7 @@ export function BestRepClip({ best }: { best: BestRep }) {
           <Text className="font-mono text-xs font-medium tracking-wider text-chalk uppercase">
             Best rep · {label(best)}
           </Text>
-          <Text className="font-mono text-xs tracking-wider text-soft">0:0{LOOP_S}</Text>
+          <Text className="font-mono text-xs tracking-wider text-soft">{mss(LOOP_S)}</Text>
         </View>
         <View className="absolute right-2 bottom-2 size-11 items-center justify-center rounded-full bg-ground/70">
           <Glyph d={EXPAND} size={18} />

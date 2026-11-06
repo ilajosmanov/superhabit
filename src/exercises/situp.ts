@@ -1,19 +1,14 @@
-import { Joint } from 'superhabit-pose/joints';
+import { SIDE } from 'superhabit-pose/joints';
 
 import { cycle, type CycleState } from './cycle';
-import { fmtMs, type Exercise } from './exercise';
-import { angle, inFrame, type Joints, type Pose } from './geometry';
-
-const SIDES = [
-  [Joint.LEFT_SHOULDER, Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE],
-  [Joint.RIGHT_SHOULDER, Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE],
-] as const;
+import { fmtMs, SETUP, type Exercise } from './exercise';
+import { angle, bestSide, type Joints, type Pose } from './geometry';
 
 // Bent thighs make a lying hip read nearer 120° than 180°; 80° requires the torso to curl up.
 // Trace tuning across up 65–100°, down 95–135° and visibility 0.1–0.5 never exceeded 3/10.
 // Keep a 35° excursion and normal visibility rather than admitting small crunches or hidden feet.
-export const SITUP_UP = 80;
-export const SITUP_DOWN = 115;
+const SITUP_UP = 80;
+const SITUP_DOWN = 115;
 const SHALLOW = 95;
 // At least 40° short of straight throughout the attempt, not just at its endpoints.
 const KNEES_MAX = 140;
@@ -23,14 +18,11 @@ const KNEES_MAX = 140;
 /** Hip and knee angles in degrees, on the better-seen complete side. */
 export type SitupSample = { hip: number; knee: number; joints: Joints };
 
-export function measureSitup({
-  landmarks: image,
-  worldLandmarks: world,
-}: Pose): SitupSample | null {
-  const usable = SIDES.filter((side) => side.every((i) => inFrame(image[i]) && !!world[i]));
-  if (!usable.length) return null;
-  const seen = (side: readonly number[]) => Math.min(...side.map((i) => image[i].visibility));
-  const [s, h, k, a] = usable.reduce((best, side) => (seen(side) > seen(best) ? side : best));
+export function measureSitup(pose: Pose): SitupSample | null {
+  const side = bestSide(pose, (j) => [j.shoulder, j.hip, j.knee, j.ankle]);
+  if (!side) return null;
+  const { shoulder: s, hip: h, knee: k, ankle: a } = SIDE[side];
+  const world = pose.worldLandmarks;
   const hip = angle(world[s], world[h], world[k]);
   const knee = angle(world[h], world[k], world[a]);
   return Number.isFinite(hip) && Number.isFinite(knee) ? { hip, knee, joints: [s, h, k] } : null;
@@ -70,12 +62,7 @@ export const situp: Exercise<SitupState, SitupSample> = {
   experimental: true,
   glyph: 'M9.4 9a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M13 12l4 10M17 22l6-5 4 9M3 26h26',
   placement: 'side-floor',
-  place: 'Turn the phone sideways',
-  steps: [
-    'Lay it on the floor on its long edge',
-    'About 2 m away, side-on to you',
-    'Head to feet in frame',
-  ],
+  ...SETUP['side-floor'],
   hint: 'Sit up with knees bent, then lie back and curl up to count.',
   ready: 'Sit up with knees bent',
   parts: ['head', 'hips', 'feet'],

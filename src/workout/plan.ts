@@ -1,20 +1,24 @@
 import { EXERCISES, type ExerciseId, type Progress } from '@/exercises/registry';
 
 export type Goal = { type: 'reps'; n: number } | { type: 'seconds'; n: number } | { type: 'max' };
-export type RestGoal = Extract<Goal, { type: 'seconds' | 'max' }>;
-export type ExerciseStep = { exercise: ExerciseId; goal: Goal };
-export type RestStep = { exercise: 'rest'; goal: RestGoal };
+type RestGoal = Extract<Goal, { type: 'seconds' | 'max' }>;
+type ExerciseStep = { exercise: ExerciseId; goal: Goal };
+type RestStep = { exercise: 'rest'; goal: RestGoal };
 export type Step = ExerciseStep | RestStep;
-export type Block = { steps: readonly [Step, ...Step[]]; rounds: number };
+type Block = { steps: readonly [Step, ...Step[]]; rounds: number };
 export type Session = readonly [Block, ...Block[]];
 export type Challenge = { name: string; days: number; restartOnMiss: boolean; session: Session };
 /** Block and round numbers are 1-based. */
-export type FlatStep = Step & { block: number; round: number; rounds: number };
+type FlatStep = Step & { block: number; round: number; rounds: number };
 export type FlatSteps = readonly [ExerciseStep & FlatStep, ...FlatStep[]];
 
 export const reps = (n: number): Goal => ({ type: 'reps', n });
 export const seconds = (n: number) => ({ type: 'seconds', n }) as const;
 export const MAX = { type: 'max' } as const;
+
+/** A goal in its own unit, as cards and lists show it: "×25", "60 s", "MAX". */
+export const goalLabel = (goal: Goal) =>
+  goal.type === 'reps' ? `×${goal.n}` : goal.type === 'seconds' ? `${goal.n} s` : 'MAX';
 
 const positiveInteger = (n: number) => Number.isInteger(n) && n >= 1;
 
@@ -63,16 +67,20 @@ export function validate(session: Session): string[] {
     }
     previousRest = rest;
   });
+  // The run drops the final rest, so a list of the plan would show a rest that never happens.
+  const last = session[session.length - 1];
+  if (last.rounds === 1 && last.steps[last.steps.length - 1].exercise === 'rest') {
+    problems.push('session must end with an exercise, not rest');
+  }
   return problems;
 }
 
-/** Expand blocks and rounds, dropping only the final rest of the whole session. */
+/** Expand blocks and rounds of a validated session, dropping only the final rest of the whole session. */
 export function expand(session: Session): FlatSteps {
-  const problems = validate(session);
-  if (problems.length > 0) throw new Error(problems.join('\n'));
   const steps = flatten(session);
   if (steps.at(-1)?.exercise === 'rest') steps.pop();
   const [first, ...remaining] = steps;
+  // Never true after validate; it narrows the first step to an exercise without a type assertion.
   if (!first || first.exercise === 'rest') throw new Error('session must start with an exercise');
   return [first, ...remaining];
 }

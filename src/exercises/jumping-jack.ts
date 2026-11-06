@@ -1,23 +1,24 @@
-import type { PoseLandmark } from 'superhabit-pose';
-import { Joint } from 'superhabit-pose/joints';
+import { Joint, SIDE } from 'superhabit-pose/joints';
 
 import { cycle, type CycleState } from './cycle';
 import { fmtMs, type Exercise } from './exercise';
-import { angle, inFrameWithVisibility, type Joints, type Pose } from './geometry';
+import { angle, distance, seen, STRAIGHT, type Joints, type Pose } from './geometry';
 
-const ARMS = [
-  [Joint.LEFT_HIP, Joint.LEFT_SHOULDER, Joint.LEFT_ELBOW],
-  [Joint.RIGHT_HIP, Joint.RIGHT_SHOULDER, Joint.RIGHT_ELBOW],
-] as const;
+const ARMS = [SIDE.left, SIDE.right].map(({ hip, shoulder, elbow }): Joints => [
+  hip,
+  shoulder,
+  elbow,
+]);
 const REQUIRED = [...ARMS.flat(), Joint.LEFT_ANKLE, Joint.RIGHT_ANKLE];
-const distance = (a: PoseLandmark, b: PoseLandmark) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 const unit = (value: number) => Math.max(0, Math.min(1, value));
 
-// Feet within hip width are closed; 2.5 hip widths is a comfortably wide jumping-jack stance.
-// A 0.7 peak requires ~126° arm abduction and feet at least 2.05 hip widths apart.
-// Closure allows arms within 45° of the sides and feet within 1.375 hip widths for pose noise.
-export const JACK_CLOSED = 0.25;
-export const JACK_OPEN = 0.7;
+// Both signals run 0..1: arms from by the sides to straight overhead, spread from feet at hip
+// width to WIDE hip widths apart. Device sets peak at ankles 1.6–1.9 hip widths; 2.5 was a bar
+// most real jacks never cleared. A 0.7 peak needs ~126° arm abduction and feet 1.7 widths
+// apart; closure allows arms within 45° of the sides and feet within 1.25 widths for pose noise.
+const WIDE = 2;
+const JACK_CLOSED = 0.25;
+const JACK_OPEN = 0.7;
 // A later signal crossing gives both limbs time to close before clean checks the raw sample.
 const RETURN = 0.1;
 const SHALLOW = 0.4;
@@ -35,19 +36,16 @@ export type JumpingJackSample = {
   joints: Joints;
 };
 
-export function measureJumpingJack({
-  landmarks: image,
-  worldLandmarks: world,
-}: Pose): JumpingJackSample | null {
-  if (!REQUIRED.every((i) => inFrameWithVisibility(image[i], MIN_VISIBILITY) && !!world[i]))
-    return null;
+export function measureJumpingJack(pose: Pose): JumpingJackSample | null {
+  if (!REQUIRED.every((i) => seen(pose, i, MIN_VISIBILITY))) return null;
+  const world = pose.worldLandmarks;
   const abduction = ARMS.map(([h, s, e]) => angle(world[h], world[s], world[e]));
   const ratio =
     distance(world[Joint.LEFT_ANKLE], world[Joint.RIGHT_ANKLE]) /
     distance(world[Joint.LEFT_HIP], world[Joint.RIGHT_HIP]);
   if (![...abduction, ratio].every(Number.isFinite)) return null;
-  const arms = (abduction[0] + abduction[1]) / 360;
-  const spread = unit((ratio - 1) / 1.5);
+  const arms = (abduction[0] + abduction[1]) / 2 / STRAIGHT;
+  const spread = unit((ratio - 1) / (WIDE - 1));
   return { arms, spread, signal: Math.min(arms, spread), joints: ARMS[0] };
 }
 
@@ -65,7 +63,6 @@ const closed = (m: JumpingJackSample) => m.arms <= JACK_CLOSED && m.spread <= JA
 
 const jackCycle = cycle<JumpingJackSample, Attempt, JumpingJackReport>({
   signal: (m) => m.signal,
-  range: [0, 1],
   // Unit signals need a larger beta than degree signals; 0.8 follows quick cycles while
   // letting raw limbs finish closing. This preserves 6/11 traces with the closure check.
   smoothing: { minCutoff: 2, beta: 0.8 },

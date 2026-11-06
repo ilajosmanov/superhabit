@@ -1,6 +1,6 @@
 // Synthetic side-on push-up and plank poses for tests.
 import type { PoseLandmark } from 'superhabit-pose';
-import { Joint } from 'superhabit-pose/joints';
+import { SIDE } from 'superhabit-pose/joints';
 
 import type { Pose } from '@/exercises/geometry';
 
@@ -88,30 +88,9 @@ export const plank = ({
   knee ??= [(hip[0] + ankle[0]) / 2, (hip[1] + ankle[1]) / 2];
   const joints = [shoulder, el, wrist, hip, knee, ankle];
   const sides = [
-    {
-      ids: [
-        Joint.LEFT_SHOULDER,
-        Joint.LEFT_ELBOW,
-        Joint.LEFT_WRIST,
-        Joint.LEFT_HIP,
-        Joint.LEFT_KNEE,
-        Joint.LEFT_ANKLE,
-      ],
-      z: 0,
-      seen: visible !== 'right',
-    },
-    {
-      ids: [
-        Joint.RIGHT_SHOULDER,
-        Joint.RIGHT_ELBOW,
-        Joint.RIGHT_WRIST,
-        Joint.RIGHT_HIP,
-        Joint.RIGHT_KNEE,
-        Joint.RIGHT_ANKLE,
-      ],
-      z: -0.36,
-      seen: visible !== 'left',
-    },
+    // Object.values keeps SIDE's shoulder, elbow, wrist, hip, knee, ankle order, matching `joints`.
+    { ids: Object.values(SIDE.left), z: 0, seen: visible !== 'right' },
+    { ids: Object.values(SIDE.right), z: -0.36, seen: visible !== 'left' },
   ];
   for (const { ids, z, seen } of sides)
     ids.forEach((i, j) => {

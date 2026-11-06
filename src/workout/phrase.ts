@@ -1,5 +1,10 @@
 import type { BodyPart, Phase } from '@/exercises/registry';
 
+import type { Goal } from './plan';
+
+/** Every this many counted reps the count gets a "keep going". */
+const ENCOURAGE_EVERY = 5;
+
 /** What to say when counts change; null = stay silent (no change, or reset). */
 export function repPhrase(
   prev: { reps: number; noReps: number },
@@ -7,7 +12,7 @@ export function repPhrase(
   cues?: readonly string[],
 ): string | null {
   if (next.reps > prev.reps)
-    return next.reps % 5 === 0 ? `${next.reps}, keep going` : String(next.reps);
+    return next.reps % ENCOURAGE_EVERY === 0 ? `${next.reps}, keep going` : String(next.reps);
   if (next.noReps > prev.noReps) return cues?.[0] ?? 'Deeper';
   return null;
 }
@@ -23,6 +28,30 @@ export function setPhrase(done: string, next: Next | null): string {
       : `${done}, set done. Rest ${next.rest} seconds.`;
   if (next.place === null) return `${done}. Next, ${next.what}.`;
   return `${done}, set done. Next, ${next.what}. ${next.place}.`;
+}
+
+/** The step after a set, as said aloud: `name` is null for a rest, `place` null when the phone stays put. */
+type Upcoming = { name: string | null; goal: Goal; place: string | null };
+
+/** Said as a set ends; `cue` is the form cue that broke a MAX hold, said first so speech can't cut it. */
+export function endPhrase(amount: string, next: Upcoming | null, cue: string | null): string {
+  const text = setPhrase(
+    amount,
+    !next
+      ? null
+      : next.name === null
+        ? { rest: next.goal.type === 'seconds' ? next.goal.n : null }
+        : {
+            what:
+              next.goal.type === 'reps'
+                ? `${next.goal.n} ${next.name}`
+                : next.goal.type === 'seconds'
+                  ? `${next.name} ${next.goal.n} seconds`
+                  : next.name,
+            place: next.place,
+          },
+  );
+  return cue ? `${cue}. ${text}` : text;
 }
 
 /** 'Go' as the counter first sees the start position; null otherwise. */

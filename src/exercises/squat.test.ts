@@ -2,44 +2,47 @@ import type { PoseLandmark } from 'superhabit-pose';
 import { assert, describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
-import { initialSquat, measure, stepSquat, type Sample, type SquatState } from './squat';
+import { measureSquat, squat, type SquatSample, type SquatState } from './squat';
 import type { Pose } from './geometry';
 import { body } from './__fixtures__/body';
 import { scoreReps, traceFiles } from './__fixtures__/replay';
 
 const joints = [Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE] as const;
 // A knee-only sample with the hips dropped, so these tests exercise the knee state machine.
-const at = (deg: number | null): Sample | null =>
+const at = (deg: number | null): SquatSample | null =>
   deg === null ? null : { legs: [deg, deg], hip: 0, lean: 0, valgus: null, joints };
 const FRAME = 66; // ms between detector results
 // The next frame's time after `s`'s last valid angle.
 const later = (s: SquatState) => (s.lastSeenAt ?? 0) + FRAME;
 // Each valid angle is held long enough for the smoothing filter to settle on it; anything else is one bad frame.
-const run = (angles: (number | null)[], from: SquatState = initialSquat) =>
+const run = (angles: (number | null)[], from: SquatState = squat.initial) =>
   angles.reduce(
     (state, deg) =>
       Array.from({ length: deg !== null && deg >= 0 && deg <= 180 ? 200 : 1 }).reduce<SquatState>(
-        (s, _, i) => stepSquat(s, at(deg), later(state) + i * FRAME),
+        (s, _, i) => squat.step(s, at(deg), later(state) + i * FRAME),
         state,
       ),
     from,
   );
 // [sample, fromMs, toMs]: hold a sample, polling every frame.
-const play = (spans: [Sample | null, fromMs: number, toMs?: number][], start = initialSquat) =>
+const play = (
+  spans: [SquatSample | null, fromMs: number, toMs?: number][],
+  start = squat.initial,
+) =>
   spans.reduce((state, [sample, from, to = from]) => {
-    for (let t = from; t <= to; t += FRAME) state = stepSquat(state, sample, t);
+    for (let t = from; t <= to; t += FRAME) state = squat.step(state, sample, t);
     return state;
   }, start);
 const runTimed = (
   spans: [deg: number | null, fromMs: number, toMs?: number][],
-  start: SquatState = initialSquat,
+  start: SquatState = squat.initial,
 ) =>
   play(
     spans.map(([deg, from, to]) => [at(deg), from, to]),
     start,
   );
 
-describe('stepSquat', () => {
+describe('squat.step', () => {
   it('waits for standing before counting an attempt, including after reset', () => {
     expect(run([90, 120, 150])).toMatchObject({
       reps: 0,
@@ -101,14 +104,14 @@ describe('stepSquat', () => {
     ]);
     const { lastSeenAt } = previous;
     assert(lastSeenAt !== undefined);
-    const lost = stepSquat(previous, null, lastSeenAt + 1001);
+    const lost = squat.step(previous, null, lastSeenAt + 1001);
     expect(lost).toMatchObject({ reps: 1, noReps: 1, phase: 'waiting', min: 180, lastSeenAt });
     expect(lost.lastRep?.depth).toBeCloseTo(120);
     expect(lost.filter).toBeUndefined();
     // After the filter reset, standing is read immediately and must be held for two samples.
-    const back = stepSquat(lost, at(175), lastSeenAt + 1100);
+    const back = squat.step(lost, at(175), lastSeenAt + 1100);
     expect(back.phase).toBe('waiting');
-    expect(stepSquat(back, at(175), lastSeenAt + 1166)).toMatchObject({
+    expect(squat.step(back, at(175), lastSeenAt + 1166)).toMatchObject({
       reps: 1,
       noReps: 1,
       phase: 'up',
@@ -148,8 +151,8 @@ describe('stepSquat', () => {
     'ignores invalid angles (%s) without losing a pending rep or corrupting its depth',
     (invalid) => {
       const down = run([175, 90]);
-      expect(stepSquat(down, at(invalid), later(down))).toBe(down);
-      expect(run([175], stepSquat(down, at(invalid), later(down)))).toMatchObject({
+      expect(squat.step(down, at(invalid), later(down))).toBe(down);
+      expect(run([175], squat.step(down, at(invalid), later(down)))).toMatchObject({
         reps: 1,
         noReps: 0,
         lastRep: { depth: 90 },
@@ -164,21 +167,21 @@ describe('stepSquat', () => {
 });
 
 describe('glitches, hip depth and rep report', () => {
-  const standing = measure(body({}));
-  const bottom = measure(body({ thigh: 70, shin: 25 })); // 85° knee, hips well down
+  const standing = measureSquat(body({}));
+  const bottom = measureSquat(body({ thigh: 70, shin: 25 })); // 85° knee, hips well down
 
   it('measures hip drop, trunk lean and knee width from world landmarks', () => {
     expect(standing).toMatchObject({ legs: [180, 180], lean: 0, valgus: 1 });
     expect(standing?.hip).toBeCloseTo(1);
     expect(bottom?.hip).toBeCloseTo(Math.cos((70 * Math.PI) / 180));
-    expect(measure(body({ lean: 30 }))?.lean).toBeCloseTo(30);
+    expect(measureSquat(body({ lean: 30 }))?.lean).toBeCloseTo(30);
     // Shoulders above the frame are model guesses, so lean is not measured.
     const cropped = body({ lean: 30 });
     cropped.landmarks[Joint.LEFT_SHOULDER] = { ...cropped.landmarks[Joint.LEFT_SHOULDER], y: -0.1 };
-    expect(measure(cropped)?.lean).toBe(0);
-    expect(measure(body({ knees: 0.06 }))?.valgus).toBeCloseTo(0.6);
+    expect(measureSquat(cropped)?.lean).toBe(0);
+    expect(measureSquat(body({ knees: 0.06 }))?.valgus).toBeCloseTo(0.6);
     // Side-on, knee width is depth and not trustworthy.
-    const side = measure(body({ thigh: 70, shin: 25, side: true }));
+    const side = measureSquat(body({ thigh: 70, shin: 25, side: true }));
     expect(side?.valgus).toBeNull();
     assert(bottom);
     expect(side?.hip).toBeCloseTo(bottom.hip);
@@ -188,7 +191,11 @@ describe('glitches, hip depth and rep report', () => {
     expect(standing?.joints).toEqual([Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE]);
     const pose = body({});
     pose.landmarks[Joint.LEFT_KNEE] = { ...pose.landmarks[Joint.LEFT_KNEE], visibility: 0.6 };
-    expect(measure(pose)?.joints).toEqual([Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE]);
+    expect(measureSquat(pose)?.joints).toEqual([
+      Joint.RIGHT_HIP,
+      Joint.RIGHT_KNEE,
+      Joint.RIGHT_ANKLE,
+    ]);
   });
 
   it('smooths away a single-frame spike', () => {
@@ -205,13 +212,13 @@ describe('glitches, hip depth and rep report', () => {
   });
 
   it('switches phase only once a crossing holds for two samples', () => {
-    const once = stepSquat(initialSquat, standing, 0);
+    const once = squat.step(squat.initial, standing, 0);
     expect(once.phase).toBe('waiting');
-    expect(stepSquat(once, standing, 66).phase).toBe('up');
+    expect(squat.step(once, standing, 66).phase).toBe('up');
   });
 
   it('requires the hips to drop, so kneeling or leaning in is not a rep', () => {
-    const kneel = measure(body({ thigh: 0, shin: 90 })); // knees at 90°, hips not lowered
+    const kneel = measureSquat(body({ thigh: 0, shin: 90 })); // knees at 90°, hips not lowered
     assert(kneel);
     expect(Math.max(...kneel.legs)).toBeCloseTo(90);
     const s = play([
@@ -224,7 +231,7 @@ describe('glitches, hip depth and rep report', () => {
   });
 
   it('still calls a real half squat a no-rep', () => {
-    const half = measure(body({ thigh: 25, shin: 20 })); // 135° knee, hips slightly down
+    const half = measureSquat(body({ thigh: 25, shin: 20 })); // 135° knee, hips slightly down
     const s = play([
       [standing, 0, 2000],
       [half, 2066, 4000],
@@ -249,7 +256,7 @@ describe('glitches, hip depth and rep report', () => {
   });
 
   it('cues lean, caving knees and rushing', () => {
-    const sloppy = measure(body({ thigh: 70, shin: 25, lean: 50, knees: 0.06 }));
+    const sloppy = measureSquat(body({ thigh: 70, shin: 25, lean: 50, knees: 0.06 }));
     const s = play([
       [standing, 0, 2000],
       [sloppy, 2066, 2264],
@@ -265,7 +272,7 @@ describe('glitches, hip depth and rep report', () => {
   });
 
   it('cues uneven legs and a shallow no-rep', () => {
-    const uneven: Sample = { legs: [95, 75], hip: 0, lean: 0, valgus: null, joints };
+    const uneven: SquatSample = { legs: [95, 75], hip: 0, lean: 0, valgus: null, joints };
     const s = play([
       [at(175), 0, 2000],
       [uneven, 2066, 4000],
@@ -321,7 +328,7 @@ describe('knee angles', () => {
     put([Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE], right);
     return { landmarks: image, worldLandmarks: world };
   };
-  const legs = (p: Pose) => measure(p)?.legs;
+  const legs = (p: Pose) => measureSquat(p)?.legs;
   const deg = (d: number) => expect.closeTo(d);
 
   it('reads straight legs as ~180°', () => {
@@ -343,12 +350,12 @@ describe('knee angles', () => {
       [0.5, 0.6],
       [0.5, 0.8],
     ];
-    expect(measure(pose(collapsed, collapsed))).toBeNull();
+    expect(measureSquat(pose(collapsed, collapsed))).toBeNull();
   });
 
   it('ignores one bent leg, so a leg circle is not a squat', () => {
-    expect(measure(pose(bent, straight))).toBeNull();
-    expect(measure(pose(straight, bent))).toBeNull();
+    expect(measureSquat(pose(bent, straight))).toBeNull();
+    expect(measureSquat(pose(straight, bent))).toBeNull();
   });
 
   it('drops mis-tracked frames where the legs disagree', () => {
@@ -363,11 +370,11 @@ describe('knee angles', () => {
       [0.17, 0.44],
       [0.1, 0.61],
     ];
-    expect(measure(pose(left, right))).toBeNull();
+    expect(measureSquat(pose(left, right))).toBeNull();
   });
 
   it('returns null when a leg is not visible', () => {
-    expect(measure(pose(straight, straight, 0.2))).toBeNull();
+    expect(measureSquat(pose(straight, straight, 0.2))).toBeNull();
   });
 
   it('uses image visibility, not optional world-landmark visibility, to accept joints', () => {
@@ -381,13 +388,13 @@ describe('knee angles', () => {
   it('returns null for coincident world joints', () => {
     const p = pose(straight, straight);
     p.worldLandmarks[Joint.LEFT_HIP] = { ...p.worldLandmarks[Joint.LEFT_KNEE] };
-    expect(measure(p)).toBeNull();
+    expect(measureSquat(p)).toBeNull();
   });
 
   it.each([NaN, Infinity, -Infinity])('returns null for invalid world coordinates (%s)', (x) => {
     const p = pose(straight, straight);
     p.worldLandmarks[Joint.LEFT_HIP].x = x;
-    expect(measure(p)).toBeNull();
+    expect(measureSquat(p)).toBeNull();
   });
 
   it('returns null when a joint is outside the frame (walked up to the phone)', () => {
@@ -396,7 +403,7 @@ describe('knee angles', () => {
       [0.5, 0.9],
       [0.6, 1.08],
     ];
-    expect(measure(pose(ankleOffScreen, straight))).toBeNull();
+    expect(measureSquat(pose(ankleOffScreen, straight))).toBeNull();
   });
 
   it('keeps feet that are close to, but inside, the bottom edge', () => {
@@ -406,7 +413,7 @@ describe('knee angles', () => {
       [0.74, 0.87],
       [0.7, 0.99],
     ];
-    expect(measure(pose(deep, deep))).not.toBeNull();
+    expect(measureSquat(pose(deep, deep))).not.toBeNull();
   });
 });
 
@@ -415,7 +422,7 @@ const MIN_OK = 1;
 const files = traceFiles('squat');
 describe.skipIf(files.length === 0)('squat on real traces', () => {
   it('counts within ±1 on enough clips', () => {
-    const rows = scoreReps({ initial: initialSquat, step: stepSquat, measure }, files, 1);
+    const rows = scoreReps(squat, files, 1);
     expect(rows.filter((row) => row.ok).length, JSON.stringify(rows)).toBeGreaterThanOrEqual(
       MIN_OK,
     );

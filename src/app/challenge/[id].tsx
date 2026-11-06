@@ -13,10 +13,10 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { Glyph } from '@/components/glyph';
 import { PhoneSetup } from '@/workout/components/phone-setup';
 import { Screen } from '@/components/screen';
-import { EXERCISES, orientation } from '@/exercises/registry';
+import { EXERCISES } from '@/exercises/registry';
 import { colors, lit } from '@/theme';
-import { capitalise, CHALLENGES, summary, totalReps, totalSeconds } from '@/workout/challenges';
-import { expand } from '@/workout/plan';
+import { capitalise, CHALLENGES, detail, summary } from '@/workout/challenges';
+import { goalLabel } from '@/workout/plan';
 
 const HOLD_MS = 700;
 
@@ -83,27 +83,8 @@ export default function ChallengeDetailScreen() {
   const challenge = CHALLENGES.get(id);
   if (!challenge) return <Screen title="Not found" />;
 
-  const steps = expand(challenge.session);
-  const sets = steps.filter((step) => step.exercise !== 'rest');
-  const reps = totalReps(challenge);
-  const countsReps = reps > 0;
-  const total = countsReps ? reps : totalSeconds(challenge);
+  const { sets, total, countsReps, tracking, phone, first } = detail(challenge);
   const finite = Number.isFinite(total);
-  const holds = sets.some((set) => EXERCISES[set.exercise].kind === 'hold');
-  const tracking = !countsReps
-    ? 'The camera times your hold. Stay in position to keep the clock running.'
-    : holds
-      ? 'The camera counts full-range reps and times your holds.'
-      : 'The camera counts. Only full-range reps score.';
-  const placements = new Set(sets.map((set) => orientation(EXERCISES[set.exercise].placement)));
-  // The run explains each later set's setup between sets; the first one is explained here.
-  const first = EXERCISES[steps[0].exercise];
-  const phone =
-    placements.size > 1
-      ? 'ROTATES'
-      : orientation(first.placement) === 'landscape'
-        ? 'SIDEWAYS'
-        : 'UPRIGHT';
 
   return (
     <Screen
@@ -151,13 +132,7 @@ export default function ChallengeDetailScreen() {
                     {capitalise(EXERCISES[exercise].name)}
                   </Text>
                 </View>
-                <Text className="font-mono text-xs text-muted">
-                  {goal.type === 'reps'
-                    ? `×${goal.n}`
-                    : goal.type === 'seconds'
-                      ? `${goal.n} s`
-                      : 'MAX'}
-                </Text>
+                <Text className="font-mono text-xs text-muted">{goalLabel(goal)}</Text>
               </View>
             </View>
           ))}

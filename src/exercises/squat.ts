@@ -1,27 +1,23 @@
 // Squat rep counter on MediaPipe Pose Landmarker output (33 joints, MediaPipe order).
-import type { PoseLandmark } from 'superhabit-pose';
-import { Joint } from 'superhabit-pose/joints';
+import { Joint, SIDE } from 'superhabit-pose/joints';
 
-import { angle, inFrame, type Joints, type Pose } from './geometry';
+import { angle, distance, mid, seen, sub, tilt, type Joints, type Pose } from './geometry';
 import { cycle, type CycleState } from './cycle';
-import { fmtMs, type Exercise } from './exercise';
+import { fmtMs, SETUP, type Exercise } from './exercise';
 
 const MAX_ASYMMETRY = 35; // degrees between left and right knee
-const LEGS = [
-  [Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE],
-  [Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE],
-] as const;
+const LEGS = [SIDE.left, SIDE.right].map(({ hip, knee, ankle }): Joints => [hip, knee, ankle]);
 
-export const DOWN = 100; // knee angle at or below this = deep enough
-export const UP = 160; // back to standing
-const SHALLOW = 140; // went this low without reaching DOWN = no-rep
+const SQUAT_DOWN = 100; // knee angle at or below this = deep enough
+const SQUAT_UP = 160; // back to standing
+const SHALLOW = 140; // went this low without reaching SQUAT_DOWN = no-rep
 
 /** [left, right] 3D knee angles, or null unless both legs are fully in frame and agree. */
-function legAngles({ landmarks: image, worldLandmarks: world }: Pose): [number, number] | null {
+function legAngles(pose: Pose): [number, number] | null {
+  const world = pose.worldLandmarks;
   const out: number[] = [];
   for (const [h, k, a] of LEGS) {
-    if (![image[h], image[k], image[a]].every(inFrame)) return null;
-    if (!world[h] || !world[k] || !world[a]) return null;
+    if (![h, k, a].every((i) => seen(pose, i))) return null;
     const deg = angle(world[h], world[k], world[a]);
     // Coincident joints or invalid coordinates have no angle; don't poison the rep's minimum.
     if (!Number.isFinite(deg)) return null;
@@ -32,16 +28,8 @@ function legAngles({ landmarks: image, worldLandmarks: world }: Pose): [number, 
   return [out[0], out[1]];
 }
 
-const mid = (a: PoseLandmark, b: PoseLandmark) => ({
-  x: (a.x + b.x) / 2,
-  y: (a.y + b.y) / 2,
-  z: (a.z + b.z) / 2,
-});
-const dist = (a: PoseLandmark | ReturnType<typeof mid>, b: PoseLandmark | ReturnType<typeof mid>) =>
-  Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
-
 /** One frame's measurements; `hip` and `lean` come from world landmarks (metres, y down). */
-export type Sample = {
+export type SquatSample = {
   legs: [number, number];
   /** Vertical knee-below-hip gap / thigh length: ~1 standing, ~0 thighs parallel. */
   hip: number;
@@ -53,7 +41,7 @@ export type Sample = {
   joints: Joints;
 };
 
-export function measure(pose: Pose): Sample | null {
+export function measureSquat(pose: Pose): SquatSample | null {
   const legs = legAngles(pose);
   if (!legs) return null;
   const w = pose.worldLandmarks;
@@ -63,15 +51,13 @@ export function measure(pose: Pose): Sample | null {
   // Thigh-relative hip drop is scale-free and, in 3D, the same seen from the front or the side;
   // a shoulder–ankle ratio would also move with torso lean.
   const thigh =
-    (dist(w[Joint.LEFT_HIP], w[Joint.LEFT_KNEE]) + dist(w[Joint.RIGHT_HIP], w[Joint.RIGHT_KNEE])) /
+    (distance(w[Joint.LEFT_HIP], w[Joint.LEFT_KNEE]) +
+      distance(w[Joint.RIGHT_HIP], w[Joint.RIGHT_KNEE])) /
     2;
-  // Off-frame shoulders are guesses; without them lean reads 0 (hips == shoulders).
-  const seen = [Joint.LEFT_SHOULDER, Joint.RIGHT_SHOULDER].every((i) => inFrame(pose.landmarks[i]));
-  const shoulders =
-    seen && w[Joint.LEFT_SHOULDER] && w[Joint.RIGHT_SHOULDER]
-      ? mid(w[Joint.LEFT_SHOULDER], w[Joint.RIGHT_SHOULDER])
-      : hips;
-  const lean = (Math.acos((hips.y - shoulders.y) / dist(hips, shoulders)) * 180) / Math.PI;
+  // Off-frame shoulders are guesses; without them lean reads 0.
+  const lean = [Joint.LEFT_SHOULDER, Joint.RIGHT_SHOULDER].every((i) => seen(pose, i))
+    ? tilt(sub(hips, mid(w[Joint.LEFT_SHOULDER], w[Joint.RIGHT_SHOULDER])))
+    : 0;
   // Hips spread along x more than depth means the body faces the camera.
   const front =
     Math.abs(w[Joint.RIGHT_HIP].x - w[Joint.LEFT_HIP].x) >
@@ -120,10 +106,10 @@ type Attempt = {
 /** Tracks the knee angle of the straighter leg. */
 export type SquatState = CycleState<Attempt, RepReport>;
 
-const squatCycle = cycle<Sample, Attempt, RepReport>({
+const squatCycle = cycle<SquatSample, Attempt, RepReport>({
   signal: (m) => Math.max(...m.legs),
-  up: UP,
-  down: DOWN,
+  up: SQUAT_UP,
+  down: SQUAT_DOWN,
   shallow: SHALLOW,
   turn: (m) => m.hip <= HIP_BOTTOM,
   tried: (a) => a.hip <= HIP_STARTED,
@@ -152,25 +138,19 @@ const squatCycle = cycle<Sample, Attempt, RepReport>({
   },
 });
 
-export const squat: Exercise<SquatState, Sample> = {
+export const squat: Exercise<SquatState, SquatSample> = {
   ...squatCycle,
   name: 'squats',
   glyph:
     'M13.4 6a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M15 9l-3 8M12 17l9 1M21 18l-1 8M14 11.5l10 .5M6 26h20',
   placement: 'front-upright',
-  place: 'Stand the phone upright',
-  steps: ['Prop it up on its short edge', '2 to 3 m away, facing you', 'Head to feet in frame'],
+  ...SETUP['front-upright'],
   hint: 'Counting starts once you stand tall.',
   ready: 'Stand tall',
   parts: ['head', 'hips', 'feet'],
-  gauge: { down: DOWN, up: UP },
-  measure,
+  gauge: { down: SQUAT_DOWN, up: SQUAT_UP },
+  measure: measureSquat,
   stats: ({ lastRep: r }) =>
     r &&
     `${Math.round(r.depth)}° · SYM ${Math.round(r.symmetry)}° · ${fmtMs(r.downMs)}↓ ${fmtMs(r.upMs)}↑ · LEAN ${Math.round(r.lean)}°`,
 };
-
-export const initialSquat = squat.initial;
-export function stepSquat(s: SquatState, sample: Sample | null, nowMs: number): SquatState {
-  return squat.step(s, sample, nowMs);
-}

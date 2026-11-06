@@ -2,7 +2,7 @@ import { assert, describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
 import { body } from './__fixtures__/body';
-import { loadTrace, replay, traceFiles } from './__fixtures__/replay';
+import { falseReps, scoreReps, tenPercent, traceFiles } from './__fixtures__/replay';
 import type { Pose } from './geometry';
 import { jumpingJack, measureJumpingJack } from './jumping-jack';
 
@@ -62,8 +62,8 @@ describe('measureJumpingJack', () => {
     expect(measureJumpingJack(pose(180))?.signal).toBe(0);
     expect(measureJumpingJack(pose(0, 0.3))?.signal).toBe(0);
     expect(measureJumpingJack(pose(180, 0.25))?.spread).toBeCloseTo(1);
-    expect(measureJumpingJack(pose(180, 0.175))?.signal).toBeCloseTo(0.5);
-    const scaled = pose(180, 0.175);
+    expect(measureJumpingJack(pose(180, 0.15))?.signal).toBeCloseTo(0.5);
+    const scaled = pose(180, 0.15);
     for (const point of scaled.worldLandmarks) {
       point.x *= 2;
       point.y *= 2;
@@ -136,7 +136,7 @@ describe('jumpingJack', () => {
 
   it.each([
     { arms: 100, width: 0.3, cue: 'Raise your arms overhead' },
-    { arms: 180, width: 0.175, cue: 'Jump your feet wider' },
+    { arms: 180, width: 0.15, cue: 'Jump your feet wider' },
   ])('rejects a shallow attempt with "$cue"', ({ arms, width, cue }) => {
     expect(play([pose(), pose(arms, width), pose()])).toMatchObject({
       reps: 0,
@@ -146,7 +146,7 @@ describe('jumpingJack', () => {
   });
 
   it('rejects arm and leg openings that never happen together', () => {
-    expect(play([pose(), pose(180, 0.175), pose(90, 0.3), pose()])).toMatchObject({
+    expect(play([pose(), pose(180, 0.15), pose(90, 0.3), pose()])).toMatchObject({
       reps: 0,
       noReps: 1,
       lastRep: { cues: ['Raise arms and spread feet together'] },
@@ -188,37 +188,18 @@ const MIN_OK = 6;
 const files = traceFiles('jumping-jack');
 describe.skipIf(files.length === 0)('jumpingJack on real traces', () => {
   it('preserves the measured baseline on labelled clips', () => {
-    const rows = files.flatMap((path) => {
-      const trace = loadTrace(path);
-      if (trace.labels.reps === undefined) return [];
-      const expected = trace.labels.reps;
-      const got = replay(jumpingJack, trace).reps;
-      return [
-        {
-          clip: trace.source.clip,
-          expected,
-          got,
-          ok: Math.abs(got - expected) <= Math.max(1, Math.round(0.1 * expected)),
-        },
-      ];
-    });
+    const rows = scoreReps(jumpingJack, files, tenPercent);
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.filter((row) => row.ok).length, JSON.stringify(rows)).toBeGreaterThanOrEqual(
       MIN_OK,
     );
   });
 
-  for (const exercise of ['squat', 'pushup', 'plank']) {
-    const others = traceFiles(exercise);
-    it.skipIf(others.length === 0)(`counts no false reps on ${exercise} traces`, () => {
-      const rows = others.map((path) => {
-        const trace = loadTrace(path);
-        return { clip: trace.source.clip, reps: replay(jumpingJack, trace).reps };
-      });
-      expect(
-        rows.reduce((total, row) => total + row.reps, 0),
-        JSON.stringify(rows),
-      ).toBe(0);
-    });
-  }
+  const others = ['squat', 'pushup', 'plank'];
+  it.skipIf(others.some((e) => traceFiles(e).length === 0))(
+    'counts no false reps on squat, push-up or plank traces',
+    () => {
+      expect(falseReps(jumpingJack, others)).toEqual({});
+    },
+  );
 });

@@ -1,14 +1,15 @@
-import { EXERCISES } from '@/exercises/registry';
+import { EXERCISES, orientation } from '@/exercises/registry';
 
 import { defineChallenge, expand, MAX, reps, seconds, type Challenge } from './plan';
 
 /** Local YYYY-MM-DD; UTC arithmetic keeps calendar days independent of DST. */
-export type Day = string;
+type Day = string;
 
 const DAY_MS = 86_400_000;
 const dayNumber = (day: Day) =>
   Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10))) / DAY_MS;
 
+// shortcut: unused until joined challenges persist; needs a local today() beside Day (toISOString is UTC) and the day grid must read the done-set, not the day number.
 export function challengeDay(
   c: Pick<Challenge, 'days' | 'restartOnMiss'>,
   startedOn: Day,
@@ -28,6 +29,8 @@ export function challengeDay(
   return day > c.days ? null : { day, from: new Date(from * DAY_MS).toISOString().slice(0, 10) };
 }
 
+// shortcut: fixed goals lowered for physical testing (reps 3, holds and rests 10 s; MAX kept);
+// restore the real numbers (60 s plank, 10 push-ups + 30 s plank + 30 s rest, 100 squats, 50 push-ups) before release.
 /** Route id -> challenge, in catalog order. Open-ended tests are offered by the camera card. */
 const entries: [string, Challenge][] = [
   [
@@ -53,7 +56,7 @@ const entries: [string, Challenge][] = [
       name: 'Plank minute',
       days: 21,
       restartOnMiss: false,
-      session: [{ steps: [{ exercise: 'plank', goal: seconds(60) }], rounds: 1 }],
+      session: [{ steps: [{ exercise: 'plank', goal: seconds(10) }], rounds: 1 }],
     },
   ],
   [
@@ -65,9 +68,9 @@ const entries: [string, Challenge][] = [
       session: [
         {
           steps: [
-            { exercise: 'pushup', goal: reps(10) },
-            { exercise: 'plank', goal: seconds(30) },
-            { exercise: 'rest', goal: seconds(30) },
+            { exercise: 'pushup', goal: reps(3) },
+            { exercise: 'plank', goal: seconds(10) },
+            { exercise: 'rest', goal: seconds(10) },
           ],
           rounds: 3,
         },
@@ -84,7 +87,7 @@ const entries: [string, Challenge][] = [
         {
           steps: [
             { exercise: 'squat', goal: MAX },
-            { exercise: 'rest', goal: seconds(60) },
+            { exercise: 'rest', goal: seconds(10) },
           ],
           rounds: 2,
         },
@@ -97,7 +100,7 @@ const entries: [string, Challenge][] = [
       name: 'Squat hundred',
       days: 21,
       restartOnMiss: false,
-      session: [{ steps: [{ exercise: 'squat', goal: reps(100) }], rounds: 1 }],
+      session: [{ steps: [{ exercise: 'squat', goal: reps(3) }], rounds: 1 }],
     },
   ],
   [
@@ -106,7 +109,7 @@ const entries: [string, Challenge][] = [
       name: 'Push-up fifty',
       days: 21,
       restartOnMiss: false,
-      session: [{ steps: [{ exercise: 'pushup', goal: reps(50) }], rounds: 1 }],
+      session: [{ steps: [{ exercise: 'pushup', goal: reps(3) }], rounds: 1 }],
     },
   ],
   // Experimental exercises: open-ended, so a miscount never blocks the day.
@@ -181,27 +184,19 @@ export const CHALLENGES: ReadonlyMap<string, Challenge> = new Map(
 
 /** Describe each block once, with its round count; rests do not contribute exercise goals. */
 export function summary({ session }: Challenge): string {
-  const blocks = new Map<number, { rounds: number; steps: string[] }>();
-  for (const { exercise, goal, block, round, rounds } of expand(session)) {
-    if (exercise === 'rest' || round !== 1) continue;
-    const { name, kind } = EXERCISES[exercise];
-    const text =
-      goal.type === 'reps'
+  const blocks = session.flatMap(({ steps, rounds }) => {
+    const texts = steps.flatMap(({ exercise, goal }) => {
+      if (exercise === 'rest') return [];
+      const { name, kind } = EXERCISES[exercise];
+      return goal.type === 'reps'
         ? `${goal.n} ${name}`
         : goal.type === 'seconds'
           ? `${name} ${goal.n} s`
           : `${name}, as ${kind === 'hold' ? 'long' : 'many'} as you can`;
-    const group = blocks.get(block) ?? { rounds, steps: [] };
-    group.steps.push(text);
-    blocks.set(block, group);
-  }
-  return capitalise(
-    [...blocks.values()]
-      .map(
-        ({ rounds, steps }) => `${rounds > 1 ? `${rounds} rounds: ` : ''}${steps.join(', then ')}`,
-      )
-      .join(', then '),
-  );
+    });
+    return texts.length ? `${rounds > 1 ? `${rounds} rounds: ` : ''}${texts.join(', then ')}` : [];
+  });
+  return capitalise(blocks.join(', then '));
 }
 
 export const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
@@ -219,3 +214,28 @@ export const totalSeconds = ({ session }: Challenge) =>
     if (exercise === 'rest' || EXERCISES[exercise].kind !== 'hold') return total;
     return total + (goal.type === 'max' ? Infinity : goal.type === 'seconds' ? goal.n : 0);
   }, 0);
+
+/** What the detail screen says about a challenge before it starts. */
+export function detail(challenge: Challenge) {
+  const steps = expand(challenge.session);
+  const sets = steps.filter((step) => step.exercise !== 'rest');
+  const reps = totalReps(challenge);
+  const countsReps = reps > 0;
+  const total = countsReps ? reps : totalSeconds(challenge);
+  const holds = sets.some((set) => EXERCISES[set.exercise].kind === 'hold');
+  const tracking = !countsReps
+    ? 'The camera times your hold. Stay in position to keep the clock running.'
+    : holds
+      ? 'The camera counts full-range reps and times your holds.'
+      : 'The camera counts. Only full-range reps score.';
+  const placements = new Set(sets.map((set) => orientation(EXERCISES[set.exercise].placement)));
+  // The run explains each later set's setup between sets; the first one is explained here.
+  const first = EXERCISES[steps[0].exercise];
+  const phone =
+    placements.size > 1
+      ? 'ROTATES'
+      : orientation(first.placement) === 'landscape'
+        ? 'SIDEWAYS'
+        : 'UPRIGHT';
+  return { sets, total, countsReps, tracking, phone, first };
+}

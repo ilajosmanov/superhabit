@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vite-plus/test';
 
 import { body } from './__fixtures__/body';
 import { loadTrace, replay, scoreHold, scoreReps, traceFiles } from './__fixtures__/replay';
-import { initialSquat, measure, stepSquat } from './squat';
+import { squat } from './squat';
 import type { Progress } from './progress';
 import { parseTrace, toFrame, toPose, type Trace } from './trace';
 
@@ -146,14 +146,13 @@ describe('Trace v1', () => {
       ...trace(),
       frames: [0, 66, 132].map((t) => ({ t, landmarks: [], world: [] })),
     });
-    expect(replay({ initial: initialSquat, step: stepSquat, measure }, empty)).toMatchObject({
+    expect(replay(squat, empty)).toMatchObject({
       phase: 'waiting',
       reps: 0,
       noReps: 0,
     });
   });
 
-  const squat = { initial: initialSquat, step: stepSquat, measure };
   const oneRep = (): Trace => ({
     ...trace(),
     labels: { reps: 2 },

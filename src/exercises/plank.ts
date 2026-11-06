@@ -1,7 +1,8 @@
-import { angle, type Joints, type Pose } from './geometry';
-import { type Exercise } from './exercise';
+import { SIDE } from 'superhabit-pose/joints';
+
+import { angle, bestSide, dot, length, scale, sub, type Joints, type Pose } from './geometry';
+import { fmtMs, SETUP, type Exercise } from './exercise';
 import { hold, type HoldState } from './hold';
-import { pushupSide } from './pushup';
 
 /** Shape on the better-seen side, for forearm and high planks. */
 export type PlankSample = {
@@ -30,26 +31,21 @@ const CLEARANCE_MIN = 0.1;
 // revisit movement rejection after reviewing device traces, before relying on this for accuracy.
 
 export function measurePlank(pose: Pose): PlankSample | null {
-  const side = pushupSide(pose, MIN_VISIBILITY, true);
+  const side = bestSide(pose, (j) => Object.values(j), MIN_VISIBILITY);
   if (!side) return null;
-  const [s, , w, h, k, a] = side;
+  const { shoulder: s, wrist: w, hip: h, knee: k, ankle: a } = SIDE[side];
   const world = pose.worldLandmarks;
-  const support = [world[w].x - world[a].x, world[w].y - world[a].y, world[w].z - world[a].z];
-  const shoulder = [world[s].x - world[a].x, world[s].y - world[a].y, world[s].z - world[a].z];
-  const hip = [world[h].x - world[a].x, world[h].y - world[a].y, world[h].z - world[a].z];
-  const knee = [world[k].x - world[a].x, world[k].y - world[a].y, world[k].z - world[a].z];
-  const along =
-    (shoulder[0] * support[0] + shoulder[1] * support[1] + shoulder[2] * support[2]) /
-    Math.hypot(...support) ** 2;
+  const support = sub(world[w], world[a]);
+  const shoulder = sub(world[s], world[a]);
   // Remove the support-line component: this stays valid when the camera rotates, for either plank.
-  const up = shoulder.map((value, i) => value - along * support[i]);
-  const hipHeight = hip[0] * up[0] + hip[1] * up[1] + hip[2] * up[2];
+  const up = sub(shoulder, scale(support, dot(shoulder, support) / length(support) ** 2));
+  const hipHeight = dot(sub(world[h], world[a]), up);
   const shape = {
     reach: angle(world[h], world[s], world[w]),
     knees: angle(world[h], world[k], world[a]),
     body: angle(world[s], world[h], world[a]),
-    clearance: (knee[0] * up[0] + knee[1] * up[1] + knee[2] * up[2]) / hipHeight,
-    hips: hipHeight / Math.hypot(...up) ** 2,
+    clearance: dot(sub(world[k], world[a]), up) / hipHeight,
+    hips: hipHeight / length(up) ** 2,
   };
   const joints: Joints = [s, h, a];
   return Object.values(shape).every(Number.isFinite) ? { ...shape, joints } : null;
@@ -71,17 +67,12 @@ export const plank: Exercise<HoldState, PlankSample> = {
   // Body flat and low on the forearms, so it doesn't read as the push-up's slanted body on straight arms.
   glyph: 'M24.4 17a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M24 19.5 4 22M21 20v6h5M3 26h26',
   placement: 'side-floor',
-  place: 'Turn the phone sideways',
-  steps: [
-    'Lay it on the floor on its long edge',
-    'About 2 m away, side-on to you',
-    'Head to feet in frame',
-  ],
+  ...SETUP['side-floor'],
   hint: 'The clock starts once you hold a straight plank.',
   ready: 'Get into a plank',
   parts: ['head', 'hips', 'feet'],
   gauge: null,
   measure: measurePlank,
   stats: ({ heldMs, noReps }) =>
-    `HELD ${(heldMs / 1000).toFixed(1)}s · ${noReps} ${noReps === 1 ? 'BREAK' : 'BREAKS'}`,
+    `HELD ${fmtMs(heldMs)} · ${noReps} ${noReps === 1 ? 'BREAK' : 'BREAKS'}`,
 };

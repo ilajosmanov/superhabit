@@ -5,7 +5,6 @@ import { smooth, type Smooth, type Tuning } from './smooth';
 export type CycleConfig<M, A, R extends Rep> = {
   /** Null gates the signal, not form accumulation from an otherwise valid sample. */
   signal(m: M): number | null;
-  range?: readonly [lo: number, hi: number];
   smoothing?: Tuning;
   up: number;
   down: number;
@@ -43,7 +42,8 @@ function timing(a: Timing, nowMs: number) {
 }
 
 export function cycle<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<CycleState<A, R>, M> {
-  const [lo, hi] = c.range ?? [0, 180];
+  // Signals are degrees, 0..180; unit signals (0..1) fit inside it.
+  const [lo, hi] = [0, 180];
   // Identity for falling signals preserves the angle counters' operation order exactly.
   const mirror = (x: number) => (c.down > c.up ? lo + hi - x : x);
   const up = mirror(c.up);
@@ -98,6 +98,7 @@ export function cycle<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<Cyc
   }
 
   function step(s: State, sample: M | null, nowMs: number): State {
+    if (s.lastSeenAt !== undefined && nowMs <= s.lastSeenAt) return s;
     s = expire(s, nowMs);
     if (sample === null) return s;
     const signal = c.signal(sample);

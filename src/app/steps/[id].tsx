@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,7 +10,8 @@ export default function StepsSheet() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { bottom } = useSafeAreaInsets();
   const entry = catalogEntry(id);
-  if (!entry) return null;
+  // A stale deep link lands on the challenges tab, not an empty sheet.
+  if (!entry) return <Redirect href="/" />;
 
   return (
     <View className="gap-6 px-6 pt-8" style={{ paddingBottom: bottom + 24 }}>

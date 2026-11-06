@@ -3,28 +3,28 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import { colors } from '@/theme';
 import type { Attempt } from '@/workout/results';
 
-import { depthAt } from './depth-gauge';
+import { depthAt, depthText, type Gauge } from './depth';
 
 const H = 28;
 const GAP = 6;
 const MAX_WIDTH = 192;
 
-/** One bar per attempt, its height the rep's depth (accent clean, warn no-rep), with a dashed line at `down`. */
+/** One bar per attempt, its height the rep's depth (accent clean, warn no-rep), with a dashed line at `gauge.down`. */
 export function RepStrip({
   attempts,
-  down,
+  gauge,
   bar = 10,
 }: {
   attempts: readonly Attempt[];
-  down: number;
+  gauge: Gauge;
   bar?: number;
 }) {
   if (!attempts.length) return null;
   const step = bar + GAP;
   const width = attempts.length * step;
-  const line = H - depthAt(down, down) * H;
+  const line = H - depthAt(gauge.down, gauge) * H;
   const said = attempts
-    .map(({ counted, depth }) => `${Math.round(depth)}${counted ? '' : ' no-rep'}`)
+    .map(({ counted, depth }) => `${depthText(depth, gauge)}${counted ? '' : ' no-rep'}`)
     .join(', ');
   return (
     <Svg
@@ -35,10 +35,10 @@ export function RepStrip({
       preserveAspectRatio="none"
       accessible
       accessibilityRole="image"
-      accessibilityLabel={`${attempts.length} attempts, depth in degrees: ${said}`}
+      accessibilityLabel={`${attempts.length} attempts, depth: ${said}`}
     >
       {attempts.map(({ counted, depth }, i) => {
-        const h = Math.max(2, depthAt(depth, down) * H);
+        const h = Math.max(2, depthAt(depth, gauge) * H);
         return (
           <Rect
             // Attempts only ever append.

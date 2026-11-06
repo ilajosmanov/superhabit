@@ -19,7 +19,7 @@ export type VideoOutput = {
  * roll: start a new file; cut: stop it; wrap: stop and wait for every file; keep: delete all this session's files but `uri`;
  * lost: the camera dropped the output, so later rolls are no-ops and a take not started yet is given up.
  */
-export type CamcorderEvent =
+type CamcorderEvent =
   | { type: 'roll' }
   | { type: 'lost' }
   | { type: 'cut' }
@@ -28,14 +28,19 @@ export type CamcorderEvent =
 
 const folder = () => new Directory(Paths.cache, 'reps');
 
-/** Deletes `files` but `keep`. */
+/** Deletes `files` but `keep`; one failed delete does not stop the rest. */
 function prune(files: Iterable<File | Directory>, keep: string | null) {
-  try {
-    for (const file of files) if (file.uri !== keep && file.exists) file.delete();
-  } catch (error) {
-    console.warn('[camcorder] could not delete recordings', error);
+  for (const file of files) {
+    try {
+      if (file.uri !== keep && file.exists) file.delete();
+    } catch (error) {
+      console.warn('[camcorder] could not delete a recording', error);
+    }
   }
 }
+
+// Module-wide: two sessions in the same millisecond must not share a file name (one prunes the other's).
+let takes = 0;
 
 /**
  * Films takes (video only) into the cache folder. Sends `rolling` once a take has really started,
@@ -44,9 +49,6 @@ function prune(files: Iterable<File | Directory>, keep: string | null) {
  * Starts by deleting earlier sessions' files (their kept clip); on stop it cuts the take and, once
  * every file is final, deletes this session's files but the last `keep`.
  */
-// Module-wide: two sessions in the same millisecond must not share a file name (one prunes the other's).
-let takes = 0;
-
 export const camcorder = fromCallback<CamcorderEvent, VideoOutput | undefined>(
   ({ input: video, receive, sendBack }) => {
     if (!video) return;

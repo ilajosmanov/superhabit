@@ -8,7 +8,7 @@ export default function ChallengesScreen() {
   return (
     <Screen label="SUPERHABIT" title="Challenges">
       <CameraTestCard />
-      <Catalog label="OR PICK A CHALLENGE" entries={CATALOG} />
+      <Catalog entries={CATALOG} />
     </Screen>
   );
 }

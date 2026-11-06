@@ -2,10 +2,9 @@ import { assert, describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
 import { lunge, measureLunge } from './lunge';
-import type { Pose } from './geometry';
-import type { Side } from './sided';
+import type { Pose, Side } from './geometry';
 import { body } from './__fixtures__/body';
-import { loadTrace, replay, traceFiles } from './__fixtures__/replay';
+import { falseReps, scoreReps, tenPercent, traceFiles } from './__fixtures__/replay';
 
 const LEGS = {
   left: [Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE],
@@ -19,7 +18,7 @@ function pose(front: Side, depth: 'deep' | 'shallow' = 'deep', lean = 0, fractio
   const result = body({ side: true, lean });
   const forward = body({
     side: true,
-    thigh: (depth === 'deep' ? 80 : 35) * fraction,
+    thigh: (depth === 'deep' ? 80 : 45) * fraction,
     shin: 10 * fraction,
   });
   const rear = body({ side: true, thigh: -20 * fraction, shin: 110 * fraction });
@@ -149,7 +148,7 @@ describe('lunge', () => {
       expect(state[side].reps).toBe(1);
       expect(state[side === 'left' ? 'right' : 'left'].reps).toBe(0);
       expect(state.lastRep?.depth).toBeCloseTo(90, 0);
-      expect(lunge.stats(state)).toMatch(/^90° · [\d.]+s↑$/);
+      expect(lunge.stats(state)).toMatch(/^90° · [\d.]+s↓ [\d.]+s↑ · LEAN \d+°$/);
     },
   );
 
@@ -212,7 +211,7 @@ describe('lunge', () => {
     p.hold(standing());
     const state = p.hold(pose('left', 'shallow'), 8);
     expect(state).toMatchObject({ left: { phase: 'up' }, right: { phase: 'up' } });
-    expect(lunge.live(state).signal).toBeCloseTo(135, 0);
+    expect(lunge.live(state).signal).toBeCloseTo(125, 0);
   });
 
   it('waits for an upright standing start and never credits a partial first rep', () => {
@@ -276,21 +275,14 @@ describe('lunge', () => {
 // is 5/15 within max(1, round(10%)), below the required 9/15. After fixing gated form
 // accumulation, 324 combinations of up 145/155/160°, down 100/110/115/120°, lean 30/35/40°
 // and stride 0.2/0.3/0.4 still score at most 5/15 (visibility stays at 0.5).
-// shortcut: pins the 5/15 baseline, not the 9/15 bar, so lunge stays unregistered; raise MIN_OK
-// to 9 and register it once side-upright device traces pass. Live readout can still follow the
-// rear knee when both legs are above RECOVER (tie on lastSeenAt in sided.live); fix before then.
-const MIN_OK = 5;
+// shortcut: pins a 4/15 baseline on public clips, not the 9/15 bar; lunges ship as experimental
+// on device sets instead. Device sets (2026-11-07): lean 7–10° on clean reps, 15–59° on sloppy
+// ones, so LEAN_MAX is 15; that costs one public clip whose lunges lean past it.
+const MIN_OK = 4;
 const files = traceFiles('lunge');
 describe.skipIf(files.length === 0)('lunge on real traces', () => {
   it('preserves the measured baseline on labelled clips', () => {
-    const rows = files.flatMap((path) => {
-      const trace = loadTrace(path);
-      if (trace.labels.reps === undefined) return [];
-      const expected = trace.labels.reps;
-      const got = replay(lunge, trace).reps;
-      const ok = Math.abs(got - expected) <= Math.max(1, Math.round(0.1 * expected));
-      return [{ clip: trace.source.clip, expected, got, ok }];
-    });
+    const rows = scoreReps(lunge, files, tenPercent);
     expect(rows.filter((row) => row.ok).length, JSON.stringify(rows)).toBeGreaterThanOrEqual(
       MIN_OK,
     );
@@ -298,21 +290,11 @@ describe.skipIf(files.length === 0)('lunge on real traces', () => {
 
   // Recording torso form during gated frames removes the three former stu6_63.mp4 false reps.
   // Now none in ten squat, ten push-up or nine plank clips. Keep this audit from regressing.
-  for (const [exercise, maxFalse] of [
-    ['squat', 0],
-    ['pushup', 0],
-    ['plank', 0],
-  ] as const) {
-    const others = traceFiles(exercise);
-    it.skipIf(others.length === 0)(`pins the false-count baseline on ${exercise} traces`, () => {
-      const rows = others.map((path) => {
-        const trace = loadTrace(path);
-        return { clip: trace.source.clip, reps: replay(lunge, trace).reps };
-      });
-      expect(
-        rows.reduce((sum, row) => sum + row.reps, 0),
-        JSON.stringify(rows),
-      ).toBeLessThanOrEqual(maxFalse);
-    });
-  }
+  const others = ['squat', 'pushup', 'plank'];
+  it.skipIf(others.some((e) => traceFiles(e).length === 0))(
+    'counts no false reps on squat, push-up or plank traces',
+    () => {
+      expect(falseReps(lunge, others)).toEqual({});
+    },
+  );
 });

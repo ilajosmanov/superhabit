@@ -1,6 +1,6 @@
 // Synthetic MediaPipe poses for tests.
 import type { PoseLandmark } from 'superhabit-pose';
-import { Joint } from 'superhabit-pose/joints';
+import { SIDE } from 'superhabit-pose/joints';
 
 import type { Pose } from '@/exercises/geometry';
 
@@ -23,10 +23,7 @@ export const body = ({ thigh = 0, shin = 0, lean = 0, knees = 0.1, side = false 
     world[i] = side ? { x: z, y, z: x, visibility: 0.9 } : { x, y, z, visibility: 0.9 };
   };
   for (const sign of [-1, 1]) {
-    const [shoulder, hip, knee, ankle] =
-      sign < 0
-        ? [Joint.LEFT_SHOULDER, Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE]
-        : [Joint.RIGHT_SHOULDER, Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE];
+    const { shoulder, hip, knee, ankle } = SIDE[sign < 0 ? 'left' : 'right'];
     const ky = L * Math.cos(thigh * rad);
     const kz = -L * Math.sin(thigh * rad);
     put(shoulder, sign * 0.18, -0.5 * Math.cos(lean * rad), -0.5 * Math.sin(lean * rad));
