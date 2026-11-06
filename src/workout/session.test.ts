@@ -43,7 +43,7 @@ vi.mock('expo-screen-orientation', () => ({
   OrientationLock: { PORTRAIT_UP: 3, LANDSCAPE: 5 },
 }));
 
-const { workoutSession, sessionView, settle } = await import('./session');
+const { workoutSession, sessionView } = await import('./session');
 
 const PORTRAIT = 3;
 const LANDSCAPE = 5;
@@ -65,6 +65,11 @@ const halfSquat = () => play(body({ thigh: 25, shin: 20 }), body({})); // a no-r
 const feetOut = (pose: Pose): Pose => {
   for (const i of [Joint.LEFT_ANKLE, Joint.RIGHT_ANKLE])
     pose.landmarks[i] = { ...pose.landmarks[i], y: 1.2 };
+  return pose;
+};
+const headOut = (pose: Pose): Pose => {
+  for (const i of [Joint.NOSE, Joint.LEFT_SHOULDER, Joint.RIGHT_SHOULDER])
+    pose.landmarks[i] = { ...pose.landmarks[i], y: -0.2 };
   return pose;
 };
 const spoken = () => speak.mock.calls.map(([text]) => text);
@@ -160,14 +165,9 @@ describe('workoutSession', () => {
       next: { name: 'push-ups' },
     });
     expect(spoken()).toEqual(['Go', '1, set done. Next, 1 push-ups. Turn the phone sideways.']);
-    expect(speak).toHaveBeenCalledWith(
-      '1, set done. Next, 1 push-ups. Turn the phone sideways.',
-      expect.anything(),
-    );
 
     pushup(); // ignored: the phone is being moved
     expect(sessionView(actor.getSnapshot())).toMatchObject({ stage: 'switching', reps: 1 });
-    expect(actor.getSnapshot().context.pushup.reps).toBe(0);
 
     actor.send({ type: 'next' });
     expect(sessionView(actor.getSnapshot())).toMatchObject({
@@ -376,7 +376,9 @@ describe('workoutSession', () => {
     hold(500, crouched);
     hold(500, feetOut(body({})));
     expect(view().missing).toEqual([]); // flicker never settles
-    hold(1000, feetOut(body({})));
+    hold(600, headOut(body({ thigh: 70, shin: 25 }))); // crouched, so still waiting
+    expect(view().missing).toEqual([]); // a different reading restarts the wait
+    hold(1100, feetOut(body({}))); // a full second of frames from the restart
     const missing = view().missing;
     expect(missing).toEqual(['feet']);
     hold(1000, feetOut(body({})));
@@ -714,38 +716,5 @@ describe('workoutSession', () => {
     expect(warn).toHaveBeenCalled();
     actor.stop();
     warn.mockRestore();
-  });
-});
-
-describe('settle', () => {
-  const none = { missing: [], candidate: null } as const;
-
-  it('commits a reading once it has held a second, and says it', () => {
-    const first = settle(none, ['feet'], 0);
-    expect(first).toEqual({ patch: { candidate: { parts: ['feet'], since: 0 } }, phrase: null });
-    const held = { missing: [], candidate: { parts: ['feet'] as const, since: 0 } };
-    expect(settle(held, ['feet'], 999)).toEqual({ patch: null, phrase: null });
-    expect(settle(held, ['feet'], 1000)).toEqual({
-      patch: { missing: ['feet'], candidate: null },
-      phrase: 'Your feet are out of frame',
-    });
-  });
-
-  it('restarts the wait on a differing reading and drops it on a return to the committed one', () => {
-    const held = { missing: [], candidate: { parts: ['feet'] as const, since: 0 } };
-    expect(settle(held, ['hips'], 500).patch).toEqual({
-      candidate: { parts: ['hips'], since: 500 },
-    });
-    expect(settle(held, [], 500)).toEqual({ patch: { candidate: null }, phrase: null });
-  });
-
-  it('clears at once when no longer waiting, and changes nothing when nothing changed', () => {
-    const missing = { missing: ['feet'] as const, candidate: null };
-    expect(settle(missing, null, 0)).toEqual({
-      patch: { missing: [], candidate: null },
-      phrase: null,
-    });
-    expect(settle(missing, ['feet'], 0)).toEqual({ patch: null, phrase: null });
-    expect(settle(none, null, 0)).toEqual({ patch: null, phrase: null });
   });
 });

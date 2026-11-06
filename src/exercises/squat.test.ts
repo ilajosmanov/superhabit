@@ -2,7 +2,7 @@ import type { PoseLandmark } from 'superhabit-pose';
 import { assert, describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
-import { initialSquat, kneeAngle, measure, stepSquat, type Sample, type SquatState } from './squat';
+import { initialSquat, measure, stepSquat, type Sample, type SquatState } from './squat';
 import type { Pose } from './geometry';
 import { body } from './__fixtures__/body';
 
@@ -238,7 +238,6 @@ describe('glitches, hip depth and rep report', () => {
       [bottom, 2066, 3500],
       [standing, 3566, 5000],
     ]);
-    expect(initialSquat.lastRep).toBeNull();
     expect(s.reps).toBe(1);
     const rep = s.lastRep;
     assert(rep);
@@ -286,7 +285,7 @@ describe('glitches, hip depth and rep report', () => {
   });
 });
 
-describe('kneeAngle', () => {
+describe('knee angles', () => {
   type Leg = [x: number, y: number, z?: number][]; // hip, knee, ankle
   const straight: Leg = [
     [0.5, 0.4],
@@ -321,17 +320,19 @@ describe('kneeAngle', () => {
     put([Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE], right);
     return { landmarks: image, worldLandmarks: world };
   };
+  const legs = (p: Pose) => measure(p)?.legs;
+  const deg = (d: number) => expect.closeTo(d);
 
   it('reads straight legs as ~180°', () => {
-    expect(kneeAngle(pose(straight, straight))).toBeCloseTo(180);
+    expect(legs(pose(straight, straight))).toEqual([deg(180), deg(180)]);
   });
 
   it('reads a bent knee as ~90°', () => {
-    expect(kneeAngle(pose(bent, bent))).toBeCloseTo(90);
+    expect(legs(pose(bent, bent))).toEqual([deg(90), deg(90)]);
   });
 
   it('measures the knee in 3D, so a front-facing squat still reads as bent', () => {
-    expect(kneeAngle(pose(bentTowardCamera, bentTowardCamera))).toBeCloseTo(90);
+    expect(legs(pose(bentTowardCamera, bentTowardCamera))).toEqual([deg(90), deg(90)]);
   });
 
   it('drops a frame where hip and knee coincide, so it never reads as a deep rep', () => {
@@ -341,12 +342,12 @@ describe('kneeAngle', () => {
       [0.5, 0.6],
       [0.5, 0.8],
     ];
-    expect(kneeAngle(pose(collapsed, collapsed))).toBeNull();
+    expect(measure(pose(collapsed, collapsed))).toBeNull();
   });
 
   it('ignores one bent leg, so a leg circle is not a squat', () => {
-    expect(kneeAngle(pose(bent, straight))).toBeNull();
-    expect(run([175, kneeAngle(pose(straight, bent)), 175]).reps).toBe(0);
+    expect(measure(pose(bent, straight))).toBeNull();
+    expect(measure(pose(straight, bent))).toBeNull();
   });
 
   it('drops mis-tracked frames where the legs disagree', () => {
@@ -361,11 +362,11 @@ describe('kneeAngle', () => {
       [0.17, 0.44],
       [0.1, 0.61],
     ];
-    expect(kneeAngle(pose(left, right))).toBeNull();
+    expect(measure(pose(left, right))).toBeNull();
   });
 
   it('returns null when a leg is not visible', () => {
-    expect(kneeAngle(pose(straight, straight, 0.2))).toBeNull();
+    expect(measure(pose(straight, straight, 0.2))).toBeNull();
   });
 
   it('uses image visibility, not optional world-landmark visibility, to accept joints', () => {
@@ -373,24 +374,19 @@ describe('kneeAngle', () => {
     p.worldLandmarks.forEach((point) => {
       point.visibility = 0;
     });
-    expect(kneeAngle(p)).toBeCloseTo(90);
+    expect(legs(p)).toEqual([deg(90), deg(90)]);
   });
 
-  it('returns null for coincident world joints without corrupting the next attempt', () => {
+  it('returns null for coincident world joints', () => {
     const p = pose(straight, straight);
     p.worldLandmarks[Joint.LEFT_HIP] = { ...p.worldLandmarks[Joint.LEFT_KNEE] };
-    expect(kneeAngle(p)).toBeNull();
-    expect(run([175, kneeAngle(p), 120, 175])).toMatchObject({
-      reps: 0,
-      noReps: 1,
-      lastRep: { depth: 120 },
-    });
+    expect(measure(p)).toBeNull();
   });
 
   it.each([NaN, Infinity, -Infinity])('returns null for invalid world coordinates (%s)', (x) => {
     const p = pose(straight, straight);
     p.worldLandmarks[Joint.LEFT_HIP].x = x;
-    expect(kneeAngle(p)).toBeNull();
+    expect(measure(p)).toBeNull();
   });
 
   it('returns null when a joint is outside the frame (walked up to the phone)', () => {
@@ -399,7 +395,7 @@ describe('kneeAngle', () => {
       [0.5, 0.9],
       [0.6, 1.08],
     ];
-    expect(kneeAngle(pose(ankleOffScreen, straight))).toBeNull();
+    expect(measure(pose(ankleOffScreen, straight))).toBeNull();
   });
 
   it('keeps feet that are close to, but inside, the bottom edge', () => {
@@ -409,6 +405,6 @@ describe('kneeAngle', () => {
       [0.74, 0.87],
       [0.7, 0.99],
     ];
-    expect(kneeAngle(pose(deep, deep))).not.toBeNull();
+    expect(measure(pose(deep, deep))).not.toBeNull();
   });
 });

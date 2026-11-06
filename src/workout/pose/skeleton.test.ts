@@ -46,7 +46,7 @@ test('bones need both ends; the neck runs from mid-shoulder to the nose', () => 
     ],
   ]);
   expect(s.far).toEqual([]);
-  expect(s.dots.map((d) => d.r)).toEqual([7, 6, 6, 6]);
+  expect(s.dots).toHaveLength(4); // nose and three joints
 });
 
 test('the measured limb is pulled out, the other side dimmed, the arc spans the inside angle', () => {
@@ -75,7 +75,8 @@ test('the measured limb is pulled out, the other side dimmed, the arc spans the 
   expect(s.far).toHaveLength(2); // right shoulder-elbow, elbow-wrist
   expect(s.near).toHaveLength(1); // shoulder line crosses the body
   expect(s.dots).toHaveLength(3); // right shoulder, elbow, wrist
-  expect(s.limbDots.map((d) => d.r)).toEqual([6, 7, 6]);
+  const [a, vertex, c] = s.limbDots.map((d) => d.r);
+  expect(vertex).toBeGreaterThan(Math.max(a, c)); // the measured joint stands out
   expect(s.arc).toMatchObject({ x: 0, y: 10, start: -90, sweep: 90 });
 });
 

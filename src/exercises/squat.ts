@@ -15,15 +15,6 @@ export const DOWN = 100; // knee angle at or below this = deep enough
 export const UP = 160; // back to standing
 const SHALLOW = 140; // went this low without reaching DOWN = no-rep
 
-/**
- * Knee angle of the straighter leg: a squat bends both knees, so a single-leg
- * move (leg circle, knee raise) never reaches "down". Null unless both legs are seen.
- */
-export function kneeAngle(pose: Pose): number | null {
-  const legs = legAngles(pose);
-  return legs && Math.max(...legs);
-}
-
 /** [left, right] 3D knee angles, or null unless both legs are fully in frame and agree. */
 function legAngles({ landmarks: image, worldLandmarks: world }: Pose): [number, number] | null {
   const out: number[] = [];

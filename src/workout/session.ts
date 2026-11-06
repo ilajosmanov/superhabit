@@ -196,7 +196,7 @@ type Framing = Pick<Context, 'missing' | 'candidate'>;
  * into `missing`: on frame time `t`, so it doesn't flicker, a differing reading commits once it has held
  * STABLE_MS. `patch` is null when nothing changes, so `missing` keeps its reference; `phrase` is what to say.
  */
-export function settle(
+function settle(
   { missing, candidate }: Framing,
   parts: readonly BodyPart[] | null,
   t: number,
