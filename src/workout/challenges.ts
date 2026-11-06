@@ -30,8 +30,10 @@ export function summary({ sets }: Challenge): string {
         : `${EXERCISES[exercise].name}, as many as you can`,
     )
     .join(', then ');
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  return capitalise(text);
 }
+
+export const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /** Reps across all sets; Infinity when any set is open-ended. */
 export const totalReps = ({ sets }: Challenge) => sets.reduce((n, { reps }) => n + reps, 0);

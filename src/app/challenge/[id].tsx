@@ -6,9 +6,7 @@ import { ARROW_RIGHT, Glyph } from '@/components/glyph';
 import { Screen } from '@/components/screen';
 import { EXERCISES } from '@/exercises/registry';
 import { colors } from '@/theme';
-import { CHALLENGES, summary, totalReps } from '@/workout/challenges';
-
-const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+import { capitalise, CHALLENGES, summary, totalReps } from '@/workout/challenges';
 
 /** What a challenge asks for and how to set up the phone, then Start opens the camera run. */
 export default function ChallengeDetailScreen() {

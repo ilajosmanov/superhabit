@@ -171,7 +171,11 @@ export default function FriendsScreen() {
 
         <View className="border-t border-line">
           <GhostRow rank={4} name="w-24" delay={450} />
-          <View className="-mx-3 h-13 flex-row items-center gap-4 rounded-xl bg-surface px-3">
+          <View
+            accessible
+            accessibilityLabel="You. Your rank lands here"
+            className="-mx-3 h-13 flex-row items-center gap-4 rounded-xl bg-surface px-3"
+          >
             <Text className="w-6 font-sans text-xl font-extralight text-accent">–</Text>
             <View className="size-8 items-center justify-center rounded-full border border-accent">
               <Text className="font-sans text-xs font-medium text-chalk">You</Text>
