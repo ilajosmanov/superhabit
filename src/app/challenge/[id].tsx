@@ -14,7 +14,7 @@ import { Glyph } from '@/components/glyph';
 import { PhoneSetup } from '@/workout/components/phone-setup';
 import { Screen } from '@/components/screen';
 import { EXERCISES } from '@/exercises/registry';
-import { colors } from '@/theme';
+import { colors, lit } from '@/theme';
 import { capitalise, CHALLENGES, summary, totalReps } from '@/workout/challenges';
 
 const HOLD_MS = 700;
@@ -53,11 +53,7 @@ function HoldToStart({ onStart }: { onStart: () => void }) {
           progress.set(withTiming(0, { duration: 200 }));
         }}
         className="h-15 items-center justify-center bg-accent"
-        style={{
-          backgroundImage:
-            'linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 55%, rgba(0,0,0,0.08) 100%)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -2px 0 rgba(0,0,0,0.14)',
-        }}
+        style={lit}
       >
         <Animated.View
           style={[

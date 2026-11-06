@@ -23,6 +23,17 @@ export default function RootLayout() {
             headerShadowVisible: false,
           }}
         />
+        {/* A challenge's full steps: the platform bottom sheet, as tall as its content. */}
+        <Stack.Screen
+          name="steps/[id]"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: 'fitToContents',
+            sheetGrabberVisible: true,
+            sheetCornerRadius: 28,
+            contentStyle: { backgroundColor: colors.surface },
+          }}
+        />
       </Stack>
       <StatusBar style="light" />
     </>

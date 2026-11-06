@@ -5,7 +5,7 @@ type Target = { exercise: ExerciseId; reps: number };
 /** Non-empty by type, so "current set" always exists. */
 export type Challenge = { name: string; sets: readonly [Target, ...Target[]] };
 
-/** Route id -> challenge, in home-screen order: the first one is featured. */
+/** Route id -> challenge, in catalog order. Open-ended ones are tests: the camera card offers them, the catalog doesn't. */
 export const CHALLENGES: ReadonlyMap<string, Challenge> = new Map([
   [
     'squat-pushup',
@@ -17,6 +17,8 @@ export const CHALLENGES: ReadonlyMap<string, Challenge> = new Map([
       ],
     },
   ],
+  ['squat-hundred', { name: 'Squat hundred', sets: [{ exercise: 'squat', reps: 100 }] }],
+  ['pushup-fifty', { name: 'Push-up fifty', sets: [{ exercise: 'pushup', reps: 50 }] }],
   ['squat', { name: 'Squat test', sets: [{ exercise: 'squat', reps: Infinity }] }],
   ['pushup', { name: 'Push-up test', sets: [{ exercise: 'pushup', reps: Infinity }] }],
 ]);
