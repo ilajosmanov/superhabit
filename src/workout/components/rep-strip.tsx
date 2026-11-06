@@ -1,7 +1,7 @@
 import Svg, { Path, Rect } from 'react-native-svg';
 
 import { colors } from '@/theme';
-import type { Attempt } from '@/workout/session';
+import type { Attempt } from '@/workout/results';
 
 import { depthAt } from './depth-gauge';
 

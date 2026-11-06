@@ -11,7 +11,7 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { Glyph } from '@/components/glyph';
-import { PhoneSetup } from '@/components/phone-setup';
+import { PhoneSetup } from '@/workout/components/phone-setup';
 import { Screen } from '@/components/screen';
 import { EXERCISES } from '@/exercises/registry';
 import { colors } from '@/theme';

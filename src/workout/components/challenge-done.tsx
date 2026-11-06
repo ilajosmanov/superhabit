@@ -1,9 +1,10 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BestRepClip, shareBestRep } from '@/components/best-rep-clip';
+import { BestRepClip, shareBestRep } from './best-rep-clip';
 import { CLOSE, Glyph } from '@/components/glyph';
-import type { SessionView, SetResult } from '@/workout/session';
+import type { SetResult } from '@/workout/results';
+import type { SessionView } from '@/workout/session';
 
 import { RepStrip } from './rep-strip';
 

@@ -13,7 +13,7 @@ import {
 } from 'react-native-vision-camera';
 import type { PoseDetection, PoseLandmarker } from 'superhabit-pose';
 
-import { JOINTS, skeleton, type Dot, type Segment } from '@/components/skeleton';
+import { JOINTS, skeleton, type Dot, type Segment } from './skeleton';
 import { colors } from '@/theme';
 
 /**

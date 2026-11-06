@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 
 import { CHECK, Glyph } from '@/components/glyph';
-import { PhoneSetup } from '@/components/phone-setup';
+import { PhoneSetup } from './phone-setup';
 import { colors } from '@/theme';
 import type { SessionView } from '@/workout/session';
 

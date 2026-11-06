@@ -1,7 +1,7 @@
 import { Link } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
-import { ExerciseTile } from '@/components/exercise-tile';
+import { ExerciseTile } from '@/workout/components/exercise-tile';
 import { ARROW_RIGHT, Glyph } from '@/components/glyph';
 import { Screen } from '@/components/screen';
 import { colors } from '@/theme';

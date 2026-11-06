@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { bestRep, clipTime } from './best-rep';
-import type { Attempt, SetResult } from './session';
+import { bestRep, clipTime } from './results';
+import type { Attempt, SetResult } from './results';
 
 const set = (name: string, down: number, attempts: Omit<Attempt, 'cue'>[]): SetResult => ({
   name,

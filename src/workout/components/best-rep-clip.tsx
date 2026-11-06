@@ -20,7 +20,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { CLOSE, Glyph } from '@/components/glyph';
 import { EXERCISES } from '@/exercises/registry';
 import { colors } from '@/theme';
-import type { BestRep } from '@/workout/best-rep';
+import type { BestRep } from '@/workout/results';
 
 /** Seconds of lead-in before the rep's bottom, and the window looped from there. */
 const LEAD_S = 1;

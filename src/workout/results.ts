@@ -1,7 +1,18 @@
-import type { SetResult } from './session';
-
 /** Where a filmed rep sits: its file and the rep's bottom on that file's timeline. */
 export type Clip = { uri: string; atMs: number };
+
+/** `cue`: the first form cue, if any; `clip`: where the rep's bottom is filmed, absent when it was not. */
+export type Attempt = { counted: boolean; depth: number; cue: string | null; clip?: Clip };
+export type SetResult = {
+  name: string;
+  /** The exercise's deep-enough angle (deg), for drawing `attempts` against it. */
+  down: number;
+  target: number;
+  reps: number;
+  noReps: number;
+  attempts: readonly Attempt[];
+  stats: string | null;
+};
 
 /** The deepest counted rep that was filmed. `rep` is its 1-based number among its set's counted reps. */
 export type BestRep = Clip & { name: string; rep: number; depth: number };

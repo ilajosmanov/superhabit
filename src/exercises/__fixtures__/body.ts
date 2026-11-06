@@ -2,7 +2,7 @@
 import type { PoseLandmark } from 'superhabit-pose';
 import { Joint } from 'superhabit-pose/joints';
 
-import type { Pose } from '../geometry';
+import type { Pose } from '@/exercises/geometry';
 
 type Body = { thigh?: number; shin?: number; lean?: number; knees?: number; side?: boolean };
 /**

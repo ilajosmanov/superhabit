@@ -21,8 +21,8 @@ import {
   type CameraRef,
 } from 'react-native-vision-camera';
 
-import { filterJoints, type JointFilter } from '@/components/joint-filter';
-import { PoseCamera, toViewJoints } from '@/components/pose-camera';
+import { filterJoints, type JointFilter } from '@/workout/pose/joint-filter';
+import { PoseCamera, toViewJoints } from '@/workout/pose/pose-camera';
 import { CHALLENGES, type Challenge } from '@/workout/challenges';
 import { BetweenSets } from '@/workout/components/between-sets';
 import { ChallengeDone } from '@/workout/components/challenge-done';

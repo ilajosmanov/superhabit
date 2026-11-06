@@ -3,8 +3,8 @@ import { createPoseLandmarker, type PoseDetection, type PoseLandmarker } from 's
 import { assign, enqueueActions, fromCallback, sendTo, setup, type SnapshotFrom } from 'xstate';
 
 import { expire } from '@/exercises/rep-counter';
-import { framePhrase, repPhrase, setPhrase, startPhrase } from '@/feedback/phrase';
-import { speech } from '@/feedback/speech';
+import { framePhrase, repPhrase, setPhrase, startPhrase } from './phrase';
+import { speech } from './speech';
 
 import {
   EXERCISES,
@@ -18,7 +18,7 @@ import {
   type Tally,
 } from '@/exercises/registry';
 
-import { bestRep, clipTime, type BestRep, type Clip } from './best-rep';
+import { bestRep, clipTime, type Attempt, type BestRep, type SetResult } from './results';
 import { camcorder, type VideoOutput } from './camcorder';
 import type { Challenge } from './challenges';
 
@@ -30,19 +30,6 @@ export type Live = {
   lowest: number | null;
   /** MediaPipe indices [a, vertex, c] of the measured angle (better-seen side); null if none. */
   joints: readonly [number, number, number] | null;
-};
-
-/** `cue`: the first form cue, if any; `clip`: where the rep's bottom is filmed, absent when it was not. */
-export type Attempt = { counted: boolean; depth: number; cue: string | null; clip?: Clip };
-export type SetResult = {
-  name: string;
-  /** The exercise's deep-enough angle (deg), for drawing `attempts` against it. */
-  down: number;
-  target: number;
-  reps: number;
-  noReps: number;
-  attempts: readonly Attempt[];
-  stats: string | null;
 };
 
 type Events =
