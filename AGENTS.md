@@ -1,3 +1,4 @@
+- Before implementing functionality or copying code, search the codebase for an existing implementation. Reuse or extend existing code instead of duplicating it.
 - Use `vp` directly for tooling and package management; it handles the package manager. Prefer built-in commands such as `vp check`, `vp check --fix`, `vp lint`, and `vp fmt`. Do not add redundant package scripts for these defaults.
 - Run `vp check` and `vp run typecheck` before finishing changes; run relevant tests when behavior changes.
 - Configure Oxlint, Oxfmt, and Vitest in `vite.config.ts`. Expo / Metro handles app serving and builds.
