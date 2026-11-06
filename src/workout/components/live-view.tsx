@@ -41,16 +41,16 @@ export function LiveView(props: PlatterProps) {
               <MuteButton muted={view.muted} onPress={onToggleVoice} glass />
             </View>
           )}
-          {paused && (
+          {(paused || view.countdown !== null) && (
             <View className="items-center gap-2.5">
               <Text
                 accessibilityRole="header"
                 className="font-sans text-6xl font-extralight leading-none tracking-tight text-chalk"
               >
-                Paused
+                {paused ? 'Paused' : view.countdown}
               </Text>
               <Text className="font-mono text-xs font-medium tracking-widest text-soft">
-                NOT COUNTING
+                {paused ? 'NOT COUNTING' : 'GET READY'}
               </Text>
             </View>
           )}

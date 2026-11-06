@@ -1,4 +1,4 @@
-// Synthetic side-on push-up poses for tests.
+// Synthetic side-on push-up and plank poses for tests.
 import type { PoseLandmark } from 'superhabit-pose';
 import { Joint } from 'superhabit-pose/joints';
 
@@ -7,6 +7,8 @@ import type { Pose } from '@/exercises/geometry';
 type Plank = {
   /** Elbow angle, deg: 180 = arms straight. Standing: the forearm curls forward. */
   elbow?: number;
+  /** Elbows on the floor, with forearms reaching forward. */
+  forearms?: boolean;
   /** Shoulder–hip–ankle bend, deg: the body line reads 180 − sag. */
   sag?: number;
   /** Knees and shins on the floor (a knee push-up) instead of on the toes. */
@@ -27,6 +29,7 @@ const FOREARM = 0.28;
  */
 export const plank = ({
   elbow = 175,
+  forearms = false,
   sag = 0,
   standing = false,
   kneeling = false,
@@ -56,6 +59,11 @@ export const plank = ({
       Math.min(1, (UPPER_ARM ** 2 + d ** 2 - FOREARM ** 2) / (2 * UPPER_ARM * d)),
     );
     el = [shoulder[0] - UPPER_ARM * Math.sin(a), shoulder[1] + UPPER_ARM * Math.cos(a)];
+    if (forearms) {
+      shoulder = [1.4, -Math.sqrt(UPPER_ARM ** 2 - 0.1 ** 2)];
+      el = [1.3, 0];
+      wrist = [el[0] + FOREARM, 0];
+    }
     // Isosceles: the hip drops off the shoulder–ankle midpoint so the hip angle is 180 − sag.
     const [mx, my] = [(shoulder[0] + ankle[0]) / 2, (shoulder[1] + ankle[1]) / 2];
     const half = Math.hypot(shoulder[0] - ankle[0], shoulder[1] - ankle[1]) / 2;

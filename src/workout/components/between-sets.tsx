@@ -8,7 +8,7 @@ import type { SessionView } from '@/workout/session';
 import { Clock, CloseButton, Frame, GLASS } from './controls';
 import { RepCount } from './rep-count';
 
-/** Board 08, over the live camera: the finished set, then how to place the phone for the next one. */
+/** Over the live camera: the finished set or rest timer, then the next exercise and any phone setup. */
 export function BetweenSets({
   view,
   landscape,
@@ -20,8 +20,10 @@ export function BetweenSets({
   onContinue: () => void;
   onEnd: () => void;
 }) {
-  const { next } = view;
+  const { next, rest, unit } = view;
   if (!next) return null;
+  const amount = unit === 'seconds' ? view.heldS : view.reps;
+  const target = unit === 'seconds' ? view.goalS : view.target;
   const close = <CloseButton onPress={onEnd} label="End challenge" />;
   const clock = <Clock elapsedS={view.elapsedS} recording={view.recording} waiting={false} />;
   return (
@@ -41,23 +43,32 @@ export function BetweenSets({
               <View className="size-11" />
             </View>
           )}
-          <View
-            accessible
-            accessibilityLabel={`${view.name}, set ${view.set} of ${view.sets} done: ${view.reps} reps`}
-            className="gap-2.5 pt-3"
-          >
-            <View className="flex-row items-center gap-2">
-              <Glyph d={CHECK} size={14} weight={3} color={colors.accent} />
-              <Text className="font-mono text-xs font-medium tracking-widest text-soft">
-                {view.name.toUpperCase()} · SET {view.set} OF {view.sets} DONE
-              </Text>
+          {rest ? (
+            <View accessibilityLiveRegion="polite" className="gap-2.5 pt-3">
+              <Text className="font-mono text-xs font-medium tracking-widest text-soft">REST</Text>
+              {rest.leftS !== null && (
+                <RepCount reps={rest.leftS} target={Infinity} unit="seconds" />
+              )}
             </View>
-            {/* The group's label already says the count; no second TalkBack stop. */}
-            <View importantForAccessibility="no-hide-descendants">
-              <RepCount reps={view.reps} target={view.target} />
+          ) : (
+            <View
+              accessible
+              accessibilityLabel={`${view.name}, set ${view.set} of ${view.sets} done: ${amount} ${unit}`}
+              className="gap-2.5 pt-3"
+            >
+              <View className="flex-row items-center gap-2">
+                <Glyph d={CHECK} size={14} weight={3} color={colors.accent} />
+                <Text className="font-mono text-xs font-medium tracking-widest text-soft">
+                  {view.name.toUpperCase()} · SET {view.set} OF {view.sets} DONE
+                </Text>
+              </View>
+              {/* The group's label already says the count; no second TalkBack stop. */}
+              <View importantForAccessibility="no-hide-descendants">
+                <RepCount reps={amount} target={target} unit={unit} />
+              </View>
+              <View className="h-2 rounded-sm bg-accent" />
             </View>
-            <View className="h-2 rounded-sm bg-accent" />
-          </View>
+          )}
         </View>
 
         <View
@@ -65,19 +76,28 @@ export function BetweenSets({
         >
           <View className="gap-1.5">
             <Text className="font-mono text-xs font-medium tracking-widest text-muted">
-              NEXT · {Number.isFinite(view.nextReps) ? `${view.nextReps} ` : ''}
+              NEXT ·{' '}
+              {view.nextGoal?.type === 'reps'
+                ? `${view.nextGoal.n} `
+                : view.nextGoal?.type === 'seconds'
+                  ? `${view.nextGoal.n} S `
+                  : 'MAX '}
               {next.name.toUpperCase()}
             </Text>
-            <PhoneSetup exercise={next} />
+            {!view.samePlacement && <PhoneSetup exercise={next} />}
           </View>
           <Pressable
             onPress={onContinue}
             className="h-14 items-center justify-center rounded-full bg-accent"
             accessibilityRole="button"
           >
-            <Text className="font-sans text-lg font-medium text-ground">Continue</Text>
+            <Text className="font-sans text-lg font-medium text-ground">
+              {rest ? 'Skip rest' : 'Continue'}
+            </Text>
           </Pressable>
-          <Text className="text-center font-sans text-sm text-muted">{next.hint}</Text>
+          {!view.samePlacement && (
+            <Text className="text-center font-sans text-sm text-muted">{next.hint}</Text>
+          )}
         </View>
       </Frame>
     </>

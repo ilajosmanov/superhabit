@@ -23,7 +23,8 @@ import {
 
 import { filterJoints, type JointFilter } from '@/workout/pose/joint-filter';
 import { PoseCamera, toViewJoints } from '@/workout/pose/pose-camera';
-import { CHALLENGES, type Challenge } from '@/workout/challenges';
+import { CHALLENGES } from '@/workout/challenges';
+import type { Challenge } from '@/workout/plan';
 import { BetweenSets } from '@/workout/components/between-sets';
 import { ChallengeDone } from '@/workout/components/challenge-done';
 import { LiveView } from '@/workout/components/live-view';
@@ -84,6 +85,7 @@ function AndroidSession({ challenge }: { challenge: Challenge }) {
     input: {
       challenge,
       video,
+      record: __DEV__,
       onPose: (result, live) => {
         // Read at call time: the window turns when the orientation lock lands.
         const { width, height } = Dimensions.get('window');
@@ -108,9 +110,11 @@ function AndroidSession({ challenge }: { challenge: Challenge }) {
   // The orientation lock lands asynchronously; lay out from the real window.
   const { width, height } = useWindowDimensions();
   const landscape = width > height;
-  // System back must not drop the run: it pauses while counting, then ends (to Done, results kept).
+  // System back pauses counting or countdown, then ends (to Done, results kept).
   usePreventRemove(view.stage !== 'finished', () =>
-    session.send({ type: view.stage === 'counting' ? 'pause' : 'end' }),
+    session.send({
+      type: view.stage === 'counting' || view.stage === 'countdown' ? 'pause' : 'end',
+    }),
   );
 
   const send =
@@ -149,7 +153,7 @@ function AndroidSession({ challenge }: { challenge: Challenge }) {
       />
       {view.stage === 'finished' ? (
         <ChallengeDone view={view} title={challenge.name} onClose={() => router.back()} />
-      ) : view.stage === 'switching' ? (
+      ) : view.stage === 'switching' || view.stage === 'resting' ? (
         <BetweenSets
           view={view}
           landscape={landscape}

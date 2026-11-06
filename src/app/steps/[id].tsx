@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StepLines } from '@/workout/components/exercise-stack';
-import { catalogEntry } from '@/workout/mock-catalog';
+import { catalogEntry } from '@/workout/catalog';
 
 /** A challenge's full day, opened from (i) on its card: every step, rounds and rest. */
 export default function StepsSheet() {

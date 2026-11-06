@@ -2,9 +2,9 @@ import { Link } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
 import { StepLines } from './exercise-stack';
+import { FLASK, Glyph } from '@/components/glyph';
 import { colors } from '@/theme';
-import { CHALLENGES } from '@/workout/challenges';
-import type { CatalogEntry } from '@/workout/mock-catalog';
+import type { CatalogEntry } from '@/workout/catalog';
 
 /**
  * Outlined, never filled: a filled card means you joined it. Left, every step with its goal in its own
@@ -14,12 +14,16 @@ function ChallengeCard({ entry }: { entry: CatalogEntry }) {
   const body = (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel={`${entry.name}, ${entry.days} days`}
+      accessibilityLabel={`${entry.name}, ${entry.days} days${entry.experimental ? ', experimental counting' : ''}`}
       android_ripple={{ color: colors.surface }}
       className="flex-row items-end gap-4 px-5 py-4.5"
     >
       <View className="flex-1 gap-3.5">
-        <Text className="font-sans text-lg tracking-tight text-chalk">{entry.name}</Text>
+        <View className="flex-row items-center gap-2">
+          <Text className="font-sans text-lg tracking-tight text-chalk">{entry.name}</Text>
+          {/* Counting still being tuned on real people; the run works, the numbers may be off. */}
+          {entry.experimental && <Glyph d={FLASK} size={16} color={colors.muted} />}
+        </View>
         <StepLines entry={entry} />
       </View>
       <View className="items-end gap-1">
@@ -33,14 +37,9 @@ function ChallengeCard({ entry }: { entry: CatalogEntry }) {
 
   return (
     <View className="overflow-hidden rounded-2xl border border-line">
-      {/* shortcut: mock entries that can't run yet don't open; drop the check with the data layer. */}
-      {CHALLENGES.has(entry.id) ? (
-        <Link href={{ pathname: '/challenge/[id]', params: { id: entry.id } }} asChild>
-          {body}
-        </Link>
-      ) : (
-        body
-      )}
+      <Link href={{ pathname: '/challenge/[id]', params: { id: entry.id } }} asChild>
+        {body}
+      </Link>
     </View>
   );
 }

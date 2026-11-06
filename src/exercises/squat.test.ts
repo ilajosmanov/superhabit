@@ -5,6 +5,7 @@ import { Joint } from 'superhabit-pose/joints';
 import { initialSquat, measure, stepSquat, type Sample, type SquatState } from './squat';
 import type { Pose } from './geometry';
 import { body } from './__fixtures__/body';
+import { scoreReps, traceFiles } from './__fixtures__/replay';
 
 const joints = [Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE] as const;
 // A knee-only sample with the hips dropped, so these tests exercise the knee state machine.
@@ -406,5 +407,17 @@ describe('knee angles', () => {
       [0.7, 0.99],
     ];
     expect(measure(pose(deep, deep))).not.toBeNull();
+  });
+});
+
+// 87a35a1: 1/10 within ±1. Measured baseline; counter refactors must not lower it.
+const MIN_OK = 1;
+const files = traceFiles('squat');
+describe.skipIf(files.length === 0)('squat on real traces', () => {
+  it('counts within ±1 on enough clips', () => {
+    const rows = scoreReps({ initial: initialSquat, step: stepSquat, measure }, files, 1);
+    expect(rows.filter((row) => row.ok).length, JSON.stringify(rows)).toBeGreaterThanOrEqual(
+      MIN_OK,
+    );
   });
 });

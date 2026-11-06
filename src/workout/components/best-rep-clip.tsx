@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { CLOSE, Glyph } from '@/components/glyph';
-import { EXERCISES } from '@/exercises/registry';
+import { EXERCISES, orientation } from '@/exercises/registry';
 import { colors } from '@/theme';
 import type { BestRep } from '@/workout/results';
 
@@ -53,8 +53,7 @@ export function BestRepClip({ best }: { best: BestRep }) {
     if (currentTime >= start + LOOP_S || currentTime < start - 0.5)
       player.seekBy(start - currentTime);
   });
-  const landscape =
-    Object.values(EXERCISES).find((e) => e.name === best.name)?.orientation === 'landscape';
+  const landscape = orientation(EXERCISES[best.exercise].placement) === 'landscape';
 
   return (
     <>

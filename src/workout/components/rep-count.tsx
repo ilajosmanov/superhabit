@@ -14,11 +14,13 @@ const SIZES = {
 export function RepCount({
   reps,
   target,
+  unit = 'reps',
   size = 'lg',
   flash = false,
 }: {
   reps: number;
   target: number;
+  unit?: 'reps' | 'seconds';
   size?: keyof typeof SIZES;
   flash?: boolean;
 }) {
@@ -27,7 +29,9 @@ export function RepCount({
   return (
     <View
       accessible
-      accessibilityLabel={Number.isFinite(target) ? `${reps} of ${target} reps` : `${reps} reps`}
+      accessibilityLabel={
+        Number.isFinite(target) ? `${reps} of ${target} ${unit}` : `${reps} ${unit}`
+      }
       className="flex-row items-end gap-1.5"
     >
       <View>

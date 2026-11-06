@@ -13,9 +13,10 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { Glyph } from '@/components/glyph';
 import { PhoneSetup } from '@/workout/components/phone-setup';
 import { Screen } from '@/components/screen';
-import { EXERCISES } from '@/exercises/registry';
+import { EXERCISES, orientation } from '@/exercises/registry';
 import { colors, lit } from '@/theme';
-import { capitalise, CHALLENGES, summary, totalReps } from '@/workout/challenges';
+import { capitalise, CHALLENGES, summary, totalReps, totalSeconds } from '@/workout/challenges';
+import { expand } from '@/workout/plan';
 
 const HOLD_MS = 700;
 
@@ -82,14 +83,27 @@ export default function ChallengeDetailScreen() {
   const challenge = CHALLENGES.get(id);
   if (!challenge) return <Screen title="Not found" />;
 
-  const { sets } = challenge;
+  const steps = expand(challenge.session);
+  const sets = steps.filter((step) => step.exercise !== 'rest');
   const reps = totalReps(challenge);
-  const finite = Number.isFinite(reps);
-  const orientations = new Set(sets.map((set) => EXERCISES[set.exercise].orientation));
-  const phone =
-    orientations.size > 1 ? 'ROTATES' : orientations.has('landscape') ? 'SIDEWAYS' : 'UPRIGHT';
+  const countsReps = reps > 0;
+  const total = countsReps ? reps : totalSeconds(challenge);
+  const finite = Number.isFinite(total);
+  const holds = sets.some((set) => EXERCISES[set.exercise].kind === 'hold');
+  const tracking = !countsReps
+    ? 'The camera times your hold. Stay in position to keep the clock running.'
+    : holds
+      ? 'The camera counts full-range reps and times your holds.'
+      : 'The camera counts. Only full-range reps score.';
+  const placements = new Set(sets.map((set) => orientation(EXERCISES[set.exercise].placement)));
   // The run explains each later set's setup between sets; the first one is explained here.
-  const first = EXERCISES[sets[0].exercise];
+  const first = EXERCISES[steps[0].exercise];
+  const phone =
+    placements.size > 1
+      ? 'ROTATES'
+      : orientation(first.placement) === 'landscape'
+        ? 'SIDEWAYS'
+        : 'UPRIGHT';
 
   return (
     <Screen
@@ -102,28 +116,31 @@ export default function ChallengeDetailScreen() {
         {sets.length} {sets.length === 1 ? 'SET' : 'SETS'} · PHONE {phone}
       </Text>
 
-      <View
-        accessible
-        accessibilityLabel={`${summary(challenge)}. The camera counts, and only full-range reps score.`}
-        className="gap-6"
-      >
+      <View accessible accessibilityLabel={`${summary(challenge)}. ${tracking}`} className="gap-6">
         {/* Clipped so the numeral rises out of its baseline, like the podium steps. */}
         <View className="flex-row items-end justify-between overflow-hidden">
           <Animated.View entering={FadeInDown.duration(500)}>
             <Text className="-ml-1.5 font-sans text-9xl font-extralight leading-none tracking-tighter text-chalk">
-              {finite ? reps : 'Max'}
+              {finite ? total : 'Max'}
             </Text>
           </Animated.View>
-          <Text className="pb-4 font-mono text-xs tracking-widest text-muted">CLEAN REPS</Text>
+          <Text className="pb-4 font-mono text-xs tracking-widest text-muted">
+            {countsReps ? 'CLEAN REPS' : 'SECONDS'}
+          </Text>
         </View>
 
-        <View className="flex-row gap-1.5">
-          {sets.map(({ exercise, reps: target }, i) => (
+        <View className="flex-row flex-wrap gap-x-1.5 gap-y-4">
+          {sets.map(({ exercise, goal }, i) => (
             <View
               // A challenge may repeat an exercise, so the index is part of the key.
               key={`${i}-${exercise}`}
-              // Bars share the width by reps; open-ended sets have no share, so all go equal.
-              style={{ flex: finite ? target : 1 }}
+              // Bars share the width by the headline's unit; open-ended sets go equal.
+              style={{
+                flex:
+                  finite && goal.type === (countsReps ? 'reps' : 'seconds') && 'n' in goal
+                    ? goal.n
+                    : 1,
+              }}
               className="min-w-18 gap-3"
             >
               <View className="h-1.5 rounded-full bg-faint" />
@@ -135,16 +152,18 @@ export default function ChallengeDetailScreen() {
                   </Text>
                 </View>
                 <Text className="font-mono text-xs text-muted">
-                  {Number.isFinite(target) ? `×${target}` : 'MAX'}
+                  {goal.type === 'reps'
+                    ? `×${goal.n}`
+                    : goal.type === 'seconds'
+                      ? `${goal.n} s`
+                      : 'MAX'}
                 </Text>
               </View>
             </View>
           ))}
         </View>
 
-        <Text className="font-sans text-sm text-muted">
-          The camera counts. Only full-range reps score.
-        </Text>
+        <Text className="font-sans text-sm text-muted">{tracking}</Text>
       </View>
 
       <View className="gap-4">

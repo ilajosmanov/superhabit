@@ -23,8 +23,10 @@ export function angle(a: PoseLandmark, b: PoseLandmark, c: PoseLandmark): number
 }
 
 // Joints outside the frame are extrapolated by the model; don't trust them.
-export const inFrame = (p: PoseLandmark | undefined) =>
-  !!p && p.visibility >= MIN_VISIBILITY && p.x > 0 && p.x < 1 && p.y > 0 && p.y < 1;
+export const inFrameWithVisibility = (p: PoseLandmark | undefined, minVisibility: number) =>
+  !!p && p.visibility >= minVisibility && p.x > 0 && p.x < 1 && p.y > 0 && p.y < 1;
+
+export const inFrame = (p: PoseLandmark | undefined) => inFrameWithVisibility(p, MIN_VISIBILITY);
 
 export type BodyPart = 'head' | 'hands' | 'hips' | 'feet';
 

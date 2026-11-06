@@ -1,14 +1,28 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { bestRep, clipTime } from './results';
-import type { Attempt, SetResult } from './results';
+import type { ExerciseId } from '@/exercises/registry';
 
-const set = (name: string, down: number, attempts: Omit<Attempt, 'cue'>[]): SetResult => ({
+import { bestRep, clipTime } from './results';
+import type { Attempt, StepResult } from './results';
+import { reps } from './plan';
+
+const set = (
+  exercise: ExerciseId,
+  name: string,
+  down: number,
+  attempts: Omit<Attempt, 'cue'>[],
+): StepResult => ({
+  day: 1,
+  exercise,
+  round: 1,
+  startedAt: 0,
+  endedAt: 1000,
   name,
-  down,
-  target: 10,
+  gauge: { down, up: 160 },
+  goal: reps(10),
   reps: 0,
   noReps: 0,
+  heldMs: 0,
   attempts: attempts.map((a) => ({ ...a, cue: null })),
   stats: null,
 });
@@ -28,11 +42,11 @@ describe('clipTime', () => {
 describe('bestRep', () => {
   it('picks the filmed counted rep deepest past its own threshold, numbered within its set', () => {
     const sets = [
-      set('squats', 100, [
+      set('squat', 'squats', 100, [
         { counted: true, depth: 88, clip: clip(1000) }, // 12° past 100
         { counted: false, depth: 60, clip: clip(2000) }, // no-rep: never best
       ]),
-      set('push-ups', 90, [
+      set('pushup', 'push-ups', 90, [
         { counted: false, depth: 70 },
         { counted: true, depth: 82, clip: clip(500) }, // shallower in degrees, only 8° past 90
         { counted: true, depth: 75, clip: { uri: 'file:///b.mp4', atMs: 4200 } }, // 15° past 90
@@ -41,6 +55,7 @@ describe('bestRep', () => {
     expect(bestRep(sets)).toEqual({
       uri: 'file:///b.mp4',
       atMs: 4200,
+      exercise: 'pushup',
       name: 'push-ups',
       rep: 2,
       depth: 75,
@@ -49,15 +64,15 @@ describe('bestRep', () => {
 
   it('ranks a squat 12° past 100° over a push-up 8° past 90°, though its angle is larger', () => {
     const sets = [
-      set('squats', 100, [{ counted: true, depth: 88, clip: clip(1000) }]),
-      set('push-ups', 90, [{ counted: true, depth: 82, clip: clip(500) }]),
+      set('squat', 'squats', 100, [{ counted: true, depth: 88, clip: clip(1000) }]),
+      set('pushup', 'push-ups', 90, [{ counted: true, depth: 82, clip: clip(500) }]),
     ];
-    expect(bestRep(sets)).toMatchObject({ name: 'squats', depth: 88 });
+    expect(bestRep(sets)).toMatchObject({ exercise: 'squat', name: 'squats', depth: 88 });
   });
 
   it('skips unfilmed reps and keeps the first of equal depth', () => {
     const sets = [
-      set('squats', 100, [
+      set('squat', 'squats', 100, [
         { counted: true, depth: 70 }, // not filmed
         { counted: true, depth: 85, clip: clip(1) },
         { counted: true, depth: 85, clip: clip(2) },
@@ -66,8 +81,29 @@ describe('bestRep', () => {
     expect(bestRep(sets)).toMatchObject({ atMs: 1, rep: 2, depth: 85 });
   });
 
+  it('compares rising and falling gauges by margin beyond their own down threshold', () => {
+    const falling = set('squat', 'squats', 100, [
+      { counted: true, depth: 95, clip: clip(1) }, // 5° past 100
+    ]);
+    const rising = {
+      ...set('pushup', 'rising cycle', 80, [{ counted: true, depth: 90, clip: clip(2) }]),
+      gauge: { down: 80, up: 20 }, // 10° past 80
+    };
+    expect(bestRep([falling, rising])).toMatchObject({ name: 'rising cycle', depth: 90, atMs: 2 });
+  });
+
+  it('skips exercises without a depth gauge', () => {
+    const ungauged = {
+      ...set('plank', 'plank', 100, [{ counted: true, depth: 0, clip: clip(1) }]),
+      gauge: null,
+    };
+    const filmed = set('squat', 'squats', 100, [{ counted: true, depth: 95, clip: clip(2) }]);
+    expect(bestRep([ungauged, filmed])).toMatchObject({ exercise: 'squat', atMs: 2 });
+    expect(bestRep([ungauged])).toBeNull();
+  });
+
   it('is null when nothing was filmed', () => {
-    expect(bestRep([set('squats', 100, [{ counted: true, depth: 80 }])])).toBeNull();
+    expect(bestRep([set('squat', 'squats', 100, [{ counted: true, depth: 80 }])])).toBeNull();
     expect(bestRep([])).toBeNull();
   });
 });

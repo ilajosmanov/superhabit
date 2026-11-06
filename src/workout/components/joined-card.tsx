@@ -5,8 +5,10 @@ import { ExerciseStack, StepsButton } from './exercise-stack';
 import { ARROW_RIGHT, CHECK, Glyph } from '@/components/glyph';
 import { colors } from '@/theme';
 import { CHALLENGES } from '@/workout/challenges';
-import type { CatalogEntry } from '@/workout/mock-catalog';
-import type { Joined } from '@/workout/mock-joined';
+import type { CatalogEntry } from '@/workout/catalog';
+
+/** A challenge you joined: today is `day` of `days`. Days before today are done. */
+export type Joined = { id: string; day: number; days: number; doneToday: boolean };
 
 /** One square per day: amber = done, amber outline = today, hairline = still ahead. */
 function DayGrid({ day, days, doneToday }: Joined) {

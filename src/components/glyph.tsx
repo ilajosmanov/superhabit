@@ -37,6 +37,9 @@ export function Glyph({
 export const ARROW_RIGHT = 'M5 12h14M13 6l6 6-6 6';
 export const CLOSE = 'M6 6l12 12M18 6 6 18';
 export const CHECK = 'm5 12 5 5 9-10';
+/** An experiment: a lab flask with its liquid line. */
+export const FLASK =
+  'M9 3h6M10 3v6l-5.2 9.4A1.8 1.8 0 0 0 6.4 21h11.2a1.8 1.8 0 0 0 1.6-2.6L14 9V3M7 15h10';
 export const SPEAKER = 'M11 5 6 9H3v6h3l5 4V5ZM15.5 8.5a5 5 0 0 1 0 7';
 export const SPEAKER_ON = `${SPEAKER}M18.5 5.5a9 9 0 0 1 0 13`;
 export const SPEAKER_OFF = 'M11 5 6 9H3v6h3l5 4V5ZM16 9.5l5 5M21 9.5l-5 5';

@@ -3,7 +3,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BestRepClip, shareBestRep } from './best-rep-clip';
 import { CLOSE, Glyph } from '@/components/glyph';
-import type { SetResult } from '@/workout/results';
+import { EXERCISES } from '@/exercises/registry';
+import type { StepResult } from '@/workout/results';
 import type { SessionView } from '@/workout/session';
 
 import { RepStrip } from './rep-strip';
@@ -11,14 +12,17 @@ import { RepStrip } from './rep-strip';
 /** 312 -> "5:12". */
 const mss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-function SetRow({ set }: { set: SetResult }) {
-  const { name, target, reps, noReps, attempts, down, stats } = set;
+function SetRow({ set }: { set: StepResult }) {
+  const { name, goal, reps, noReps, heldMs, attempts, gauge, stats } = set;
+  const amount = EXERCISES[set.exercise].kind === 'hold' ? Math.floor(heldMs / 1000) : reps;
+  const unit = EXERCISES[set.exercise].kind === 'hold' ? ' s' : '';
   return (
     <View className="gap-2.5 border-b border-line py-3.5">
       <View className="flex-row justify-between gap-4">
         <Text className="font-mono text-sm tracking-wider text-muted">{name.toUpperCase()}</Text>
         <Text className="font-mono text-sm tracking-wider text-chalk">
-          {Number.isFinite(target) ? `${reps}/${target}` : reps}
+          {goal.type === 'max' ? amount : `${amount}/${goal.n}`}
+          {unit}
           {noReps > 0 && (
             <Text className="text-warn">
               {' '}
@@ -28,7 +32,7 @@ function SetRow({ set }: { set: SetResult }) {
         </Text>
       </View>
       <View className="flex-row items-end justify-between gap-4">
-        <RepStrip attempts={attempts} down={down} />
+        {gauge && <RepStrip attempts={attempts} down={gauge.down} />}
         {stats && (
           <Text className="shrink text-right font-mono text-xs tracking-wider text-muted">
             {stats}
@@ -39,7 +43,7 @@ function SetRow({ set }: { set: SetResult }) {
   );
 }
 
-/** Board 14: clean reps over the whole challenge, one row per set, then the best rep to watch and send. */
+/** Board 14: clean reps or held seconds, one row per set, then the best rep to watch and send. */
 export function ChallengeDone({
   view,
   title,
@@ -50,7 +54,14 @@ export function ChallengeDone({
   onClose: () => void;
 }) {
   const { top, bottom, left, right } = useSafeAreaInsets();
-  const clean = view.results.reduce((n, set) => n + set.reps, 0);
+  const onlyHolds =
+    view.results.length > 0 && view.results.every((set) => EXERCISES[set.exercise].kind === 'hold');
+  const amount = onlyHolds
+    ? Math.floor(view.results.reduce((n, set) => n + set.heldMs, 0) / 1000)
+    : view.results.reduce((n, set) => n + set.reps, 0);
+  const unit = onlyHolds
+    ? `${amount === 1 ? 'second' : 'seconds'} held`
+    : `clean ${amount === 1 ? 'rep' : 'reps'}`;
   const { best } = view;
   const minutes = Math.floor(view.elapsedS / 60);
   const seconds = view.elapsedS % 60;
@@ -89,14 +100,14 @@ export function ChallengeDone({
       >
         <View
           accessible
-          accessibilityLabel={`${clean} clean ${clean === 1 ? 'rep' : 'reps'} in ${minutes} minutes ${seconds} seconds`}
+          accessibilityLabel={`${amount} ${unit} in ${minutes} minutes ${seconds} seconds`}
           className="gap-1.5"
         >
           <Text className="font-sans text-9xl font-thin leading-none tracking-tighter text-accent">
-            {clean}
+            {amount}
           </Text>
           <Text className="font-sans text-2xl font-light leading-tight text-chalk">
-            clean {clean === 1 ? 'rep' : 'reps'} in {mss(view.elapsedS)}.
+            {unit} in {mss(view.elapsedS)}.
           </Text>
         </View>
         <View className="border-t border-line">

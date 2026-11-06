@@ -4,6 +4,7 @@ import { Joint } from 'superhabit-pose/joints';
 import { initialPushup, measurePushup, stepPushup, type PushupState } from './pushup';
 import type { Pose } from './geometry';
 import { plank } from './__fixtures__/plank';
+import { scoreReps, traceFiles } from './__fixtures__/replay';
 
 const FRAME = 66; // ms between detector results
 // [pose, fromMs, toMs]: hold a pose long enough for the smoothing filter to settle.
@@ -170,5 +171,21 @@ describe('stepPushup', () => {
       reps: 0,
       phase: 'up',
     });
+  });
+});
+
+// 87a35a1: 2/10 within ±1. Measured baseline; counter refactors must not lower it.
+const MIN_OK = 2;
+const files = traceFiles('pushup');
+describe.skipIf(files.length === 0)('pushup on real traces', () => {
+  it('counts within ±1 on enough clips', () => {
+    const rows = scoreReps(
+      { initial: initialPushup, step: stepPushup, measure: measurePushup },
+      files,
+      1,
+    );
+    expect(rows.filter((row) => row.ok).length, JSON.stringify(rows)).toBeGreaterThanOrEqual(
+      MIN_OK,
+    );
   });
 });

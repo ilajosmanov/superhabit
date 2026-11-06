@@ -175,11 +175,20 @@ function PauseIcon() {
  */
 function LiveSet(props: PlatterProps) {
   const { view, landscape, angle, lowest, onPause, onEndSet } = props;
-  const { reps, target, call, flash, gauge } = view;
+  const { reps, target, heldS, goalS, unit, call, flash, gauge } = view;
   const lost = view.phase === 'waiting';
   const noRep = call && !call.counted ? call : null;
-  const count = <RepCount reps={reps} target={target} flash={flash === 'rep'} />;
-  const depth = !lost && (
+  const count = (
+    <RepCount
+      reps={unit === 'seconds' ? heldS : reps}
+      target={unit === 'seconds' ? goalS : target}
+      unit={unit}
+      flash={flash === 'rep'}
+    />
+  );
+  const segments = unit === 'reps' && <Segments reps={reps} target={target} />;
+  const endLabel = unit === 'seconds' ? `End set · ${heldS}s` : 'End set';
+  const depth = !lost && gauge && (
     <DepthGauge
       angle={angle}
       lowest={lowest}
@@ -192,7 +201,7 @@ function LiveSet(props: PlatterProps) {
   const card = lost ? (
     <LostCard ready={EXERCISES[view.exercise].ready} missing={view.missing} />
   ) : (
-    noRep && <NoRepCard cue={noRep.cue} depth={noRep.depth} down={gauge.down} />
+    noRep && gauge && <NoRepCard cue={noRep.cue} depth={noRep.depth} down={gauge.down} />
   );
   const size = landscape ? 'size-11' : 'size-12';
   const height = landscape ? 'h-11' : 'h-12';
@@ -204,7 +213,7 @@ function LiveSet(props: PlatterProps) {
         <View className="min-h-0 flex-1 flex-row gap-3">
           <View className="flex-1 gap-2.5">
             {count}
-            <Segments reps={reps} target={target} />
+            {segments}
             {card}
           </View>
           {depth}
@@ -215,7 +224,7 @@ function LiveSet(props: PlatterProps) {
             {count}
             {depth}
           </View>
-          <Segments reps={reps} target={target} />
+          {segments}
           {card}
         </>
       )}
@@ -234,10 +243,12 @@ function LiveSet(props: PlatterProps) {
             accessibilityRole="button"
             className={`flex-1 items-center justify-center rounded-full bg-accent ${height}`}
           >
-            <Text className="font-sans text-base font-medium text-ground">End set · {reps}</Text>
+            <Text className="font-sans text-base font-medium text-ground">
+              {unit === 'seconds' ? endLabel : `End set · ${reps}`}
+            </Text>
           </Pressable>
         ) : (
-          <SecondaryButton onPress={onEndSet} label="End set" className={`flex-1 ${height}`} />
+          <SecondaryButton onPress={onEndSet} label={endLabel} className={`flex-1 ${height}`} />
         )}
       </View>
     </>
@@ -255,8 +266,13 @@ function PausedSet(props: PlatterProps) {
         {setLabel(view)} · {mmss(view.elapsedS)}
       </Label>
       <View className="flex-row items-end justify-between">
-        <RepCount reps={view.reps} target={view.target} size={landscape ? 'sm' : 'md'} />
-        {view.attempts.length > 0 && (
+        <RepCount
+          reps={view.unit === 'seconds' ? view.heldS : view.reps}
+          target={view.unit === 'seconds' ? view.goalS : view.target}
+          unit={view.unit}
+          size={landscape ? 'sm' : 'md'}
+        />
+        {view.gauge && view.attempts.length > 0 && (
           <View className="items-end gap-1.5 pb-2">
             <RepStrip attempts={view.attempts} down={view.gauge.down} bar={9} />
             <Text className="font-mono text-xs tracking-widest text-muted">THIS SET</Text>

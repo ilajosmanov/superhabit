@@ -4,7 +4,7 @@ import type { BodyPart, Phase } from '@/exercises/registry';
 export function repPhrase(
   prev: { reps: number; noReps: number },
   next: { reps: number; noReps: number },
-  cues?: string[],
+  cues?: readonly string[],
 ): string | null {
   if (next.reps > prev.reps)
     return next.reps % 5 === 0 ? `${next.reps}, keep going` : String(next.reps);
@@ -12,22 +12,22 @@ export function repPhrase(
   return null;
 }
 
-/**
- * Said on a set's last rep instead of repPhrase: the count, then what comes next.
- * `next.reps` Infinity = open-ended set, said without a number.
- */
-export function setPhrase(
-  reps: number,
-  next: { reps: number; name: string; place: string } | null,
-): string {
-  if (!next) return `${reps}. Challenge done.`;
-  const what = Number.isFinite(next.reps) ? `${next.reps} ${next.name}` : next.name;
-  return `${reps}, set done. Next, ${what}. ${next.place}.`;
+type Next = { rest: number | null } | { what: string; place: string | null };
+
+/** Said at the end of an exercise step: the amount completed, then what comes next. */
+export function setPhrase(done: string, next: Next | null): string {
+  if (!next) return `${done}. Challenge done.`;
+  if ('rest' in next)
+    return next.rest === null
+      ? `${done}, set done. Rest.`
+      : `${done}, set done. Rest ${next.rest} seconds.`;
+  if (next.place === null) return `${done}. Next, ${next.what}.`;
+  return `${done}, set done. Next, ${next.what}. ${next.place}.`;
 }
 
 /** 'Go' as the counter first sees the start position; null otherwise. */
 export const startPhrase = (prev: Phase, next: Phase) =>
-  prev === 'waiting' && next === 'up' ? 'Go' : null;
+  prev === 'waiting' && next !== 'waiting' ? 'Go' : null;
 
 /** Names the first part out of frame; null when all are in. */
 export function framePhrase(missing: readonly BodyPart[]): string | null {

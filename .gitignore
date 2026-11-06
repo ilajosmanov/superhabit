@@ -54,3 +54,6 @@ kls_database.db
 
 # verification evidence (verify-superhabit skill)
 .verify/
+
+# real pose traces from public datasets (licences vary; local only)
+src/exercises/__fixtures__/traces/

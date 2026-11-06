@@ -4,8 +4,9 @@
 // add an accelerometer gravity vector if that shows up on device.
 import { Joint } from 'superhabit-pose/joints';
 
-import { angle, inFrame, type Joints, type Pose } from './geometry';
-import { expire, hold, initialRepState, timing, type RepState } from './rep-counter';
+import { angle, inFrame, inFrameWithVisibility, type Joints, type Pose } from './geometry';
+import { cycle, type CycleState } from './cycle';
+import { fmtMs, type Exercise } from './exercise';
 
 // [shoulder, elbow, wrist, hip, knee, ankle]. Side-on, the far arm is often hidden, so only the better-seen side is used.
 const SIDES = [
@@ -55,19 +56,28 @@ export type PushupSample = {
   joints: Joints;
 };
 
-/** Null unless the better-seen arm, hip and knee or ankle are in frame and every angle is finite. */
-export function measurePushup({
-  landmarks: image,
-  worldLandmarks: world,
-}: Pose): PushupSample | null {
-  const ok = (i: number) => inFrame(image[i]) && !!world[i];
+/** Better-seen arm and leg; plank requires the ankle, push-ups can fall back to the knee. */
+export function pushupSide(
+  { landmarks: image, worldLandmarks: world }: Pose,
+  minVisibility = 0.5,
+  requireAnkle = false,
+) {
+  const ok = (i: number) => inFrameWithVisibility(image[i], minVisibility) && !!world[i];
+  const required = (side: readonly number[]) => (requireAnkle ? side : side.slice(0, 5));
   const seen = (side: readonly number[]) =>
-    Math.min(...side.slice(0, 5).map((i) => image[i]?.visibility ?? 0));
-  // The ankle is optional: heels low on the floor or past the frame edge drop out first.
-  const usable = SIDES.filter((side) => side.slice(0, 5).every(ok));
+    Math.min(...required(side).map((i) => image[i]?.visibility ?? 0));
+  const usable = SIDES.filter((side) => required(side).every(ok));
   if (!usable.length) return null;
-  const [s, e, w, h, k, a] = usable.reduce((best, side) => (seen(side) > seen(best) ? side : best));
-  const foot = ok(a) ? a : k;
+  return usable.reduce((best, side) => (seen(side) > seen(best) ? side : best));
+}
+
+/** Null unless the better-seen arm, hip and knee or ankle are in frame and every angle is finite. */
+export function measurePushup(pose: Pose): PushupSample | null {
+  const side = pushupSide(pose);
+  if (!side) return null;
+  const [s, e, w, h, k, a] = side;
+  const { landmarks: image, worldLandmarks: world } = pose;
+  const foot = inFrame(image[a]) && world[a] ? a : k;
   const up = [world[e].x - world[w].x, world[e].y - world[w].y, world[e].z - world[w].z];
   const forearm = Math.hypot(...up);
   const knee = [world[k].x - world[w].x, world[k].y - world[w].y, world[k].z - world[w].z];
@@ -90,76 +100,68 @@ type PushupReport = {
   cues: string[];
 };
 
-type Attempt = { body: number; startAt?: number; bottomAt?: number };
+type Attempt = { body: number };
 
 /** Tracks the elbow angle; 'waiting' until seen in a plank top. */
-export type PushupState = RepState<Attempt, PushupReport>;
+export type PushupState = CycleState<Attempt, PushupReport>;
 
-const fresh = (at?: number): Attempt => ({ body: 180, startAt: at });
+const plank = (m: PushupSample) =>
+  m.body >= BODY_MIN && m.reach >= REACH_MIN && m.knees >= KNEES_MIN;
 
-export const initialPushup: PushupState = initialRepState(fresh());
+const pushupCycle = cycle<PushupSample, Attempt, PushupReport>({
+  signal: (m) => m.elbow,
+  up: PUSHUP_UP,
+  down: PUSHUP_DOWN,
+  shallow: PUSHUP_SHALLOW,
+  start: plank,
+  turn: (m) => m.body >= BODY_MIN,
+  clean: (a, m) => m.knees >= KNEES_MIN && a.body >= BODY_MIN,
+  tried: (_a, m) => plank(m),
+  fresh: { body: 180 },
+  add: (a, m) => ({ body: Math.min(a.body, m.body) }),
+  report: (a, m, { counted, depth, downMs, upMs }) => {
+    const fast = downMs !== null && upMs !== null && downMs + upMs < CUE_FAST_MS;
+    const cues = [
+      !counted &&
+        (m.knees < KNEES_MIN
+          ? 'Knees off the floor'
+          : a.body < BODY_MIN
+            ? 'Keep your body straight'
+            : 'Go lower'),
+      counted && a.body < CUE_BODY && 'Keep your body straight',
+      fast && 'Slow down',
+    ].filter((c): c is string => !!c);
+    return { counted, depth, body: a.body, downMs, upMs, cues };
+  },
+});
 
-function report(
-  a: Attempt,
-  depth: number,
-  counted: boolean,
-  nowMs: number,
-  kneeling = false,
-): PushupReport {
-  const { downMs, upMs, fast } = timing(a, nowMs, CUE_FAST_MS);
-  const cues = [
-    !counted &&
-      (kneeling
-        ? 'Knees off the floor'
-        : a.body < BODY_MIN
-          ? 'Keep your body straight'
-          : 'Go lower'),
-    counted && a.body < CUE_BODY && 'Keep your body straight',
-    fast && 'Slow down',
-  ].filter((c): c is string => !!c);
-  return { counted, depth, body: a.body, downMs, upMs, cues };
-}
+export const pushup: Exercise<PushupState, PushupSample> = {
+  ...pushupCycle,
+  name: 'push-ups',
+  glyph: 'M23.4 12a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M23 15L5 22M21 15.8l.6 9.2M3 26h26',
+  placement: 'side-floor',
+  place: 'Turn the phone sideways',
+  steps: [
+    'Lay it on the floor on its long edge',
+    'About 2 m away, side-on to you',
+    'Head to feet in frame',
+  ],
+  hint: 'Counting starts once you hold a plank.',
+  ready: 'Get into a plank',
+  // Feet too: counting falls back to the knees, but the body line reads best heel to shoulder.
+  parts: ['head', 'hands', 'hips', 'feet'],
+  gauge: { down: PUSHUP_DOWN, up: PUSHUP_UP },
+  measure: measurePushup,
+  stats: ({ lastRep: r }) =>
+    r &&
+    `${Math.round(r.depth)}° · BODY ${Math.round(r.body)}° · ${fmtMs(r.downMs)}↓ ${fmtMs(r.upMs)}↑`,
+};
 
-/**
- * Same cycle as stepSquat, on the smoothed elbow angle: plank top -> elbows <= DOWN with a
- * straight body -> top again = rep; bent past SHALLOW without reaching DOWN = no-rep.
- */
+export const initialPushup = pushup.initial;
 export function stepPushup(
   s: PushupState,
   sample: PushupSample | null,
   nowMs: number,
 ): PushupState {
-  s = expire(s, nowMs);
-  const held = sample && hold(s, sample.elbow, nowMs);
-  if (!sample || !held) return s;
-  const { low, high } = held;
-  s = held.s;
-  const kneeling = sample.knees < KNEES_MIN;
-  const plank = sample.body >= BODY_MIN && sample.reach >= REACH_MIN && !kneeling;
-  if (s.phase === 'waiting')
-    return high >= PUSHUP_UP && plank ? { ...s, phase: 'up', min: 180, attempt: fresh(nowMs) } : s;
-
-  const attempt: Attempt = {
-    ...s.attempt,
-    body: Math.min(s.attempt.body, sample.body),
-    bottomAt: low < s.min ? nowMs : s.attempt.bottomAt,
-  };
-  const min = Math.min(s.min, low);
-  if (high >= PUSHUP_UP) {
-    const done = { ...s, phase: 'up' as const, min: 180, attempt: fresh(nowMs) };
-    if (s.phase === 'down' && !kneeling && attempt.body >= BODY_MIN)
-      return { ...done, reps: s.reps + 1, lastRep: report(attempt, min, true, nowMs) };
-    if (s.phase === 'down')
-      return {
-        ...done,
-        noReps: s.noReps + 1,
-        lastRep: report(attempt, min, false, nowMs, kneeling),
-      };
-    if (min < PUSHUP_SHALLOW && plank)
-      return { ...done, noReps: s.noReps + 1, lastRep: report(attempt, min, false, nowMs) };
-    return { ...s, min: 180, attempt: fresh(nowMs) };
-  }
-  // Sagging hips never reach the bottom, so such a rep can only end as a no-rep.
-  if (low <= PUSHUP_DOWN && sample.body >= BODY_MIN) return { ...s, phase: 'down', min, attempt };
-  return { ...s, min, attempt };
+  return pushup.step(s, sample, nowMs);
 }

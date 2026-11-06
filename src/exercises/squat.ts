@@ -3,7 +3,8 @@ import type { PoseLandmark } from 'superhabit-pose';
 import { Joint } from 'superhabit-pose/joints';
 
 import { angle, inFrame, type Joints, type Pose } from './geometry';
-import { expire, hold, initialRepState, timing, type RepState } from './rep-counter';
+import { cycle, type CycleState } from './cycle';
+import { fmtMs, type Exercise } from './exercise';
 
 const MAX_ASYMMETRY = 35; // degrees between left and right knee
 const LEGS = [
@@ -114,70 +115,62 @@ type Attempt = {
   n: number;
   lean: number;
   valgus: number | null;
-  startAt?: number;
-  bottomAt?: number;
 };
 
 /** Tracks the knee angle of the straighter leg. */
-export type SquatState = RepState<Attempt, RepReport>;
+export type SquatState = CycleState<Attempt, RepReport>;
 
-const fresh = (at?: number): Attempt => ({
-  hip: Infinity,
-  sym: 0,
-  n: 0,
-  lean: 0,
-  valgus: null,
-  startAt: at,
+const squatCycle = cycle<Sample, Attempt, RepReport>({
+  signal: (m) => Math.max(...m.legs),
+  up: UP,
+  down: DOWN,
+  shallow: SHALLOW,
+  turn: (m) => m.hip <= HIP_BOTTOM,
+  tried: (a) => a.hip <= HIP_STARTED,
+  fresh: { hip: Infinity, sym: 0, n: 0, lean: 0, valgus: null },
+  add: (a, m) => ({
+    hip: Math.min(a.hip, m.hip),
+    sym: a.sym + Math.abs(m.legs[0] - m.legs[1]),
+    n: a.n + 1,
+    lean: Math.max(a.lean, m.lean),
+    valgus:
+      m.valgus === null || !Number.isFinite(m.valgus)
+        ? a.valgus
+        : Math.min(a.valgus ?? Infinity, m.valgus),
+  }),
+  report: (a, _m, { counted, depth, downMs, upMs }) => {
+    const fast = downMs !== null && upMs !== null && downMs + upMs < CUE_FAST_MS;
+    const symmetry = a.n ? a.sym / a.n : 0;
+    const cues = [
+      !counted && 'Go deeper',
+      symmetry > CUE_SYMMETRY && 'Even out your legs',
+      a.lean > CUE_LEAN && 'Chest up',
+      a.valgus !== null && a.valgus < CUE_VALGUS && 'Knees out',
+      fast && 'Slow down',
+    ].filter((c): c is string => !!c);
+    return { counted, depth, symmetry, downMs, upMs, lean: a.lean, valgus: a.valgus, cues };
+  },
 });
 
-export const initialSquat: SquatState = initialRepState(fresh());
+export const squat: Exercise<SquatState, Sample> = {
+  ...squatCycle,
+  name: 'squats',
+  glyph:
+    'M13.4 6a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M15 9l-3 8M12 17l9 1M21 18l-1 8M14 11.5l10 .5M6 26h20',
+  placement: 'front-upright',
+  place: 'Stand the phone upright',
+  steps: ['Prop it up on its short edge', '2 to 3 m away, facing you', 'Head to feet in frame'],
+  hint: 'Counting starts once you stand tall.',
+  ready: 'Stand tall',
+  parts: ['head', 'hips', 'feet'],
+  gauge: { down: DOWN, up: UP },
+  measure,
+  stats: ({ lastRep: r }) =>
+    r &&
+    `${Math.round(r.depth)}° · SYM ${Math.round(r.symmetry)}° · ${fmtMs(r.downMs)}↓ ${fmtMs(r.upMs)}↑ · LEAN ${Math.round(r.lean)}°`,
+};
 
-function report(a: Attempt, depth: number, counted: boolean, nowMs: number): RepReport {
-  const { downMs, upMs, fast } = timing(a, nowMs, CUE_FAST_MS);
-  const symmetry = a.n ? a.sym / a.n : 0;
-  const cues = [
-    !counted && 'Go deeper',
-    symmetry > CUE_SYMMETRY && 'Even out your legs',
-    a.lean > CUE_LEAN && 'Chest up',
-    a.valgus !== null && a.valgus < CUE_VALGUS && 'Knees out',
-    fast && 'Slow down',
-  ].filter((c): c is string => !!c);
-  return { counted, depth, symmetry, downMs, upMs, lean: a.lean, valgus: a.valgus, cues };
-}
-
+export const initialSquat = squat.initial;
 export function stepSquat(s: SquatState, sample: Sample | null, nowMs: number): SquatState {
-  s = expire(s, nowMs);
-  const held = sample && hold(s, Math.max(...sample.legs), nowMs);
-  if (!sample || !held) return s;
-  const { low, high } = held;
-  s = held.s;
-  // Starting or resetting while crouched must not credit only the ascent as a full rep.
-  if (s.phase === 'waiting')
-    return high >= UP ? { ...s, phase: 'up', min: 180, attempt: fresh(nowMs) } : s;
-
-  const a = s.attempt;
-  const attempt: Attempt = {
-    ...a,
-    hip: Math.min(a.hip, sample.hip),
-    sym: a.sym + Math.abs(sample.legs[0] - sample.legs[1]),
-    n: a.n + 1,
-    lean: Math.max(a.lean, sample.lean),
-    valgus:
-      sample.valgus === null || !Number.isFinite(sample.valgus)
-        ? a.valgus
-        : Math.min(a.valgus ?? Infinity, sample.valgus),
-    bottomAt: low < s.min ? nowMs : a.bottomAt,
-  };
-  const min = Math.min(s.min, low);
-  if (high >= UP) {
-    const done = { ...s, phase: 'up' as const, min: 180, attempt: fresh(nowMs) };
-    if (s.phase === 'down')
-      return { ...done, reps: s.reps + 1, lastRep: report(attempt, min, true, nowMs) };
-    if (min < SHALLOW && attempt.hip <= HIP_STARTED)
-      return { ...done, noReps: s.noReps + 1, lastRep: report(attempt, min, false, nowMs) };
-    return { ...s, min: 180, attempt: fresh(nowMs) };
-  }
-  // Bent knees without the hips dropping (kneeling, leaning in) is not a squat bottom.
-  if (low <= DOWN && sample.hip <= HIP_BOTTOM) return { ...s, phase: 'down', min, attempt };
-  return { ...s, min, attempt };
+  return squat.step(s, sample, nowMs);
 }
