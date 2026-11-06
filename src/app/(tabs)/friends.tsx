@@ -1,3 +1,4 @@
+import { useIsFocused } from 'expo-router';
 import { Text, View } from 'react-native';
 import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 
@@ -57,7 +58,7 @@ function Step({
 }) {
   return (
     <Animated.View
-      entering={FadeInDown.duration(1200).delay(delay)}
+      entering={FadeInDown.duration(500).delay(delay)}
       style={{ flex: 1, alignItems: 'center', gap: 10 }}
     >
       {first ? (
@@ -108,6 +109,7 @@ function GhostRow({
 /** The leaderboard isn't built yet: a ghost podium and skeleton rows tease it. */
 export default function FriendsScreen() {
   const still = useReducedMotion();
+  const focused = useIsFocused();
 
   return (
     <Screen
@@ -138,9 +140,14 @@ export default function FriendsScreen() {
 
       <View>
         <View
+          // Native tabs mount every tab at launch, so remount on focus to replay the rise.
+          // Focus lands a few frames after the tab shows: stay hidden until then, or the
+          // finished podium flashes before the rise restarts.
+          key={String(focused)}
           accessible
           accessibilityLabel="Preview of the podium: first, second and third place"
-          className="flex-row items-end gap-3"
+          // Clipped so the steps rise out of the floor line, not up through the rows below.
+          className={`flex-row items-end gap-3 overflow-hidden ${focused ? '' : 'opacity-0'}`}
         >
           <Step
             place={2}
