@@ -10,6 +10,7 @@ Imports only go down:
 ```
 src/app/            routes: read params, compose a screen, navigate
   ↓
+src/friends/        the friends feature (for now, the leaderboard preview)
 src/challenges/     the challenge catalog: definitions, catalog entries, the cards that browse them
   components/       UI only challenges uses (catalog tiles, joined cards, exercise stack)
   ↓
