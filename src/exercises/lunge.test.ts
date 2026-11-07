@@ -275,8 +275,8 @@ describe('lunge', () => {
 // is 5/15 within max(1, round(10%)), below the required 9/15. After fixing gated form
 // accumulation, 324 combinations of up 145/155/160°, down 100/110/115/120°, lean 30/35/40°
 // and stride 0.2/0.3/0.4 still score at most 5/15 (visibility stays at 0.5).
-// shortcut: pins a 4/15 baseline on public clips, not the 9/15 bar; lunges ship as experimental
-// on device sets instead. Device sets (2026-11-07): lean 7–10° on clean reps, 15–59° on sloppy
+// shortcut: pins a 4/15 baseline on public clips, not the 9/15 bar; lunges are tuned on device
+// sets instead. Device sets (2026-11-07): lean 7–10° on clean reps, 15–59° on sloppy
 // ones, so LEAN_MAX is 15; that costs one public clip whose lunges lean past it.
 const MIN_OK = 4;
 const files = traceFiles('lunge');

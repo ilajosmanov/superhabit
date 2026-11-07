@@ -47,15 +47,3 @@ it('offers multi-day challenges and no one-day test', () => {
   expect(ids).not.toContain('squat');
   expect(ids).not.toContain('pushup');
 });
-
-it('marks a challenge experimental when one of its exercises is', () => {
-  const entry = (exercise: 'squat' | 'lunge') =>
-    toEntry('c', {
-      name: 'C',
-      days: 14,
-      restartOnMiss: false,
-      session: [{ steps: [{ exercise, goal: MAX }], rounds: 1 }],
-    });
-  expect(entry('squat').experimental).toBe(false);
-  expect(entry('lunge').experimental).toBe(true);
-});

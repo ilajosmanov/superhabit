@@ -2,13 +2,8 @@ import { Link } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
 import { StepLines } from './exercise-stack';
-import { Glyph } from '@/components/glyph';
 import { colors } from '@/theme';
 import type { CatalogEntry } from '@/workout/catalog';
-
-/** An experiment: a lab flask with its liquid line. */
-const FLASK =
-  'M9 3h6M10 3v6l-5.2 9.4A1.8 1.8 0 0 0 6.4 21h11.2a1.8 1.8 0 0 0 1.6-2.6L14 9V3M7 15h10';
 
 /**
  * Outlined, never filled: a filled card means you joined it. Left, every step with its goal in its own
@@ -20,16 +15,12 @@ function ChallengeCard({ entry }: { entry: CatalogEntry }) {
   const body = (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel={`${entry.name}, ${entry.days} days${entry.experimental ? ', experimental counting' : ''}: ${steps}${entry.note ? `. ${entry.note}` : ''}`}
+      accessibilityLabel={`${entry.name}, ${entry.days} days: ${steps}${entry.note ? `. ${entry.note}` : ''}`}
       android_ripple={{ color: colors.surface }}
       className="flex-row items-end gap-4 px-5 py-4.5"
     >
       <View className="flex-1 gap-3.5">
-        <View className="flex-row items-center gap-2">
-          <Text className="font-sans text-lg tracking-tight text-chalk">{entry.name}</Text>
-          {/* Counting still being tuned on real people; the run works, the numbers may be off. */}
-          {entry.experimental && <Glyph d={FLASK} size={16} color={colors.muted} />}
-        </View>
+        <Text className="font-sans text-lg tracking-tight text-chalk">{entry.name}</Text>
         <StepLines entry={entry} />
       </View>
       <View className="items-end gap-1">

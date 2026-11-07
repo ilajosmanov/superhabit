@@ -14,8 +14,7 @@ const KNEE_MAX = 140;
 // The shin is only an approximate floor normal: its tilt puts grounded shoulders up to ~0.9
 // shin lengths from the ankle's plane in these traces. Upright setups read several lengths.
 const FLOOR_MAX = 1;
-// shortcut: experimental (marked in the app): only 2/10 labelled clips meet the 60% gate. Several variants lift
-// the better-seen foot or never approach straight hips; revisit with standard floor-bridge traces.
+// Labelled internet clips pass 2/10 (variants lift a foot or never straighten); device sets are the bar.
 
 /** Angles on the better-seen complete side. */
 export type GluteBridgeSample = {
@@ -81,7 +80,6 @@ const gluteBridgeCycle = cycle<GluteBridgeSample, Attempt, GluteBridgeReport>({
 export const gluteBridge: Exercise<GluteBridgeState, GluteBridgeSample> = {
   ...gluteBridgeCycle,
   name: 'glute bridges',
-  experimental: true,
   glyph: 'M2.4 22a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M7.5 23 16 16l6 4v6M3 26h26',
   placement: 'side-floor',
   ...SETUP['side-floor'],

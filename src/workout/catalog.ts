@@ -13,15 +13,12 @@ export type CatalogEntry = {
   steps: readonly CatalogStep[];
   /** Rounds and rest: not steps you do, so one label under the lines. */
   note?: string;
-  /** Some step's counting is still an experiment. */
-  experimental: boolean;
 };
 
 /** A challenge as its card shows it: each exercise step once, rounds and rest folded into the note. */
 export function toEntry(id: string, { name, days, session }: Challenge): CatalogEntry {
   const steps: CatalogStep[] = [];
   const note: string[] = [];
-  let experimental = false;
   for (const block of session) {
     if (block.rounds > 1) note.push(`${block.rounds} ROUNDS`);
     for (const { exercise, goal } of block.steps) {
@@ -30,7 +27,6 @@ export function toEntry(id: string, { name, days, session }: Challenge): Catalog
         continue;
       }
       const { glyph, name: exerciseName } = EXERCISES[exercise];
-      experimental ||= EXERCISES[exercise].experimental === true;
       steps.push({ glyph, name: capitalise(exerciseName), goal: goalLabel(goal) });
     }
   }
@@ -39,7 +35,6 @@ export function toEntry(id: string, { name, days, session }: Challenge): Catalog
     name,
     days,
     steps,
-    experimental,
     ...(note.length > 0 && { note: note.join(' · ') }),
   };
 }

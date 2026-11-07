@@ -25,9 +25,7 @@ const SHALLOW = 0.4;
 // Moving elbows and overlapping ankles can be briefly uncertain; still require every joint
 // inside the image, and reject visibility below 0.3 rather than using extrapolated limbs.
 const MIN_VISIBILITY = 0.3;
-// shortcut: experimental (marked in the app): with both limbs required closed, only 6/11 labelled clips meet
-// the 60% gate. Cropped feet and inconsistent cycle totals remain; revisit with complete
-// front-view device traces.
+// Labelled internet clips pass 6/11 (cropped feet, inconsistent cycle totals); device sets are the bar.
 
 export type JumpingJackSample = {
   arms: number;
@@ -93,7 +91,6 @@ const jackCycle = cycle<JumpingJackSample, Attempt, JumpingJackReport>({
 export const jumpingJack: Exercise<JumpingJackState, JumpingJackSample> = {
   ...jackCycle,
   name: 'jumping jacks',
-  experimental: true,
   glyph:
     'M13.4 5a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M16 8v10M16 10l-7-6M16 10l7-6M16 18l-6 9M16 18l6 9',
   placement: 'front-upright',

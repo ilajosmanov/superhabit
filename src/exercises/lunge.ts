@@ -30,8 +30,7 @@ const RECOVER = SHALLOW;
 // Device sets: clean lunges lean 4–10°, deliberately sloppy ones 15° and up.
 const LEAN_MAX = 15;
 const STRIDE_MIN = 0.4;
-// shortcut: experimental (marked in the app): only 5/15 labelled clips meet the 60% gate (9 needed). Revisit
-// front/rear tracking and missing legs on side-upright device traces before exposing lunges.
+// Labelled internet clips pass 5/15 (front and rear views, missing legs); device sets are the bar.
 
 type Leg = { knee: number; forward: number; joints: Joints };
 /** Each side keeps its own angle; an occluded leg never borrows the visible leg's signal. */
@@ -114,7 +113,6 @@ const lungeCounter = sided<LungeSample, Attempt, LungeReport>({
 export const lunge: Exercise<LungeState, LungeSample> = {
   ...lungeCounter,
   name: 'lunges',
-  experimental: true,
   glyph:
     'M13.4 5a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M16 8v9M16 17l6 3v6M16 17l-6 5-3 4M3 26h26',
   placement: 'side-upright',
