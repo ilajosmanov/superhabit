@@ -15,6 +15,12 @@ it('sets a hold in seconds and reps in reps', () => {
   expect(withAmount(newDraft('squat'), 90).goal).toEqual(reps(90));
 });
 
+it('takes the stop past the top as Max', () => {
+  expect(withAmount(newDraft('squat'), 150).goal).toEqual(reps(150));
+  expect(withAmount(newDraft('squat'), 155).goal).toEqual(MAX);
+  expect(withAmount(newDraft('plank'), 310).goal).toEqual(MAX);
+});
+
 it('opens a one-exercise challenge as a draft, open-ended goals included', () => {
   const challenge = {
     name: 'Sit-ups',

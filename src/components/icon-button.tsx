@@ -6,7 +6,7 @@ import {
   IconToggleButton,
   RNHostView,
 } from '@expo/ui/jetpack-compose';
-import { semantics } from '@expo/ui/jetpack-compose/modifiers';
+import { semantics, size as sizeOf } from '@expo/ui/jetpack-compose/modifiers';
 import type { AndroidSymbol } from 'expo-symbols';
 import type { ViewStyle } from 'react-native';
 
@@ -16,7 +16,8 @@ import { Icon } from './icon';
 
 /**
  * Material's icon button around a Material Symbol: a 48dp target and the platform ripple. `fill` gives
- * it a disc (glass over the camera); `checked` makes it a switch. `style` places the Compose host.
+ * it a disc (glass over the camera), `diameter` sizes that disc; `checked` makes it a switch. `style` places
+ * the Compose host.
  */
 export function IconButton({
   icon,
@@ -26,6 +27,7 @@ export function IconButton({
   size = 24,
   color = colors.chalk,
   fill,
+  diameter,
   style,
 }: {
   icon: AndroidSymbol;
@@ -35,6 +37,7 @@ export function IconButton({
   size?: number;
   color?: string;
   fill?: string;
+  diameter?: number;
   style?: ViewStyle;
 }) {
   const content = (
@@ -42,7 +45,10 @@ export function IconButton({
       <Icon name={icon} size={size} color={color} />
     </RNHostView>
   );
-  const modifiers = [semantics({ contentDescription: label })];
+  const modifiers = [
+    semantics({ contentDescription: label }),
+    ...(diameter ? [sizeOf(diameter, diameter)] : []),
+  ];
   const containerColor = fill ?? 'transparent';
   const Toggle = fill ? FilledIconToggleButton : IconToggleButton;
   const Button = fill ? FilledIconButton : ComposeIconButton;

@@ -12,7 +12,7 @@ export type Draft = {
   name: string | null;
 };
 
-/** The slider's stops: reps in fives, holds in tens of seconds. */
+/** The slider's stops: reps in fives, holds in tens of seconds; one stop past `max` is Max. */
 export const RANGE = {
   reps: { min: 5, max: 150, step: 5 },
   seconds: { min: 10, max: 300, step: 10 },
@@ -21,11 +21,17 @@ export const DAY_CHOICES = [7, 14, 21, 30] as const;
 
 const isHold = (exercise: ExerciseId) => EXERCISES[exercise].kind === 'hold';
 
-/** Set the slider's number in the exercise's own unit. */
-export const withAmount = (draft: Draft, n: number): Draft => ({
-  ...draft,
-  goal: isHold(draft.exercise) ? seconds(n) : reps(n),
-});
+/** The exercise's slider unit. */
+export const unitOf = (exercise: ExerciseId) => (isHold(exercise) ? 'seconds' : 'reps');
+
+/** Set the slider's number in the exercise's own unit; past the range's top it is Max. */
+export const withAmount = (draft: Draft, n: number): Draft => {
+  const unit = unitOf(draft.exercise);
+  return {
+    ...draft,
+    goal: n > RANGE[unit].max ? MAX : unit === 'seconds' ? seconds(n) : reps(n),
+  };
+};
 
 export const newDraft = (exercise: ExerciseId) =>
   withAmount(

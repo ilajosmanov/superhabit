@@ -19,6 +19,7 @@ import {
   DAY_CHOICES,
   RANGE,
   toChallenge,
+  unitOf,
   withAmount,
   type Draft,
 } from '@/challenges/draft';
@@ -26,7 +27,6 @@ import type { Saved } from '@/challenges/saved';
 import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
-import { TextButton } from '@/components/text-button';
 import { EXERCISES } from '@/exercises/registry';
 import { colors } from '@/theme';
 import type { Challenge, Goal } from '@/workout/plan';
@@ -43,23 +43,30 @@ const SEGMENT = {
   inactiveContentColor: colors.muted,
 };
 
-/** The daily number on the M3 slider, in fives of reps or tens of seconds; ticks and reports only real changes. */
+/**
+ * The daily number on the M3 slider, in fives of reps or tens of seconds, with Max one stop past the top;
+ * ticks and reports only real changes.
+ */
 function AmountSlider({
+  unit,
   goal,
   onChange,
 }: {
-  goal: Extract<Goal, { n: number }>;
+  unit: 'reps' | 'seconds';
+  goal: Goal;
   onChange: (n: number) => void;
 }) {
-  const { min, max, step } = RANGE[goal.type];
+  const { min, max, step } = RANGE[unit];
+  const top = max + step;
+  const value = goal.type === 'max' ? top : goal.n;
   return (
     <Host matchContents={{ vertical: true }}>
       <Slider
-        value={goal.n}
+        value={value}
         min={min}
-        max={max}
+        max={top}
         // Compose counts the stops between the ends.
-        steps={(max - min) / step - 1}
+        steps={(top - min) / step - 1}
         colors={{
           thumbColor: colors.accent,
           activeTrackColor: colors.accent,
@@ -67,9 +74,9 @@ function AmountSlider({
           activeTickColor: 'transparent',
           inactiveTickColor: 'transparent',
         }}
-        onValueChange={(value) => {
-          const n = Math.round(value / step) * step;
-          if (n === goal.n) return;
+        onValueChange={(next) => {
+          const n = Math.round(next / step) * step;
+          if (n === value) return;
           void performAndroidHapticsAsync(AndroidHaptics.Segment_Frequent_Tick);
           onChange(n);
         }}
@@ -83,14 +90,18 @@ function LeaveButton({ onLeave }: { onLeave: () => void }) {
   const [asking, setAsking] = useState(false);
   return (
     <>
-      <TextButton
+      {/* A disc as tall as Save beside it, red like the dialog's Leave. */}
+      <IconButton
+        icon="delete"
         label="Leave challenge"
         color={colors.warn}
+        fill={colors.line}
+        diameter={60}
         onPress={() => setAsking(true)}
-        style={{ alignSelf: 'flex-start', marginLeft: -12 }}
       />
       {asking && (
-        <Host matchContents>
+        // Out of the footer row's flow: the dialog draws in its own window, but its host would take a slot.
+        <Host matchContents style={{ position: 'absolute' }}>
           <AlertDialog
             onDismissRequest={() => setAsking(false)}
             colors={{
@@ -162,7 +173,18 @@ export function Builder({
   const from = (history && runOn(draft, history.startedOn, history.done, today())?.from) ?? today();
 
   return (
-    <Screen footer={<PrimaryButton label={action} onPress={() => onSave(toChallenge(draft))} />}>
+    <Screen
+      footer={
+        <View className="flex-row gap-3">
+          {onLeave && <LeaveButton onLeave={onLeave} />}
+          <PrimaryButton
+            label={action}
+            onPress={() => onSave(toChallenge(draft))}
+            className="h-15 flex-1"
+          />
+        </View>
+      }
+    >
       <View className="gap-3">
         <View className="gap-1">
           <View className="flex-row items-center gap-3">
@@ -215,7 +237,7 @@ export function Builder({
         {/* Clipped so the numeral sits on its baseline, like the challenge page. */}
         <View
           accessible
-          accessibilityLabel={`${goal.type === 'max' ? 'As many as you can' : `${goal.n} ${hold ? 'seconds' : 'reps'}`} every day`}
+          accessibilityLabel={`${goal.type === 'max' ? (hold ? 'As long as you can' : 'As many as you can') : `${goal.n} ${hold ? 'seconds' : 'reps'}`} every day`}
           className="flex-row items-end justify-between overflow-hidden"
         >
           <Text className="-ml-1.5 font-sans text-9xl font-extralight leading-none tracking-tighter text-chalk">
@@ -226,9 +248,11 @@ export function Builder({
             <Text className={label}>EVERY DAY</Text>
           </View>
         </View>
-        {goal.type !== 'max' && (
-          <AmountSlider goal={goal} onChange={(n) => setDraft((d) => withAmount(d, n))} />
-        )}
+        <AmountSlider
+          unit={unitOf(draft.exercise)}
+          goal={goal}
+          onChange={(n) => setDraft((d) => withAmount(d, n))}
+        />
       </View>
 
       <View className="gap-3">
@@ -287,8 +311,6 @@ export function Builder({
           />
         </Host>
       </View>
-
-      {onLeave && <LeaveButton onLeave={onLeave} />}
     </Screen>
   );
 }
