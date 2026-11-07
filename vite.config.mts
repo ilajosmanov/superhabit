@@ -45,7 +45,7 @@ const layer = (
         patterns: [
           { regex: '^\\.\\./', message: "Import across folders with '@/'." },
           ...(banned.length
-            ? [{ group: banned, message: 'Imports go down the layers; see vite.config.ts.' }]
+            ? [{ group: banned, message: 'Imports go down the layers; see vite.config.mts.' }]
             : []),
         ],
       },

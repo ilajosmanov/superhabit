@@ -1,7 +1,7 @@
 # Coding standards
 
 How Superhabit is laid out and why. `AGENTS.md` holds the tooling and React rules; this file holds the
-architecture. Lint (`vite.config.ts`) enforces most of it, so `vp check` fails when the code drifts.
+architecture. Lint (`vite.config.mts`) enforces most of it, so `vp check` fails when the code drifts.
 
 ## Layers
 
@@ -22,7 +22,7 @@ src/exercises/      pure rep logic: angles, counters, the exercise registry
   ↓
 src/components/     UI shared by every screen (glyph, screen shell)
 src/theme.ts        colour tokens for APIs that take values; classes come from src/global.css
-modules/pose/       the native pose detector (an Expo module)
+modules/pose/       the native pose detector (a Nitro module)
 ```
 
 - **A layer never imports one above it.** `workout/` knows nothing about the catalog, `exercises/` knows
