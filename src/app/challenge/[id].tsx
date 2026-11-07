@@ -27,8 +27,9 @@ export default function ChallengeDetailScreen() {
   const { challenge, saved, run } = found;
   const { total, countsReps, tracking, phone, first, sets } = detail(challenge);
   const finite = Number.isFinite(total);
+  const done = !!run && doneToday(run);
   const status = run
-    ? `DAY ${run.day} OF ${run.days}${doneToday(run) ? ' · DONE TODAY' : ''}`
+    ? `DAY ${run.day} OF ${run.days}${done ? ' · DONE TODAY' : ''}`
     : `${challenge.days} DAYS · DAY 1 IS TODAY`;
 
   return (
@@ -79,7 +80,7 @@ export default function ChallengeDetailScreen() {
           </Text>
         </View>
 
-        <SetBars sets={sets} finite={finite} countsReps={countsReps} />
+        <SetBars sets={sets} finite={finite} countsReps={countsReps} done={done} />
 
         <Text className="font-sans text-sm text-muted">{tracking}</Text>
       </View>
