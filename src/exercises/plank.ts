@@ -1,6 +1,6 @@
 import { SIDE } from 'superhabit-pose/joints';
 
-import { angle, bestSide, dot, length, scale, sub, type Joints, type Pose } from './geometry';
+import { angle, bestSide, dot, length, reject, sub, type Joints, type Pose } from './geometry';
 import { fmtMs, SETUP, type Exercise } from './exercise';
 import { hold, type HoldState } from './hold';
 
@@ -38,7 +38,7 @@ export function measurePlank(pose: Pose): PlankSample | null {
   const support = sub(world[w], world[a]);
   const shoulder = sub(world[s], world[a]);
   // Remove the support-line component: this stays valid when the camera rotates, for either plank.
-  const up = sub(shoulder, scale(support, dot(shoulder, support) / length(support) ** 2));
+  const up = reject(shoulder, support);
   const hipHeight = dot(sub(world[h], world[a]), up);
   const shape = {
     reach: angle(world[h], world[s], world[w]),

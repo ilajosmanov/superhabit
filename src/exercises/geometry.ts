@@ -26,6 +26,9 @@ export const dot = (a: Vec, b: Vec) => a.x * b.x + a.y * b.y + a.z * b.z;
 export const length = (v: Vec) => Math.hypot(v.x, v.y, v.z);
 export const distance = (a: Vec, b: Vec) => length(sub(a, b));
 export const mid = (a: Vec, b: Vec) => scale(add(a, b), 1 / 2);
+/** `v` with its component along `along` removed; NaN for a zero `along`. */
+export const reject = (v: Vec, along: Vec) =>
+  sub(v, scale(along, dot(v, along) / length(along) ** 2));
 export const degrees = (radians: number) => (radians * STRAIGHT) / Math.PI;
 
 /** Angle between two vectors, 0..180 degrees; NaN for a zero vector. */

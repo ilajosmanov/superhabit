@@ -1,17 +1,35 @@
 import { assert, describe, expect, it } from 'vite-plus/test';
-import { Joint } from 'superhabit-pose/joints';
+import { Joint, SIDE } from 'superhabit-pose/joints';
 
 import { body } from './__fixtures__/body';
-import { falseReps, scoreReps, tenPercent, traceFiles } from './__fixtures__/replay';
+import {
+  falseReps,
+  loadTrace,
+  replay,
+  scoreReps,
+  tenPercent,
+  traceFiles,
+} from './__fixtures__/replay';
 import type { Pose } from './geometry';
 import { measureSitup, situp } from './situp';
 
 const FRAME = 66;
 // Bent thighs and shins from the body fixture; align shoulder and hip laterally for planar angles.
-const pose = (hip = 60, knee = 90): Pose => {
+// Hands behind the head (`hands` up), or on the floor along the hip–ankle line.
+const pose = (hip = 60, knee = 90, hands: 'up' | 'floor' = 'up'): Pose => {
   const result = body({ thigh: 60, shin: 120 - knee, lean: 120 - hip, side: true });
-  result.worldLandmarks[Joint.LEFT_SHOULDER].z = result.worldLandmarks[Joint.LEFT_HIP].z;
-  result.worldLandmarks[Joint.RIGHT_SHOULDER].z = result.worldLandmarks[Joint.RIGHT_HIP].z;
+  const world = result.worldLandmarks;
+  for (const { shoulder, hip: h, ankle, wrist } of [SIDE.left, SIDE.right]) {
+    world[shoulder].z = world[h].z;
+    world[wrist] =
+      hands === 'up'
+        ? { ...world[shoulder], y: world[shoulder].y - 0.1 }
+        : {
+            ...world[h],
+            x: (world[h].x + world[ankle].x) / 2,
+            y: (world[h].y + world[ankle].y) / 2,
+          };
+  }
   return result;
 };
 const play = (spans: [Pose | null, from: number, to?: number][], start = situp.initial) =>
@@ -30,6 +48,19 @@ describe('measureSitup', () => {
     expect(up.joints).toEqual([Joint.LEFT_SHOULDER, Joint.LEFT_HIP, Joint.LEFT_KNEE]);
     expect(measureSitup(pose(130))?.hip).toBeCloseTo(130);
     expect(measureSitup(pose(60, 170))?.knee).toBeCloseTo(170);
+  });
+
+  it('reads the lower seen wrist above the hip–ankle line, null when both are unseen', () => {
+    expect(measureSitup(pose())?.hand).toBeGreaterThan(0.4);
+    expect(measureSitup(pose(100, 90, 'floor'))?.hand).toBeCloseTo(0);
+    const planted = pose();
+    planted.worldLandmarks[Joint.RIGHT_WRIST] = pose(100, 90, 'floor').worldLandmarks[
+      Joint.RIGHT_WRIST
+    ];
+    expect(measureSitup(planted)?.hand).toBeCloseTo(0);
+    const unseen = pose();
+    for (const w of [Joint.LEFT_WRIST, Joint.RIGHT_WRIST]) unseen.landmarks[w].visibility = 0.1;
+    expect(measureSitup(unseen)?.hand).toBeNull();
   });
 
   it('measures the better-seen complete side, including ankle visibility', () => {
@@ -108,6 +139,52 @@ describe('situp', () => {
     });
     expect(result.lastRep?.depth).toBeCloseTo(130, 0);
   });
+
+  it('refuses a rep pushed up on the hands, keeping the lowest travelling wrist', () => {
+    const result = play([
+      [pose(), 0, 1500],
+      [pose(100, 90, 'floor'), 1566, 2000],
+      [pose(130), 2066, 3000],
+      [pose(100), 3066, 3500],
+      [pose(), 3566, 6000],
+    ]);
+    expect(result).toMatchObject({
+      reps: 0,
+      noReps: 1,
+      lastRep: { counted: false, cues: ['Keep your hands off the floor'] },
+    });
+    expect(result.lastRep?.hand).toBeCloseTo(0, 1);
+  });
+
+  it('blames framing, not depth, when the body left the frame at the bottom', () => {
+    const result = play([
+      [pose(), 0, 1500],
+      [pose(110), 1566, 2000],
+      [null, 2066, 2600],
+      [pose(110), 2666, 3000],
+      [pose(), 3566, 6000],
+    ]);
+    expect(result).toMatchObject({
+      reps: 0,
+      noReps: 1,
+      lastRep: { counted: false, cues: ['Keep your whole body in frame'] },
+    });
+  });
+
+  // Phone on the floor, side-on, whole body in frame. Clean reps, elbow-propped cheats, a shallow
+  // curl and a straight-legged one; later sets add hands in the air, hands sliding up the thighs
+  // and arms crossed on the chest with a hand pushing off the floor.
+  const device = [
+    ['situp-1794015730413', { reps: 4, noReps: 4 }],
+    ['situp-1794017086387', { reps: 9, noReps: 3 }],
+    ['situp-1794017907655', { reps: 6, noReps: 2 }],
+  ] as const;
+  for (const [name, counts] of device) {
+    const [path] = traceFiles('device').filter((file) => file.includes(name));
+    it.skipIf(!path)(`device trace ${name}: ${counts.reps} reps, ${counts.noReps} refused`, () => {
+      expect(replay(situp, loadTrace(path))).toMatchObject(counts);
+    });
+  }
 
   it('does not count lying down or a partial curl before the first seated start', () => {
     const waiting = play([

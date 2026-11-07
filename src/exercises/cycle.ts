@@ -18,10 +18,17 @@ export type CycleConfig<M, A, R extends Rep> = {
   report(
     a: A,
     m: M,
-    r: { counted: boolean; depth: number; downMs: number | null; upMs: number | null },
+    r: {
+      counted: boolean;
+      depth: number;
+      downMs: number | null;
+      upMs: number | null;
+      /** Frames of the attempt without a measurement: the body left the frame. */
+      unseen: number;
+    },
   ): R;
 };
-type Timing = { startAt?: number; bottomAt?: number };
+type Timing = { startAt?: number; bottomAt?: number; unseen?: number };
 export type CycleState<A, R extends Rep> = Progress & {
   lastRep: R | null;
   min: number; // extreme since the last top in normalised space; hi = none
@@ -100,7 +107,10 @@ export function cycle<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<Cyc
   function step(s: State, sample: M | null, nowMs: number): State {
     if (s.lastSeenAt !== undefined && nowMs <= s.lastSeenAt) return s;
     s = expire(s, nowMs);
-    if (sample === null) return s;
+    if (sample === null)
+      return s.phase === 'waiting'
+        ? s
+        : { ...s, attempt: { ...s.attempt, unseen: (s.attempt.unseen ?? 0) + 1 } };
     const signal = c.signal(sample);
     // A gated signal can still carry form (e.g. torso lean as a lunge stride closes).
     // Keep the signal's tracking clock and filter untouched; unseen time still expires the cycle.
@@ -113,6 +123,7 @@ export function cycle<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<Cyc
               ...c.add(s.attempt, sample),
               startAt: s.attempt.startAt,
               bottomAt: s.attempt.bottomAt,
+              unseen: s.attempt.unseen,
             },
           };
     const held = hold(s, signal, nowMs);
@@ -128,6 +139,7 @@ export function cycle<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<Cyc
       ...c.add(s.attempt, sample),
       startAt: s.attempt.startAt,
       bottomAt: low < s.min ? nowMs : s.attempt.bottomAt,
+      unseen: s.attempt.unseen,
     };
     const min = Math.min(s.min, low);
     if (high >= up) {
@@ -143,6 +155,7 @@ export function cycle<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<Cyc
             counted,
             depth: mirror(min),
             ...timing(attempt, nowMs),
+            unseen: attempt.unseen ?? 0,
           }),
         };
       }
