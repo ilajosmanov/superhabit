@@ -112,7 +112,7 @@ const entries: [string, Challenge][] = [
       session: [{ steps: [{ exercise: 'pushup', goal: reps(3) }], rounds: 1 }],
     },
   ],
-  // Experimental exercises: open-ended, so a miscount never blocks the day.
+  // Open-ended: a miscount never blocks the day.
   [
     'jumping-jack-max',
     {
