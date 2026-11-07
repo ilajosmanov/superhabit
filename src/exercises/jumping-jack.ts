@@ -19,8 +19,9 @@ const unit = (value: number) => Math.max(0, Math.min(1, value));
 const WIDE = 2;
 const JACK_CLOSED = 0.25;
 const JACK_OPEN = 0.7;
-// A later signal crossing gives both limbs time to close before clean checks the raw sample.
-const RETURN = 0.1;
+// The return line sits under JACK_CLOSED so both limbs have closed before clean checks the raw sample;
+// 0.1 on the larger limb was stricter than pose noise allows (3/11 traces), 0.2 keeps the 6/11.
+const RETURN = 0.2;
 const SHALLOW = 0.4;
 // Moving elbows and overlapping ankles can be briefly uncertain; still require every joint
 // inside the image, and reject visibility below 0.3 rather than using extrapolated limbs.
@@ -44,7 +45,8 @@ export function measureJumpingJack(pose: Pose): JumpingJackSample | null {
   if (![...abduction, ratio].every(Number.isFinite)) return null;
   const arms = (abduction[0] + abduction[1]) / 2 / STRAIGHT;
   const spread = unit((ratio - 1) / (WIDE - 1));
-  return { arms, spread, signal: Math.min(arms, spread), joints: ARMS[0] };
+  // The larger limb: a rep ends only once both have closed, whichever lands last.
+  return { arms, spread, signal: Math.max(arms, spread), joints: ARMS[0] };
 }
 
 type Attempt = { arms: number; spread: number };
@@ -68,7 +70,9 @@ const jackCycle = cycle<JumpingJackSample, Attempt, JumpingJackReport>({
   down: JACK_OPEN,
   shallow: SHALLOW,
   start: closed,
-  // min(arms, spread) returns low when only one closes; both must close to finish a rep.
+  // The signal peaks when either limb opens; the turn and an attempt need both.
+  turn: (m) => Math.min(m.arms, m.spread) >= JACK_OPEN,
+  tried: (a) => Math.min(a.arms, a.spread) >= SHALLOW,
   clean: (_a, m) => closed(m),
   fresh: { arms: 0, spread: 0 },
   add: (a, m) => ({ arms: Math.max(a.arms, m.arms), spread: Math.max(a.spread, m.spread) }),

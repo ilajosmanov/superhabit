@@ -5,7 +5,8 @@ import { PhoneSetup } from './phone-setup';
 import { colors } from '@/theme';
 import type { SessionView } from '@/workout/session-view';
 
-import { Clock, CloseButton, Frame, GLASS, PrimaryButton } from './controls';
+import { Clock, CloseButton, Frame, GLASS } from './controls';
+import { PrimaryButton } from '@/components/primary-button';
 import { RepCount } from './rep-count';
 
 /** Over the live camera: the finished set or rest timer, then the next exercise and any phone setup. */

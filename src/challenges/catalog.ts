@@ -6,7 +6,7 @@ import { goalLabel, type Challenge } from '@/workout/plan';
 /** One line on a challenge card: the step's goal in its own unit ("×25", "60 s", "MAX"). */
 type CatalogStep = { glyph: string; name: string; goal: string };
 export type CatalogEntry = {
-  /** The SUGGESTED route id. */
+  /** The route id: a suggested challenge or one you made. */
   id: string;
   name: string;
   days: number;
@@ -42,5 +42,3 @@ export function toEntry(id: string, { name, days, session }: Challenge): Catalog
 export const CATALOG: readonly CatalogEntry[] = [...SUGGESTED].map(([id, challenge]) =>
   toEntry(id, challenge),
 );
-
-export const catalogEntry = (id: string) => CATALOG.find((entry) => entry.id === id);

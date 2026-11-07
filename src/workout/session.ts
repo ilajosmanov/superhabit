@@ -18,7 +18,14 @@ import {
   type Progress,
 } from '@/exercises/registry';
 
-import { bestRep, clipTime, type Attempt, type BestRep, type StepResult } from './results';
+import {
+  bestRep,
+  clipTime,
+  metEveryGoal,
+  type Attempt,
+  type BestRep,
+  type StepResult,
+} from './results';
 import { camcorder, type VideoOutput } from './camcorder';
 import { done, expand, type Challenge, type FlatSteps } from './plan';
 
@@ -57,7 +64,14 @@ type Events =
 
 type OnPose = (result: PoseDetection, live: Live) => void;
 /** `video`: the camera's video output (also passed to PoseCamera); without it nothing is filmed. */
-type Input = { challenge: Challenge; onPose?: OnPose; video?: VideoOutput; record?: boolean };
+type Input = {
+  challenge: Challenge;
+  onPose?: OnPose;
+  /** Once, on reaching Done: whether every set met its goal. */
+  onFinished?: (metEveryGoal: boolean) => void;
+  video?: VideoOutput;
+  record?: boolean;
+};
 
 /** One counter per exercise. `step` indexes expanded steps; switching still points to the finished step. */
 type Context = Counters &
@@ -66,6 +80,7 @@ type Context = Counters &
     /** A detector frame was handled this set; until then nothing is known about framing. */
     framed: boolean;
     onPose?: OnPose;
+    onFinished?: (metEveryGoal: boolean) => void;
     video?: VideoOutput;
     record: boolean;
     /** The camera dropped the video output: nothing more is filmed this session. */
@@ -76,7 +91,6 @@ type Context = Counters &
     stepStartedAt: number | null;
     countdown: number;
     /** Ran through the last step, even with zero reps via next; `end` leaves it false. */
-    // shortcut: achievement (every goal met) is not derived yet; compute it from results when done-days persist.
     reachedEnd: boolean;
     elapsedS: number;
     muted: boolean;
@@ -374,6 +388,7 @@ export const workoutSession = session.createMachine({
     ...FRESH_SET,
     landmarker: null,
     onPose: input.onPose,
+    onFinished: input.onFinished,
     video: input.video,
     videoLost: false,
     record: input.record ?? false,
@@ -620,6 +635,7 @@ export const workoutSession = session.createMachine({
         // shortcut: nothing consumes final yet; the save mutation will.
         // Without a video output the camcorder never films, so nothing is left to wait for.
         assign({ final: ({ context }) => context.video === undefined }),
+        ({ context }) => context.onFinished?.(metEveryGoal(context.steps, context.results)),
       ],
       // Only now is every file final (failed ones unclipped), so the best is safe to play and the rest can go.
       on: {

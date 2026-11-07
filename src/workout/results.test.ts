@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vite-plus/test';
 
 import type { ExerciseId } from '@/exercises/registry';
 
-import { bestRep, clipTime } from './results';
+import { bestRep, clipTime, metEveryGoal } from './results';
 import type { Attempt, StepResult } from './results';
-import { reps } from './plan';
+import { expand, MAX, reps, seconds } from './plan';
 
 // Gauges come from the registry: squat down 100°, push-up down 90°, glute bridge down 160° (rising).
 const set = (exercise: ExerciseId, attempts: Omit<Attempt, 'cue'>[]): StepResult => ({
@@ -96,5 +96,35 @@ describe('bestRep', () => {
   it('is null when nothing was filmed', () => {
     expect(bestRep([set('squat', [{ counted: true, depth: 80 }])])).toBeNull();
     expect(bestRep([])).toBeNull();
+  });
+});
+
+describe('metEveryGoal', () => {
+  const steps = expand([
+    {
+      steps: [
+        { exercise: 'squat', goal: reps(10) },
+        { exercise: 'rest', goal: seconds(30) },
+        { exercise: 'plank', goal: seconds(30) },
+        { exercise: 'plank', goal: MAX },
+      ],
+      rounds: 1,
+    },
+  ]);
+  const squats = (n: number) => ({ ...set('squat', []), reps: n });
+  const plank = (heldMs: number) => ({ ...set('plank', []), goal: seconds(30), heldMs });
+  const longest = (heldMs: number) => ({ ...set('plank', []), goal: MAX, heldMs });
+
+  it('needs every exercise set at its goal, rests aside', () => {
+    expect(metEveryGoal(steps, [squats(10), plank(30_000), longest(1500)])).toBe(true);
+  });
+
+  it.each([
+    ['a set short of its reps', [squats(9), plank(30_000), longest(1500)]],
+    ['a hold short of its seconds', [squats(10), plank(29_999), longest(1500)]],
+    ['an open-ended set with nothing done', [squats(10), plank(30_000), longest(0)]],
+    ['a set never reached', [squats(10), plank(30_000)]],
+  ])('fails with %s', (_, results) => {
+    expect(metEveryGoal(steps, results)).toBe(false);
   });
 });

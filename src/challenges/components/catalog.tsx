@@ -46,13 +46,23 @@ function ChallengeCard({ entry }: { entry: CatalogEntry }) {
   );
 }
 
-// shortcut: no "Create a challenge" link beside SUGGESTED yet; add it with the create screen.
-/** Our challenges, joined as-is, one row each. */
+const PLUS = 'M12 5v14M5 12h14';
+
+/** Our challenges, joined as-is, one row each, and the way to make your own. */
 export function Catalog({ entries }: { entries: readonly CatalogEntry[] }) {
   return (
     <View className="gap-1">
-      <View className="h-11 justify-center">
+      <View className="h-11 flex-row items-center justify-between">
         <Text className="font-mono text-xs tracking-widest text-muted">SUGGESTED</Text>
+        <Link href="/create" asChild>
+          <Pressable
+            accessibilityRole="link"
+            className="-mr-1 h-11 flex-row items-center gap-1.5 px-1"
+          >
+            <Glyph d={PLUS} size={16} />
+            <Text className="font-sans text-base text-chalk">Create a challenge</Text>
+          </Pressable>
+        </Link>
       </View>
       <View className="gap-2.5">
         {entries.map((entry) => (

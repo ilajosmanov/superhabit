@@ -68,6 +68,23 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     actor.stop();
   });
 
+  it('reports once at Done whether every set met its goal', () => {
+    const onFinished = vi.fn();
+    const full = createActor(workoutSession, { input: { challenge, onFinished } }).start();
+    squat();
+    full.send({ type: 'next' });
+    pushup();
+    expect(onFinished.mock.calls).toEqual([[true]]);
+    full.stop();
+
+    onFinished.mockClear();
+    const cut = createActor(workoutSession, { input: { challenge, onFinished } }).start();
+    squat();
+    cut.send({ type: 'end' });
+    expect(onFinished.mock.calls).toEqual([[false]]);
+    cut.stop();
+  });
+
   it('announces a seconds goal and a MAX goal when the preceding step ends', () => {
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, {

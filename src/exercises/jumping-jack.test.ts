@@ -48,28 +48,27 @@ const play = (poses: (Pose | null)[], start = jumpingJack.initial) =>
 
 describe('measureJumpingJack', () => {
   it('reads closed, horizontal arms and overhead wide positions on a body fixture', () => {
-    expect(measureJumpingJack(pose())).toMatchObject({ arms: 0, spread: 0, signal: 0 });
+    expect(measureJumpingJack(pose())).toMatchObject({ arms: 0, spread: 0 });
     expect(measureJumpingJack(pose(90, 0.3))).toMatchObject({
       arms: expect.closeTo(0.5),
       spread: 1,
-      signal: expect.closeTo(0.5),
       joints: [Joint.LEFT_HIP, Joint.LEFT_SHOULDER, Joint.LEFT_ELBOW],
     });
-    expect(measureJumpingJack(pose(180, 0.3))).toMatchObject({ arms: 1, spread: 1, signal: 1 });
+    expect(measureJumpingJack(pose(180, 0.3))).toMatchObject({ arms: 1, spread: 1 });
   });
 
-  it('requires both arm lift and foot spread, and normalises the stance by hip width', () => {
-    expect(measureJumpingJack(pose(180))?.signal).toBe(0);
-    expect(measureJumpingJack(pose(0, 0.3))?.signal).toBe(0);
+  it('follows whichever limb is more open, and normalises the stance by hip width', () => {
+    expect(measureJumpingJack(pose(180))?.signal).toBe(1);
+    expect(measureJumpingJack(pose(0, 0.3))?.signal).toBe(1);
     expect(measureJumpingJack(pose(180, 0.25))?.spread).toBeCloseTo(1);
-    expect(measureJumpingJack(pose(180, 0.15))?.signal).toBeCloseTo(0.5);
+    expect(measureJumpingJack(pose(0, 0.15))?.signal).toBeCloseTo(0.5);
     const scaled = pose(180, 0.15);
     for (const point of scaled.worldLandmarks) {
       point.x *= 2;
       point.y *= 2;
       point.z *= 2;
     }
-    expect(measureJumpingJack(scaled)?.signal).toBeCloseTo(0.5);
+    expect(measureJumpingJack(scaled)?.spread).toBeCloseTo(0.5);
   });
 
   it.each([Joint.LEFT_ELBOW, Joint.RIGHT_ELBOW, Joint.LEFT_ANKLE, Joint.RIGHT_ANKLE])(
@@ -114,22 +113,18 @@ describe('jumpingJack', () => {
   it.each([
     { name: 'feet stay wide while the arms swing', arms: 0, width: 0.3 },
     { name: 'arms stay overhead while the feet move', arms: 180, width: 0.1 },
-  ])('rejects repeated partial returns after arming when $name', ({ arms, width }) => {
+  ])('keeps the rep open through partial returns when $name', ({ arms, width }) => {
     const armed = play([pose()]);
     expect(armed.phase).toBe('up');
     const partial = play(
-      [pose(arms, width), pose(180, 0.3), pose(arms, width), pose(180, 0.3), pose(arms, width)],
+      [pose(180, 0.3), pose(arms, width), pose(180, 0.3), pose(arms, width)],
       armed,
     );
-    expect(partial).toMatchObject({
-      reps: 0,
-      noReps: 2,
-      lastRep: { counted: false, cues: ['Bring feet together and arms down'] },
-    });
-    // Returning fully closed lets the next complete jumping jack count normally.
-    expect(play([pose(), pose(180, 0.3), pose()], partial)).toMatchObject({
+    expect(partial).toMatchObject({ reps: 0, noReps: 0, phase: 'down' });
+    // Closing fully finishes it as one rep.
+    expect(play([pose()], partial)).toMatchObject({
       reps: 1,
-      noReps: 2,
+      noReps: 0,
       lastRep: { counted: true, cues: [] },
     });
   });

@@ -88,7 +88,7 @@ export default defineConfig({
     overrides: [
       // Layers, each importing only those below it: app (routes) → friends, challenges (the catalog; its views
       // in components/) → workout (session; its views in components/ and pose/) → exercises (pure rep
-      // logic) → components/ (shared UI), theme.
+      // logic) → components/ (shared UI), theme, storage/ (files kept on the phone; no UI, no feature rules).
       // An override replaces the rule's options, so each one repeats what still applies to its files.
       layer(['src/app/**'], [], [NO_EFFECTS]),
       layer(['src/friends/**'], ['@/app/**'], [NO_EFFECTS]),
@@ -128,6 +128,7 @@ export default defineConfig({
           '@/workout/**',
           '@/components/**',
           '@/theme',
+          '@/storage/**',
         ],
         [
           {
@@ -139,7 +140,28 @@ export default defineConfig({
       ),
       layer(
         ['src/components/**', 'src/theme.ts'],
-        ['@/app/**', '@/friends/**', '@/challenges/**', '@/workout/**', '@/exercises/**'],
+        [
+          '@/app/**',
+          '@/friends/**',
+          '@/challenges/**',
+          '@/workout/**',
+          '@/exercises/**',
+          '@/storage/**',
+        ],
+        [NO_EFFECTS],
+      ),
+      layer(
+        ['src/storage/**'],
+        [
+          'react-native',
+          '@/app/**',
+          '@/friends/**',
+          '@/challenges/**',
+          '@/workout/**',
+          '@/exercises/**',
+          '@/components/**',
+          '@/theme',
+        ],
         [NO_EFFECTS],
       ),
     ],
@@ -150,6 +172,8 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // A zone east of UTC with summer time, so local-day and DST bugs fail here as they would on a phone.
+    env: { TZ: 'Europe/Tallinn' },
     include: ['src/**/*.test.ts'],
     clearMocks: true,
     restoreMocks: true,

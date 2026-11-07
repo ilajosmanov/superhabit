@@ -92,13 +92,10 @@ export function defineChallenge(c: Challenge): Challenge {
   return c;
 }
 
-export function done(goal: Goal, p: Progress): boolean {
-  switch (goal.type) {
-    case 'reps':
-      return p.reps >= goal.n;
-    case 'seconds':
-      return p.heldMs >= goal.n * 1000;
-    case 'max':
-      return p.broken;
-  }
-}
+/** A rep or seconds goal reached; an open-ended one never is. */
+export const reached = (goal: Goal, { reps, heldMs }: Pick<Progress, 'reps' | 'heldMs'>) =>
+  goal.type === 'reps' ? reps >= goal.n : goal.type === 'seconds' && heldMs >= goal.n * 1000;
+
+/** A live set is over: its goal reached, or an open-ended one broken off. */
+export const done = (goal: Goal, p: Progress) =>
+  goal.type === 'max' ? p.broken : reached(goal, p);

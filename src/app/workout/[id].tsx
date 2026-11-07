@@ -2,7 +2,7 @@ import { shallowEqual, useActorRef, useSelector } from '@xstate/react';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useLocalSearchParams, usePreventRemove, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Linking, Platform, Text, useWindowDimensions, View } from 'react-native';
 import {
   CommonResolutions,
@@ -13,12 +13,14 @@ import {
 
 import { usePoseOverlay } from '@/workout/pose/overlay';
 import { PoseCamera } from '@/workout/pose/pose-camera';
-import { CHALLENGES } from '@/challenges/challenges';
+import { saveFailed } from '@/challenges/components/save-failed';
+import { today, type Day } from '@/challenges/days';
+import { markDone, useChallenge } from '@/challenges/mine';
 import type { Challenge } from '@/workout/plan';
 import { BetweenSets } from '@/workout/components/between-sets';
 import { ChallengeDone } from '@/workout/components/challenge-done';
 import { LiveView } from '@/workout/components/live-view';
-import { PrimaryButton } from '@/workout/components/controls';
+import { PrimaryButton } from '@/components/primary-button';
 import { workoutSession } from '@/workout/session';
 import { sessionView } from '@/workout/session-view';
 
@@ -34,8 +36,8 @@ function Centered({ text }: { text: string }) {
 export default function ChallengeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
-  const challenge = CHALLENGES.get(id);
-  if (!challenge) return <Centered text="No such challenge." />;
+  const found = useChallenge(id);
+  if (!found) return <Centered text="No such challenge." />;
   if (Platform.OS !== 'android') return <Centered text="Pose tracking is available on Android." />;
   // Before the session: its clock and orientation lock would run during the prompt.
   if (!hasPermission) {
@@ -53,18 +55,35 @@ export default function ChallengeScreen() {
     );
   }
   // A new id is a new session actor.
-  return <AndroidSession key={id} challenge={challenge} />;
+  return (
+    <AndroidSession
+      key={id}
+      challenge={found.challenge}
+      // A day counts only when every set met its goal; a one-go set is never stored.
+      onFinished={(met, day) => {
+        if (met && found.saved && !markDone(id, day)) saveFailed();
+      }}
+    />
+  );
 }
 
-function AndroidSession({ challenge }: { challenge: Challenge }) {
+function AndroidSession({
+  challenge,
+  onFinished,
+}: {
+  challenge: Challenge;
+  /** `day` is the one the session started on: a set finished at 00:05 still belongs to yesterday. */
+  onFinished: (metEveryGoal: boolean, day: Day) => void;
+}) {
   useKeepAwake();
+  const [day] = useState(today);
   const router = useRouter();
   const camera = useRef<CameraRef>(null);
   const { joints, highlight, angle, lowest, onPose } = usePoseOverlay(camera);
   // Video only: no audio, so no microphone permission.
   const video = useVideoOutput({ targetResolution: CommonResolutions.HD_16_9, enableAudio: false });
   const session = useActorRef(workoutSession, {
-    input: { challenge, video, record: __DEV__, onPose },
+    input: { challenge, video, record: __DEV__, onPose, onFinished: (met) => onFinished(met, day) },
   });
   const landmarker = useSelector(session, (s) => s.context.landmarker);
   // Only discrete counter changes re-render; per-frame data stays out of React state.
@@ -72,12 +91,13 @@ function AndroidSession({ challenge }: { challenge: Challenge }) {
   // The orientation lock lands asynchronously; lay out from the real window.
   const { width, height } = useWindowDimensions();
   const landscape = width > height;
-  // System back pauses counting or countdown, then ends (to Done, results kept).
-  usePreventRemove(view.stage !== 'finished', () =>
-    session.send({
-      type: view.stage === 'counting' || view.stage === 'countdown' ? 'pause' : 'end',
-    }),
-  );
+  // System back pauses counting or countdown; a second back from the pause ends (to Done, results
+  // kept). Between sets it does nothing: a stray edge swipe while moving the phone must not end the
+  // day, and the screen's own close button ends it on purpose.
+  usePreventRemove(view.stage !== 'finished', () => {
+    if (view.stage === 'counting' || view.stage === 'countdown') session.send({ type: 'pause' });
+    else if (view.stage === 'paused') session.send({ type: 'end' });
+  });
 
   const send =
     (

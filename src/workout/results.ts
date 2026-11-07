@@ -1,5 +1,5 @@
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
-import type { Goal } from './plan';
+import { reached, type FlatSteps, type Goal } from './plan';
 
 /** Where a filmed rep sits: its file and the rep's bottom on that file's timeline. */
 // shortcut: clip URIs live in Paths.cache/reps, which the camcorder prunes on every start; persisting a result must move its best clip to Paths.document or drop clips.
@@ -57,4 +57,18 @@ export function bestRep(sets: readonly StepResult[]): BestRep | null {
     }
   }
   return best;
+}
+
+/**
+ * Every exercise set was done to its goal: reps or seconds reached, or at least one for an open-ended
+ * goal. A set skipped, cut short or never reached (ended early) fails it.
+ */
+export function metEveryGoal(steps: FlatSteps, results: readonly StepResult[]) {
+  const sets = steps.filter((step) => step.exercise !== 'rest');
+  return (
+    results.length === sets.length &&
+    results.every((set) =>
+      set.goal.type === 'max' ? set.reps > 0 || set.heldMs > 0 : reached(set.goal, set),
+    )
+  );
 }

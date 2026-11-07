@@ -15,7 +15,8 @@ export function Screen({
   children,
 }: {
   label?: string;
-  title: string;
+  /** Omitted when the screen draws its own heading. */
+  title?: string;
   /** One paragraph under the title. */
   intro?: string;
   /** Pinned under the scroll, above the system bar: the screen's one action. */
@@ -39,16 +40,18 @@ export function Screen({
         contentContainerClassName="gap-8 px-6 pb-8"
         contentContainerStyle={{ paddingTop: label ? 32 : 8 }}
       >
-        <View className="gap-3">
-          <Text
-            accessibilityRole="header"
-            maxFontSizeMultiplier={1.3}
-            className="font-sans text-5xl font-extralight leading-tight tracking-tighter text-chalk"
-          >
-            {title}
-          </Text>
-          {intro && <Text className="font-sans text-base leading-normal text-soft">{intro}</Text>}
-        </View>
+        {title && (
+          <View className="gap-3">
+            <Text
+              accessibilityRole="header"
+              maxFontSizeMultiplier={1.3}
+              className="font-sans text-5xl font-extralight leading-tight tracking-tighter text-chalk"
+            >
+              {title}
+            </Text>
+            {intro && <Text className="font-sans text-base leading-normal text-soft">{intro}</Text>}
+          </View>
+        )}
 
         {children}
       </ScrollView>

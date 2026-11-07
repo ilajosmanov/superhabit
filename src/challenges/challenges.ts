@@ -1,33 +1,10 @@
-import { EXERCISES, orientation, type ExerciseId } from '@/exercises/registry';
+import { EXERCISES, orientation, type ExerciseId, type Placement } from '@/exercises/registry';
 
 import { defineChallenge, expand, MAX, reps, seconds, type Challenge } from '@/workout/plan';
 
-/** Local YYYY-MM-DD; UTC arithmetic keeps calendar days independent of DST. */
-type Day = string;
-
-const DAY_MS = 86_400_000;
-const dayNumber = (day: Day) =>
-  Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10))) / DAY_MS;
-
-// shortcut: unused until joined challenges persist; needs a local today() beside Day (toISOString is UTC) and the day grid must read the done-set, not the day number.
-export function challengeDay(
-  c: Pick<Challenge, 'days' | 'restartOnMiss'>,
-  startedOn: Day,
-  done: ReadonlySet<Day>,
-  today: Day,
-): { day: number; from: Day } | null {
-  let from = dayNumber(startedOn);
-  const end = dayNumber(today);
-  if (end < from) return null;
-  for (let d = from; d < end; d += 1) {
-    // Check the run's end before a miss: a finished run must never restart.
-    if (d - from >= c.days) return null;
-    const date = new Date(d * DAY_MS).toISOString().slice(0, 10);
-    if (c.restartOnMiss && !done.has(date)) from = d + 1;
-  }
-  const day = end - from + 1;
-  return day > c.days ? null : { day, from: new Date(from * DAY_MS).toISOString().slice(0, 10) };
-}
+/** Which way the phone stands, as mono labels say it. */
+export const phoneWay = (placement: Placement) =>
+  orientation(placement) === 'landscape' ? 'SIDEWAYS' : 'UPRIGHT';
 
 export const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
@@ -101,7 +78,10 @@ const suggested: [string, Challenge][] = [
   ],
 ];
 
-/** What the surprise card draws from, in its tile order: each exercise once, as many as you can. Route id = exercise id. */
+/**
+ * The exercises we offer on their own, in tile order: what the surprise card draws from (each once, as
+ * many as you can; route id = exercise id) and what a new challenge is built on.
+ */
 export const ONE_GO: readonly ExerciseId[] = [
   'pushup',
   'squat',
@@ -178,11 +158,6 @@ export function detail(challenge: Challenge) {
   const placements = new Set(sets.map((set) => orientation(EXERCISES[set.exercise].placement)));
   // The run explains each later set's setup between sets; the first one is explained here.
   const first = EXERCISES[steps[0].exercise];
-  const phone =
-    placements.size > 1
-      ? 'ROTATES'
-      : orientation(first.placement) === 'landscape'
-        ? 'SIDEWAYS'
-        : 'UPRIGHT';
+  const phone = placements.size > 1 ? 'ROTATES' : phoneWay(first.placement);
   return { sets, total, countsReps, tracking, phone, first };
 }

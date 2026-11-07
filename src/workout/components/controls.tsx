@@ -142,29 +142,6 @@ export function Caption({ text }: { text: string }) {
   );
 }
 
-/** The amber primary button. `className` sizes it. */
-export function PrimaryButton({
-  onPress,
-  label,
-  className = 'h-14',
-}: {
-  onPress: () => void;
-  label: string;
-  className?: string;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      className={`items-center justify-center rounded-full bg-accent px-4 ${className}`}
-    >
-      <Text numberOfLines={1} className="font-sans text-lg font-medium text-ground">
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 /** A filled secondary button: chalk at 10 %, no border. `className` sizes it; a switch when `checked` is given. */
 export function SecondaryButton({
   onPress,

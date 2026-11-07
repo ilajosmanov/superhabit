@@ -20,8 +20,9 @@ src/workout/        the workout feature: plan model, session machine, results, c
   ↓
 src/exercises/      pure rep logic: angles, counters, the exercise registry
   ↓
-src/components/     UI shared by every screen (glyph, screen shell)
+src/components/     UI shared by every screen (glyph, screen shell, primary button)
 src/theme.ts        colour tokens for APIs that take values; classes come from src/global.css
+src/storage/        what is kept on the phone and how: files, safe writes, change notices; no UI
 modules/pose/       the native pose detector (a Nitro module)
 ```
 
@@ -29,6 +30,9 @@ modules/pose/       the native pose detector (a Nitro module)
   nothing about workouts, and `components/` knows nothing about any feature.
 - **`exercises/` is framework-free:** no React, React Native, Expo, Skia or XState. It takes pose data
   and returns numbers, so plain tests cover it. It may import the pose module's _types_ only.
+- **Storage knows how, a feature knows what.** `storage/` reads and writes and reports a failed write;
+  it holds no feature rules and shows nothing. A feature's model (`challenges/mine.ts`) says what is kept
+  and the rules for changing it, and its screens decide how to tell you a write failed.
 - **Workout logic (`src/workout/*.ts`) never imports its own UI** (`components/`, `pose/`). UI reads the
   session through `sessionView`, and the machine never learns how it is drawn.
 - **No `../` imports.** Within a folder use `./name`; across folders use `@/…`. That keeps the layer

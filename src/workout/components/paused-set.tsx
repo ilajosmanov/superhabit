@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 
-import { mss, PrimaryButton, SecondaryButton } from './controls';
+import { mss, SecondaryButton } from './controls';
+import { PrimaryButton } from '@/components/primary-button';
 import { setLabel, type PlatterProps } from './platter-header';
 import { RepCount } from './rep-count';
 import { RepStrip } from './rep-strip';

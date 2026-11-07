@@ -1,32 +1,65 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Text, View } from 'react-native';
+import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { CHALLENGES, detail, summary } from '@/challenges/challenges';
+import { detail, summary } from '@/challenges/challenges';
 import { HoldToStart } from '@/challenges/components/hold-to-start';
+import { saveFailed } from '@/challenges/components/save-failed';
+import { doneToday } from '@/challenges/days';
+import { draftOf } from '@/challenges/draft';
+import { join, useChallenge } from '@/challenges/mine';
 import { SetBars } from '@/challenges/components/set-bars';
+import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { PhoneSetup } from '@/workout/components/phone-setup';
 
-/** What a challenge asks for and how to set up the phone, then Start opens the camera run. */
+/**
+ * What a challenge asks for and how to set up the phone. Not running: a tap joins it from today (again,
+ * once a run is over). Running: hold to start today's set, and Edit in the toolbar.
+ */
 export default function ChallengeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const challenge = CHALLENGES.get(id);
-  if (!challenge) return <Screen title="Not found" />;
+  const found = useChallenge(id);
+  if (!found) return <Screen title="Not found" />;
 
-  const { sets, total, countsReps, tracking, phone, first } = detail(challenge);
+  const { challenge, saved, run } = found;
+  const { total, countsReps, tracking, phone, first, sets } = detail(challenge);
   const finite = Number.isFinite(total);
+  const status = run
+    ? `DAY ${run.day} OF ${run.days}${doneToday(run) ? ' · DONE TODAY' : ''}`
+    : `${challenge.days} DAYS · DAY 1 IS TODAY`;
 
   return (
     <Screen
       title={challenge.name}
       footer={
-        <HoldToStart onStart={() => router.push({ pathname: '/workout/[id]', params: { id } })} />
+        run ? (
+          <HoldToStart onStart={() => router.push({ pathname: '/workout/[id]', params: { id } })} />
+        ) : (
+          <PrimaryButton
+            label={saved ? 'Start again' : 'Join'}
+            onPress={() => join(id, challenge) || saveFailed()}
+          />
+        )
       }
     >
+      <Stack.Screen
+        options={{
+          headerRight:
+            saved && draftOf(challenge)
+              ? () => (
+                  <Link href={{ pathname: '/build', params: { id } }} asChild>
+                    <Pressable accessibilityRole="link" hitSlop={12}>
+                      <Text className="font-sans text-base text-chalk">Edit</Text>
+                    </Pressable>
+                  </Link>
+                )
+              : undefined,
+        }}
+      />
       <Text className="-mt-5 font-mono text-xs tracking-widest text-muted">
-        {sets.length} {sets.length === 1 ? 'SET' : 'SETS'} · PHONE {phone}
+        {status} · PHONE {phone}
       </Text>
 
       <View accessible accessibilityLabel={`${summary(challenge)}. ${tracking}`} className="gap-6">

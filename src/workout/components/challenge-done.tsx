@@ -7,7 +7,8 @@ import { EXERCISES } from '@/exercises/registry';
 import type { StepResult } from '@/workout/results';
 import type { SessionView } from '@/workout/session-view';
 
-import { mss, PrimaryButton } from './controls';
+import { mss } from './controls';
+import { PrimaryButton } from '@/components/primary-button';
 import { RepStrip } from './rep-strip';
 
 function SetRow({ set }: { set: StepResult }) {

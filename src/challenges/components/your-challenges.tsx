@@ -2,9 +2,10 @@ import * as Haptics from 'expo-haptics';
 import { useRef } from 'react';
 import { Platform, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
-import { JoinedCard, type Joined } from './joined-card';
+import { JoinedCard } from './joined-card';
 import { SurpriseCard } from './surprise-card';
-import { catalogEntry } from '@/challenges/catalog';
+import { toEntry } from '@/challenges/catalog';
+import type { Active } from '@/challenges/mine';
 
 const GAP = 12;
 
@@ -14,22 +15,14 @@ const tick = () =>
     ? Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Segment_Tick)
     : Haptics.selectionAsync());
 
-// shortcut: the screen passes no progress until joined challenges are stored, so JoinedCard, StepsButton,
-// /steps/[id] and catalogEntry are unreached; pass the stored list then.
 /**
  * The challenges you joined, due today first, then the surprise card, in a swipe row where the next
  * card's edge shows. Nothing joined: the surprise card alone.
  */
-export function YourChallenges({ progress }: { progress: readonly Joined[] }) {
+export function YourChallenges({ active: joined }: { active: readonly Active[] }) {
   const { width } = useWindowDimensions();
   // The card the swipe row last ticked on.
   const page = useRef(0);
-  const joined = [...progress]
-    .sort((a, b) => Number(a.doneToday) - Number(b.doneToday))
-    .flatMap((p) => {
-      const entry = catalogEntry(p.id);
-      return entry ? [{ progress: p, entry }] : [];
-    });
   // 24px of the next card shows at the right edge.
   const card = width - 48 - 24;
 
@@ -37,10 +30,10 @@ export function YourChallenges({ progress }: { progress: readonly Joined[] }) {
   return (
     <View className="gap-3">
       <View className="flex-row justify-between">
-        <Text className="font-mono text-xs tracking-widest text-muted">YOURS</Text>
+        <Text className="font-mono uppercase text-xs tracking-widest text-muted">yours</Text>
         {joined.length > 1 && (
-          <Text className="font-mono text-xs tracking-widest text-muted">
-            {joined.length} ACTIVE
+          <Text className="font-mono uppercase text-xs tracking-widest text-muted">
+            {joined.length} active
           </Text>
         )}
       </View>
@@ -60,8 +53,8 @@ export function YourChallenges({ progress }: { progress: readonly Joined[] }) {
         className="-mx-6"
         contentContainerClassName="gap-3 px-6"
       >
-        {joined.map(({ progress, entry }) => (
-          <JoinedCard key={entry.id} joined={progress} entry={entry} style={{ width: card }} />
+        {joined.map(({ id, challenge, run }) => (
+          <JoinedCard key={id} run={run} entry={toEntry(id, challenge)} style={{ width: card }} />
         ))}
         <SurpriseCard style={{ width: card }} />
       </ScrollView>

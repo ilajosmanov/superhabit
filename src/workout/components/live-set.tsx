@@ -4,7 +4,8 @@ import Svg, { Rect } from 'react-native-svg';
 import { EXERCISES, type BodyPart } from '@/exercises/registry';
 import { colors } from '@/theme';
 
-import { PrimaryButton, SecondaryButton } from './controls';
+import { SecondaryButton } from './controls';
+import { PrimaryButton } from '@/components/primary-button';
 import { depthText, type Gauge } from './depth';
 import { DepthGauge } from './depth-gauge';
 import { Header, type PlatterProps } from './platter-header';

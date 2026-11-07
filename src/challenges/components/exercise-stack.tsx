@@ -1,6 +1,7 @@
-import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { Sheet } from './sheet';
 import { Glyph } from '@/components/glyph';
 import { colors } from '@/theme';
 import type { CatalogEntry } from '@/challenges/catalog';
@@ -10,7 +11,7 @@ const INFO = 'M12 21a9 9 0 1 0 0-18a9 9 0 1 0 0 18M12 11v5M12 7.5v.5';
 const MAX_TILES = 5;
 
 /** What you do each day, in full: one line per step with its goal in its own unit, then rounds and rest. */
-export function StepLines({ entry }: { entry: CatalogEntry }) {
+function StepLines({ entry }: { entry: CatalogEntry }) {
   return (
     <View className="gap-3.5">
       <View className="gap-2.5">
@@ -30,18 +31,34 @@ export function StepLines({ entry }: { entry: CatalogEntry }) {
   );
 }
 
-/** The (i) beside a challenge's name: opens its full steps in a sheet. */
+/** The (i) beside a challenge's name: its full day in the platform sheet, like the surprise card's. */
 export function StepsButton({ entry }: { entry: CatalogEntry }) {
-  const router = useRouter();
+  const [open, setOpen] = useState(false);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`All steps of ${entry.name}`}
-      hitSlop={12}
-      onPress={() => router.push({ pathname: '/steps/[id]', params: { id: entry.id } })}
-    >
-      <Glyph d={INFO} size={18} color={colors.muted} />
-    </Pressable>
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`All steps of ${entry.name}`}
+        hitSlop={12}
+        onPress={() => setOpen(true)}
+      >
+        <Glyph d={INFO} size={18} color={colors.muted} />
+      </Pressable>
+      <Sheet open={open} onDismiss={() => setOpen(false)}>
+        <View className="gap-2">
+          <Text className="font-mono text-xs tracking-widest text-muted">
+            EVERY DAY · {entry.days} DAYS
+          </Text>
+          <Text
+            accessibilityRole="header"
+            className="font-sans text-3xl font-light tracking-tight text-chalk"
+          >
+            {entry.name}
+          </Text>
+        </View>
+        <StepLines entry={entry} />
+      </Sheet>
+    </>
   );
 }
 
