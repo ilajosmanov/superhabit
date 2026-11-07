@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { CATALOG, toEntry } from './catalog';
-import { MAX, reps, seconds } from './plan';
+import { toEntry } from './catalog';
+import { MAX, reps, seconds } from '@/workout/plan';
 
 describe('toEntry', () => {
   it('lists each exercise step once and folds rounds and rest into the note', () => {
@@ -26,7 +26,7 @@ describe('toEntry', () => {
       'Plank 30 s',
       'Squats MAX',
     ]);
-    expect(entry.note).toBe('3 ROUNDS · 30 S REST');
+    expect(entry.note).toBe('3 ROUNDS · 30S REST');
   });
 
   it('has no note for a single round without rest', () => {
@@ -39,11 +39,4 @@ describe('toEntry', () => {
       }).note,
     ).toBeUndefined();
   });
-});
-
-it('offers multi-day challenges and no one-day test', () => {
-  const ids = CATALOG.map((entry) => entry.id);
-  expect(ids).toContain('floor-circuit');
-  expect(ids).not.toContain('squat');
-  expect(ids).not.toContain('pushup');
 });

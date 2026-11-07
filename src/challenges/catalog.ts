@@ -1,7 +1,7 @@
 import { EXERCISES } from '@/exercises/registry';
 
 import { capitalise, CHALLENGES } from './challenges';
-import { goalLabel, type Challenge } from './plan';
+import { goalLabel, type Challenge } from '@/workout/plan';
 
 /** One line on a challenge card: the step's goal in its own unit ("×25", "60 s", "MAX"). */
 type CatalogStep = { glyph: string; name: string; goal: string };
@@ -23,7 +23,7 @@ export function toEntry(id: string, { name, days, session }: Challenge): Catalog
     if (block.rounds > 1) note.push(`${block.rounds} ROUNDS`);
     for (const { exercise, goal } of block.steps) {
       if (exercise === 'rest') {
-        note.push(goal.type === 'seconds' ? `${goal.n} S REST` : 'REST');
+        note.push(goal.type === 'seconds' ? `${goal.n}S REST` : 'REST');
         continue;
       }
       const { glyph, name: exerciseName } = EXERCISES[exercise];
@@ -39,9 +39,8 @@ export function toEntry(id: string, { name, days, session }: Challenge): Catalog
   };
 }
 
-// One-day tests are offered by the camera test card, not the catalog.
-export const CATALOG: readonly CatalogEntry[] = [...CHALLENGES]
-  .filter(([, challenge]) => challenge.days > 1)
-  .map(([id, challenge]) => toEntry(id, challenge));
+export const CATALOG: readonly CatalogEntry[] = [...CHALLENGES].map(([id, challenge]) =>
+  toEntry(id, challenge),
+);
 
 export const catalogEntry = (id: string) => CATALOG.find((entry) => entry.id === id);

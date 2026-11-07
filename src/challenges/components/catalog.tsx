@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { StepLines } from './exercise-stack';
 import { colors } from '@/theme';
-import type { CatalogEntry } from '@/workout/catalog';
+import type { CatalogEntry } from '@/challenges/catalog';
 
 /**
  * Outlined, never filled: a filled card means you joined it. Left, every step with its goal in its own
@@ -15,7 +15,7 @@ function ChallengeCard({ entry }: { entry: CatalogEntry }) {
   const body = (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel={`${entry.name}, ${entry.days} days: ${steps}${entry.note ? `. ${entry.note}` : ''}`}
+      accessibilityLabel={`${entry.name}, ${entry.days} ${entry.days === 1 ? 'day' : 'days'}: ${steps}${entry.note ? `. ${entry.note}` : ''}`}
       android_ripple={{ color: colors.surface }}
       className="flex-row items-end gap-4 px-5 py-4.5"
     >
@@ -27,7 +27,9 @@ function ChallengeCard({ entry }: { entry: CatalogEntry }) {
         <Text className="font-sans text-6xl font-extralight leading-none tracking-tighter text-chalk">
           {entry.days}
         </Text>
-        <Text className="font-mono text-xs tracking-widest text-muted">DAYS</Text>
+        <Text className="font-mono text-xs tracking-widest text-muted">
+          {entry.days === 1 ? 'DAY' : 'DAYS'}
+        </Text>
       </View>
     </Pressable>
   );

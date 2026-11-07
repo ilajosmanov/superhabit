@@ -86,15 +86,35 @@ export default defineConfig({
       ),
     },
     overrides: [
-      // Layers, each importing only those below it: app (routes) → workout (session; its views in
-      // components/ and pose/) → exercises (pure rep logic) → components/ (shared UI), theme.
+      // Layers, each importing only those below it: app (routes) → challenges (the catalog; its views
+      // in components/) → workout (session; its views in components/ and pose/) → exercises (pure rep
+      // logic) → components/ (shared UI), theme.
       // An override replaces the rule's options, so each one repeats what still applies to its files.
       layer(['src/app/**'], [], [NO_EFFECTS]),
-      layer(['src/workout/components/**', 'src/workout/pose/**'], ['@/app/**'], [NO_EFFECTS]),
-      layer(['src/workout/*.ts'], ['@/app/**', '@/workout/components/**', '@/workout/pose/**']),
+      layer(['src/challenges/components/**'], ['@/app/**'], [NO_EFFECTS]),
+      layer(
+        ['src/challenges/*.ts'],
+        ['@/app/**', '@/challenges/components/**', '@/workout/components/**', '@/workout/pose/**'],
+      ),
+      layer(
+        ['src/workout/components/**', 'src/workout/pose/**'],
+        ['@/app/**', '@/challenges/**'],
+        [NO_EFFECTS],
+      ),
+      layer(
+        ['src/workout/*.ts'],
+        ['@/app/**', '@/challenges/**', '@/workout/components/**', '@/workout/pose/**'],
+      ),
       layer(
         ['src/exercises/**'],
-        [...FRAMEWORKS, '@/app/**', '@/workout/**', '@/components/**', '@/theme'],
+        [
+          ...FRAMEWORKS,
+          '@/app/**',
+          '@/challenges/**',
+          '@/workout/**',
+          '@/components/**',
+          '@/theme',
+        ],
         [
           {
             name: 'superhabit-pose',
@@ -105,7 +125,7 @@ export default defineConfig({
       ),
       layer(
         ['src/components/**', 'src/theme.ts'],
-        ['@/app/**', '@/workout/**', '@/exercises/**'],
+        ['@/app/**', '@/challenges/**', '@/workout/**', '@/exercises/**'],
         [NO_EFFECTS],
       ),
     ],

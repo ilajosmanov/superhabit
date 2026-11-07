@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CLOSE, Glyph } from '@/components/glyph';
-import { colors, lit as litStyle } from '@/theme';
+import { colors } from '@/theme';
 
 const SPEAKER = 'M11 5 6 9H3v6h3l5 4V5ZM15.5 8.5a5 5 0 0 1 0 7';
 export const SPEAKER_ON = `${SPEAKER}M18.5 5.5a9 9 0 0 1 0 13`;
@@ -142,37 +142,23 @@ export function Caption({ text }: { text: string }) {
   );
 }
 
-/**
- * The amber primary button. `className` sizes it. `lit` makes it the physical key (lit from above, a press
- * ripple); wrap a lit one in `overflow-hidden rounded-full` so the ripple keeps to its corners.
- */
+/** The amber primary button. `className` sizes it. */
 export function PrimaryButton({
   onPress,
   label,
   className = 'h-14',
-  hint,
-  lit = false,
 }: {
   onPress: () => void;
   label: string;
   className?: string;
-  hint?: string;
-  lit?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityHint={hint}
-      // Ground at 16%, the same shade the hold-to-start fill uses.
-      android_ripple={lit ? { color: `${colors.ground}29`, foreground: true } : undefined}
       className={`items-center justify-center rounded-full bg-accent px-4 ${className}`}
-      style={lit ? litStyle : undefined}
     >
-      <Text
-        numberOfLines={1}
-        className={`font-sans text-lg text-ground ${lit ? 'font-semibold tracking-tight' : 'font-medium'}`}
-      >
+      <Text numberOfLines={1} className="font-sans text-lg font-medium text-ground">
         {label}
       </Text>
     </Pressable>

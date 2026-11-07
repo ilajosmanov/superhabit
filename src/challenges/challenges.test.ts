@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 
 import { challengeDay, CHALLENGES, detail, summary, totalReps, totalSeconds } from './challenges';
-import { defineChallenge, MAX, reps, seconds, type Session } from './plan';
+import { defineChallenge, MAX, reps, seconds, type Session } from '@/workout/plan';
 
 describe('challengeDay', () => {
   const allDone = new Set(['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05']);

@@ -3,7 +3,7 @@ import { useRef } from 'react';
 import { Platform, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { JoinedCard, type Joined } from './joined-card';
-import { catalogEntry } from '@/workout/catalog';
+import { catalogEntry } from '@/challenges/catalog';
 
 const GAP = 12;
 

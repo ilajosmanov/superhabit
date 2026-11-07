@@ -13,7 +13,7 @@ import {
 
 import { usePoseOverlay } from '@/workout/pose/overlay';
 import { PoseCamera } from '@/workout/pose/pose-camera';
-import { CHALLENGES } from '@/workout/challenges';
+import { CHALLENGES } from '@/challenges/challenges';
 import type { Challenge } from '@/workout/plan';
 import { BetweenSets } from '@/workout/components/between-sets';
 import { ChallengeDone } from '@/workout/components/challenge-done';

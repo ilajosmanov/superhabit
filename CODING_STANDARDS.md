@@ -10,7 +10,10 @@ Imports only go down:
 ```
 src/app/            routes: read params, compose a screen, navigate
   ↓
-src/workout/        the workout feature: session machine, results, camcorder, coaching
+src/challenges/     the challenge catalog: definitions, catalog entries, the cards that browse them
+  components/       UI only challenges uses (catalog tiles, joined cards, exercise stack)
+  ↓
+src/workout/        the workout feature: plan model, session machine, results, camcorder, coaching
   components/       UI only workout uses (platters, gauge, clip card)
   pose/             camera → pose detection → skeleton drawing
   ↓
@@ -21,8 +24,8 @@ src/theme.ts        colour tokens for APIs that take values; classes come from s
 modules/pose/       the native pose detector (an Expo module)
 ```
 
-- **A layer never imports one above it.** `exercises/` knows nothing about workouts, and `components/`
-  knows nothing about any feature.
+- **A layer never imports one above it.** `workout/` knows nothing about the catalog, `exercises/` knows
+  nothing about workouts, and `components/` knows nothing about any feature.
 - **`exercises/` is framework-free:** no React, React Native, Expo, Skia or XState. It takes pose data
   and returns numbers, so plain tests cover it. It may import the pose module's _types_ only.
 - **Workout logic (`src/workout/*.ts`) never imports its own UI** (`components/`, `pose/`). UI reads the

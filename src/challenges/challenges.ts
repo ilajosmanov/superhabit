@@ -1,6 +1,6 @@
 import { EXERCISES, orientation } from '@/exercises/registry';
 
-import { defineChallenge, expand, MAX, reps, seconds, type Challenge } from './plan';
+import { defineChallenge, expand, MAX, reps, seconds, type Challenge } from '@/workout/plan';
 
 /** Local YYYY-MM-DD; UTC arithmetic keeps calendar days independent of DST. */
 type Day = string;
@@ -31,7 +31,7 @@ export function challengeDay(
 
 // shortcut: fixed goals lowered for physical testing (reps 3, holds and rests 10 s; MAX kept);
 // restore the real numbers (60 s plank, 10 push-ups + 30 s plank + 30 s rest, 100 squats, 50 push-ups) before release.
-/** Route id -> challenge, in catalog order. Open-ended tests are offered by the camera card. */
+/** Route id -> challenge, in catalog order. */
 const entries: [string, Challenge][] = [
   [
     'squat-pushup',

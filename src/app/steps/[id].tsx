@@ -2,8 +2,8 @@ import { Redirect, useLocalSearchParams } from 'expo-router';
 import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { StepLines } from '@/workout/components/exercise-stack';
-import { catalogEntry } from '@/workout/catalog';
+import { StepLines } from '@/challenges/components/exercise-stack';
+import { catalogEntry } from '@/challenges/catalog';
 
 /** A challenge's full day, opened from (i) on its card: every step, rounds and rest. */
 export default function StepsSheet() {

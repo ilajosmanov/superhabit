@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { Glyph } from '@/components/glyph';
 import { colors } from '@/theme';
-import type { CatalogEntry } from '@/workout/catalog';
+import type { CatalogEntry } from '@/challenges/catalog';
 
 const INFO = 'M12 21a9 9 0 1 0 0-18a9 9 0 1 0 0 18M12 11v5M12 7.5v.5';
 // Five tiles and a "+N" tile fit one line on the narrowest card.

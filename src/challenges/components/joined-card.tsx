@@ -4,7 +4,7 @@ import { Pressable, Text, View, type ViewStyle } from 'react-native';
 import { ExerciseStack, StepsButton } from './exercise-stack';
 import { CHECK, Glyph } from '@/components/glyph';
 import { colors } from '@/theme';
-import type { CatalogEntry } from '@/workout/catalog';
+import type { CatalogEntry } from '@/challenges/catalog';
 
 const ARROW_RIGHT = 'M5 12h14M13 6l6 6-6 6';
 

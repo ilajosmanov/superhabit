@@ -15,7 +15,7 @@ import { PhoneSetup } from '@/workout/components/phone-setup';
 import { Screen } from '@/components/screen';
 import { EXERCISES } from '@/exercises/registry';
 import { colors, lit } from '@/theme';
-import { capitalise, CHALLENGES, detail, summary } from '@/workout/challenges';
+import { capitalise, CHALLENGES, detail, summary } from '@/challenges/challenges';
 import { goalLabel } from '@/workout/plan';
 
 const HOLD_MS = 700;
