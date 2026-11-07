@@ -106,7 +106,6 @@ it('describes every shipped challenge in one sentence', () => {
     ['lunge-max', 'Lunges, as many as you can'],
     ['situp-max', 'Sit-ups, as many as you can'],
     ['glute-bridge-max', 'Glute bridges, as many as you can'],
-    ['mountain-climber-max', 'Mountain climbers, as many as you can'],
     ['squat', 'Squats, as many as you can'],
     ['pushup', 'Push-ups, as many as you can'],
   ]);

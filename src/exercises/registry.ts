@@ -2,11 +2,6 @@ import type { Exercise } from './exercise';
 import { gluteBridge, type GluteBridgeSample, type GluteBridgeState } from './glute-bridge';
 import { jumpingJack, type JumpingJackSample, type JumpingJackState } from './jumping-jack';
 import { lunge, type LungeSample, type LungeState } from './lunge';
-import {
-  mountainClimber,
-  type MountainClimberSample,
-  type MountainClimberState,
-} from './mountain-climber';
 import type { HoldState } from './hold';
 import { plank, type PlankSample } from './plank';
 import { pushup, type PushupSample, type PushupState } from './pushup';
@@ -29,7 +24,6 @@ export type Counters = {
   'glute-bridge': GluteBridgeState;
   'jumping-jack': JumpingJackState;
   lunge: LungeState;
-  'mountain-climber': MountainClimberState;
 };
 export type Samples = {
   squat: SquatSample;
@@ -39,7 +33,6 @@ export type Samples = {
   'glute-bridge': GluteBridgeSample;
   'jumping-jack': JumpingJackSample;
   lunge: LungeSample;
-  'mountain-climber': MountainClimberSample;
 };
 export type ExerciseId = keyof Counters & keyof Samples;
 
@@ -53,7 +46,6 @@ export const EXERCISES: { [K in ExerciseId]: Exercise<Counters[K], Samples[K]> }
   'glute-bridge': gluteBridge,
   'jumping-jack': jumpingJack,
   lunge,
-  'mountain-climber': mountainClimber,
 };
 
 /** Fresh counters for every exercise; typed against Counters so a new key cannot be forgotten. */
@@ -65,5 +57,4 @@ export const initialCounters: Counters = {
   'glute-bridge': gluteBridge.initial,
   'jumping-jack': jumpingJack.initial,
   lunge: lunge.initial,
-  'mountain-climber': mountainClimber.initial,
 };

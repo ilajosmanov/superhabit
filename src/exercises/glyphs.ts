@@ -1,5 +1,5 @@
 // Glyphs for exercises the app can't count yet, on the same 32 grid. Head = a 2.6 circle.
-// Kept for when each exercise is tracked; sit-up, lunge, jack, bridge and climber already sit in their exercise files.
+// Kept for when each exercise is tracked; sit-up, lunge, jack and bridge already sit in their exercise files.
 const head = (x: number, y: number) => `M${x - 2.6} ${y}a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0`;
 export const UNTRACKED_GLYPHS = {
   pullup: `M4 4h24M11 4l3 8M21 4l-3 8${head(16, 10.5)}M16 14v9M16 23l-2 6M16 23l2 6`,
@@ -9,6 +9,5 @@ export const UNTRACKED_GLYPHS = {
   jack: `${head(16, 5)}M16 8v10M16 10l-7-6M16 10l7-6M16 18l-6 9M16 18l6 9`,
   burpee: `${head(16, 4)}M16 7v9M16 9l-5-6M16 9l5-6M16 16l-3 7M16 16l3 7M8 28h16`,
   bridge: `${head(5, 22)}M7.5 23 16 16l6 4v6M3 26h26`,
-  climber: `${head(26, 12)}M23 15 6 21M15 18l-3 5M3 26h26`,
   wallsit: `M27 4v24${head(22, 6)}M22 9v9M22 18h-9M13 18v8M3 28h26`,
 };

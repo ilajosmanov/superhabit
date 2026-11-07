@@ -150,15 +150,6 @@ const entries: [string, Challenge][] = [
     },
   ],
   [
-    'mountain-climber-max',
-    {
-      name: 'Mountain climbers',
-      days: 14,
-      restartOnMiss: false,
-      session: [{ steps: [{ exercise: 'mountain-climber', goal: MAX }], rounds: 1 }],
-    },
-  ],
-  [
     'squat',
     {
       name: 'Squat test',
