@@ -80,7 +80,7 @@ export function JoinedCard({
 
       {/* One line, so every card in the swipe row stays the same height; (i) lists them all. */}
       <View className="flex-row items-center justify-between border-t border-line pt-4">
-        <ExerciseStack entry={entry} />
+        <ExerciseStack steps={entry.steps} />
         <StepsButton entry={entry} />
       </View>
     </Pressable>

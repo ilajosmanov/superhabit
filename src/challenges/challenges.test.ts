@@ -96,18 +96,20 @@ const circuit = challenge([
 
 it('describes every shipped challenge in one sentence', () => {
   expect([...CHALLENGES].map(([id, entry]) => [id, summary(entry)])).toEqual([
-    ['squat-pushup', '3 squats, then 3 push-ups'],
-    ['plank-minute', 'Plank 10 s'],
-    ['floor-circuit', '3 rounds: 3 push-ups, then plank 10 s'],
-    ['two-max-sets', '2 rounds: squats, as many as you can'],
-    ['squat-hundred', '3 squats'],
     ['pushup-fifty', '3 push-ups'],
-    ['jumping-jack-max', 'Jumping jacks, as many as you can'],
-    ['lunge-max', 'Lunges, as many as you can'],
+    ['squat-hundred', '3 squats'],
+    ['plank-minute', 'Plank 10 s'],
     ['situp-max', 'Sit-ups, as many as you can'],
+    ['lunge-max', 'Lunges, as many as you can'],
     ['glute-bridge-max', 'Glute bridges, as many as you can'],
-    ['squat', 'Squats, as many as you can'],
+    ['jumping-jack-max', 'Jumping jacks, as many as you can'],
     ['pushup', 'Push-ups, as many as you can'],
+    ['squat', 'Squats, as many as you can'],
+    ['plank', 'Plank, as long as you can'],
+    ['situp', 'Sit-ups, as many as you can'],
+    ['lunge', 'Lunges, as many as you can'],
+    ['glute-bridge', 'Glute bridges, as many as you can'],
+    ['jumping-jack', 'Jumping jacks, as many as you can'],
   ]);
 });
 

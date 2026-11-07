@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import { Platform, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { JoinedCard, type Joined } from './joined-card';
+import { SurpriseCard } from './surprise-card';
 import { catalogEntry } from '@/challenges/catalog';
 
 const GAP = 12;
@@ -13,10 +14,11 @@ const tick = () =>
     ? Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Segment_Tick)
     : Haptics.selectionAsync());
 
-// shortcut: unrendered, as are JoinedCard, StepsButton, /steps/[id] and catalogEntry; wire in when joined challenges are stored.
+// shortcut: the screen passes no progress until joined challenges are stored, so JoinedCard, StepsButton,
+// /steps/[id] and catalogEntry are unreached; pass the stored list then.
 /**
- * The challenges you joined, due today first. One: its card. Several: a swipe row where the next
- * card's edge shows.
+ * The challenges you joined, due today first, then the surprise card, in a swipe row where the next
+ * card's edge shows. Nothing joined: the surprise card alone.
  */
 export function YourChallenges({ progress }: { progress: readonly Joined[] }) {
   const { width } = useWindowDimensions();
@@ -31,6 +33,7 @@ export function YourChallenges({ progress }: { progress: readonly Joined[] }) {
   // 24px of the next card shows at the right edge.
   const card = width - 48 - 24;
 
+  if (joined.length === 0) return <SurpriseCard />;
   return (
     <View className="gap-3">
       <View className="flex-row justify-between">
@@ -41,30 +44,27 @@ export function YourChallenges({ progress }: { progress: readonly Joined[] }) {
           </Text>
         )}
       </View>
-      {joined.length === 1 ? (
-        <JoinedCard joined={joined[0].progress} entry={joined[0].entry} />
-      ) : (
-        <ScrollView
-          horizontal
-          snapToInterval={card + GAP}
-          decelerationRate="fast"
-          // A detent tick each time the next card takes the slot, mid-swipe, like a picker.
-          scrollEventThrottle={16}
-          onScroll={(event) => {
-            const i = Math.round(event.nativeEvent.contentOffset.x / (card + GAP));
-            if (i === page.current) return;
-            page.current = i;
-            tick();
-          }}
-          showsHorizontalScrollIndicator={false}
-          className="-mx-6"
-          contentContainerClassName="gap-3 px-6"
-        >
-          {joined.map(({ progress, entry }) => (
-            <JoinedCard key={entry.id} joined={progress} entry={entry} style={{ width: card }} />
-          ))}
-        </ScrollView>
-      )}
+      <ScrollView
+        horizontal
+        snapToInterval={card + GAP}
+        decelerationRate="fast"
+        // A detent tick each time the next card takes the slot, mid-swipe, like a picker.
+        scrollEventThrottle={16}
+        onScroll={(event) => {
+          const i = Math.round(event.nativeEvent.contentOffset.x / (card + GAP));
+          if (i === page.current) return;
+          page.current = i;
+          tick();
+        }}
+        showsHorizontalScrollIndicator={false}
+        className="-mx-6"
+        contentContainerClassName="gap-3 px-6"
+      >
+        {joined.map(({ progress, entry }) => (
+          <JoinedCard key={entry.id} joined={progress} entry={entry} style={{ width: card }} />
+        ))}
+        <SurpriseCard style={{ width: card }} />
+      </ScrollView>
     </View>
   );
 }

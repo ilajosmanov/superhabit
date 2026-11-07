@@ -30,7 +30,7 @@ function Centered({ text }: { text: string }) {
   );
 }
 
-// The camera run for a challenge: /workout/squat, /workout/pushup, /workout/squat-pushup.
+// The camera run for a challenge: /workout/pushup-fifty, or /workout/squat for one go.
 export default function ChallengeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();

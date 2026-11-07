@@ -1,35 +1,38 @@
 import { Link } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
-import { StepLines } from './exercise-stack';
+import { Glyph } from '@/components/glyph';
 import { colors } from '@/theme';
 import type { CatalogEntry } from '@/challenges/catalog';
 
 /**
- * Outlined, never filled: a filled card means you joined it. Left, every step with its goal in its own
- * unit, so you know what you'd sign up for; right, the length in days, the one number every mix shares.
+ * Outlined, never filled: a filled card means you joined it. The exercise, its daily goal in its own
+ * unit, and the length in days.
  */
 function ChallengeCard({ entry }: { entry: CatalogEntry }) {
-  // The label replaces the card's children for screen readers, so it carries the steps too.
-  const steps = entry.steps.map((s) => `${s.name} ${s.goal}`).join(', ');
+  // Suggested challenges are one exercise each.
+  const [step] = entry.steps;
   const body = (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel={`${entry.name}, ${entry.days} ${entry.days === 1 ? 'day' : 'days'}: ${steps}${entry.note ? `. ${entry.note}` : ''}`}
+      accessibilityLabel={`${entry.name}: ${step.name} ${step.goal} a day, ${entry.days} days`}
       android_ripple={{ color: colors.surface }}
-      className="flex-row items-end gap-4 px-5 py-4.5"
+      className="flex-row items-center gap-4 py-4 pl-4 pr-5"
     >
-      <View className="flex-1 gap-3.5">
+      <View className="size-11 items-center justify-center rounded-xl border border-line">
+        <Glyph d={step.glyph} size={24} box={32} />
+      </View>
+      <View className="flex-1 gap-1">
         <Text className="font-sans text-lg tracking-tight text-chalk">{entry.name}</Text>
-        <StepLines entry={entry} />
+        <Text className="font-mono text-xs tracking-wide text-muted">
+          {step.goal.toUpperCase()} A DAY
+        </Text>
       </View>
       <View className="items-end gap-1">
-        <Text className="font-sans text-6xl font-extralight leading-none tracking-tighter text-chalk">
+        <Text className="font-sans text-5xl font-extralight leading-none tracking-tighter text-chalk">
           {entry.days}
         </Text>
-        <Text className="font-mono text-xs tracking-widest text-muted">
-          {entry.days === 1 ? 'DAY' : 'DAYS'}
-        </Text>
+        <Text className="font-mono text-xs tracking-widest text-muted">DAYS</Text>
       </View>
     </Pressable>
   );
@@ -43,11 +46,14 @@ function ChallengeCard({ entry }: { entry: CatalogEntry }) {
   );
 }
 
-/** Challenges you haven't joined, one card each. */
+// shortcut: no "Create a challenge" link beside SUGGESTED yet; add it with the create screen.
+/** Our challenges, joined as-is, one row each. */
 export function Catalog({ entries }: { entries: readonly CatalogEntry[] }) {
   return (
-    <View className="gap-3">
-      <Text className="font-mono text-xs tracking-widest text-muted">OR PICK A CHALLENGE</Text>
+    <View className="gap-1">
+      <View className="h-11 justify-center">
+        <Text className="font-mono text-xs tracking-widest text-muted">SUGGESTED</Text>
+      </View>
       <View className="gap-2.5">
         {entries.map((entry) => (
           <ChallengeCard key={entry.id} entry={entry} />

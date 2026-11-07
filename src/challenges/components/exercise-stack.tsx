@@ -49,8 +49,8 @@ export function StepsButton({ entry }: { entry: CatalogEntry }) {
  * Always one line, however long the challenge: the exercises as overlapping hairline tiles, like an
  * avatar stack. Each tile is filled with the card's surface colour, so it cuts cleanly into the next.
  */
-export function ExerciseStack({ entry }: { entry: CatalogEntry }) {
-  const exercises = [...new Map(entry.steps.map((step) => [step.name, step])).values()];
+export function ExerciseStack({ steps }: { steps: readonly { glyph: string; name: string }[] }) {
+  const exercises = [...new Map(steps.map((step) => [step.name, step])).values()];
   // A lone "+1" tile is no shorter than the tile it hides.
   const shown = exercises.length > MAX_TILES + 1 ? exercises.slice(0, MAX_TILES) : exercises;
   const extra = exercises.length - shown.length;

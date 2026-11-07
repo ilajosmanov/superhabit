@@ -13,6 +13,7 @@
     "fmt:kt": "scripts/ktlint.sh --format"
   },
   "dependencies": {
+    "@expo/ui": "~58.0.27",
     "@shopify/react-native-skia": "2.14.0",
     "@xstate/react": "6.1.0",
     "expo": "~58.0.23",

@@ -1,4 +1,4 @@
-import { EXERCISES, orientation } from '@/exercises/registry';
+import { EXERCISES, orientation, type ExerciseId } from '@/exercises/registry';
 
 import { defineChallenge, expand, MAX, reps, seconds, type Challenge } from '@/workout/plan';
 
@@ -29,69 +29,19 @@ export function challengeDay(
   return day > c.days ? null : { day, from: new Date(from * DAY_MS).toISOString().slice(0, 10) };
 }
 
-// shortcut: fixed goals lowered for physical testing (reps 3, holds and rests 10 s; MAX kept);
-// restore the real numbers (60 s plank, 10 push-ups + 30 s plank + 30 s rest, 100 squats, 50 push-ups) before release.
-/** Route id -> challenge, in catalog order. */
-const entries: [string, Challenge][] = [
+export const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+// shortcut: fixed goals lowered for physical testing (reps 3, plank 10 s); restore the real numbers
+// (50 push-ups, 100 squats, 60 s plank) before release.
+/** Ours, one exercise each, joined as-is. Route id -> challenge, in catalog order. */
+const suggested: [string, Challenge][] = [
   [
-    'squat-pushup',
+    'pushup-fifty',
     {
-      name: '3 squats + 3 push-ups',
-      days: 30,
-      restartOnMiss: false,
-      session: [
-        {
-          steps: [
-            { exercise: 'squat', goal: reps(3) },
-            { exercise: 'pushup', goal: reps(3) },
-          ],
-          rounds: 1,
-        },
-      ],
-    },
-  ],
-  [
-    'plank-minute',
-    {
-      name: 'Plank minute',
+      name: 'Push-up fifty',
       days: 21,
       restartOnMiss: false,
-      session: [{ steps: [{ exercise: 'plank', goal: seconds(10) }], rounds: 1 }],
-    },
-  ],
-  [
-    'floor-circuit',
-    {
-      name: 'Floor circuit',
-      days: 30,
-      restartOnMiss: false,
-      session: [
-        {
-          steps: [
-            { exercise: 'pushup', goal: reps(3) },
-            { exercise: 'plank', goal: seconds(10) },
-            { exercise: 'rest', goal: seconds(10) },
-          ],
-          rounds: 3,
-        },
-      ],
-    },
-  ],
-  [
-    'two-max-sets',
-    {
-      name: 'Two max sets',
-      days: 14,
-      restartOnMiss: false,
-      session: [
-        {
-          steps: [
-            { exercise: 'squat', goal: MAX },
-            { exercise: 'rest', goal: seconds(10) },
-          ],
-          rounds: 2,
-        },
-      ],
+      session: [{ steps: [{ exercise: 'pushup', goal: reps(3) }], rounds: 1 }],
     },
   ],
   [
@@ -104,22 +54,22 @@ const entries: [string, Challenge][] = [
     },
   ],
   [
-    'pushup-fifty',
+    'plank-minute',
     {
-      name: 'Push-up fifty',
+      name: 'Plank minute',
       days: 21,
       restartOnMiss: false,
-      session: [{ steps: [{ exercise: 'pushup', goal: reps(3) }], rounds: 1 }],
+      session: [{ steps: [{ exercise: 'plank', goal: seconds(10) }], rounds: 1 }],
     },
   ],
   // Open-ended: a miscount never blocks the day.
   [
-    'jumping-jack-max',
+    'situp-max',
     {
-      name: 'Jumping jacks',
+      name: 'Sit-ups',
       days: 14,
       restartOnMiss: false,
-      session: [{ steps: [{ exercise: 'jumping-jack', goal: MAX }], rounds: 1 }],
+      session: [{ steps: [{ exercise: 'situp', goal: MAX }], rounds: 1 }],
     },
   ],
   [
@@ -132,15 +82,6 @@ const entries: [string, Challenge][] = [
     },
   ],
   [
-    'situp-max',
-    {
-      name: 'Sit-ups',
-      days: 14,
-      restartOnMiss: false,
-      session: [{ steps: [{ exercise: 'situp', goal: MAX }], rounds: 1 }],
-    },
-  ],
-  [
     'glute-bridge-max',
     {
       name: 'Glute bridges',
@@ -150,28 +91,45 @@ const entries: [string, Challenge][] = [
     },
   ],
   [
-    'squat',
+    'jumping-jack-max',
     {
-      name: 'Squat test',
-      days: 1,
+      name: 'Jumping jacks',
+      days: 14,
       restartOnMiss: false,
-      session: [{ steps: [{ exercise: 'squat', goal: MAX }], rounds: 1 }],
-    },
-  ],
-  [
-    'pushup',
-    {
-      name: 'Push-up test',
-      days: 1,
-      restartOnMiss: false,
-      session: [{ steps: [{ exercise: 'pushup', goal: MAX }], rounds: 1 }],
+      session: [{ steps: [{ exercise: 'jumping-jack', goal: MAX }], rounds: 1 }],
     },
   ],
 ];
 
-export const CHALLENGES: ReadonlyMap<string, Challenge> = new Map(
-  entries.map(([id, challenge]) => [id, defineChallenge(challenge)]),
+/** What the surprise card draws from, in its tile order: each exercise once, as many as you can. Route id = exercise id. */
+export const ONE_GO: readonly ExerciseId[] = [
+  'pushup',
+  'squat',
+  'plank',
+  'situp',
+  'lunge',
+  'glute-bridge',
+  'jumping-jack',
+];
+
+/** The catalog, in order. */
+export const SUGGESTED: ReadonlyMap<string, Challenge> = new Map(
+  suggested.map(([id, challenge]) => [id, defineChallenge(challenge)]),
 );
+
+/** Every route id: the suggested challenges, then the one-go sets. */
+export const CHALLENGES: ReadonlyMap<string, Challenge> = new Map([
+  ...SUGGESTED,
+  ...ONE_GO.map((exercise): [string, Challenge] => [
+    exercise,
+    defineChallenge({
+      name: capitalise(EXERCISES[exercise].name),
+      days: 1,
+      restartOnMiss: false,
+      session: [{ steps: [{ exercise, goal: MAX }], rounds: 1 }],
+    }),
+  ]),
+]);
 
 /** Describe each block once, with its round count; rests do not contribute exercise goals. */
 export function summary({ session }: Challenge): string {
@@ -189,8 +147,6 @@ export function summary({ session }: Challenge): string {
   });
   return capitalise(blocks.join(', then '));
 }
-
-export const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /** Clean reps across expanded exercise steps; an open-ended rep goal makes the total unlimited. */
 export const totalReps = ({ session }: Challenge) =>
