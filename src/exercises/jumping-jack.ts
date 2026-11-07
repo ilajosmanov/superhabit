@@ -95,8 +95,6 @@ const jackCycle = cycle<JumpingJackSample, Attempt, JumpingJackReport>({
 export const jumpingJack: Exercise<JumpingJackState, JumpingJackSample> = {
   ...jackCycle,
   name: 'jumping jacks',
-  glyph:
-    'M13.4 5a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M16 8v10M16 10l-7-6M16 10l7-6M16 18l-6 9M16 18l6 9',
   placement: 'front-upright',
   place: 'Prop the phone upright',
   steps: [

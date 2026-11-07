@@ -141,8 +141,6 @@ const squatCycle = cycle<SquatSample, Attempt, RepReport>({
 export const squat: Exercise<SquatState, SquatSample> = {
   ...squatCycle,
   name: 'squats',
-  glyph:
-    'M13.4 6a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M15 9l-3 8M12 17l9 1M21 18l-1 8M14 11.5l10 .5M6 26h20',
   placement: 'front-upright',
   ...SETUP['front-upright'],
   hint: 'Counting starts once you stand tall.',

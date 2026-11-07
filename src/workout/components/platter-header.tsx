@@ -4,7 +4,7 @@ import type { SharedValue } from 'react-native-reanimated';
 
 import type { SessionView } from '@/workout/session-view';
 
-import { Chip, SPEAKER_OFF, SPEAKER_ON } from './controls';
+import { Chip } from './controls';
 
 export type PlatterProps = {
   view: SessionView;
@@ -43,7 +43,7 @@ export function Header({
         {children}
         {landscape && (
           <Chip
-            d={view.muted ? SPEAKER_OFF : SPEAKER_ON}
+            icon={view.muted ? 'volume_off' : 'volume_up'}
             label="Voice coach"
             checked={!view.muted}
             onPress={onToggleVoice}

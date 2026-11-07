@@ -1,10 +1,10 @@
-import { EXERCISES } from '@/exercises/registry';
+import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 
 import { capitalise, SUGGESTED } from './challenges';
 import { goalLabel, type Challenge } from '@/workout/plan';
 
 /** One line on a challenge card: the step's goal in its own unit ("×25", "60 s", "MAX"). */
-type CatalogStep = { glyph: string; name: string; goal: string };
+export type CatalogStep = { exercise: ExerciseId; name: string; goal: string };
 export type CatalogEntry = {
   /** The route id: a suggested challenge or one you made. */
   id: string;
@@ -26,8 +26,7 @@ export function toEntry(id: string, { name, days, session }: Challenge): Catalog
         note.push(goal.type === 'seconds' ? `${goal.n}S REST` : 'REST');
         continue;
       }
-      const { glyph, name: exerciseName } = EXERCISES[exercise];
-      steps.push({ glyph, name: capitalise(exerciseName), goal: goalLabel(goal) });
+      steps.push({ exercise, name: capitalise(EXERCISES[exercise].name), goal: goalLabel(goal) });
     }
   }
   return {

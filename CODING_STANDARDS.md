@@ -20,7 +20,7 @@ src/workout/        the workout feature: plan model, session machine, results, c
   ↓
 src/exercises/      pure rep logic: angles, counters, the exercise registry
   ↓
-src/components/     UI shared by every screen (glyph, screen shell, primary button)
+src/components/     UI shared by every screen (icons, screen shell, buttons)
 src/theme.ts        colour tokens for APIs that take values; classes come from src/global.css
 src/storage/        what is kept on the phone and how: files, safe writes, change notices; no UI
 modules/pose/       the native pose detector (a Nitro module)
@@ -55,6 +55,17 @@ Move a file up into a shared layer when a second user appears, not before.
 A `components/` folder means "UI pieces owned by the folder it sits in". A `.ts` helper next to the
 `.tsx` that uses it is fine (`pose/skeleton.ts` beside `pose/pose-camera.tsx`): ownership matters, the
 file extension does not.
+
+## Platform first
+
+Use what the platform already ships before drawing or building our own:
+
+- **Icons** are Material Symbols through `components/icon.tsx` (`expo-symbols`). Only pictures no icon set
+  has, the exercise figures and the surprise die, are drawn, in `components/illustrations.tsx`.
+- **Buttons and controls** are Material's, from `@expo/ui` (Compose): `components/icon-button.tsx`,
+  `components/text-button.tsx`, sliders, switches, dialogs, sheets. They bring the 48dp target, ripple and
+  TalkBack roles. Build a custom one only for what Material has no form of (the lit primary key, hold to
+  start).
 
 ## Naming
 

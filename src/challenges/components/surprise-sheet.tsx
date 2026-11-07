@@ -2,7 +2,7 @@ import { Text, View } from 'react-native';
 
 import { Sheet } from './sheet';
 import { capitalise } from '@/challenges/challenges';
-import { Glyph } from '@/components/glyph';
+import { ExerciseFigure } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 
@@ -28,7 +28,7 @@ export function SurpriseSheet({
         <Text className="font-mono text-xs tracking-widest text-muted">SURPRISE · ONE GO</Text>
         <View className="flex-row items-center gap-4">
           <View className="size-16 items-center justify-center rounded-2xl border border-edge bg-ground">
-            <Glyph d={exercise.glyph} size={36} box={32} />
+            <ExerciseFigure exercise={id} size={36} />
           </View>
           <Text
             accessibilityRole="header"

@@ -39,8 +39,6 @@ export type Gauge = { down: number; up: number };
 export type Exercise<S extends Progress, M extends Measured> = Counter<S, M> & {
   /** Plural, lower case, for speech and labels: 'squats'. */
   name: string;
-  /** Line icon: an SVG path on a 32×32 grid, stroked 1.5. */
-  glyph: string;
   placement: Placement;
   /** How to place the phone, as a heading and a spoken sentence. */
   place: string;

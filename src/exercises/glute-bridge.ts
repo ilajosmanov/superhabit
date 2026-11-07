@@ -80,7 +80,6 @@ const gluteBridgeCycle = cycle<GluteBridgeSample, Attempt, GluteBridgeReport>({
 export const gluteBridge: Exercise<GluteBridgeState, GluteBridgeSample> = {
   ...gluteBridgeCycle,
   name: 'glute bridges',
-  glyph: 'M2.4 22a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M7.5 23 16 16l6 4v6M3 26h26',
   placement: 'side-floor',
   ...SETUP['side-floor'],
   hint: 'Start with hips down, knees bent and feet planted. Lift, then lower to count.',

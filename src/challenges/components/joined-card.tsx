@@ -2,12 +2,10 @@ import { Link } from 'expo-router';
 import { Pressable, Text, View, type ViewStyle } from 'react-native';
 
 import { ExerciseStack, StepsButton } from './exercise-stack';
-import { CHECK, Glyph } from '@/components/glyph';
+import { Icon } from '@/components/icon';
 import { colors } from '@/theme';
 import type { CatalogEntry } from '@/challenges/catalog';
 import { doneToday, type Run } from '@/challenges/days';
-
-const ARROW_RIGHT = 'M5 12h14M13 6l6 6-6 6';
 
 /** One square per day: amber = done, amber outline = today, hairline = missed or still ahead. */
 function DayGrid({ run: { day, days, done } }: { run: Run }) {
@@ -52,13 +50,13 @@ export function JoinedCard({
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-2">
           {done ? (
-            <Glyph d={CHECK} size={14} weight={2} />
+            <Icon name="check" size={16} />
           ) : (
             <View className="size-1.5 rounded-full bg-accent" />
           )}
           <Text className="font-mono text-xs tracking-widest text-muted">{status}</Text>
         </View>
-        <Glyph d={ARROW_RIGHT} size={20} />
+        <Icon name="arrow_forward" size={20} />
       </View>
 
       <View className="flex-row items-end justify-between gap-3">

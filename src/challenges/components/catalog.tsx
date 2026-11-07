@@ -1,7 +1,8 @@
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
-import { Glyph } from '@/components/glyph';
+import { ExerciseFigure } from '@/components/illustrations';
+import { TextButton } from '@/components/text-button';
 import { colors } from '@/theme';
 import type { CatalogEntry } from '@/challenges/catalog';
 
@@ -20,7 +21,7 @@ function ChallengeCard({ entry }: { entry: CatalogEntry }) {
       className="flex-row items-center gap-4 py-4 pl-4 pr-5"
     >
       <View className="size-11 items-center justify-center rounded-xl border border-line">
-        <Glyph d={step.glyph} size={24} box={32} />
+        <ExerciseFigure exercise={step.exercise} size={24} />
       </View>
       <View className="flex-1 gap-1">
         <Text className="font-sans text-lg tracking-tight text-chalk">{entry.name}</Text>
@@ -46,23 +47,19 @@ function ChallengeCard({ entry }: { entry: CatalogEntry }) {
   );
 }
 
-const PLUS = 'M12 5v14M5 12h14';
-
 /** Our challenges, joined as-is, one row each, and the way to make your own. */
 export function Catalog({ entries }: { entries: readonly CatalogEntry[] }) {
+  const router = useRouter();
   return (
     <View className="gap-1">
-      <View className="h-11 flex-row items-center justify-between">
+      <View className="h-12 flex-row items-center justify-between">
         <Text className="font-mono text-xs tracking-widest text-muted">SUGGESTED</Text>
-        <Link href="/create" asChild>
-          <Pressable
-            accessibilityRole="link"
-            className="-mr-1 h-11 flex-row items-center gap-1.5 px-1"
-          >
-            <Glyph d={PLUS} size={16} />
-            <Text className="font-sans text-base text-chalk">Create a challenge</Text>
-          </Pressable>
-        </Link>
+        <TextButton
+          icon="add"
+          label="Create a challenge"
+          onPress={() => router.push('/create')}
+          style={{ marginRight: -12 }}
+        />
       </View>
       <View className="gap-2.5">
         {entries.map((entry) => (

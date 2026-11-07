@@ -2,16 +2,19 @@ import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CLOSE, Glyph } from '@/components/glyph';
-import { colors } from '@/theme';
+import type { AndroidSymbol } from 'expo-symbols';
 
-const SPEAKER = 'M11 5 6 9H3v6h3l5 4V5ZM15.5 8.5a5 5 0 0 1 0 7';
-export const SPEAKER_ON = `${SPEAKER}M18.5 5.5a9 9 0 0 1 0 13`;
-export const SPEAKER_OFF = 'M11 5 6 9H3v6h3l5 4V5ZM16 9.5l5 5M21 9.5l-5 5';
+import { Icon } from '@/components/icon';
+import { IconButton } from '@/components/icon-button';
+import { colors } from '@/theme';
 
 // shortcut: no blur; Android can't blur the camera's SurfaceView. Revisit if the preview moves to a TextureView.
 /** The floating material over the camera: surface at 75 %, a faint chalk hairline. */
 export const GLASS = 'border border-chalk/10 bg-surface/75';
+/** GLASS's fill, for native buttons that take a colour (they draw no hairline). */
+const GLASS_FILL = 'rgba(24,25,20,0.75)';
+/** Chalk at 10 %: a chip's fill inside the platter. */
+export const CHIP_FILL = 'rgba(242,240,232,0.1)';
 
 /** 312 -> "5:12". */
 export const mss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -37,65 +40,46 @@ export function Frame({ landscape, children }: { landscape: boolean; children: R
   );
 }
 
-export function CloseButton({
-  onPress,
-  label,
-  hint,
-}: {
-  onPress: () => void;
-  label: string;
-  hint?: string;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityHint={hint}
-      className={`size-11 items-center justify-center rounded-full ${GLASS}`}
-    >
-      <Glyph d={CLOSE} size={18} />
-    </Pressable>
-  );
+export function CloseButton({ onPress, label }: { onPress: () => void; label: string }) {
+  return <IconButton icon="close" label={label} size={20} fill={GLASS_FILL} onPress={onPress} />;
 }
 
 /** Voice coach on/off, glass on the camera (portrait top bar); the platter uses a `Chip` in landscape. */
 export function MuteButton({ muted, onPress }: { muted: boolean; onPress: () => void }) {
   return (
-    <Pressable
+    <IconButton
+      icon={muted ? 'volume_off' : 'volume_up'}
+      label="Voice coach"
+      checked={!muted}
+      size={20}
+      fill={GLASS_FILL}
       onPress={onPress}
-      accessibilityRole="switch"
-      accessibilityLabel="Voice coach"
-      accessibilityState={{ checked: !muted }}
-      className={`size-11 items-center justify-center rounded-full ${GLASS}`}
-    >
-      <Glyph d={muted ? SPEAKER_OFF : SPEAKER_ON} size={18} />
-    </Pressable>
+    />
   );
 }
 
-/** A filled 36px icon chip inside the platter; a switch when `checked` is given (muted glyph when off). */
+/** A filled icon chip inside the platter; a switch when `checked` is given (muted symbol when off). */
 export function Chip({
-  d,
+  icon,
   label,
   checked,
   onPress,
 }: {
-  d: string;
+  icon: AndroidSymbol;
   label: string;
   checked?: boolean;
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <IconButton
+      icon={icon}
+      label={label}
+      checked={checked}
+      size={18}
+      color={checked === false ? colors.muted : colors.chalk}
+      fill={CHIP_FILL}
       onPress={onPress}
-      accessibilityRole={checked === undefined ? 'button' : 'switch'}
-      accessibilityLabel={label}
-      accessibilityState={checked === undefined ? undefined : { checked }}
-      className="size-9 items-center justify-center rounded-full bg-chalk/10"
-    >
-      <Glyph d={d} size={16} color={checked === false ? colors.muted : colors.chalk} />
-    </Pressable>
+    />
   );
 }
 
@@ -134,7 +118,7 @@ export function Caption({ text }: { text: string }) {
       accessibilityLiveRegion="polite"
       className={`h-10 max-w-full flex-row items-center gap-2 rounded-full px-4 ${GLASS}`}
     >
-      <Glyph d={SPEAKER} size={16} color={colors.muted} />
+      <Icon name="volume_up" size={16} color={colors.muted} />
       <Text numberOfLines={1} className="shrink font-sans text-lg text-chalk">
         “{/[.!?]$/.test(text) ? text : `${text}.`}”
       </Text>
@@ -142,26 +126,20 @@ export function Caption({ text }: { text: string }) {
   );
 }
 
-/** A filled secondary button: chalk at 10 %, no border. `className` sizes it; a switch when `checked` is given. */
+/** A filled secondary button: chalk at 10 %, no border. `className` sizes it. */
 export function SecondaryButton({
   onPress,
   label,
   className = 'h-11',
-  checked,
-  hint,
 }: {
   onPress: () => void;
   label: string;
   className?: string;
-  checked?: boolean;
-  hint?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole={checked === undefined ? 'button' : 'switch'}
-      accessibilityState={checked === undefined ? undefined : { checked }}
-      accessibilityHint={hint}
+      accessibilityRole="button"
       className={`items-center justify-center rounded-full bg-chalk/10 px-3 ${className}`}
     >
       <Text numberOfLines={1} className="font-sans text-base font-medium text-chalk">

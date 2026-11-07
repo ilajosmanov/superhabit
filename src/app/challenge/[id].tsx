@@ -1,5 +1,5 @@
-import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { detail, summary } from '@/challenges/challenges';
@@ -9,13 +9,14 @@ import { doneToday } from '@/challenges/days';
 import { draftOf } from '@/challenges/draft';
 import { join, useChallenge } from '@/challenges/mine';
 import { SetBars } from '@/challenges/components/set-bars';
+import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { PhoneSetup } from '@/workout/components/phone-setup';
 
 /**
  * What a challenge asks for and how to set up the phone. Not running: a tap joins it from today (again,
- * once a run is over). Running: hold to start today's set, and Edit in the toolbar.
+ * once a run is over). Running: hold to start today's set, and the pencil in the toolbar edits it.
  */
 export default function ChallengeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -49,11 +50,14 @@ export default function ChallengeDetailScreen() {
           headerRight:
             saved && draftOf(challenge)
               ? () => (
-                  <Link href={{ pathname: '/build', params: { id } }} asChild>
-                    <Pressable accessibilityRole="link" hitSlop={12}>
-                      <Text className="font-sans text-base text-chalk">Edit</Text>
-                    </Pressable>
-                  </Link>
+                  // A pencil, like the back arrow opposite: a 48dp target. A word in the header
+                  // only took taps on its own letters.
+                  <IconButton
+                    icon="edit"
+                    label="Edit challenge"
+                    onPress={() => router.push({ pathname: '/build', params: { id } })}
+                    style={{ marginRight: -12 }}
+                  />
                 )
               : undefined,
         }}

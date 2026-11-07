@@ -2,7 +2,7 @@ import { Link } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
 import { capitalise, ONE_GO, phoneWay } from '@/challenges/challenges';
-import { Glyph } from '@/components/glyph';
+import { ExerciseFigure } from '@/components/illustrations';
 import { EXERCISES } from '@/exercises/registry';
 import { colors } from '@/theme';
 
@@ -13,7 +13,7 @@ export function ExercisePicker() {
       <Text className="font-mono text-xs tracking-widest text-muted">PICK AN EXERCISE</Text>
       <View>
         {ONE_GO.map((id) => {
-          const { name, kind, glyph, placement } = EXERCISES[id];
+          const { name, kind, placement } = EXERCISES[id];
           const detail = `${kind === 'hold' ? 'SECONDS' : 'REPS'} · PHONE ${phoneWay(placement)}`;
           return (
             <Link key={id} href={{ pathname: '/build', params: { exercise: id } }} asChild>
@@ -24,7 +24,7 @@ export function ExercisePicker() {
                 className="flex-row items-center gap-4 border-b border-line py-3"
               >
                 <View className="size-11 items-center justify-center rounded-xl border border-line">
-                  <Glyph d={glyph} size={24} box={32} />
+                  <ExerciseFigure exercise={id} size={24} />
                 </View>
                 <View className="flex-1 gap-1">
                   <Text className="font-sans text-lg tracking-tight text-chalk">

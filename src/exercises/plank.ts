@@ -65,7 +65,6 @@ export const plank: Exercise<HoldState, PlankSample> = {
   ...plankHold,
   name: 'plank',
   // Body flat and low on the forearms, so it doesn't read as the push-up's slanted body on straight arms.
-  glyph: 'M24.4 17a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M24 19.5 4 22M21 20v6h5M3 26h26',
   placement: 'side-floor',
   ...SETUP['side-floor'],
   hint: 'The clock starts once you hold a straight plank.',

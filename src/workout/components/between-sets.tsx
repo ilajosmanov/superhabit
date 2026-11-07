@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native';
 
-import { CHECK, Glyph } from '@/components/glyph';
+import { Icon } from '@/components/icon';
 import { PhoneSetup } from './phone-setup';
 import { colors } from '@/theme';
 import type { SessionView } from '@/workout/session-view';
@@ -59,7 +59,7 @@ export function BetweenSets({
               className="gap-2.5 pt-3"
             >
               <View className="flex-row items-center gap-2">
-                <Glyph d={CHECK} size={14} weight={3} color={colors.accent} />
+                <Icon name="check" size={16} color={colors.accent} />
                 <Text className="font-mono text-xs font-medium tracking-widest text-soft">
                   {view.name.toUpperCase()} · SET {view.set} OF {view.sets} DONE
                 </Text>

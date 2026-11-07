@@ -6,12 +6,12 @@ import {
   Slider,
   Switch,
   Text as ComposeText,
-  TextButton,
+  TextButton as ComposeTextButton,
 } from '@expo/ui/jetpack-compose';
 import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import { AndroidHaptics, performAndroidHapticsAsync } from 'expo-haptics';
 import { useRef, useState } from 'react';
-import { Pressable, Text, TextInput, View, type TextInputInstance } from 'react-native';
+import { Text, TextInput, View, type TextInputInstance } from 'react-native';
 
 import { addDays, dayLabel, runOn, today } from '@/challenges/days';
 import {
@@ -23,16 +23,16 @@ import {
   type Draft,
 } from '@/challenges/draft';
 import type { Saved } from '@/challenges/saved';
-import { Glyph } from '@/components/glyph';
+import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
+import { TextButton } from '@/components/text-button';
 import { EXERCISES } from '@/exercises/registry';
 import { colors } from '@/theme';
 import type { Challenge, Goal } from '@/workout/plan';
 
 const label = 'font-mono text-xs tracking-widest text-muted';
 const FONT = { fontFamily: 'Geist', fontWeight: '500', fontSize: 15 } as const;
-const PENCIL = 'M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16zM13.5 6.5l4 4';
 // The segmented row's inactive fill and the switch's off track sit just off the ground.
 const SEGMENT = {
   activeContainerColor: colors.line,
@@ -83,14 +83,12 @@ function LeaveButton({ onLeave }: { onLeave: () => void }) {
   const [asking, setAsking] = useState(false);
   return (
     <>
-      <Pressable
-        accessibilityRole="button"
-        hitSlop={12}
-        className="self-start"
+      <TextButton
+        label="Leave challenge"
+        color={colors.warn}
         onPress={() => setAsking(true)}
-      >
-        <Text className="font-sans text-base text-warn">Leave challenge</Text>
-      </Pressable>
+        style={{ alignSelf: 'flex-start', marginLeft: -12 }}
+      />
       {asking && (
         <Host matchContents>
           <AlertDialog
@@ -112,18 +110,18 @@ function LeaveButton({ onLeave }: { onLeave: () => void }) {
               </ComposeText>
             </AlertDialog.Text>
             <AlertDialog.ConfirmButton>
-              <TextButton onClick={onLeave}>
+              <ComposeTextButton onClick={onLeave}>
                 <ComposeText color={colors.warn} style={FONT}>
                   Leave
                 </ComposeText>
-              </TextButton>
+              </ComposeTextButton>
             </AlertDialog.ConfirmButton>
             <AlertDialog.DismissButton>
-              <TextButton onClick={() => setAsking(false)}>
+              <ComposeTextButton onClick={() => setAsking(false)}>
                 <ComposeText color={colors.chalk} style={FONT}>
                   Cancel
                 </ComposeText>
-              </TextButton>
+              </ComposeTextButton>
             </AlertDialog.DismissButton>
           </AlertDialog>
         </Host>
@@ -191,14 +189,13 @@ export function Builder({
               // metrics instead of the line height, and the field would grow.
               className="h-15 flex-1 p-0 font-sans text-5xl font-extralight leading-tight tracking-tighter text-chalk"
             />
-            {/* Says the title is editable; screen readers reach the field itself. */}
-            <Pressable
-              importantForAccessibility="no-hide-descendants"
-              hitSlop={16}
+            <IconButton
+              icon="edit"
+              label="Edit name"
+              color={focused ? colors.accent : colors.muted}
               onPress={() => nameField.current?.focus()}
-            >
-              <Glyph d={PENCIL} size={22} color={focused ? colors.accent : colors.muted} />
-            </Pressable>
+              style={{ marginRight: -12 }}
+            />
           </View>
           {/* Focus restyles through `style`: a changing class list remounts the view (react-native-css). */}
           <View

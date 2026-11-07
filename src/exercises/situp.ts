@@ -104,7 +104,6 @@ const hands = (m: number) => (Number.isFinite(m) ? `${Math.round(m * 100)}cm` : 
 export const situp: Exercise<SitupState, SitupSample> = {
   ...situpCycle,
   name: 'sit-ups',
-  glyph: 'M9.4 9a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M13 12l4 10M17 22l6-5 4 9M3 26h26',
   placement: 'side-floor',
   ...SETUP['side-floor'],
   hint: 'Sit up with knees bent, then lie back and curl up to count.',

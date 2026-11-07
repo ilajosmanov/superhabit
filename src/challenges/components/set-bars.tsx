@@ -1,7 +1,7 @@
 import { Text, View } from 'react-native';
 
 import { capitalise } from '@/challenges/challenges';
-import { Glyph } from '@/components/glyph';
+import { ExerciseFigure } from '@/components/illustrations';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 import { goalLabel, type Goal } from '@/workout/plan';
 
@@ -31,7 +31,7 @@ export function SetBars({
           <View className="h-1.5 rounded-full bg-faint" />
           <View className="gap-1">
             <View className="flex-row items-center gap-1.5">
-              <Glyph d={EXERCISES[exercise].glyph} size={20} box={32} />
+              <ExerciseFigure exercise={exercise} size={20} />
               <Text numberOfLines={1} className="shrink font-sans text-sm text-chalk">
                 {capitalise(EXERCISES[exercise].name)}
               </Text>

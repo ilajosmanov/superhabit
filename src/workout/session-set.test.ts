@@ -272,7 +272,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
     actor.stop();
   });
 
-  it('toggles the skeleton and flips the camera only before the first attempt or from paused', () => {
+  it('toggles the skeleton and flips the camera only before the first attempt', () => {
     const actor = createActor(workoutSession, { input: { challenge } }).start();
     const view = () => sessionView(actor.getSnapshot());
     const noReps = () => actor.getSnapshot().context.squat.noReps;
@@ -286,9 +286,8 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
     expect(view()).toMatchObject({ camera: 'back', started: true });
     expect(noReps()).toBe(1);
     actor.send({ type: 'pause' });
-    actor.send({ type: 'flipCamera' }); // restarts the set
-    expect(view()).toMatchObject({ stage: 'counting', camera: 'front', started: false });
-    expect(noReps()).toBe(0);
+    actor.send({ type: 'flipCamera' }); // ignored while paused
+    expect(view()).toMatchObject({ stage: 'paused', camera: 'back' });
     actor.stop();
   });
 

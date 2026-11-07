@@ -17,7 +17,8 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { CLOSE, Glyph } from '@/components/glyph';
+import { Icon } from '@/components/icon';
+import { IconButton } from '@/components/icon-button';
 import { EXERCISES, orientation } from '@/exercises/registry';
 import { colors } from '@/theme';
 import type { BestRep } from '@/workout/results';
@@ -30,8 +31,8 @@ const LEAD_S = 1;
 const LOOP_S = 3;
 /** How far before the window a seek may land before it is redone. */
 const SEEK_SLACK_S = 0.5;
-const EXPAND = 'M14 4h6v6M10 20H4v-6M20 4l-6 6M4 20l6-6';
-const SHARE = 'M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6';
+/** Ground at 70 %: buttons over the playing video. */
+const OVER_VIDEO = 'rgba(13,14,11,0.7)';
 
 const label = ({ name, rep, depth, exercise }: BestRep) => {
   const { gauge } = EXERCISES[exercise];
@@ -91,7 +92,7 @@ export function BestRepClip({ best }: { best: BestRep }) {
           <Text className="font-mono text-xs tracking-wider text-soft">{mss(LOOP_S)}</Text>
         </View>
         <View className="absolute right-2 bottom-2 size-11 items-center justify-center rounded-full bg-ground/70">
-          <Glyph d={EXPAND} size={18} />
+          <Icon name="open_in_full" size={18} />
         </View>
       </Pressable>
       {open && (
@@ -175,22 +176,13 @@ function BestRepViewer({ best, onClose }: { best: BestRep; onClose: () => void }
               className="absolute inset-x-0 flex-row justify-between px-4"
               style={{ top: top + 8 }}
             >
-              <Pressable
-                onPress={onClose}
-                accessibilityRole="button"
-                accessibilityLabel="Close"
-                className="size-11 items-center justify-center rounded-full bg-ground/70"
-              >
-                <Glyph d={CLOSE} size={20} />
-              </Pressable>
-              <Pressable
+              <IconButton icon="close" label="Close" fill={OVER_VIDEO} onPress={onClose} />
+              <IconButton
+                icon="share"
+                label="Send my best set"
+                fill={OVER_VIDEO}
                 onPress={() => void shareBestRep(best)}
-                accessibilityRole="button"
-                accessibilityLabel="Send my best set"
-                className="size-11 items-center justify-center rounded-full bg-ground/70"
-              >
-                <Glyph d={SHARE} size={20} />
-              </Pressable>
+              />
             </View>
           </Animated.View>
         </GestureDetector>

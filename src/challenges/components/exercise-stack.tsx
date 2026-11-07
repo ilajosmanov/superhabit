@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { Sheet } from './sheet';
-import { Glyph } from '@/components/glyph';
+import { IconButton } from '@/components/icon-button';
+import { ExerciseFigure } from '@/components/illustrations';
 import { colors } from '@/theme';
-import type { CatalogEntry } from '@/challenges/catalog';
+import type { CatalogEntry, CatalogStep } from '@/challenges/catalog';
 
-const INFO = 'M12 21a9 9 0 1 0 0-18a9 9 0 1 0 0 18M12 11v5M12 7.5v.5';
 // Five tiles and a "+N" tile fit one line on the narrowest card.
 const MAX_TILES = 5;
 
@@ -18,7 +18,7 @@ function StepLines({ entry }: { entry: CatalogEntry }) {
         {entry.steps.map((step, i) => (
           // A challenge may repeat an exercise, so the index is part of the key.
           <View key={`${i}-${step.name}`} className="flex-row items-center gap-2.5">
-            <Glyph d={step.glyph} size={20} box={32} />
+            <ExerciseFigure exercise={step.exercise} size={20} />
             <Text className="font-sans text-base text-soft">{step.name}</Text>
             <Text className="font-mono text-xs text-muted">{step.goal}</Text>
           </View>
@@ -36,14 +36,15 @@ export function StepsButton({ entry }: { entry: CatalogEntry }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`All steps of ${entry.name}`}
-        hitSlop={12}
+      {/* Pulled into the card's padding so the 48dp target doesn't grow the row. */}
+      <IconButton
+        icon="info"
+        label={`All steps of ${entry.name}`}
+        size={20}
+        color={colors.muted}
         onPress={() => setOpen(true)}
-      >
-        <Glyph d={INFO} size={18} color={colors.muted} />
-      </Pressable>
+        style={{ marginVertical: -6, marginRight: -12 }}
+      />
       <Sheet open={open} onDismiss={() => setOpen(false)}>
         <View className="gap-2">
           <Text className="font-mono text-xs tracking-widest text-muted">
@@ -66,7 +67,11 @@ export function StepsButton({ entry }: { entry: CatalogEntry }) {
  * Always one line, however long the challenge: the exercises as overlapping hairline tiles, like an
  * avatar stack. Each tile is filled with the card's surface colour, so it cuts cleanly into the next.
  */
-export function ExerciseStack({ steps }: { steps: readonly { glyph: string; name: string }[] }) {
+export function ExerciseStack({
+  steps,
+}: {
+  steps: readonly Pick<CatalogStep, 'exercise' | 'name'>[];
+}) {
   const exercises = [...new Map(steps.map((step) => [step.name, step])).values()];
   // A lone "+1" tile is no shorter than the tile it hides.
   const shown = exercises.length > MAX_TILES + 1 ? exercises.slice(0, MAX_TILES) : exercises;
@@ -86,7 +91,7 @@ export function ExerciseStack({ steps }: { steps: readonly { glyph: string; name
           // Earlier tiles sit on top, like a hand of cards.
           style={{ zIndex: shown.length - i }}
         >
-          <Glyph d={step.glyph} size={22} box={32} />
+          <ExerciseFigure exercise={step.exercise} size={22} />
         </View>
       ))}
       {extra > 0 && (

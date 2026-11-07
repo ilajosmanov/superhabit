@@ -237,16 +237,11 @@ describe('dev pose recorder', () => {
     actor.stop();
   });
 
-  it.each([false, true])('drops frames on a camera flip, from paused: %s', async (paused) => {
+  it('drops frames on a camera flip', async () => {
     const actor = createActor(workoutSession, {
       input: { challenge: squatTest, record: true },
     }).start();
-    if (paused) {
-      squat();
-      actor.send({ type: 'pause' });
-    } else {
-      play(body({})); // Before the first attempt a flip is allowed while counting.
-    }
+    play(body({})); // Before the first attempt a flip is allowed while counting.
     actor.send({ type: 'flipCamera' });
     squat(); // Old camera frames must never enter the new buffer.
     actor.send({ type: 'cameraReady' });

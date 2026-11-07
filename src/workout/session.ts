@@ -253,7 +253,7 @@ function withSet(c: Context): readonly StepResult[] {
  *      | |                                          countdown --(COUNTDOWN_S | next)--> counting
  *      | |                                          switching --next--> counting (step + 1)
  *      | pause (also from countdown)
- *   paused --resume | restart | flipCamera--> counting;  end: any stage but finished --> finished
+ *   paused --resume | restart--> counting;  end: any stage but finished --> finished
  *
  * Only `counting` steps a counter; every other stage only hands frames to the screen.
  * Everything said goes through `say`, so the caption is set even when muted.
@@ -525,8 +525,6 @@ export const workoutSession = session.createMachine({
           target: 'counting',
           actions: [sendTo('recorder', { type: 'drop' }), assign(FRESH_SET)],
         },
-        // Earlier sets stay; the take was already cut on entering paused.
-        flipCamera: { target: 'counting.flipping', actions: 'flipSet' },
         end: [
           {
             guard: ({ context }) => context.stepStartedAt !== null,

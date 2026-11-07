@@ -113,8 +113,6 @@ const lungeCounter = sided<LungeSample, Attempt, LungeReport>({
 export const lunge: Exercise<LungeState, LungeSample> = {
   ...lungeCounter,
   name: 'lunges',
-  glyph:
-    'M13.4 5a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M16 8v9M16 17l6 3v6M16 17l-6 5-3 4M3 26h26',
   placement: 'side-upright',
   ...SETUP['side-upright'],
   hint: 'Stand tall to start. Each front-leg lunge counts once.',

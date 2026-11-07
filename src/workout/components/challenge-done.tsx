@@ -1,14 +1,16 @@
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BestRepClip, shareBestRep } from './best-rep-clip';
-import { CLOSE, Glyph } from '@/components/glyph';
+import { IconButton } from '@/components/icon-button';
 import { EXERCISES } from '@/exercises/registry';
 import type { StepResult } from '@/workout/results';
 import type { SessionView } from '@/workout/session-view';
 
 import { mss } from './controls';
 import { PrimaryButton } from '@/components/primary-button';
+import { TextButton } from '@/components/text-button';
+import { colors } from '@/theme';
 import { RepStrip } from './rep-strip';
 
 function SetRow({ set }: { set: StepResult }) {
@@ -83,14 +85,7 @@ export function ChallengeDone({
         >
           {title.toUpperCase()}
         </Text>
-        <Pressable
-          onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-          className="-mr-3 size-11 items-center justify-center"
-        >
-          <Glyph d={CLOSE} size={20} />
-        </Pressable>
+        <IconButton icon="close" label="Close" onPress={onClose} style={{ marginRight: -12 }} />
       </View>
 
       <ScrollView
@@ -124,13 +119,12 @@ export function ChallengeDone({
         {best ? (
           <>
             <PrimaryButton onPress={() => void shareBestRep(best)} label="Send my best set" />
-            <Pressable
+            <TextButton
+              label="Done"
+              color={colors.soft}
               onPress={onClose}
-              accessibilityRole="button"
-              className="-mt-1.5 h-11 items-center justify-center"
-            >
-              <Text className="font-sans text-base text-soft">Done</Text>
-            </Pressable>
+              style={{ alignSelf: 'center', marginTop: -6 }}
+            />
           </>
         ) : (
           <PrimaryButton onPress={onClose} label="Done" />

@@ -1,10 +1,9 @@
-import { Pressable, Text, View } from 'react-native';
-import Svg, { Rect } from 'react-native-svg';
+import { Text, View } from 'react-native';
 
 import { EXERCISES, type BodyPart } from '@/exercises/registry';
-import { colors } from '@/theme';
 
-import { SecondaryButton } from './controls';
+import { CHIP_FILL, SecondaryButton } from './controls';
+import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { depthText, type Gauge } from './depth';
 import { DepthGauge } from './depth-gauge';
@@ -53,15 +52,6 @@ function LostCard({ ready, missing }: { ready: string; missing: readonly BodyPar
   );
 }
 
-function PauseIcon() {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 24 24" pointerEvents="none">
-      <Rect x={6} y={5} width={4} height={14} rx={1} fill={colors.chalk} />
-      <Rect x={14} y={5} width={4} height={14} rx={1} fill={colors.chalk} />
-    </Svg>
-  );
-}
-
 /**
  * Boards 10, 11 and 13: the count, its segments, the live depth gauge; a warn card after a no-rep.
  * Board 15: pose lost mid-set, the count stays, a hint replaces the gauge and End set turns primary.
@@ -96,7 +86,6 @@ export function LiveSet(props: PlatterProps) {
   ) : (
     noRep && gauge && <NoRepCard cue={noRep.cue} depth={noRep.depth} gauge={gauge} />
   );
-  const size = landscape ? 'size-11' : 'size-12';
   const height = landscape ? 'h-11' : 'h-12';
 
   return (
@@ -122,14 +111,7 @@ export function LiveSet(props: PlatterProps) {
         </>
       )}
       <View className={`flex-row gap-2 ${landscape ? '' : 'mt-1'}`}>
-        <Pressable
-          onPress={onPause}
-          accessibilityRole="button"
-          accessibilityLabel="Pause"
-          className={`${size} items-center justify-center rounded-full bg-chalk/10`}
-        >
-          <PauseIcon />
-        </Pressable>
+        <IconButton icon="pause" label="Pause" fill={CHIP_FILL} onPress={onPause} />
         {lost ? (
           <PrimaryButton
             onPress={onEndSet}

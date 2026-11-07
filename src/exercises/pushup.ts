@@ -112,7 +112,6 @@ const pushupCycle = cycle<PushupSample, Attempt, PushupReport>({
 export const pushup: Exercise<PushupState, PushupSample> = {
   ...pushupCycle,
   name: 'push-ups',
-  glyph: 'M23.4 12a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M23 15L5 22M21 15.8l.6 9.2M3 26h26',
   placement: 'side-floor',
   ...SETUP['side-floor'],
   hint: 'Counting starts once you hold a plank.',
