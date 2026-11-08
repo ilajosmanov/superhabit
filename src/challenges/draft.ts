@@ -33,6 +33,12 @@ export const withAmount = (draft: Draft, n: number): Draft => {
   };
 };
 
+/** Set a typed number in the exercise's own unit: any whole number from 1, in or past the slider's range. */
+export const withNumber = (draft: Draft, n: number): Draft => ({
+  ...draft,
+  goal: isHold(draft.exercise) ? seconds(n) : reps(n),
+});
+
 export const newDraft = (exercise: ExerciseId) =>
   withAmount(
     { exercise, goal: MAX, days: 21, restartOnMiss: false, name: null },
