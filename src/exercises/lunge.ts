@@ -117,6 +117,10 @@ export const lunge: Exercise<LungeState, LungeSample> = {
   ...SETUP['side-upright'],
   hint: 'Stand tall to start. Each front-leg lunge counts once.',
   ready: 'Stand tall',
+  how: [
+    `Step forward until your front knee reaches ${LUNGE_DOWN}°`,
+    'Each front-leg lunge counts once',
+  ],
   parts: ['head', 'hips', 'feet'],
   gauge: { down: LUNGE_DOWN, up: LUNGE_UP },
   measure: measureLunge,

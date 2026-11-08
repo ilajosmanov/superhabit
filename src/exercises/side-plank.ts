@@ -111,4 +111,5 @@ export const sidePlank = exercise(hold(sidePlankPosition), {
     'Head to feet in frame',
   ],
   hint: 'Face the phone. The clock starts once your hips lift into a straight line.',
+  how: ['Lift your hips into a straight line', 'The clock runs while you hold it'],
 });

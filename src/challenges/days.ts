@@ -27,6 +27,12 @@ export function dayLabel(day: Day) {
 export type Progress = Readonly<Record<Day, number>>;
 
 /**
+ * What each exercise set got on a day's best try, in session order: reps, or seconds held. Days saved
+ * before these were kept have none.
+ */
+export type SetsByDay = Readonly<Record<Day, readonly number[]>>;
+
+/**
  * Where a joined challenge stands on `today`. `from` is this run's day 1 (later than the join day after a
  * restart); `progress` has one share per day of the run so far, day 1 first, 0 for a day with no try.
  */
@@ -58,4 +64,33 @@ export function runOn(
   };
 }
 
+/**
+ * What each of a session's `count` sets got on day `i` of the run (0 = day 1); a day with no try got
+ * nothing. Undefined when that isn't known: a day still ahead, or one tried before sets were kept or
+ * before an edit changed them (it has only its share).
+ */
+export function setsOn(run: Run, kept: SetsByDay, i: number, count: number) {
+  if (i >= run.day) return undefined;
+  if (run.progress[i] === 0) return Array<number>(count).fill(0);
+  const sets = kept[addDays(run.from, i)];
+  return sets?.length === count ? sets : undefined;
+}
+
 export const doneToday = (run: Run) => run.progress[run.day - 1] >= 1;
+
+/** A share as the page says it, rounded down so a day just short of done never reads 100%. */
+// The epsilon undoes float error: 57 of 100 is 0.57, and 0.57 * 100 is 56.99999999999999.
+export const percent = (share: number) => `${Math.floor(share * 100 + 1e-9)}%`;
+
+/**
+ * Day `i` of a run (0 is day 1) in a word: DONE, how much of it (64%), NOT YET for today, MISSED before
+ * it, IN 3 DAYS after it.
+ */
+export function dayWord(run: Run, i: number) {
+  const ahead = i - (run.day - 1);
+  if (ahead > 0) return `IN ${ahead} ${ahead === 1 ? 'DAY' : 'DAYS'}`;
+  const share = run.progress[i];
+  if (share >= 1) return 'DONE';
+  if (share > 0) return percent(share);
+  return ahead === 0 ? 'NOT YET' : 'MISSED';
+}

@@ -1,6 +1,6 @@
 import { expect, it } from 'vite-plus/test';
 
-import { draftOf, newDraft, toChallenge, withAmount } from './draft';
+import { draftOf, newDraft, toChallenge, withAmount, withNumber } from './draft';
 import { MAX, reps, seconds } from '@/workout/plan';
 
 it('names a draft after its exercise until you type a name', () => {
@@ -13,6 +13,12 @@ it('names a draft after its exercise until you type a name', () => {
 it('sets a hold in seconds and reps in reps', () => {
   expect(withAmount(newDraft('plank'), 90).goal).toEqual(seconds(90));
   expect(withAmount(newDraft('squat'), 90).goal).toEqual(reps(90));
+});
+
+it('takes a typed number as it is, off the slider steps and past its top', () => {
+  expect(withNumber(newDraft('squat'), 7).goal).toEqual(reps(7));
+  expect(withNumber(newDraft('squat'), 400).goal).toEqual(reps(400));
+  expect(withNumber(newDraft('plank'), 45).goal).toEqual(seconds(45));
 });
 
 it('takes the stop past the top as Max', () => {

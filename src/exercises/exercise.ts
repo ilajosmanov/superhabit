@@ -44,6 +44,8 @@ export type Labels = {
   steps: readonly string[];
   /** When counting starts (the counter waits for the start position). */
   hint: string;
+  /** One rep after `ready`, in steps, as the how-to card lists them; thresholds come from the counter. */
+  how: readonly string[];
 };
 
 export type Exercise<S extends Progress, M extends Measured> = Detector<S, M> & Labels;

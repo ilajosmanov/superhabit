@@ -17,5 +17,6 @@ export const legRaise = exercise(
     placement: 'side-floor',
     ...SETUP['side-floor'],
     hint: 'Lie flat, legs straight. Raise them to vertical, then lower to count.',
+    how: ['Raise your legs to vertical', 'Lower them to count'],
   },
 );

@@ -104,6 +104,7 @@ export const jumpingJack: Exercise<JumpingJackState, JumpingJackSample> = {
   ],
   hint: 'Start with feet together and arms down. Jump wide with arms overhead, then return.',
   ready: 'Feet together, arms down',
+  how: ['Jump wide with arms overhead', 'Jump back to count'],
   parts: ['head', 'hands', 'hips', 'feet'],
   gauge: { down: JACK_OPEN, up: RETURN },
   measure: measureJumpingJack,

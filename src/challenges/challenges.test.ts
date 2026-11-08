@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { CHALLENGES, detail, summary, totalReps, totalSeconds } from './challenges';
+import { detail, plan } from './challenges';
 import { defineChallenge, MAX, reps, seconds, type Session } from '@/workout/plan';
 
 const challenge = (session: Session) =>
@@ -17,70 +17,18 @@ const circuit = challenge([
   },
 ]);
 
-it('describes every shipped challenge in one sentence', () => {
-  expect([...CHALLENGES].map(([id, entry]) => [id, summary(entry)])).toEqual([
-    [
-      'floor-circuit',
-      '2 rounds: 3 push-ups, then 3 sit-ups, then 3 glute bridges, then plank 10 s',
-    ],
-    ['standing-circuit', '2 rounds: 3 squats, then 5 jumping jacks'],
-    [
-      'floor-ladder',
-      '1 push-ups, then 1 sit-ups, then 2 push-ups, then 2 sit-ups, then 1 push-ups, then 1 sit-ups',
-    ],
-    ['five-ten-fifteen', '2 rounds: 3 push-ups, then 2 rounds: 3 squats'],
-    ['pushup', 'Push-ups, as many as you can'],
-    ['squat', 'Squats, as many as you can'],
-    ['plank', 'Plank, as long as you can'],
-    ['situp', 'Sit-ups, as many as you can'],
-    ['lunge', 'Lunges, as many as you can'],
-    ['glute-bridge', 'Glute bridges, as many as you can'],
-    ['jumping-jack', 'Jumping jacks, as many as you can'],
-    ['leg-raise', 'Leg raises, as many as you can'],
-    ['wall-sit', 'Wall sit, as long as you can'],
-  ]);
-});
-
 describe('detail', () => {
-  it('counts reps of a rep-only challenge and rotates the phone between placements', () => {
-    const squatPushup = challenge([
-      {
-        steps: [
-          { exercise: 'squat', goal: reps(3) },
-          { exercise: 'pushup', goal: reps(3) },
-        ],
-        rounds: 1,
-      },
+  it('says how the camera tracks reps, holds, or both', () => {
+    const squats = challenge([{ steps: [{ exercise: 'squat', goal: MAX }], rounds: 1 }]);
+    const plank = challenge([{ steps: [{ exercise: 'plank', goal: seconds(60) }], rounds: 1 }]);
+    expect([squats, plank, circuit].map((c) => detail(c).tracking)).toEqual([
+      'The camera counts. Only full-range reps score.',
+      'The camera times your hold. Stay in position to keep the clock running.',
+      'The camera counts full-range reps and times your holds.',
     ]);
-    expect(detail(squatPushup)).toMatchObject({
-      total: 6,
-      countsReps: true,
-      tracking: 'The camera counts. Only full-range reps score.',
-      phone: 'ROTATES',
-      first: { name: 'squats' },
-    });
-    expect(detail(squatPushup).sets).toHaveLength(2);
   });
 
-  it('times a hold-only challenge in seconds, phone sideways', () => {
-    const plankMinute = challenge([
-      { steps: [{ exercise: 'plank', goal: seconds(60) }], rounds: 1 },
-    ]);
-    expect(detail(plankMinute)).toMatchObject({
-      total: 60,
-      countsReps: false,
-      tracking: 'The camera times your hold. Stay in position to keep the clock running.',
-      phone: 'SIDEWAYS',
-    });
-  });
-
-  it('counts reps and times holds in a mixed circuit, leaving rests out of the sets', () => {
-    expect(detail(circuit)).toMatchObject({
-      total: 30,
-      countsReps: true,
-      tracking: 'The camera counts full-range reps and times your holds.',
-      phone: 'SIDEWAYS',
-    });
+  it('lists every exercise set in session order, leaving rests out', () => {
     expect(detail(circuit).sets.map((set) => set.exercise)).toEqual([
       'pushup',
       'plank',
@@ -90,111 +38,65 @@ describe('detail', () => {
       'plank',
     ]);
   });
-
-  it('keeps the phone upright for a standing exercise', () => {
-    expect(
-      detail(challenge([{ steps: [{ exercise: 'squat', goal: MAX }], rounds: 1 }])).phone,
-    ).toBe('UPRIGHT');
-  });
 });
 
-describe('summary', () => {
-  it('lists counted sets in order', () => {
-    expect(
-      summary(
-        challenge([
-          {
-            steps: [
-              { exercise: 'squat', goal: reps(3) },
-              { exercise: 'pushup', goal: reps(3) },
-            ],
-            rounds: 1,
-          },
-        ]),
-      ),
-    ).toBe('3 squats, then 3 push-ups');
-  });
-
-  it('capitalises an open-ended first set', () => {
-    expect(summary(challenge([{ steps: [{ exercise: 'pushup', goal: MAX }], rounds: 1 }]))).toBe(
-      'Push-ups, as many as you can',
-    );
-    expect(summary(challenge([{ steps: [{ exercise: 'squat', goal: MAX }], rounds: 1 }]))).toBe(
-      'Squats, as many as you can',
-    );
-  });
-
-  it('describes an open-ended hold by duration', () => {
-    expect(summary(challenge([{ steps: [{ exercise: 'plank', goal: MAX }], rounds: 1 }]))).toBe(
-      'Plank, as long as you can',
-    );
-  });
-
-  it('describes repeated blocks once and omits rests', () => {
-    expect(summary(circuit)).toBe('3 rounds: 10 push-ups, then plank 30 s');
-  });
-
-  it("preserves block order and each block's round count", () => {
-    expect(
-      summary(
-        challenge([
-          { steps: [{ exercise: 'squat', goal: reps(3) }], rounds: 2 },
-          { steps: [{ exercise: 'pushup', goal: reps(1) }], rounds: 1 },
-        ]),
-      ),
-    ).toBe('2 rounds: 3 squats, then 1 push-ups');
-  });
-});
-
-describe('totals', () => {
-  it('sums rep goals, and an open-ended rep goal makes them unlimited', () => {
-    const squat = { exercise: 'squat', goal: reps(3) } as const;
-    expect(
-      totalReps(challenge([{ steps: [squat, { exercise: 'pushup', goal: reps(3) }], rounds: 1 }])),
-    ).toBe(6);
-    expect(
-      totalReps(challenge([{ steps: [squat, { exercise: 'pushup', goal: MAX }], rounds: 1 }])),
-    ).toBe(Infinity);
-  });
-
-  it('multiplies goals by rounds and excludes holds and rests from reps', () => {
-    expect(totalReps(circuit)).toBe(30);
-    expect(totalSeconds(circuit)).toBe(90);
-  });
-
-  it('makes a hold-only MAX challenge unlimited in seconds, with no reps', () => {
-    const hold = challenge([{ steps: [{ exercise: 'plank', goal: MAX }], rounds: 1 }]);
-    expect(totalReps(hold)).toBe(0);
-    expect(totalSeconds(hold)).toBe(Infinity);
-  });
-
-  it('keeps mixed timed and MAX holds unlimited across rounds', () => {
-    const mixed = challenge([
+describe('plan', () => {
+  it('says rounds and rest once a part and puts the phone line where the phone moves', () => {
+    const tenFifteen = challenge([
       {
         steps: [
-          { exercise: 'plank', goal: MAX },
-          { exercise: 'rest', goal: MAX },
-          { exercise: 'squat', goal: reps(10) },
-          { exercise: 'plank', goal: seconds(20) },
+          { exercise: 'pushup', goal: reps(10) },
+          { exercise: 'rest', goal: seconds(30) },
         ],
-        rounds: 2,
+        rounds: 5,
       },
-    ]);
-    expect(totalReps(mixed)).toBe(20);
-    expect(totalSeconds(mixed)).toBe(Infinity);
-  });
-
-  it('excludes rep goals and MAX rests from hold seconds', () => {
-    const mixed = challenge([
       {
         steps: [
-          { exercise: 'plank', goal: seconds(20) },
-          { exercise: 'rest', goal: MAX },
-          { exercise: 'squat', goal: MAX },
+          { exercise: 'squat', goal: reps(15) },
+          { exercise: 'rest', goal: seconds(30) },
         ],
-        rounds: 2,
+        rounds: 5,
       },
     ]);
-    expect(totalSeconds(mixed)).toBe(40);
+    const { parts, single } = plan(tenFifteen);
+    expect(parts).toEqual([
+      {
+        label: 'PART 1 · 5 ROUNDS · 30 S REST BETWEEN',
+        rounds: 5,
+        rows: [{ exercise: 'pushup', goal: reps(10), move: 'Turn the phone sideways' }],
+      },
+      {
+        label: 'PART 2 · 5 ROUNDS · 30 S REST BETWEEN',
+        rounds: 5,
+        rows: [{ exercise: 'squat', goal: reps(15), move: 'Then stand the phone upright' }],
+      },
+    ]);
+    expect(single).toBeNull();
+  });
+
+  it('keeps one phone line while the phone stays put', () => {
+    const { parts, exercises } = plan(circuit);
+    expect(parts).toEqual([
+      {
+        label: '3 ROUNDS · 30 S REST BETWEEN',
+        rounds: 3,
+        rows: [
+          { exercise: 'pushup', goal: reps(10), move: 'Turn the phone sideways' },
+          { exercise: 'plank', goal: seconds(30) },
+        ],
+      },
+    ]);
+    expect(exercises).toEqual(['pushup', 'plank']);
+  });
+
+  it('gives a one-exercise, one-round session as a single row', () => {
+    const fifty = challenge([{ steps: [{ exercise: 'pushup', goal: reps(50) }], rounds: 1 }]);
+    expect(plan(fifty).single).toEqual({
+      exercise: 'pushup',
+      goal: reps(50),
+      move: 'Turn the phone sideways',
+    });
+    const twice = challenge([{ steps: [{ exercise: 'pushup', goal: reps(50) }], rounds: 2 }]);
+    expect(plan(twice).single).toBeNull();
   });
 });

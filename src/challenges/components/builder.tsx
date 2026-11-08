@@ -18,6 +18,7 @@ import {
   toChallenge,
   unitOf,
   withAmount,
+  withNumber,
   type Draft,
 } from '@/challenges/draft';
 import type { Saved } from '@/challenges/saved';
@@ -43,7 +44,7 @@ const SEGMENT = {
 
 /**
  * The daily number on the M3 slider, in fives of reps or tens of seconds, with Max one stop past the top;
- * ticks and reports only real changes.
+ * ticks and reports only real changes. A typed number past either end sits at that end.
  */
 function AmountSlider({
   unit,
@@ -56,8 +57,10 @@ function AmountSlider({
 }) {
   const { min, max, step } = RANGE[unit];
   const top = max + step;
-  const value = goal.type === 'max' ? top : goal.n;
+  const value = goal.type === 'max' ? top : Math.min(max, Math.max(min, goal.n));
   return (
+    // shortcut: its ends sit near the back-gesture zone, so a drag to the first or last stop can take two
+    // tries; typing the number covers it. Exclude the slider from system gestures if @expo/ui exposes it.
     <Host matchContents={{ vertical: true }}>
       <Slider
         value={value}
@@ -87,7 +90,7 @@ function AmountSlider({
 /**
  * Name a one-exercise challenge and set its numbers (design 05b): the title is the name field (React
  * Native's: Compose's BasicTextField takes only a family's regular face, not Geist 200), the
- * giant numeral follows the slider, then days and the restart rule. `history` is the run so far of a
+ * giant numeral (a field too: type any number) follows the slider, then days and the restart rule. `history` is the run so far of a
  * challenge you are in; a new one starts today.
  */
 export function Builder({
@@ -103,6 +106,8 @@ export function Builder({
 }) {
   const [draft, setDraft] = useState(initial);
   const [focused, setFocused] = useState(false);
+  // The numeral's text while you type in it; null when the field is not focused.
+  const [typing, setTyping] = useState<string | null>(null);
   const nameField = useRef<TextInputInstance>(null);
   const exercise = EXERCISES[draft.exercise];
   const { goal } = draft;
@@ -163,19 +168,48 @@ export function Builder({
       </View>
 
       <View className="gap-5">
-        {/* Clipped so the numeral sits on its baseline, like the challenge page. */}
-        <View
-          accessible
-          accessibilityLabel={`${goal.type === 'max' ? (hold ? 'As long as you can' : 'As many as you can') : `${goal.n} ${hold ? 'seconds' : 'reps'}`} every day`}
-          className="flex-row items-end justify-between overflow-hidden"
-        >
-          <Text className="-ml-1.5 font-sans text-9xl font-extralight leading-none tracking-tighter text-chalk">
-            {goal.type === 'max' ? 'Max' : goal.n}
-          </Text>
-          <View className="items-end gap-1 pb-4">
-            <Text className={label}>{hold ? 'SECONDS' : 'CLEAN REPS'}</Text>
-            <Text className={label}>EVERY DAY</Text>
+        <View className="gap-1">
+          {/* Clipped so the numeral sits on its baseline, like the challenge page. */}
+          <View className="flex-row items-end justify-between overflow-hidden">
+            {/* The numeral is a field: any whole number, past the slider's range or between its stops. */}
+            <TextInput
+              accessibilityLabel={hold ? 'Seconds every day' : 'Reps every day'}
+              value={typing ?? (goal.type === 'max' ? 'Max' : String(goal.n))}
+              // Max has no number to edit: the field opens empty, Max as its placeholder.
+              onFocus={() => setTyping(goal.type === 'max' ? '' : String(goal.n))}
+              onBlur={() => setTyping(null)}
+              onChangeText={(text) => {
+                const digits = text.replace(/\D/g, '');
+                setTyping(digits);
+                // Emptied or 0, the goal keeps its last number until you type one.
+                if (Number(digits) >= 1) setDraft((d) => withNumber(d, Number(digits)));
+              }}
+              keyboardType="number-pad"
+              maxLength={3}
+              returnKeyType="done"
+              selectTextOnFocus
+              cursorColor={colors.accent}
+              selectionColor={colors.line}
+              selectionHandleColor={colors.accent}
+              placeholder={goal.type === 'max' ? 'Max' : String(goal.n)}
+              placeholderTextColor={colors.faint}
+              // One line's height (text-9xl × leading-none), pinned: empty, Android measures by the font's
+              // taller metrics and the field would grow.
+              className="-ml-1.5 h-32 flex-1 p-0 font-sans text-9xl font-extralight leading-none tracking-tighter text-chalk"
+            />
+            <View className="items-end gap-1 pb-4">
+              <Text className={label}>{hold ? 'SECONDS' : 'CLEAN REPS'}</Text>
+              <Text className={label}>EVERY DAY</Text>
+            </View>
           </View>
+          {/* Underlined like the name: it's editable. Focus restyles through `style`, as the name's does. */}
+          <View
+            className="border-b"
+            style={{
+              borderColor: typing !== null ? colors.accent : colors.edge,
+              borderStyle: typing !== null ? 'solid' : 'dashed',
+            }}
+          />
         </View>
         <AmountSlider
           unit={unitOf(draft.exercise)}

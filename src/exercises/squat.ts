@@ -5,13 +5,15 @@ import { jointAngle } from './measures/joint-angle';
 import { bothSides } from './measures/measure';
 import { standingPosition } from './positions/standing';
 
+const down = 100;
+
 const squatCycle = cycle(
   standingPosition,
   // Real reps bend both knees within 20° of each other; a bigger gap is a kick or a mis-tracked leg.
   bothSides(jointAngle('knee'), 35),
   {
     up: 160,
-    down: 100,
+    down,
     shallow: 140,
     fastMs: 800,
     deeper: 'Go deeper',
@@ -23,12 +25,14 @@ const squatCycle = cycle(
 );
 
 const hint = 'Counting starts once you stand tall.';
+const how = [`Sit back until your knees reach ${down}°`, 'Stand all the way up'];
 
 export const squat = exercise(squatCycle, {
   name: 'squats',
   placement: 'front-upright',
   ...SETUP['front-upright'],
   hint,
+  how,
 });
 
 // shortcut: squat's thresholds, tuned front-on; side-on lunges counted as squats on clips without
@@ -39,4 +43,5 @@ export const sideSquat = exercise(squatCycle, {
   placement: 'side-upright',
   ...SETUP['side-upright'],
   hint,
+  how,
 });

@@ -1,17 +1,23 @@
 import { z } from 'zod';
 
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
-import { addDays, type Day, type Progress } from './days';
+import { addDays, type Day, type Progress, type SetsByDay } from './days';
 import { defineChallenge, type Challenge } from '@/workout/plan';
 
 /**
  * A challenge you joined or made, and its run. `id` is a suggested challenge's own id (joined as-is or
  * edited), or a fresh one for a challenge you made. Exercises are stored by id only, never thresholds.
  */
-export type Saved = { id: string; challenge: Challenge; startedOn: Day; progress: Progress };
+export type Saved = {
+  id: string;
+  challenge: Challenge;
+  startedOn: Day;
+  progress: Progress;
+  sets: SetsByDay;
+};
 
 /** Bump when the stored shape changes, and read the older version in `parse`. */
-const VERSION = 2;
+const VERSION = 3;
 
 // The file is a trust boundary: every field is checked, nothing is cast.
 // Round-tripping through the calendar rejects days that don't exist, like 2026-02-30.
@@ -48,9 +54,11 @@ const challenge = z
     }
   });
 const entry = { id: z.string(), challenge, startedOn: day };
+// Version 2 had no `sets`: its days keep only their share.
 const saved: z.ZodType<Saved> = z.object({
   ...entry,
   progress: z.record(day, z.number().min(0).max(1)),
+  sets: z.record(day, z.array(z.number().min(0))).default({}),
 });
 // Version 1 kept only the days done in full.
 const v1: z.ZodType<Saved> = z
@@ -58,8 +66,9 @@ const v1: z.ZodType<Saved> = z
   .transform(({ done, ...rest }) => ({
     ...rest,
     progress: Object.fromEntries(done.map((d) => [d, 1])),
+    sets: {},
   }));
-const file = z.object({ version: z.literal([1, VERSION]), challenges: z.array(z.unknown()) });
+const file = z.object({ version: z.literal([1, 2, VERSION]), challenges: z.array(z.unknown()) });
 
 export const serialise = (value: readonly Saved[]) =>
   JSON.stringify({ version: VERSION, challenges: value });

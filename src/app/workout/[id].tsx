@@ -13,12 +13,12 @@ import {
 
 import { usePoseOverlay } from '@/workout/pose/overlay';
 import { PoseCamera } from '@/workout/pose/pose-camera';
+import { ChallengeDone } from '@/challenges/components/challenge-done';
 import { saveFailed } from '@/challenges/components/save-failed';
-import { today, type Day } from '@/challenges/days';
+import { today } from '@/challenges/days';
 import { recordTry, useChallenge } from '@/challenges/mine';
 import type { Challenge } from '@/workout/plan';
 import { BetweenSets } from '@/workout/components/between-sets';
-import { ChallengeDone } from '@/workout/components/challenge-done';
 import { LiveView } from '@/workout/components/live-view';
 import { PrimaryButton } from '@/components/primary-button';
 import { workoutSession } from '@/workout/session';
@@ -55,28 +55,24 @@ export default function ChallengeScreen() {
     );
   }
   // A new id is a new session actor.
-  return (
-    <AndroidSession
-      key={id}
-      challenge={found.challenge}
-      // Any try counts toward the day, by its share; a one-go set is never stored.
-      onFinished={(share, day) => {
-        if (share > 0 && found.saved && !recordTry(id, day, share)) saveFailed();
-      }}
-    />
-  );
+  return <AndroidSession key={id} id={id} challenge={found.challenge} />;
 }
 
-function AndroidSession({
-  challenge,
-  onFinished,
-}: {
-  challenge: Challenge;
-  /** `day` is the one the session started on: a set finished at 00:05 still belongs to yesterday. */
-  onFinished: (share: number, day: Day) => void;
-}) {
+function AndroidSession({ id, challenge }: { id: string; challenge: Challenge }) {
   useKeepAwake();
+  // The day the session started on, not the permission prompt before it: a set finished at 00:05 still
+  // belongs to yesterday, and Done says so.
   const [day] = useState(today);
+  const found = useChallenge(id, day);
+  const run = found?.run ?? null;
+  const warned = useRef(false);
+  // Any try counts toward the day, by its share; a one-go set is never stored. Saved after every set, so
+  // a killed app keeps the sets done; a failed write is said once, and the next set tries again.
+  const onSaved = (share: number, sets: number[]) => {
+    if (share === 0 || !found?.saved || recordTry(id, day, share, sets)) return;
+    if (!warned.current) saveFailed();
+    warned.current = true;
+  };
   const router = useRouter();
   const camera = useRef<CameraRef>(null);
   const { joints, highlight, angle, lowest, onPose } = usePoseOverlay(camera);
@@ -88,7 +84,7 @@ function AndroidSession({
       video,
       record: true,
       onPose,
-      onFinished: (share) => onFinished(share, day),
+      onSaved,
     },
   });
   const landmarker = useSelector(session, (s) => s.context.landmarker);
@@ -126,23 +122,28 @@ function AndroidSession({
   return (
     <View className="flex-1 bg-ground">
       <StatusBar hidden />
-      <PoseCamera
-        cameraRef={camera}
-        landmarker={landmarker}
-        isActive={view.stage !== 'finished'}
-        joints={joints}
-        highlight={highlight}
-        tone={tone}
-        video={view.filming ? video : undefined}
-        camera={view.camera}
-        showSkeleton={view.skeleton}
-        onReady={send('cameraReady')}
-        onVideoLost={send('videoLost')}
-      />
+      {/* Gone once every file is final (stopped, not unmounted, until then, so no take is cut short):
+          a stopped camera's last frame showed through the Done page's video. */}
+      {!(view.stage === 'finished' && view.final) && (
+        <PoseCamera
+          cameraRef={camera}
+          landmarker={landmarker}
+          isActive={view.stage !== 'finished'}
+          joints={joints}
+          highlight={highlight}
+          tone={tone}
+          video={view.filming ? video : undefined}
+          camera={view.camera}
+          showSkeleton={view.skeleton}
+          onReady={send('cameraReady')}
+          onVideoLost={send('videoLost')}
+        />
+      )}
       {view.stage === 'finished' ? (
         <ChallengeDone
           view={view}
-          title={challenge.name}
+          challenge={challenge}
+          run={run}
           onShare={(share) => session.send({ type: 'shareTraces', share })}
           onClose={() => router.back()}
         />

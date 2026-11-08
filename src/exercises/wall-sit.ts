@@ -75,4 +75,5 @@ export const wallSit = exercise(hold(wallSitPosition), {
   placement: 'side-upright',
   ...SETUP['side-upright'],
   hint: 'The clock starts once your thighs are level and your back is on the wall.',
+  how: ['Thighs level, back on the wall', 'The clock runs while you hold it'],
 });

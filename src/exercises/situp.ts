@@ -17,5 +17,6 @@ export const situp = exercise(
     placement: 'side-floor',
     ...SETUP['side-floor'],
     hint: 'Lie back, knees bent, hands behind your head. Sit up, then lie back to count.',
+    how: ['Lie back', 'Curl up again to count'],
   },
 );

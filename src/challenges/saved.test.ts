@@ -13,8 +13,9 @@ const pushups: Saved = {
   },
   startedOn: '2026-11-01',
   progress: { '2026-11-01': 1, '2026-11-02': 0.4 },
+  sets: { '2026-11-02': [20] },
 };
-const file = (challenges: unknown[]) => JSON.stringify({ version: 2, challenges });
+const file = (challenges: unknown[]) => JSON.stringify({ version: 3, challenges });
 const withChallenge = (challenge: object) => ({
   ...pushups,
   id: 'other',
@@ -25,11 +26,17 @@ it('reads back what it wrote', () => {
   expect(parse(serialise([pushups]))).toEqual({ value: [pushups], complete: true });
 });
 
+it('reads a version 2 file, where days kept only their share', () => {
+  const { sets: _, ...rest } = pushups;
+  const old = JSON.stringify({ version: 2, challenges: [rest] });
+  expect(parse(old)).toEqual({ value: [{ ...pushups, sets: {} }], complete: true });
+});
+
 it('reads a version 1 file, where only days done in full were kept', () => {
-  const { progress: _, ...rest } = pushups;
+  const { progress: _, sets: __, ...rest } = pushups;
   const old = JSON.stringify({ version: 1, challenges: [{ ...rest, done: ['2026-11-01'] }] });
   expect(parse(old)).toEqual({
-    value: [{ ...pushups, progress: { '2026-11-01': 1 } }],
+    value: [{ ...pushups, progress: { '2026-11-01': 1 }, sets: {} }],
     complete: true,
   });
 });
@@ -50,6 +57,7 @@ it.each([
   ['zero days', withChallenge({ days: 0 })],
   ['a bad date', { ...pushups, id: 'other', progress: { yesterday: 1 } }],
   ['a share over 1', { ...pushups, id: 'other', progress: { '2026-11-01': 2 } }],
+  ['a negative set', { ...pushups, id: 'other', sets: { '2026-11-02': [-1] } }],
   ['a day that does not exist', { ...pushups, id: 'other', startedOn: '2026-02-30' }],
   ['days no challenge runs', withChallenge({ days: 2 ** 32 })],
   [
@@ -65,7 +73,7 @@ it.each([
 
 it.each([
   ['not json', '{"version":1,'],
-  ['an unknown version', JSON.stringify({ version: 3, challenges: [] })],
+  ['an unknown version', JSON.stringify({ version: 4, challenges: [] })],
 ])('reads nothing from %s and reports it incomplete', (_, text) => {
   expect(parse(text)).toEqual({ value: [], complete: false });
 });

@@ -19,5 +19,6 @@ export const gluteBridge = exercise(
     placement: 'side-floor',
     ...SETUP['side-floor'],
     hint: 'Lie back, knees bent, feet planted. Lift your hips, then lower to count.',
+    how: ['Lift your hips into a straight line', 'Lower them to count'],
   },
 );

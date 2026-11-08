@@ -1,5 +1,15 @@
+import {
+  Canvas,
+  Group,
+  Path as SkiaPath,
+  Skia,
+  useClock,
+  type SkPath,
+} from '@shopify/react-native-skia';
+import { useDerivedValue } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 
+import { repAt } from './rep-loop';
 import { colors } from '@/theme';
 
 type FigureProps = {
@@ -29,8 +39,12 @@ function Figure({ d, size = 24, color = colors.chalk, weight = 1.5 }: FigureProp
   );
 }
 
-const ring = (x: number, y: number, r: number) =>
-  `M${x - r} ${y}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`;
+// Four cubics, not arcs: Skia turns an arc into conics whose weights hang on float noise, and a head drawn
+// at another spot (the squat's) then stops blending with its other pose.
+const ring = (x: number, y: number, r: number) => {
+  const k = r * 0.5523;
+  return `M${x - r} ${y}C${x - r} ${y - k} ${x - k} ${y - r} ${x} ${y - r}S${x + r} ${y - k} ${x + r} ${y}S${x + k} ${y + r} ${x} ${y + r}S${x - r} ${y + k} ${x - r} ${y}Z`;
+};
 const pip = (x: number, y: number) => ring(x, y, 0.55) + ring(x, y, 0.2);
 const DIE =
   'M16 4 26.4 10v12L16 28 5.6 22V10ZM5.6 10 16 16l10.4-6M16 16v12' +
@@ -47,28 +61,106 @@ const DIE =
 /** A die seen from its corner: one pip on top, two left, three right. */
 export const DieFigure = (p: FigureProps) => <Figure d={DIE} {...p} />;
 
-const SQUAT =
-  'M13.4 6a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M15 9l-3 8M12 17l9 1M21 18l-1 8M14 11.5l10 .5M6 26h20';
-/** Each exercise as a stick figure, by exercise id (this layer can't import the registry). */
-const EXERCISE = {
-  squat: SQUAT,
-  // The same movement, seen from the side.
-  'side-squat': SQUAT,
-  pushup: 'M23.4 12a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M23 15L5 22M21 15.8l.6 9.2M3 26h26',
-  plank: 'M24.4 17a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M24 19.5 4 22M21 20v6h5M3 26h26',
-  situp: 'M9.4 9a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M13 12l4 10M17 22l6-5 4 9M3 26h26',
-  'glute-bridge': 'M2.4 22a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M7.5 23 16 16l6 4v6M3 26h26',
-  'jumping-jack':
-    'M13.4 5a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M16 8v10M16 10l-7-6M16 10l7-6M16 18l-6 9M16 18l6 9',
-  lunge:
-    'M13.4 5a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M16 8v9M16 17l6 3v6M16 17l-6 5-3 4M3 26h26',
-  'wall-sit':
-    'M8.4 7a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M11 10v7M11 17h9M20 17v9M11 12l5 3M7 4v22M7 26h19',
-  'side-plank':
-    'M3.4 12a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M8 15l19 10.5M9 16v10M11 16.5 13 8M3 26h26',
-  'leg-raise': 'M2.4 23a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M8 24h9M17 24l5-15M3 26h26',
+/** A stick figure: the head's centre and the body's lines (limbs, floor, wall). */
+type Pose = { head: readonly [number, number]; body: string };
+const HEAD = 2.6;
+
+const SQUAT: Pose = { head: [16, 6], body: 'M15 9L12 17L21 18L20 26M14 11.5L24 12M6 26h20' };
+const STANDING: Pose = {
+  head: [17, 4],
+  body: 'M16.5 7L16 16L17.5 21L17 26M16.2 9.5L24 11M6 26h20',
 };
-export const ExerciseFigure = ({
-  exercise,
-  ...p
-}: FigureProps & { exercise: keyof typeof EXERCISE }) => <Figure d={EXERCISE[exercise]} {...p} />;
+/**
+ * Each exercise by id (this layer can't import the registry): `pose` is its figure; `rep`, when it moves,
+ * is the other end of one rep, drawn with the same path commands so one morphs into the other.
+ */
+const EXERCISE = {
+  squat: { pose: SQUAT, rep: STANDING },
+  // The same movement, seen from the side.
+  'side-squat': { pose: SQUAT, rep: STANDING },
+  pushup: {
+    pose: { head: [26, 12], body: 'M23 15L5 22M21 15.8L21.3 20.4L21.6 25M3 26h26' },
+    rep: { head: [26.4, 19.8], body: 'M23 21.3L5 22.8M21 21.8L17.6 21.4L21.6 25M3 26h26' },
+  },
+  plank: { pose: { head: [27, 17], body: 'M24 19.5 4 22M21 20v6h5M3 26h26' } },
+  situp: {
+    pose: { head: [12, 9], body: 'M13 12L17 22L23 17L27 26M3 26h26' },
+    rep: { head: [5.4, 23.2], body: 'M8.4 24L17 24.2L23 17L27 26M3 26h26' },
+  },
+  'glute-bridge': {
+    pose: { head: [5, 22], body: 'M7.5 23L16 16L22 20L22 26M3 26h26' },
+    rep: { head: [5, 22.6], body: 'M7.5 23.6L15 24L21 18.5L22 26M3 26h26' },
+  },
+  'jumping-jack': {
+    pose: { head: [16, 5], body: 'M16 8L16 18M16 10L9 4M16 10L23 4M16 18L10 27M16 18L22 27' },
+    rep: { head: [16, 5], body: 'M16 8L16 18M16 10L13 17M16 10L19 17M16 18L15 27M16 18L17 27' },
+  },
+  lunge: {
+    pose: { head: [16, 5], body: 'M16 8L16 17M16 17L22 20L22 26M16 17L10 22L7 26M3 26h26' },
+    rep: { head: [16, 3], body: 'M16 6L16 15M16 15L17.5 20.5L17 26M16 15L14.5 20.5L15 26M3 26h26' },
+  },
+  'wall-sit': {
+    pose: { head: [11, 7], body: 'M11 10v7M11 17h9M20 17v9M11 12l5 3M7 4v22M7 26h19' },
+  },
+  'side-plank': { pose: { head: [6, 12], body: 'M8 15l19 10.5M9 16v10M11 16.5 13 8M3 26h26' } },
+  'leg-raise': {
+    pose: { head: [5, 23], body: 'M8 24L17 24M17 24L22 9M3 26h26' },
+    rep: { head: [5, 23], body: 'M8 24L17 24M17 24L28 24.6M3 26h26' },
+  },
+} satisfies Record<string, { pose: Pose; rep?: Pose }>;
+type ExerciseKey = keyof typeof EXERCISE;
+
+const still = ({ head: [x, y], body }: Pose) => ring(x, y, HEAD) + body;
+
+export const ExerciseFigure = ({ exercise, ...p }: FigureProps & { exercise: ExerciseKey }) => (
+  <Figure d={still(EXERCISE[exercise].pose)} {...p} />
+);
+
+/** Whether the exercise has a second pose, so `ExerciseMotion` can play it. */
+export const moves = (exercise: ExerciseKey) => 'rep' in EXERCISE[exercise];
+
+const PERIOD = 2600;
+
+// Skia, not animated SVG props: Reanimated pushes animated SVG props through React Native's view tree
+// every frame, and on a back swipe that tore the page's content down before the screen slid out (only the
+// header left with it). A Skia canvas reads the shared value itself and never touches the tree, yet any
+// running frame loop still does it now and then (3 swipes in 20), even when unmounted on blur: that is
+// the same commit as the pop. So it plays only when asked.
+/**
+ * The figure doing one rep, over and over: a frame clock in a shared value, drawn by Skia on the UI
+ * thread, no effect or timer. Only played on request, so it ignores the reduced-motion setting.
+ */
+export function ExerciseMotion({ exercise, ...p }: FigureProps & { exercise: ExerciseKey }) {
+  const figure = EXERCISE[exercise];
+  // Both ends parse to the same verbs, so Skia can blend them point by point.
+  const from = Skia.Path.MakeFromSVGString(still(figure.pose));
+  const to = 'rep' in figure ? Skia.Path.MakeFromSVGString(still(figure.rep)) : null;
+  if (!from || !to) return <ExerciseFigure exercise={exercise} {...p} />;
+  return <Moving from={from} to={to} {...p} />;
+}
+
+function Moving({
+  from,
+  to,
+  size = 24,
+  color = colors.chalk,
+  weight = 1.5,
+}: FigureProps & { from: SkPath; to: SkPath }) {
+  const clock = useClock();
+  // `interpolate` weighs the path it is called on: 1 = `from`, 0 = `to`.
+  const path = useDerivedValue(() => from.interpolate(to, 1 - repAt(clock.get(), PERIOD)) ?? from);
+  return (
+    <Canvas style={{ width: size, height: size }} pointerEvents="none">
+      <Group transform={[{ scale: size / 32 }]}>
+        <SkiaPath
+          path={path}
+          style="stroke"
+          color={color}
+          strokeWidth={weight}
+          strokeCap="round"
+          strokeJoin="round"
+        />
+      </Group>
+    </Canvas>
+  );
+}

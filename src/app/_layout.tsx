@@ -2,6 +2,7 @@ import '@/global.css';
 
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { colors } from '@/theme';
 
@@ -19,7 +20,8 @@ const pushed = {
 
 export default function RootLayout() {
   return (
-    <>
+    // Gesture handler's gestures (the day strip's drag) only run under this root.
+    <GestureHandlerRootView style={{ flex: 1 }}>
       {/* Native stack and system back. Screens draw their own headers. A pushed page slides fully over
           the one below: Android's default cross-fades the two, which ghosts one page through the other. */}
       <Stack
@@ -34,6 +36,6 @@ export default function RootLayout() {
         <Stack.Screen name="build" options={pushed} />
       </Stack>
       <StatusBar style="light" />
-    </>
+    </GestureHandlerRootView>
   );
 }
