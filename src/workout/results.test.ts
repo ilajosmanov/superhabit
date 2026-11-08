@@ -55,10 +55,10 @@ describe('bestRep', () => {
     });
   });
 
-  it('ranks a squat 12° past 100° over a push-up 8° past 90°, though its angle is larger', () => {
+  it('ranks a squat a fifth of its range past 100° over a glute bridge 3° past 160°, though its angle is larger', () => {
     const sets = [
       set('squat', [{ counted: true, depth: 88, clip: clip(1000) }]),
-      set('pushup', [{ counted: true, depth: 82, clip: clip(500) }]),
+      set('glute-bridge', [{ counted: true, depth: 163, clip: clip(500) }]),
     ];
     expect(bestRep(sets)).toMatchObject({ exercise: 'squat', name: 'squats', depth: 88 });
   });

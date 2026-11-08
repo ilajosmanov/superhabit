@@ -19,7 +19,8 @@ import { cycle, type CycleState } from './cycle';
 import { fmtMs, SETUP, type Exercise } from './exercise';
 
 // Starting guesses; tune on device.
-const PUSHUP_DOWN = 90; // elbow at or below = deep enough
+// A true side-on view reads the elbow ~15° shallower than a 45° view; 90 rejected real reps there.
+const PUSHUP_DOWN = 100; // elbow at or below = deep enough
 const PUSHUP_UP = 150; // elbow at or above = arms straight (soft lockouts read ~160)
 const PUSHUP_SHALLOW = 120; // bent past this without reaching DOWN = no-rep
 const BODY_MIN = 150; // shoulder–hip–ankle below this = sagging, piked or kneeling: not a push-up

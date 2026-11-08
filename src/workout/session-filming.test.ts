@@ -59,13 +59,13 @@ describe('workoutSession filming', () => {
     actor.send({ type: 'next' });
     play(plank({ elbow: 170 }));
     await flush();
-    play(plank({ elbow: 80 }), plank({ elbow: 170 }));
+    play(plank({ elbow: 95 }), plank({ elbow: 170 }));
     expect(view()).toMatchObject({ stage: 'finished', best: null }); // files not final yet
     expect(disk.size).toBe(2);
     await flush();
-    // The squat went further past its 100° than the push-up past its 90°, though its angle is larger.
+    // The squat went further past 100° than the push-up did.
     const [squatSet, pushupSet] = view().results;
-    expect(squatSet.attempts[0].depth - 100).toBeLessThan(pushupSet.attempts[0].depth - 90);
+    expect(squatSet.attempts[0].depth).toBeLessThan(pushupSet.attempts[0].depth);
     expect(view().best).toMatchObject({ ...squatClip, exercise: 'squat', name: 'squats', rep: 1 });
     expect(finalWhenBest).toBe(true);
     expect([...disk].map((name) => `file:///cache/reps/${name}`)).toEqual([squatClip?.uri]);
@@ -95,7 +95,7 @@ describe('workoutSession filming', () => {
     actor.send({ type: 'next' });
     play(plank({ elbow: 170 }));
     await flush();
-    play(plank({ elbow: 80 }), plank({ elbow: 170 }));
+    play(plank({ elbow: 95 }), plank({ elbow: 170 }));
     await flush();
     expect(view().best).toMatchObject({ exercise: 'pushup', rep: 1 });
     actor.stop();
