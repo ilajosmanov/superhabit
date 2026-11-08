@@ -5,7 +5,7 @@ import { ONE_GO } from '@/challenges/challenges';
 import { Builder } from '@/challenges/components/builder';
 import { saveFailed } from '@/challenges/components/save-failed';
 import { draftOf, newDraft } from '@/challenges/draft';
-import { create, leave, update, useChallenge } from '@/challenges/mine';
+import { create, update, useChallenge } from '@/challenges/mine';
 
 /**
  * The builder: `?exercise=squat` makes a new challenge, which you join from today;
@@ -43,12 +43,6 @@ export default function BuildScreen() {
       history={saved}
       action="Save"
       onSave={(challenge) => (update(saved.id, challenge) ? router.back() : saveFailed())}
-      onLeave={() => {
-        // To the tabs first: the challenge page under this one has nothing to show once a challenge you
-        // made is gone. A failed delete says so there, where the challenge still shows.
-        router.dismissAll();
-        if (!leave(saved.id)) saveFailed();
-      }}
     />
   );
 }

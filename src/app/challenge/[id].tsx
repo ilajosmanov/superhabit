@@ -8,6 +8,7 @@ import { saveFailed } from '@/challenges/components/save-failed';
 import { doneToday } from '@/challenges/days';
 import { draftOf } from '@/challenges/draft';
 import { join, useChallenge } from '@/challenges/mine';
+import { LeaveButton } from '@/challenges/components/leave-button';
 import { SetBars } from '@/challenges/components/set-bars';
 import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
@@ -16,7 +17,8 @@ import { PhoneSetup } from '@/workout/components/phone-setup';
 
 /**
  * What a challenge asks for and how to set up the phone. Not running: a tap joins it from today (again,
- * once a run is over). Running: hold to start today's set, and the pencil in the toolbar edits it.
+ * once a run is over). Running: hold to start today's set, and the pencil in the toolbar edits it. The red
+ * disc in the footer leaves any challenge you are in.
  */
 export default function ChallengeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -36,14 +38,21 @@ export default function ChallengeDetailScreen() {
     <Screen
       title={challenge.name}
       footer={
-        run ? (
-          <HoldToStart onStart={() => router.push({ pathname: '/workout/[id]', params: { id } })} />
-        ) : (
-          <PrimaryButton
-            label={saved ? 'Start again' : 'Join'}
-            onPress={() => join(id, challenge) || saveFailed()}
-          />
-        )
+        <View className="flex-row gap-3">
+          {saved && <LeaveButton id={saved.id} />}
+          <View className="flex-1">
+            {run ? (
+              <HoldToStart
+                onStart={() => router.push({ pathname: '/workout/[id]', params: { id } })}
+              />
+            ) : (
+              <PrimaryButton
+                label={saved ? 'Start again' : 'Join'}
+                onPress={() => join(id, challenge) || saveFailed()}
+              />
+            )}
+          </View>
+        </View>
       }
     >
       <Stack.Screen

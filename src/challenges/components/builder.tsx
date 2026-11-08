@@ -1,11 +1,9 @@
 import {
-  AlertDialog,
   Host,
   SegmentedButton,
   SingleChoiceSegmentedButtonRow,
   Slider,
   Text as ComposeText,
-  TextButton as ComposeTextButton,
 } from '@expo/ui/jetpack-compose';
 import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import { AndroidHaptics, performAndroidHapticsAsync } from 'expo-haptics';
@@ -85,62 +83,6 @@ function AmountSlider({
   );
 }
 
-/** Leaving deletes the run's days, so it asks first, in the platform's dialog. */
-function LeaveButton({ onLeave }: { onLeave: () => void }) {
-  const [asking, setAsking] = useState(false);
-  return (
-    <>
-      {/* A disc as tall as Save beside it, red like the dialog's Leave. */}
-      <IconButton
-        icon="delete"
-        label="Leave challenge"
-        color={colors.warn}
-        fill={colors.line}
-        diameter={60}
-        onPress={() => setAsking(true)}
-      />
-      {asking && (
-        // Out of the footer row's flow: the dialog draws in its own window, but its host would take a slot.
-        <Host matchContents style={{ position: 'absolute' }}>
-          <AlertDialog
-            onDismissRequest={() => setAsking(false)}
-            colors={{
-              containerColor: colors.surface,
-              titleContentColor: colors.chalk,
-              textContentColor: colors.soft,
-            }}
-          >
-            <AlertDialog.Title>
-              <ComposeText style={{ fontFamily: 'Geist', fontSize: 22 }}>
-                Leave this challenge?
-              </ComposeText>
-            </AlertDialog.Title>
-            <AlertDialog.Text>
-              <ComposeText style={{ fontFamily: 'Geist', fontSize: 15 }}>
-                Its days so far are deleted.
-              </ComposeText>
-            </AlertDialog.Text>
-            <AlertDialog.ConfirmButton>
-              <ComposeTextButton onClick={onLeave}>
-                <ComposeText color={colors.warn} style={FONT}>
-                  Leave
-                </ComposeText>
-              </ComposeTextButton>
-            </AlertDialog.ConfirmButton>
-            <AlertDialog.DismissButton>
-              <ComposeTextButton onClick={() => setAsking(false)}>
-                <ComposeText color={colors.chalk} style={FONT}>
-                  Cancel
-                </ComposeText>
-              </ComposeTextButton>
-            </AlertDialog.DismissButton>
-          </AlertDialog>
-        </Host>
-      )}
-    </>
-  );
-}
-
 // shortcut: Jetpack Compose controls, so Android only; add the SwiftUI ones when iOS ships.
 /**
  * Name a one-exercise challenge and set its numbers (design 05b): the title is the name field (React
@@ -153,14 +95,11 @@ export function Builder({
   history,
   action,
   onSave,
-  onLeave,
 }: {
   initial: Draft;
   history?: Pick<Saved, 'startedOn' | 'progress'>;
   action: string;
   onSave: (challenge: Challenge) => void;
-  /** Given when editing a challenge you are in. */
-  onLeave?: () => void;
 }) {
   const [draft, setDraft] = useState(initial);
   const [focused, setFocused] = useState(false);
@@ -174,18 +113,7 @@ export function Builder({
     (history && runOn(draft, history.startedOn, history.progress, today())?.from) ?? today();
 
   return (
-    <Screen
-      footer={
-        <View className="flex-row gap-3">
-          {onLeave && <LeaveButton onLeave={onLeave} />}
-          <PrimaryButton
-            label={action}
-            onPress={() => onSave(toChallenge(draft))}
-            className="h-15 flex-1"
-          />
-        </View>
-      }
-    >
+    <Screen footer={<PrimaryButton label={action} onPress={() => onSave(toChallenge(draft))} />}>
       <View className="gap-3">
         <View className="gap-1">
           <View className="flex-row items-center gap-3">
