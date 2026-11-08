@@ -1,7 +1,17 @@
 // Squat rep counter on MediaPipe Pose Landmarker output (33 joints, MediaPipe order).
 import { Joint, SIDE } from 'superhabit-pose/joints';
 
-import { angle, distance, mid, seen, sub, tilt, type Joints, type Pose } from './geometry';
+import {
+  angle,
+  bestSide,
+  distance,
+  mid,
+  seen,
+  sub,
+  tilt,
+  type Joints,
+  type Pose,
+} from './geometry';
 import { cycle, type CycleState } from './cycle';
 import { fmtMs, SETUP, type Exercise } from './exercise';
 
@@ -151,4 +161,40 @@ export const squat: Exercise<SquatState, SquatSample> = {
   stats: ({ lastRep: r }) =>
     r &&
     `${Math.round(r.depth)}° · SYM ${Math.round(r.symmetry)}° · ${fmtMs(r.downMs)}↓ ${fmtMs(r.upMs)}↑ · LEAN ${Math.round(r.lean)}°`,
+};
+
+/**
+ * Side-on the far leg often hides: with both legs seen this is `measureSquat` (so a lunge's uneven legs
+ * still read null); otherwise the near leg stands in for both, and the symmetry cue stays quiet.
+ */
+export function measureSideSquat(pose: Pose): SquatSample | null {
+  if (LEGS.every((leg) => leg.every((i) => seen(pose, i)))) return measureSquat(pose);
+  const side = bestSide(pose, (j) => [j.hip, j.knee, j.ankle]);
+  if (!side) return null;
+  const { shoulder: s, hip: h, knee: k, ankle: a } = SIDE[side];
+  const w = pose.worldLandmarks;
+  const knee = angle(w[h], w[k], w[a]);
+  const hip = (w[k].y - w[h].y) / distance(w[h], w[k]);
+  if (!Number.isFinite(knee) || !Number.isFinite(hip)) return null;
+  const lean = seen(pose, s) ? tilt(sub(w[h], w[s])) : 0;
+  return {
+    legs: [knee, knee],
+    hip,
+    lean: Number.isFinite(lean) ? lean : 0,
+    valgus: null,
+    joints: [h, k, a],
+  };
+}
+
+// shortcut: squat's thresholds, tuned front-on, and side-on lunges count as squats (up to 20 on a device
+// lunge clip; the far leg is too rough to tell them apart). Record side-on squat clips and retune.
+/** The same squat, counted with the phone side-on, so it joins lunges without moving the phone. */
+export const sideSquat: Exercise<SquatState, SquatSample> = {
+  ...squat,
+  placement: 'side-upright',
+  ...SETUP['side-upright'],
+  measure: measureSideSquat,
+  stats: ({ lastRep: r }) =>
+    r &&
+    `${Math.round(r.depth)}° · ${fmtMs(r.downMs)}↓ ${fmtMs(r.upMs)}↑ · LEAN ${Math.round(r.lean)}°`,
 };

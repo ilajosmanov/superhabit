@@ -47,10 +47,13 @@ const DIE =
 /** A die seen from its corner: one pip on top, two left, three right. */
 export const DieFigure = (p: FigureProps) => <Figure d={DIE} {...p} />;
 
+const SQUAT =
+  'M13.4 6a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M15 9l-3 8M12 17l9 1M21 18l-1 8M14 11.5l10 .5M6 26h20';
 /** Each exercise as a stick figure, by exercise id (this layer can't import the registry). */
 const EXERCISE = {
-  squat:
-    'M13.4 6a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M15 9l-3 8M12 17l9 1M21 18l-1 8M14 11.5l10 .5M6 26h20',
+  squat: SQUAT,
+  // The same movement, seen from the side.
+  'side-squat': SQUAT,
   pushup: 'M23.4 12a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M23 15L5 22M21 15.8l.6 9.2M3 26h26',
   plank: 'M24.4 17a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M24 19.5 4 22M21 20v6h5M3 26h26',
   situp: 'M9.4 9a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M13 12l4 10M17 22l6-5 4 9M3 26h26',
@@ -59,6 +62,11 @@ const EXERCISE = {
     'M13.4 5a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M16 8v10M16 10l-7-6M16 10l7-6M16 18l-6 9M16 18l6 9',
   lunge:
     'M13.4 5a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M16 8v9M16 17l6 3v6M16 17l-6 5-3 4M3 26h26',
+  'wall-sit':
+    'M8.4 7a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M11 10v7M11 17h9M20 17v9M11 12l5 3M7 4v22M7 26h19',
+  'side-plank':
+    'M3.4 12a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M8 15l19 10.5M9 16v10M11 16.5 13 8M3 26h26',
+  'leg-raise': 'M2.4 23a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0M8 24h9M17 24l5-15M3 26h26',
 };
 export const ExerciseFigure = ({
   exercise,

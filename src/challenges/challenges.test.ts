@@ -43,6 +43,8 @@ it('describes every shipped challenge in one sentence', () => {
     ['lunge', 'Lunges, as many as you can'],
     ['glute-bridge', 'Glute bridges, as many as you can'],
     ['jumping-jack', 'Jumping jacks, as many as you can'],
+    ['leg-raise', 'Leg raises, as many as you can'],
+    ['wall-sit', 'Wall sit, as long as you can'],
   ]);
 });
 

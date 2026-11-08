@@ -2,7 +2,14 @@ import type { PoseLandmark } from 'superhabit-pose';
 import { assert, describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
-import { measureSquat, squat, type SquatSample, type SquatState } from './squat';
+import {
+  measureSideSquat,
+  measureSquat,
+  sideSquat,
+  squat,
+  type SquatSample,
+  type SquatState,
+} from './squat';
 import type { Pose } from './geometry';
 import { body } from './__fixtures__/body';
 import { scoreReps, traceFiles } from './__fixtures__/replay';
@@ -420,6 +427,36 @@ describe('knee angles', () => {
 // 87a35a1: 1/10 within ±1. Measured baseline; counter refactors must not lower it.
 const MIN_OK = 1;
 const files = traceFiles('squat');
+describe('side-on squats', () => {
+  const FAR = [Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE];
+  /** Side-on with the far leg hidden behind the near one. */
+  const near = (thigh: number, shin: number) => {
+    const pose = body({ thigh, shin, side: true });
+    for (const i of FAR) pose.landmarks[i] = { ...pose.landmarks[i], visibility: 0.2 };
+    return pose;
+  };
+
+  it('counts on the near leg alone, which front-on squats refuse', () => {
+    expect(measureSquat(near(70, 25))).toBeNull();
+    const s = [near(0, 0), near(70, 25), near(0, 0)].reduce<SquatState>((state, pose) => {
+      const from = (state.lastSeenAt ?? 0) + FRAME;
+      for (let i = 0; i < 60; i++)
+        state = sideSquat.step(state, sideSquat.measure(pose), from + i * FRAME);
+      return state;
+    }, sideSquat.initial);
+    expect(s).toMatchObject({ reps: 1, noReps: 0, lastRep: { depth: expect.closeTo(85) } });
+  });
+
+  it('still refuses uneven legs when both are seen, as in a lunge', () => {
+    // The near knee at 85°, the far leg straight below its hip.
+    const lunge = body({ thigh: 70, shin: 25, side: true });
+    const hip = lunge.worldLandmarks[Joint.RIGHT_HIP];
+    lunge.worldLandmarks[Joint.RIGHT_KNEE] = { ...hip, y: 0.45 };
+    lunge.worldLandmarks[Joint.RIGHT_ANKLE] = { ...hip, y: 0.9 };
+    expect(measureSideSquat(lunge)).toBeNull();
+  });
+});
+
 describe.skipIf(files.length === 0)('squat on real traces', () => {
   it('counts within ±1 on enough clips', () => {
     const rows = scoreReps(squat, files, 1);

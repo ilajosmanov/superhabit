@@ -1,12 +1,15 @@
 import type { Exercise } from './exercise';
 import { gluteBridge, type GluteBridgeSample, type GluteBridgeState } from './glute-bridge';
+import { legRaise, type LegRaiseSample, type LegRaiseState } from './leg-raise';
 import { jumpingJack, type JumpingJackSample, type JumpingJackState } from './jumping-jack';
 import { lunge, type LungeSample, type LungeState } from './lunge';
 import type { HoldState } from './hold';
 import { plank, type PlankSample } from './plank';
 import { pushup, type PushupSample, type PushupState } from './pushup';
+import { sidePlank, type SidePlankSample } from './side-plank';
 import { situp, type SitupSample, type SitupState } from './situp';
-import { squat, type SquatSample, type SquatState } from './squat';
+import { sideSquat, squat, type SquatSample, type SquatState } from './squat';
+import { wallSit, type WallSitSample } from './wall-sit';
 
 // The exercise input: one frame's joints. Other folders import these from here, not from geometry.
 export type { BodyPart, Pose } from './geometry';
@@ -24,6 +27,10 @@ export type Counters = {
   'glute-bridge': GluteBridgeState;
   'jumping-jack': JumpingJackState;
   lunge: LungeState;
+  'side-squat': SquatState;
+  'wall-sit': HoldState;
+  'side-plank': HoldState;
+  'leg-raise': LegRaiseState;
 };
 export type Samples = {
   squat: SquatSample;
@@ -33,6 +40,10 @@ export type Samples = {
   'glute-bridge': GluteBridgeSample;
   'jumping-jack': JumpingJackSample;
   lunge: LungeSample;
+  'side-squat': SquatSample;
+  'wall-sit': WallSitSample;
+  'side-plank': SidePlankSample;
+  'leg-raise': LegRaiseSample;
 };
 export type ExerciseId = keyof Counters & keyof Samples;
 
@@ -46,6 +57,10 @@ export const EXERCISES: { [K in ExerciseId]: Exercise<Counters[K], Samples[K]> }
   'glute-bridge': gluteBridge,
   'jumping-jack': jumpingJack,
   lunge,
+  'side-squat': sideSquat,
+  'wall-sit': wallSit,
+  'side-plank': sidePlank,
+  'leg-raise': legRaise,
 };
 
 /** Fresh counters for every exercise; typed against Counters so a new key cannot be forgotten. */
@@ -57,4 +72,8 @@ export const initialCounters: Counters = {
   'glute-bridge': gluteBridge.initial,
   'jumping-jack': jumpingJack.initial,
   lunge: lunge.initial,
+  'side-squat': sideSquat.initial,
+  'wall-sit': wallSit.initial,
+  'side-plank': sidePlank.initial,
+  'leg-raise': legRaise.initial,
 };
