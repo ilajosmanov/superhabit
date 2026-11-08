@@ -22,6 +22,14 @@ vp run android
 
 With several devices attached, pick one: `vp run android --device <serial>` (serial from `adb devices`).
 
+The phone reaches Metro at `localhost:8081` through the USB cable, so changing networks doesn't break it. `vp run android` sets up that forward, but it's lost when adb restarts or the cable reconnects. If the app can't reach Metro or the JS debugger finds nothing, restore it:
+
+```bash
+adb reverse tcp:8081 tcp:8081
+```
+
+If the USB connection keeps dropping, connect over Wi-Fi instead. Open the dev menu (shake the phone), go to Settings → Debug server host, and enter `<laptop-ip>:8081` (find the IP with `ip -br addr`). Phone and laptop must be on the same network, with port 8081 open in the firewall. Update the host whenever the laptop's IP changes.
+
 To test without the cable, install a release build: it bundles the JavaScript, so it runs without Metro. Rebuild it after each code change. It builds only `arm64-v8a` (every current phone) to cut native compile time.
 
 ```bash
