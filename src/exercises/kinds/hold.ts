@@ -1,8 +1,8 @@
-import type { Position } from '@/exercises/positions/position';
+import { fit as fitOf, type Position } from '@/exercises/positions/position';
 import type { Counter, Progress } from './progress';
 
 /** A hold needs only the position's judgement and its tracking-loss cue. */
-export type HoldConfig<M> = Pick<Position<M>, 'fit' | 'lost'>;
+export type HoldConfig<M> = Pick<Position<M>, 'setup' | 'form' | 'lost'>;
 
 const ENTER_MS = 300;
 const GRACE_MS = 800;
@@ -65,7 +65,7 @@ export function hold<M>(c: HoldConfig<M>): Counter<HoldState, M> {
     if (s.phase === 'waiting' && s.lastAt !== null && nowMs - s.lastAt > GRACE_MS) {
       s = { ...s, since: nowMs };
     }
-    const fit = sample === null ? null : c.fit(sample);
+    const fit = sample === null ? null : fitOf(c, sample);
     const inShape = sample !== null && fit === null;
     const placed = sample !== null && (fit === null || !fit.out);
     s = { ...s, lastAt: nowMs, cue: fit?.cue ?? s.cue };

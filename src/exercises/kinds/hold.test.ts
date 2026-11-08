@@ -5,7 +5,8 @@ import type { Counter } from './progress';
 
 const counter = (config: Partial<HoldConfig<number>> = {}) =>
   hold<number>({
-    fit: (m) => (m >= 0 ? null : { cue: 'Hips up', out: true }),
+    setup: (m) => (m >= 0 ? null : 'Hips up'),
+    form: () => null,
     lost: 'Back into position',
     ...config,
   });
@@ -181,7 +182,7 @@ describe('hold', () => {
 
   it('keeps the latest form cue through tracking loss until the break', () => {
     const ex = counter({
-      fit: (m) => (m >= 0 ? null : { cue: m === -1 ? 'Hips up' : 'Straighten legs', out: true }),
+      setup: (m) => (m >= 0 ? null : m === -1 ? 'Hips up' : 'Straighten legs'),
     });
     const active = frames(ex, ex.initial, 0, 0, 660);
     const firstCue = ex.step(active, -1, 726);
@@ -193,12 +194,8 @@ describe('hold', () => {
   describe('poor form inside the position', () => {
     // -1 leaves the position; -2 stays in it with the hips sagging.
     const ex = counter({
-      fit: (m) =>
-        m >= 0
-          ? null
-          : m === -1
-            ? { cue: 'Get into a plank', out: true }
-            : { cue: 'Hips up', out: false },
+      setup: (m) => (m === -1 ? 'Get into a plank' : null),
+      form: (m) => (m < -1 ? 'Hips up' : null),
     });
     const held = frames(ex, ex.initial, 0, 0, 660);
     const sagging = frames(ex, held, -2, 726, 2046);

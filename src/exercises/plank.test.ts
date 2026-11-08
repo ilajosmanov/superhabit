@@ -102,15 +102,15 @@ describe('plank', () => {
   });
 
   it.each([
-    { reach: 20, knees: 90, body: 90, cue: 'Get into a plank' },
-    { reach: 90, knees: 90, body: 90, cue: 'Knees off the floor' },
-    { reach: 90, knees: 180, body: 130, cue: 'Keep your body straight' },
-  ])('prioritises "$cue" when several form checks fail', ({ reach, knees, body, cue }) => {
+    { reach: 20, knees: 90, lift: 0.1, body: 90, cue: 'Get into a plank' },
+    { reach: 90, knees: 90, lift: 0.1, body: 90, cue: 'Knees off the floor' },
+    { reach: 90, knees: 180, lift: 0.7, body: 130, cue: 'Keep your body straight' },
+  ])('prioritises "$cue" when several form checks fail', ({ reach, knees, lift, body, cue }) => {
     const sample = measurePlank(pose({}));
     assert(sample);
     let state = play(pose({}), 0, 4950);
     for (let t = 5016; t <= 6006; t += FRAME)
-      state = plank.step(state, { ...sample, reach, knees, body }, t);
+      state = plank.step(state, { ...sample, reach, knees, lift, body }, t);
     expect(state).toMatchObject({ noReps: 1, lastRep: { cues: [cue] } });
   });
 
@@ -134,12 +134,12 @@ describe('plank', () => {
 const files = traceFiles('plank');
 describe.skipIf(files.length === 0)('plank on real traces', () => {
   // By name, so one clip getting worse can't hide behind another getting better.
-  it('holds for enough of every clip but the two known misses', () => {
+  it('holds for enough of every clip but the known miss', () => {
     const rows = scoreHold(plank, files, 0.7, 1500);
     expect(
       rows.filter((row) => !row.ok).map((row) => row.clip),
       JSON.stringify(rows),
-    ).toEqual(['plank/plank_2.mp4', 'plank/plank_6.mp4']);
+    ).toEqual(['plank/plank_6.mp4']);
   });
 
   it('credits no squat clip with a 10 s plank', () => {

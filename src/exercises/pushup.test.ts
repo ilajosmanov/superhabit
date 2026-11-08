@@ -1,7 +1,7 @@
-import { assert, describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
-import { measurePushup, pushup, type PushupState } from './pushup';
+import { pushup, type PushupState } from './pushup';
 import type { Pose } from '@/exercises/body/geometry';
 import { plank } from './__fixtures__/plank';
 import { scoreReps, traceFiles } from './__fixtures__/replay';
@@ -11,7 +11,7 @@ const FRAME = 66; // ms between detector results
 const play = (spans: [Pose | null, from: number, to?: number][], start = pushup.initial) =>
   spans.reduce<PushupState>((state, [pose, from, to = from]) => {
     for (let t = from; t <= to; t += FRAME)
-      state = pushup.step(state, pose && measurePushup(pose), t);
+      state = pushup.step(state, pose && pushup.measure(pose), t);
     return state;
   }, start);
 // The camera loses the near ankle (low on the floor, or past the frame edge).
@@ -26,50 +26,6 @@ const cycle = (top: Pose, bottom: Pose) =>
     [bottom, 1566, 3000],
     [top, 3066, 4500],
   ]);
-
-describe('measurePushup', () => {
-  it('reads elbow, body line and reach from the better-seen side', () => {
-    const top = measurePushup(plank({ elbow: 170 }));
-    assert(top);
-    expect(top.elbow).toBeCloseTo(170);
-    expect(top.body).toBeCloseTo(180);
-    expect(top.reach).toBeGreaterThan(40);
-    expect(measurePushup(plank({ sag: 40 }))?.body).toBeCloseTo(140);
-    expect(measurePushup(plank({ elbow: 80, visible: 'right' }))?.elbow).toBeCloseTo(80);
-    expect(measurePushup(plank({ standing: true }))?.reach).toBeLessThan(40);
-  });
-
-  it('reports the shoulder, elbow and wrist of the side it measured', () => {
-    expect(measurePushup(plank({}))?.joints).toEqual([
-      Joint.LEFT_SHOULDER,
-      Joint.LEFT_ELBOW,
-      Joint.LEFT_WRIST,
-    ]);
-    expect(measurePushup(plank({ visible: 'right' }))?.joints).toEqual([
-      Joint.RIGHT_SHOULDER,
-      Joint.RIGHT_ELBOW,
-      Joint.RIGHT_WRIST,
-    ]);
-  });
-
-  it('measures the other side when the better-seen knee is hidden', () => {
-    const pose = plank({ elbow: 80, visible: 'both' });
-    pose.landmarks[Joint.LEFT_KNEE] = { ...pose.landmarks[Joint.LEFT_KNEE], visibility: 0.1 };
-    expect(measurePushup(pose)?.elbow).toBeCloseTo(80);
-  });
-
-  it('is null when the seen arm leaves the frame', () => {
-    const cropped = plank({});
-    cropped.landmarks[Joint.LEFT_WRIST] = { ...cropped.landmarks[Joint.LEFT_WRIST], x: 1.1 };
-    expect(measurePushup(cropped)).toBeNull();
-  });
-
-  it('reads the body line from the knee when the heels are out of view', () => {
-    expect(measurePushup(heelsOut(plank({ sag: 40 })))?.body).toBeGreaterThan(130);
-    expect(measurePushup(heelsOut(plank({ sag: 40 })))?.body).toBeLessThan(150);
-    expect(measurePushup(heelsOut(plank({})))?.body).toBeCloseTo(180);
-  });
-});
 
 describe('pushup.step', () => {
   it('waits for a plank top before counting', () => {
@@ -174,14 +130,36 @@ describe('pushup.step', () => {
   });
 });
 
-// 87a35a1: 2/10 within ±1. Measured baseline; counter refactors must not lower it.
-const MIN_OK = 2;
+// Before the plank position: the same 6 missed, so 4/10 within ±1 both ways.
+const MISSES = [
+  'stu4_46.mp4',
+  'stu5_47.mp4',
+  'stu7_45.mp4',
+  'stu8_42.mp4',
+  'stu8_45.mp4',
+  'stu9_52.mp4',
+];
 const files = traceFiles('pushup');
 describe.skipIf(files.length === 0)('pushup on real traces', () => {
-  it('counts within ±1 on enough clips', () => {
+  // By name, so one clip getting worse can't hide behind another getting better.
+  it('counts within ±1 on every clip but the known misses', () => {
     const rows = scoreReps(pushup, files, 1);
-    expect(rows.filter((row) => row.ok).length, JSON.stringify(rows)).toBeGreaterThanOrEqual(
-      MIN_OK,
-    );
+    expect(
+      rows.filter((row) => !row.ok).map((row) => row.clip),
+      JSON.stringify(rows),
+    ).toEqual(MISSES);
+  });
+});
+
+// Labels here are what the phone's counter said when the clip was saved, not a human count: this
+// guards "still counts what your phone counted", e.g. device knees that read bent with the knees up.
+const device = traceFiles('device').filter((path) => path.includes('/pushup-'));
+describe.skipIf(device.length === 0)('pushup on device traces', () => {
+  it('counts what the phone counted, but the one clip saved mid-set', () => {
+    const rows = scoreReps(pushup, device, 0);
+    expect(
+      rows.filter((row) => !row.ok).map((row) => row.clip),
+      JSON.stringify(rows),
+    ).toEqual(['pushup-1794098368362.json']);
   });
 });

@@ -6,8 +6,11 @@ so plain tests cover all of it.
 An exercise is built from primitives, each in its own folder:
 
 ```
-plank (exercise)  =  hold (kind)  +  plank (position)  +  labels (name, phone setup, stats line)
+plank   =  hold (kind)            +  plank (position)                    +  labels
+push-up =  position-cycle (kind)  +  plank (position) + elbow (measure)  +  labels
 ```
+
+Labels are the name, phone setup copy and stats line.
 
 | Folder       | Holds                                                         |
 | ------------ | ------------------------------------------------------------- |

@@ -53,14 +53,13 @@ export function measureWallSit(pose: Pose): WallSitSample | null {
 
 const wallSitHold = hold<WallSitSample>({
   // shortcut: every cue counts as leaving the position until this exercise is rebuilt on a position.
-  fit: (m) => {
-    if (m.seat < SEAT_MIN) return { cue: 'Sit back against the wall', out: true };
-    if (m.knee > KNEE_MAX || m.hip > HIP_MAX)
-      return { cue: 'Slide down until your thighs are level', out: true };
+  form: () => null,
+  setup: (m) => {
+    if (m.seat < SEAT_MIN) return 'Sit back against the wall';
+    if (m.knee > KNEE_MAX || m.hip > HIP_MAX) return 'Slide down until your thighs are level';
     // Before the low check: leaning forward also closes the hip.
-    if (m.lean > LEAN_MAX) return { cue: 'Keep your back on the wall', out: true };
-    if (m.knee < KNEE_MIN || m.hip < HIP_MIN)
-      return { cue: 'Come up until your thighs are level', out: true };
+    if (m.lean > LEAN_MAX) return 'Keep your back on the wall';
+    if (m.knee < KNEE_MIN || m.hip < HIP_MIN) return 'Come up until your thighs are level';
     return null;
   },
   lost: 'Back into your wall sit',

@@ -3,6 +3,7 @@ import { Joint } from 'superhabit-pose/joints';
 
 import { plank as pose } from '@/exercises/__fixtures__/plank';
 import { measurePlank, plankPosition } from './plank';
+import { fit } from './position';
 
 describe('measurePlank', () => {
   it.each([false, true])('reads a straight body and knees with forearms=%s', (forearms) => {
@@ -72,7 +73,7 @@ describe('measurePlank', () => {
       const sample = measurePlank(body);
       assert(sample);
       expect(sample.joints).toEqual([Joint.RIGHT_SHOULDER, Joint.RIGHT_HIP, Joint.RIGHT_ANKLE]);
-      expect(plankPosition.fit(sample)).toBeNull();
+      expect(fit(plankPosition, sample)).toBeNull();
     },
   );
 
