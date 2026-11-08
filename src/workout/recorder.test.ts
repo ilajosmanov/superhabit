@@ -10,6 +10,8 @@ import { parseTrace } from '@/exercises/trace';
 import {
   challenge,
   createDirectory,
+  files,
+  moveFile,
   flush,
   frames,
   hold,
@@ -300,6 +302,108 @@ describe('dev pose recorder', () => {
     await flush();
     expect(written).toEqual([]);
     expect(createDirectory).not.toHaveBeenCalled();
+    actor.stop();
+  });
+});
+
+describe('sharing traces', () => {
+  const where = () => [...files].map((path) => path.split('/').slice(0, 2).join('/'));
+  // One squat set, then End: the Done screen with one trace written.
+  const finished = async () => {
+    const actor = createActor(workoutSession, {
+      input: { challenge: squatTest, record: true },
+    }).start();
+    squat();
+    actor.send({ type: 'end' });
+    await flush();
+    return actor;
+  };
+
+  // Close and Back both stop the session; the switch's last position decides.
+  it.each([
+    { switches: [], kept: [] },
+    { switches: [true], kept: ['document/traces'] },
+    { switches: [true, false], kept: [] },
+  ])(
+    'after switching $switches, keeps $kept once the session stops',
+    async ({ switches, kept }) => {
+      const actor = await finished();
+      expect(where()).toEqual(['cache/traces']);
+      for (const share of switches) actor.send({ type: 'shareTraces', share });
+      actor.stop();
+      await flush();
+      expect(where()).toEqual(kept);
+    },
+  );
+
+  it('lets every move finish before deleting the folder when one fails', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let land = () => {};
+    moveFile
+      .mockRejectedValueOnce(new Error('no space'))
+      .mockImplementationOnce(() => new Promise<void>((resolve) => (land = resolve)));
+    const actor = createActor(workoutSession, {
+      input: { challenge, record: true },
+    }).start();
+    squat();
+    actor.send({ type: 'next' });
+    pushup();
+    await flush();
+    actor.send({ type: 'shareTraces', share: true });
+    actor.stop();
+    await flush();
+    land();
+    await flush();
+    expect(where()).toEqual(['document/traces']);
+  });
+
+  it('settles a write still landing before keeping or deleting', async () => {
+    let land = () => {};
+    writeFile.mockImplementationOnce(() => new Promise<void>((resolve) => (land = resolve)));
+    const actor = await finished();
+    actor.stop();
+    await flush();
+    land();
+    await flush();
+    expect(files.size).toBe(0);
+  });
+
+  it('shares only the session that was shared', async () => {
+    const first = await finished();
+    first.stop();
+    const second = await finished();
+    second.send({ type: 'shareTraces', share: true });
+    second.stop();
+    await flush();
+    expect(where()).toEqual(['document/traces']);
+  });
+
+  it('sweeps a folder a killed app left, not one still settling', async () => {
+    files.add('cache/traces/old/squat-1.json');
+    let land = () => {};
+    writeFile.mockImplementationOnce(() => new Promise<void>((resolve) => (land = resolve)));
+    const first = await finished();
+    first.send({ type: 'shareTraces', share: true });
+    first.stop();
+    const second = createActor(workoutSession, {
+      input: { challenge: squatTest, record: true },
+    }).start();
+    land();
+    await flush();
+    expect(where()).toEqual(['document/traces']);
+    second.stop();
+  });
+
+  it('keeps no trace of a set past the frame cap', async () => {
+    const actor = createActor(workoutSession, {
+      input: { challenge: squatTest, record: true },
+    }).start();
+    const pose = body({});
+    for (let i = 0; i <= 9000; i++)
+      native.onResult?.({ ...pose, timestampMs: 1000 + i * 66, cameraLandmarks: [] });
+    actor.send({ type: 'end' });
+    await flush();
+    expect(written).toEqual([]);
     actor.stop();
   });
 });

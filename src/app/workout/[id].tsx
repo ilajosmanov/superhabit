@@ -15,7 +15,7 @@ import { usePoseOverlay } from '@/workout/pose/overlay';
 import { PoseCamera } from '@/workout/pose/pose-camera';
 import { saveFailed } from '@/challenges/components/save-failed';
 import { today, type Day } from '@/challenges/days';
-import { markDone, useChallenge } from '@/challenges/mine';
+import { recordTry, useChallenge } from '@/challenges/mine';
 import type { Challenge } from '@/workout/plan';
 import { BetweenSets } from '@/workout/components/between-sets';
 import { ChallengeDone } from '@/workout/components/challenge-done';
@@ -59,9 +59,9 @@ export default function ChallengeScreen() {
     <AndroidSession
       key={id}
       challenge={found.challenge}
-      // A day counts only when every set met its goal; a one-go set is never stored.
-      onFinished={(met, day) => {
-        if (met && found.saved && !markDone(id, day)) saveFailed();
+      // Any try counts toward the day, by its share; a one-go set is never stored.
+      onFinished={(share, day) => {
+        if (share > 0 && found.saved && !recordTry(id, day, share)) saveFailed();
       }}
     />
   );
@@ -73,7 +73,7 @@ function AndroidSession({
 }: {
   challenge: Challenge;
   /** `day` is the one the session started on: a set finished at 00:05 still belongs to yesterday. */
-  onFinished: (metEveryGoal: boolean, day: Day) => void;
+  onFinished: (share: number, day: Day) => void;
 }) {
   useKeepAwake();
   const [day] = useState(today);
@@ -83,7 +83,13 @@ function AndroidSession({
   // Video only: no audio, so no microphone permission.
   const video = useVideoOutput({ targetResolution: CommonResolutions.HD_16_9, enableAudio: false });
   const session = useActorRef(workoutSession, {
-    input: { challenge, video, record: __DEV__, onPose, onFinished: (met) => onFinished(met, day) },
+    input: {
+      challenge,
+      video,
+      record: true,
+      onPose,
+      onFinished: (share) => onFinished(share, day),
+    },
   });
   const landmarker = useSelector(session, (s) => s.context.landmarker);
   // Only discrete counter changes re-render; per-frame data stays out of React state.
@@ -134,7 +140,12 @@ function AndroidSession({
         onVideoLost={send('videoLost')}
       />
       {view.stage === 'finished' ? (
-        <ChallengeDone view={view} title={challenge.name} onClose={() => router.back()} />
+        <ChallengeDone
+          view={view}
+          title={challenge.name}
+          onShare={(share) => session.send({ type: 'shareTraces', share })}
+          onClose={() => router.back()}
+        />
       ) : view.stage === 'switching' || view.stage === 'resting' ? (
         <BetweenSets
           view={view}

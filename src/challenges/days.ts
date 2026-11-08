@@ -23,27 +23,30 @@ export function dayLabel(day: Day) {
   return `${WEEKDAYS[date.getUTCDay()]} ${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]}`;
 }
 
+/** How much of each day's session was done, 0 to 1 (1 = every goal met); a day with no try is absent. */
+export type Progress = Readonly<Record<Day, number>>;
+
 /**
  * Where a joined challenge stands on `today`. `from` is this run's day 1 (later than the join day after a
- * restart); `done` has one flag per day of the run so far, day 1 first.
+ * restart); `progress` has one share per day of the run so far, day 1 first, 0 for a day with no try.
  */
-export type Run = { day: number; days: number; from: Day; done: readonly boolean[] };
+export type Run = { day: number; days: number; from: Day; progress: readonly number[] };
 
-/** The run on `today`; null before it starts and once it is over. */
+/** The run on `today`; null before it starts and once it is over. Any try keeps a run going. */
 export function runOn(
   c: Pick<Challenge, 'days' | 'restartOnMiss'>,
   startedOn: Day,
-  doneDays: readonly Day[],
+  progress: Progress,
   today: Day,
 ): Run | null {
-  const done = new Set(doneDays);
+  const share = (d: number) => progress[dayAt(d)] ?? 0;
   let from = dayNumber(startedOn);
   const end = dayNumber(today);
   if (end < from) return null;
   for (let d = from; d < end; d += 1) {
     // Check the run's end before a miss: a finished run must never restart.
     if (d - from >= c.days) return null;
-    if (c.restartOnMiss && !done.has(dayAt(d))) from = d + 1;
+    if (c.restartOnMiss && share(d) === 0) from = d + 1;
   }
   const day = end - from + 1;
   if (day > c.days) return null;
@@ -51,8 +54,8 @@ export function runOn(
     day,
     days: c.days,
     from: dayAt(from),
-    done: Array.from({ length: day }, (_, i) => done.has(dayAt(from + i))),
+    progress: Array.from({ length: day }, (_, i) => share(from + i)),
   };
 }
 
-export const doneToday = (run: Run) => run.done[run.day - 1];
+export const doneToday = (run: Run) => run.progress[run.day - 1] >= 1;

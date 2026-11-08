@@ -4,7 +4,6 @@ import {
   SegmentedButton,
   SingleChoiceSegmentedButtonRow,
   Slider,
-  Switch,
   Text as ComposeText,
   TextButton as ComposeTextButton,
 } from '@expo/ui/jetpack-compose';
@@ -27,6 +26,7 @@ import type { Saved } from '@/challenges/saved';
 import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
+import { SwitchRow } from '@/components/switch-row';
 import { EXERCISES } from '@/exercises/registry';
 import { colors } from '@/theme';
 import type { Challenge, Goal } from '@/workout/plan';
@@ -156,7 +156,7 @@ export function Builder({
   onLeave,
 }: {
   initial: Draft;
-  history?: Pick<Saved, 'startedOn' | 'done'>;
+  history?: Pick<Saved, 'startedOn' | 'progress'>;
   action: string;
   onSave: (challenge: Challenge) => void;
   /** Given when editing a challenge you are in. */
@@ -170,7 +170,8 @@ export function Builder({
   const hold = exercise.kind === 'hold';
   // The run's own day 1 under the rules as set now (later than the join day after a restart); a run that
   // would be over ends from today.
-  const from = (history && runOn(draft, history.startedOn, history.done, today())?.from) ?? today();
+  const from =
+    (history && runOn(draft, history.startedOn, history.progress, today())?.from) ?? today();
 
   return (
     <Screen
@@ -282,35 +283,16 @@ export function Builder({
         </Host>
       </View>
 
-      <View className="flex-row items-center gap-4">
-        <View className="flex-1 gap-1">
-          <Text className="font-sans text-base text-chalk">Start over if I miss a day</Text>
-          <Text className="font-sans text-sm text-muted">
-            {draft.restartOnMiss
-              ? 'A missed day sends you back to day 1.'
-              : 'A missed day stays empty; the run goes on.'}
-          </Text>
-        </View>
-        <Host matchContents>
-          <Switch
-            value={draft.restartOnMiss}
-            onCheckedChange={(restartOnMiss) => {
-              void performAndroidHapticsAsync(
-                restartOnMiss ? AndroidHaptics.Toggle_On : AndroidHaptics.Toggle_Off,
-              );
-              setDraft((d) => ({ ...d, restartOnMiss }));
-            }}
-            colors={{
-              checkedTrackColor: colors.accent,
-              checkedThumbColor: colors.ground,
-              checkedBorderColor: colors.accent,
-              uncheckedTrackColor: colors.ground,
-              uncheckedThumbColor: colors.faint,
-              uncheckedBorderColor: colors.faint,
-            }}
-          />
-        </Host>
-      </View>
+      <SwitchRow
+        label="Start over if I miss a day"
+        note={
+          draft.restartOnMiss
+            ? 'A day with no try sends you back to day 1.'
+            : 'A missed day stays empty; the run goes on.'
+        }
+        value={draft.restartOnMiss}
+        onChange={(restartOnMiss) => setDraft((d) => ({ ...d, restartOnMiss }))}
+      />
     </Screen>
   );
 }

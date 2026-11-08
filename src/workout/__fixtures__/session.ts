@@ -27,6 +27,8 @@ export const disk = new Set<string>();
 export const stuck = new Set<string>();
 export const written: { name: string; text: string }[] = [];
 export const createDirectory = vi.fn();
+/** Each trace move awaits this first; make it reject or wait to fail or slow a move. */
+export const moveFile = vi.fn(async () => {});
 export const writeFile = vi.fn(async (name: string, text: string) => {
   written.push({ name, text });
 });
@@ -39,7 +41,67 @@ const cached = (name: string) => ({
     if (stuck.has(name)) throw new Error(`cannot delete ${name}`);
     disk.delete(name);
   },
-  write: (text: string) => writeFile(name, text),
+});
+
+// The fake trace folders: file paths (contents are in `written`), and folders created empty. Camcorder
+// takes use `disk`.
+export const files = new Set<string>();
+const folders = new Set<string>();
+const REPS = 'cache/reps';
+const under = (path: string, folder: string) => path.startsWith(`${folder}/`);
+class FakeDirectory {
+  readonly uri: string;
+  constructor(...parts: (string | { uri: string })[]) {
+    this.uri = parts.map((part) => (typeof part === 'string' ? part : part.uri)).join('/');
+  }
+  get name() {
+    return this.uri.split('/').pop() ?? '';
+  }
+  get exists() {
+    return (
+      this.uri === REPS ||
+      folders.has(this.uri) ||
+      [...files, ...folders].some((path) => under(path, this.uri))
+    );
+  }
+  create(options: unknown) {
+    createDirectory(options);
+    folders.add(this.uri);
+  }
+  /** A folder's own files and the folders right under it. */
+  list() {
+    if (this.uri === REPS) return [...disk].map(cached);
+    const children = new Set(
+      [...files, ...folders]
+        .filter((path) => under(path, this.uri))
+        .map((path) => path.slice(this.uri.length + 1).split('/')[0]),
+    );
+    return [...children].map((child) =>
+      files.has(`${this.uri}/${child}`)
+        ? traceFile(this.uri, child)
+        : new FakeDirectory(this.uri, child),
+    );
+  }
+  delete() {
+    for (const path of files) if (under(path, this.uri)) files.delete(path);
+    for (const path of folders)
+      if (path === this.uri || under(path, this.uri)) folders.delete(path);
+  }
+}
+const traceFile = (folder: string, name: string) => ({
+  // Like the real one: a write landing in a folder deleted meanwhile fails.
+  write: async (text: string) => {
+    await writeFile(name, text);
+    if (!new FakeDirectory(folder).exists) throw new Error(`${folder} is gone`);
+    files.add(`${folder}/${name}`);
+  },
+  // Like the real one: a move whose source was deleted meanwhile fails.
+  move: async (to: FakeDirectory) => {
+    await moveFile();
+    if (!files.has(`${folder}/${name}`)) throw new Error(`${folder}/${name} is gone`);
+    files.add(`${to.uri}/${name}`);
+    files.delete(`${folder}/${name}`);
+  },
 });
 
 /** Module fakes, for `vi.mock(name, () => modules[name])` in each test file. */
@@ -47,15 +109,11 @@ export const modules = {
   'superhabit-pose': { createPoseLandmarker: () => native },
   'expo-speech': { speak, stop: vi.fn() },
   'expo-file-system': {
-    Paths: { cache: {}, document: {} },
-    Directory: class {
-      exists = true;
-      create = createDirectory;
-      list = () => [...disk].map(cached);
-    },
+    Paths: { cache: { uri: 'cache' }, document: { uri: 'document' } },
+    Directory: FakeDirectory,
     File: class {
-      constructor(_dir: unknown, name: string) {
-        return cached(name);
+      constructor(dir: FakeDirectory, name: string) {
+        return dir.uri === REPS ? cached(name) : traceFile(dir.uri, name);
       }
     },
   },
@@ -173,4 +231,6 @@ export function reset() {
   disk.clear();
   stuck.clear();
   written.length = 0;
+  files.clear();
+  folders.clear();
 }

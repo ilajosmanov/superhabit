@@ -34,7 +34,8 @@ export function toEntry(id: string, { name, days, session }: Challenge): Catalog
     name,
     days,
     steps,
-    ...(note.length > 0 && { note: note.join(' · ') }),
+    // A ladder rests after every rung; the note says so once.
+    ...(note.length > 0 && { note: [...new Set(note)].join(' · ') }),
   };
 }
 

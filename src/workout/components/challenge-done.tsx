@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,6 +10,7 @@ import type { SessionView } from '@/workout/session-view';
 
 import { mss } from './controls';
 import { PrimaryButton } from '@/components/primary-button';
+import { SwitchRow } from '@/components/switch-row';
 import { TextButton } from '@/components/text-button';
 import { colors } from '@/theme';
 import { RepStrip } from './rep-strip';
@@ -49,10 +51,13 @@ function SetRow({ set }: { set: StepResult }) {
 export function ChallengeDone({
   view,
   title,
+  onShare,
   onClose,
 }: {
   view: SessionView;
   title: string;
+  /** Whether to keep this session's traces for sending; unshared ones are deleted as the session stops. */
+  onShare: (share: boolean) => void;
   onClose: () => void;
 }) {
   const { top, bottom, left, right } = useSafeAreaInsets();
@@ -65,6 +70,8 @@ export function ChallengeDone({
     ? `${amount === 1 ? 'second' : 'seconds'} held`
     : `clean ${amount === 1 ? 'rep' : 'reps'}`;
   const { best } = view;
+  // Off until you turn it on: sharing is your choice, never a default.
+  const [share, setShare] = useState(false);
   const minutes = Math.floor(view.elapsedS / 60);
   const seconds = view.elapsedS % 60;
 
@@ -111,6 +118,20 @@ export function ChallengeDone({
             <SetRow key={`${i}-${set.exercise}`} set={set} />
           ))}
         </View>
+        <SwitchRow
+          label="Share movement data (no video)"
+          note={
+            share
+              ? 'Thank you. Your joint positions, as plain numbers, help us count reps better for everyone. No video and no face leave your phone.'
+              : 'Only joint positions as plain numbers: no video, no face. It is how we teach the camera to count better.'
+          }
+          value={share}
+          onChange={(on) => {
+            setShare(on);
+            // Sent on every flip, so leaving by Back keeps the choice too.
+            onShare(on);
+          }}
+        />
       </ScrollView>
 
       <View className="gap-3 px-6 pt-3">

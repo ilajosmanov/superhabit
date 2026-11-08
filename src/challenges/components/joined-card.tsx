@@ -7,18 +7,28 @@ import { colors } from '@/theme';
 import type { CatalogEntry } from '@/challenges/catalog';
 import { doneToday, type Run } from '@/challenges/days';
 
-/** One square per day: amber = done, amber outline = today, hairline = missed or still ahead. */
-function DayGrid({ run: { day, days, done } }: { run: Run }) {
+/**
+ * One square per day: amber = done, filled from the bottom by the share of a partial try, amber outline =
+ * today, hairline = no try or still ahead.
+ */
+function DayGrid({ run: { day, days, progress } }: { run: Run }) {
   return (
     // 176 wide fits ten 12px squares with 6px gaps, so the grid wraps at ten a row.
     <View className="w-44 flex-row flex-wrap gap-1.5">
       {Array.from({ length: days }, (_, i) => {
-        const today = i === day - 1 && !done[i];
+        const share = progress[i] ?? 0;
+        const today = i === day - 1 && share < 1;
         return (
           <View
             key={i}
-            className={`size-3 rounded-sm border ${done[i] ? 'border-accent bg-accent' : today ? 'border-accent' : 'border-line'}`}
-          />
+            // Colours by style: swapping classes remounts the view (NativeWind).
+            style={{ borderColor: share > 0 || today ? colors.accent : colors.line }}
+            className="size-3 justify-end overflow-hidden rounded-sm border"
+          >
+            {share > 0 && (
+              <View className="bg-accent" style={{ height: `${Math.round(share * 100)}%` }} />
+            )}
+          </View>
         );
       })}
     </View>
@@ -39,7 +49,12 @@ export function JoinedCard({
   style?: ViewStyle;
 }) {
   const done = doneToday(run);
-  const status = done ? 'DONE TODAY' : 'DUE TODAY';
+  const share = run.progress[run.day - 1];
+  const status = done
+    ? 'DONE TODAY'
+    : share > 0
+      ? `${Math.round(share * 100)}% TODAY`
+      : 'DUE TODAY';
   const body = (
     <Pressable
       accessibilityRole="link"

@@ -10,7 +10,7 @@ import type { Challenge } from '@/workout/plan';
 const store = fileStore<readonly Saved[]>('challenges', { empty: [], parse, serialise });
 
 const runOf = (entry: Saved, day = today()) =>
-  runOn(entry.challenge, entry.startedOn, entry.done, day);
+  runOn(entry.challenge, entry.startedOn, entry.progress, day);
 
 /** A route id's challenge: yours first (an edited suggestion keeps its id), then ours. `run` is today's. */
 export function useChallenge(
@@ -51,7 +51,7 @@ const put = (entry: Saved) => {
 
 /** Join from day 1; joining again starts the run over. */
 export const join = (id: string, challenge: Challenge) =>
-  put({ id, challenge, startedOn: today(), done: [] });
+  put({ id, challenge, startedOn: today(), progress: {} });
 
 /** Join a challenge you made; its new id, or null when it couldn't be saved. */
 export function create(challenge: Challenge) {
@@ -59,7 +59,7 @@ export function create(challenge: Challenge) {
   return join(id, challenge) ? id : null;
 }
 
-/** New numbers for a challenge you are in; its run and done days stay. */
+/** New numbers for a challenge you are in; its run and day progress stay. */
 export function update(id: string, challenge: Challenge) {
   const entry = store.get().find((old) => old.id === id);
   return entry ? put({ ...entry, challenge }) : false;
@@ -67,8 +67,9 @@ export function update(id: string, challenge: Challenge) {
 
 export const leave = (id: string) => store.set(store.get().filter((entry) => entry.id !== id));
 
-export function markDone(id: string, day: Day) {
+/** A session's share of the day (0 to 1); the day keeps its best session. */
+export function recordTry(id: string, day: Day, share: number) {
   const entry = store.get().find((old) => old.id === id);
-  if (!entry || entry.done.includes(day)) return true;
-  return put({ ...entry, done: [...entry.done, day] });
+  if (!entry || share <= (entry.progress[day] ?? 0)) return true;
+  return put({ ...entry, progress: { ...entry.progress, [day]: share } });
 }

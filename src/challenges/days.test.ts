@@ -3,19 +3,30 @@ import { describe, expect, it } from 'vite-plus/test';
 import { dayLabel, runOn, today } from './days';
 
 describe('runOn', () => {
-  const days = (...d: number[]) => d.map((n) => `2026-11-0${n}`);
+  // Each listed day fully done.
+  const days = (...d: number[]) => Object.fromEntries(d.map((n) => [`2026-11-0${n}`, 1]));
   const missedThird = days(1, 2, 4, 5);
 
   it('leaves a missed day empty when restart is off', () => {
     expect(
       runOn({ days: 21, restartOnMiss: false }, '2026-11-01', days(1, 3), '2026-11-03'),
-    ).toEqual({ day: 3, days: 21, from: '2026-11-01', done: [true, false, true] });
+    ).toEqual({ day: 3, days: 21, from: '2026-11-01', progress: [1, 0, 1] });
   });
 
   it('restarts the day after a miss, flagging only the new run', () => {
     expect(
       runOn({ days: 30, restartOnMiss: true }, '2026-11-01', missedThird, '2026-11-06'),
-    ).toEqual({ day: 3, days: 30, from: '2026-11-04', done: [true, true, false] });
+    ).toEqual({ day: 3, days: 30, from: '2026-11-04', progress: [1, 1, 0] });
+  });
+
+  it('keeps the run going on a day with only a partial try', () => {
+    const tried = { ...days(1, 2), '2026-11-03': 0.3 };
+    expect(runOn({ days: 30, restartOnMiss: true }, '2026-11-01', tried, '2026-11-04')).toEqual({
+      day: 4,
+      days: 30,
+      from: '2026-11-01',
+      progress: [1, 1, 0.3, 0],
+    });
   });
 
   it('never restarts a finished run after later missed days', () => {
@@ -31,29 +42,29 @@ describe('runOn', () => {
   });
 
   it('counts through the spring DST change without losing a day', () => {
-    expect(runOn({ days: 30, restartOnMiss: false }, '2026-03-27', [], '2026-03-31')).toMatchObject(
+    expect(runOn({ days: 30, restartOnMiss: false }, '2026-03-27', {}, '2026-03-31')).toMatchObject(
       { day: 5, from: '2026-03-27' },
     );
   });
 
   it('starts at day one and does not treat today as missed', () => {
-    expect(runOn({ days: 1, restartOnMiss: true }, '2026-11-01', [], '2026-11-01')).toEqual({
+    expect(runOn({ days: 1, restartOnMiss: true }, '2026-11-01', {}, '2026-11-01')).toEqual({
       day: 1,
       days: 1,
       from: '2026-11-01',
-      done: [false],
+      progress: [0],
     });
   });
 
   it('restarts again on consecutive misses, including across a month boundary', () => {
-    expect(runOn({ days: 3, restartOnMiss: true }, '2026-10-30', [], '2026-11-02')).toMatchObject({
+    expect(runOn({ days: 3, restartOnMiss: true }, '2026-10-30', {}, '2026-11-02')).toMatchObject({
       day: 1,
       from: '2026-11-02',
     });
   });
 
   it('is null before the start date', () => {
-    expect(runOn({ days: 30, restartOnMiss: false }, '2026-11-01', [], '2026-10-31')).toBeNull();
+    expect(runOn({ days: 30, restartOnMiss: false }, '2026-11-01', {}, '2026-10-31')).toBeNull();
   });
 });
 

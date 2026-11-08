@@ -21,7 +21,7 @@ import {
 import {
   bestRep,
   clipTime,
-  metEveryGoal,
+  shareDone,
   type Attempt,
   type BestRep,
   type StepResult,
@@ -53,6 +53,7 @@ type Events =
   | { type: 'flipCamera' }
   | { type: 'cameraReady' } // the camera's preview streams again (after a flip)
   | { type: 'videoLost' } // the camera dropped the video output: nothing more can be filmed
+  | { type: 'shareTraces'; share: boolean } // finished: keep this session's traces for sending, or not
   // Internal.
   | { type: 'tick' }
   | { type: 'say'; text: string }
@@ -67,8 +68,8 @@ type OnPose = (result: PoseDetection, live: Live) => void;
 type Input = {
   challenge: Challenge;
   onPose?: OnPose;
-  /** Once, on reaching Done: whether every set met its goal. */
-  onFinished?: (metEveryGoal: boolean) => void;
+  /** Once, on reaching Done: how much of the session was done, 0 to 1 (1 = every goal met). */
+  onFinished?: (share: number) => void;
   video?: VideoOutput;
   record?: boolean;
 };
@@ -80,7 +81,7 @@ type Context = Counters &
     /** A detector frame was handled this set; until then nothing is known about framing. */
     framed: boolean;
     onPose?: OnPose;
-    onFinished?: (metEveryGoal: boolean) => void;
+    onFinished?: (share: number) => void;
     video?: VideoOutput;
     record: boolean;
     /** The camera dropped the video output: nothing more is filmed this session. */
@@ -337,7 +338,7 @@ const session = setup<
         console.info('[session]', id, 'out of frame', framing.patch.missing.join(', ') || 'none');
       if (framing.phrase) enqueue.raise({ type: 'say', text: framing.phrase });
     }),
-    // The current set (finished or cut short) joins the results; its trace is saved in dev.
+    // The current set (finished or cut short) joins the results; its trace is saved when recording.
     saveSet: enqueueActions(({ context, enqueue }) => {
       const { exercise } = lastExercise(context);
       const { reps, noReps, heldMs } = context[exercise];
@@ -633,10 +634,13 @@ export const workoutSession = session.createMachine({
         // shortcut: nothing consumes final yet; the save mutation will.
         // Without a video output the camcorder never films, so nothing is left to wait for.
         assign({ final: ({ context }) => context.video === undefined }),
-        ({ context }) => context.onFinished?.(metEveryGoal(context.steps, context.results)),
+        ({ context }) => context.onFinished?.(shareDone(context.steps, context.results)),
       ],
       // Only now is every file final (failed ones unclipped), so the best is safe to play and the rest can go.
       on: {
+        shareTraces: {
+          actions: sendTo('recorder', ({ event }) => ({ type: 'share', on: event.share })),
+        },
         wrapped: {
           actions: enqueueActions(({ context, enqueue }) => {
             const best = bestRep(context.results);

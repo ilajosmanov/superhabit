@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vite-plus/test';
 
-import { create, join, leave, markDone, update } from './mine';
+import { create, join, leave, recordTry, update } from './mine';
 import { parse } from './saved';
 import { disk } from '@/storage/__fixtures__/file-system';
 import { reps } from '@/workout/plan';
@@ -21,18 +21,18 @@ const harder = {
   session: [{ steps: [{ exercise: 'squat', goal: reps(40) }], rounds: 1 }],
 } as const;
 
-it('keeps what you made, did, changed and left in the file the next start reads', () => {
+it('keeps what you made, your best try, what you changed and left in the file the next start reads', () => {
   vi.setSystemTime(new Date(2026, 10, 1, 9));
   const id = create(challenge);
   expect(id).not.toBeNull();
   if (!id) return;
-  markDone(id, '2026-11-01');
-  markDone(id, '2026-11-01');
+  recordTry(id, '2026-11-01', 0.5);
+  recordTry(id, '2026-11-01', 0.2);
   update(id, harder);
   join('pushup-fifty', challenge);
   leave('pushup-fifty');
 
   expect(parse(disk.get('challenges.json') ?? '').value).toEqual([
-    { id, challenge: harder, startedOn: '2026-11-01', done: ['2026-11-01'] },
+    { id, challenge: harder, startedOn: '2026-11-01', progress: { '2026-11-01': 0.5 } },
   ]);
 });

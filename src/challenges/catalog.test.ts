@@ -29,6 +29,19 @@ describe('toEntry', () => {
     expect(entry.note).toBe('3 ROUNDS · 30S REST');
   });
 
+  it('says a repeated round count or rest once', () => {
+    const block = {
+      steps: [
+        { exercise: 'pushup', goal: reps(10) },
+        { exercise: 'rest', goal: seconds(30) },
+      ],
+      rounds: 5,
+    } as const;
+    expect(
+      toEntry('c', { name: 'C', days: 14, restartOnMiss: false, session: [block, block] }).note,
+    ).toBe('5 ROUNDS · 30S REST');
+  });
+
   it('has no note for a single round without rest', () => {
     expect(
       toEntry('c', {
