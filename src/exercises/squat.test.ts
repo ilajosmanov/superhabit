@@ -12,12 +12,13 @@ import {
 } from './squat';
 import type { Pose } from '@/exercises/body/geometry';
 import { body } from './__fixtures__/body';
-import { scoreReps, traceFiles } from './__fixtures__/replay';
+import { loadTrace, replay, scoreReps, traceFiles } from './__fixtures__/replay';
 
 const joints = [Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE] as const;
+const upright = { rise: 90, joints, side: 'left' } as const;
 // A knee-only sample with the hips dropped, so these tests exercise the knee state machine.
 const at = (deg: number | null): SquatSample | null =>
-  deg === null ? null : { legs: [deg, deg], hip: 0, lean: 0, valgus: null, joints };
+  deg === null ? null : { legs: [deg, deg], hip: 0, lean: 0, valgus: null, joints, at: upright };
 const FRAME = 66; // ms between detector results
 // The next frame's time after `s`'s last valid angle.
 const later = (s: SquatState) => (s.lastSeenAt ?? 0) + FRAME;
@@ -279,7 +280,14 @@ describe('glitches, hip depth and rep report', () => {
   });
 
   it('cues uneven legs and a shallow no-rep', () => {
-    const uneven: SquatSample = { legs: [95, 75], hip: 0, lean: 0, valgus: null, joints };
+    const uneven: SquatSample = {
+      legs: [95, 75],
+      hip: 0,
+      lean: 0,
+      valgus: null,
+      joints,
+      at: upright,
+    };
     const s = play([
       [at(175), 0, 2000],
       [uneven, 2066, 4000],
@@ -333,7 +341,7 @@ describe('knee angles', () => {
       });
     put([Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE], left);
     put([Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE], right);
-    return { landmarks: image, worldLandmarks: world };
+    return { landmarks: image, worldLandmarks: world, down: { x: 0, y: 1, z: 0 } };
   };
   const legs = (p: Pose) => measureSquat(p)?.legs;
   const deg = (d: number) => expect.closeTo(d);
@@ -424,9 +432,6 @@ describe('knee angles', () => {
   });
 });
 
-// 87a35a1: 1/10 within ±1. Measured baseline; counter refactors must not lower it.
-const MIN_OK = 1;
-const files = traceFiles('squat');
 describe('side-on squats', () => {
   const FAR = [Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE];
   /** Side-on with the far leg hidden behind the near one. */
@@ -457,11 +462,57 @@ describe('side-on squats', () => {
   });
 });
 
-describe.skipIf(files.length === 0)('squat on real traces', () => {
-  it('counts within ±1 on enough clips', () => {
-    const rows = scoreReps(squat, files, 1);
-    expect(rows.filter((row) => row.ok).length, JSON.stringify(rows)).toBeGreaterThanOrEqual(
-      MIN_OK,
-    );
+describe('standing', () => {
+  it('counts nothing with the legs level, as when lying down', () => {
+    // The same knee bends, with gravity along the legs' depth: the body lies on its back.
+    const lying = (thigh: number, shin: number) => ({
+      ...body({ thigh, shin }),
+      down: { x: 0, y: 0, z: -1 },
+    });
+    const s = [lying(0, 0), lying(70, 25), lying(0, 0)].reduce<SquatState>((state, pose) => {
+      const from = (state.lastSeenAt ?? 0) + FRAME;
+      for (let i = 0; i < 60; i++) state = squat.step(state, squat.measure(pose), from + i * FRAME);
+      return state;
+    }, squat.initial);
+    expect(s).toMatchObject({ phase: 'waiting', reps: 0, noReps: 0 });
+  });
+
+  it('ends a rep lying down as a failed rep, and a shallow dip there as nothing', () => {
+    const top = at(175);
+    assert(top);
+    const lying = { ...top, at: { ...upright, rise: 30 } };
+    const after = (deg: number) =>
+      play([
+        [top, 0, 2000],
+        [at(deg), 2066, 4000],
+        [lying, 4066, 6000],
+      ]);
+    expect(after(120)).toMatchObject({ reps: 0, noReps: 0 });
+    expect(after(90)).toMatchObject({ reps: 0, noReps: 1, lastRep: { cues: ['Stand tall'] } });
+  });
+
+  it('reads nothing without gravity', () => {
+    expect(measureSquat({ ...body({}), down: undefined })).toBeNull();
+  });
+});
+
+// Device clips with gravity, front-on. Labels are the reps in their video: one long deep squat and four
+// more after leg kicks and a bend to the floor, then five quick ones.
+const device = traceFiles('device').filter((path) => path.includes('/squat-1794169'));
+// Plank and push-up clips with gravity: knees bend there (kneeling), but no squat is done. A dip while
+// standing at a clip's edge may still read as a failed rep.
+const floor = traceFiles('device').filter((path) => /\/(plank|pushup)-/.test(path));
+describe.skipIf(device.length === 0)('squat on device clips with gravity', () => {
+  it.each([squat, sideSquat])('counts every rep on the video: %#', (ex) => {
+    const rows = scoreReps(ex, device, 0);
+    expect(
+      rows.filter((row) => !row.ok),
+      JSON.stringify(rows),
+    ).toEqual([]);
+  });
+
+  it.each([squat, sideSquat])('counts nothing on plank and push-up clips: %#', (ex) => {
+    const reps = floor.map((path) => replay(ex, loadTrace(path)).reps);
+    expect(reps.filter((n) => n > 0)).toEqual([]);
   });
 });

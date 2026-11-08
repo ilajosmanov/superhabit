@@ -3,7 +3,6 @@ import { Joint, SIDE } from 'superhabit-pose/joints';
 
 import {
   angle,
-  bestSide,
   distance,
   mid,
   seen,
@@ -14,6 +13,7 @@ import {
 } from '@/exercises/body/geometry';
 import { engine, type CycleState } from '@/exercises/kinds/cycle';
 import { fmtMs, SETUP, type Exercise } from './exercise';
+import { standingPosition, type StandingSample } from './positions/standing';
 
 const MAX_ASYMMETRY = 35; // degrees between left and right knee
 const LEGS = [SIDE.left, SIDE.right].map(({ hip, knee, ankle }): Joints => [hip, knee, ankle]);
@@ -49,13 +49,15 @@ export type SquatSample = {
   valgus: number | null;
   /** [hip, knee, ankle] of the better-seen leg, for drawing. */
   joints: Joints;
+  /** The standing position, read on the better-seen leg. */
+  at: StandingSample;
 };
 
 export function measureSquat(pose: Pose): SquatSample | null {
-  const legs = legAngles(pose);
+  const at = standingPosition.read(pose);
+  const legs = at && legAngles(pose);
   if (!legs) return null;
   const w = pose.worldLandmarks;
-  const visible = (leg: Joints) => Math.min(...leg.map((i) => pose.landmarks[i].visibility));
   const hips = mid(w[Joint.LEFT_HIP], w[Joint.RIGHT_HIP]);
   const knees = mid(w[Joint.LEFT_KNEE], w[Joint.RIGHT_KNEE]);
   // Thigh-relative hip drop is scale-free and, in 3D, the same seen from the front or the side;
@@ -80,7 +82,8 @@ export function measureSquat(pose: Pose): SquatSample | null {
       ? Math.abs(w[Joint.RIGHT_KNEE].x - w[Joint.LEFT_KNEE].x) /
         Math.abs(w[Joint.RIGHT_ANKLE].x - w[Joint.LEFT_ANKLE].x)
       : null,
-    joints: visible(LEGS[1]) > visible(LEGS[0]) ? LEGS[1] : LEGS[0],
+    joints: at.joints,
+    at,
   };
 }
 
@@ -116,13 +119,18 @@ type Attempt = {
 /** Tracks the knee angle of the straighter leg. */
 export type SquatState = CycleState<Attempt, RepReport>;
 
+// Standing is judged at rest: where a rep starts and ends.
+const standing = (m: SquatSample) => standingPosition.setup(m.at) === null;
+
 const squatCycle = engine<SquatSample, Attempt, RepReport>({
   signal: (m) => Math.max(...m.legs),
   up: SQUAT_UP,
   down: SQUAT_DOWN,
   shallow: SHALLOW,
+  start: standing,
   turn: (m) => m.hip <= HIP_BOTTOM,
-  tried: (a) => a.hip <= HIP_STARTED,
+  tried: (a, m) => a.hip <= HIP_STARTED && standing(m),
+  clean: (_a, m) => standing(m),
   fresh: { hip: Infinity, sym: 0, n: 0, lean: 0, valgus: null },
   add: (a, m) => ({
     hip: Math.min(a.hip, m.hip),
@@ -134,11 +142,11 @@ const squatCycle = engine<SquatSample, Attempt, RepReport>({
         ? a.valgus
         : Math.min(a.valgus ?? Infinity, m.valgus),
   }),
-  report: (a, _m, { counted, depth, downMs, upMs }) => {
+  report: (a, m, { counted, depth, downMs, upMs }) => {
     const fast = downMs !== null && upMs !== null && downMs + upMs < CUE_FAST_MS;
     const symmetry = a.n ? a.sym / a.n : 0;
     const cues = [
-      !counted && 'Go deeper',
+      !counted && (standingPosition.setup(m.at) ?? 'Go deeper'),
       symmetry > CUE_SYMMETRY && 'Even out your legs',
       a.lean > CUE_LEAN && 'Chest up',
       a.valgus !== null && a.valgus < CUE_VALGUS && 'Knees out',
@@ -154,8 +162,8 @@ export const squat: Exercise<SquatState, SquatSample> = {
   placement: 'front-upright',
   ...SETUP['front-upright'],
   hint: 'Counting starts once you stand tall.',
-  ready: 'Stand tall',
-  parts: ['head', 'hips', 'feet'],
+  ready: standingPosition.ready,
+  parts: standingPosition.parts,
   gauge: { down: SQUAT_DOWN, up: SQUAT_UP },
   measure: measureSquat,
   stats: ({ lastRep: r }) =>
@@ -169,9 +177,9 @@ export const squat: Exercise<SquatState, SquatSample> = {
  */
 export function measureSideSquat(pose: Pose): SquatSample | null {
   if (LEGS.every((leg) => leg.every((i) => seen(pose, i)))) return measureSquat(pose);
-  const side = bestSide(pose, (j) => [j.hip, j.knee, j.ankle]);
-  if (!side) return null;
-  const { shoulder: s, hip: h, knee: k, ankle: a } = SIDE[side];
+  const at = standingPosition.read(pose);
+  if (!at) return null;
+  const { shoulder: s, hip: h, knee: k, ankle: a } = SIDE[at.side];
   const w = pose.worldLandmarks;
   const knee = angle(w[h], w[k], w[a]);
   const hip = (w[k].y - w[h].y) / distance(w[h], w[k]);
@@ -182,7 +190,8 @@ export function measureSideSquat(pose: Pose): SquatSample | null {
     hip,
     lean: Number.isFinite(lean) ? lean : 0,
     valgus: null,
-    joints: [h, k, a],
+    joints: at.joints,
+    at,
   };
 }
 

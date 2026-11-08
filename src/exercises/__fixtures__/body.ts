@@ -32,5 +32,6 @@ export const body = ({ thigh = 0, shin = 0, lean = 0, knees = 0.1, side = false 
     put(ankle, sign * 0.1, ky + L * Math.cos(shin * rad), kz + L * Math.sin(shin * rad));
   }
   const image = world.map((): PoseLandmark => ({ x: 0.5, y: 0.5, z: 0, visibility: 0.9 }));
-  return { landmarks: image, worldLandmarks: world };
+  // World y is down, so the phone's gravity is too.
+  return { landmarks: image, worldLandmarks: world, down: { x: 0, y: 1, z: 0 } };
 };

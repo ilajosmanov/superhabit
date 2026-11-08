@@ -1,7 +1,8 @@
 # positions
 
 Which body position you are in. One file per position, named after it (`plank.ts`). Several
-exercises share one: the plank position serves the plank and the push-up.
+exercises share one: the plank position serves the plank and the push-up; standing serves the
+squat and the side squat.
 
 `position.ts` is what every position must provide:
 
