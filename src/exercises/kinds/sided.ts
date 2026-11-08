@@ -1,5 +1,5 @@
 import { cycle, type CycleConfig, type CycleState } from './cycle';
-import type { Side } from './geometry';
+import type { Side } from '@/exercises/body/geometry';
 import type { Counter, Progress, Rep } from './progress';
 
 export type SidedConfig<M, A, R extends Rep> = Omit<CycleConfig<M, A, R>, 'signal'> & {

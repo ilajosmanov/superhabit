@@ -11,8 +11,8 @@ import {
   tilt,
   type Joints,
   type Pose,
-} from './geometry';
-import { cycle, type CycleState } from './cycle';
+} from '@/exercises/body/geometry';
+import { cycle, type CycleState } from '@/exercises/kinds/cycle';
 import { fmtMs, SETUP, type Exercise } from './exercise';
 
 const MAX_ASYMMETRY = 35; // degrees between left and right knee

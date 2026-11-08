@@ -14,7 +14,7 @@ import {
 import type { PoseDetection, PoseLandmarker } from 'superhabit-pose';
 
 import { JOINTS, skeleton, type Dot, type Segment } from './skeleton';
-import { MIN_VISIBILITY } from '@/exercises/geometry';
+import { MIN_VISIBILITY } from '@/exercises/body/geometry';
 import { colors } from '@/theme';
 
 /**

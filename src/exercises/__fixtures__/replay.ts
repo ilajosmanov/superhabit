@@ -2,9 +2,9 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { Pose } from '@/exercises/geometry';
-import type { Progress } from '@/exercises/progress';
-import { parseTrace, toPose, type Trace } from '@/exercises/trace';
+import type { Pose } from '@/exercises/body/geometry';
+import type { Progress } from '@/exercises/kinds/progress';
+import { parseTrace, toPose, type Trace } from '@/exercises/body/trace';
 
 type ReplayExercise<S extends Progress, M> = {
   initial: S;

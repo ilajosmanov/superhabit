@@ -1,8 +1,8 @@
 import { Joint, SIDE } from 'superhabit-pose/joints';
 
-import { cycle, type CycleState } from './cycle';
+import { cycle, type CycleState } from '@/exercises/kinds/cycle';
 import { fmtMs, type Exercise } from './exercise';
-import { angle, distance, seen, STRAIGHT, type Joints, type Pose } from './geometry';
+import { angle, distance, seen, STRAIGHT, type Joints, type Pose } from '@/exercises/body/geometry';
 
 const ARMS = [SIDE.left, SIDE.right].map(({ hip, shoulder, elbow }): Joints => [
   hip,

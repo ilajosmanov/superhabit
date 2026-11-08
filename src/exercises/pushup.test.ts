@@ -2,7 +2,7 @@ import { assert, describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
 import { measurePushup, pushup, type PushupState } from './pushup';
-import type { Pose } from './geometry';
+import type { Pose } from '@/exercises/body/geometry';
 import { plank } from './__fixtures__/plank';
 import { scoreReps, traceFiles } from './__fixtures__/replay';
 

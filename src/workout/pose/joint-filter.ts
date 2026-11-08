@@ -1,6 +1,6 @@
 import type { SkPoint } from '@shopify/react-native-skia';
 
-import { smooth, type Smooth, type Tuning } from '@/exercises/smooth';
+import { smooth, type Smooth, type Tuning } from '@/exercises/body/smooth';
 
 /** Per joint: its x and y filters and when it was last seen (s); null while unseen. */
 export type JointFilter = ({ x: Smooth; y: Smooth; seen: number } | null)[];

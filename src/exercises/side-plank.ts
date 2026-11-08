@@ -13,8 +13,8 @@ import {
   type Joints,
   type Pose,
   type Vec,
-} from './geometry';
-import { hold, type HoldState } from './hold';
+} from '@/exercises/body/geometry';
+import { hold, type HoldState } from '@/exercises/kinds/hold';
 
 /** Shape of a side plank seen from the front, in degrees and shoulder heights. */
 export type SidePlankSample = {

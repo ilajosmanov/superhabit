@@ -3,7 +3,7 @@ import type { PoseDetection } from 'superhabit-pose';
 import { fromCallback } from 'xstate';
 
 import type { ExerciseId } from '@/exercises/registry';
-import { toFrame, type Trace, type TraceFrame } from '@/exercises/trace';
+import { toFrame, type Trace, type TraceFrame } from '@/exercises/body/trace';
 
 export type RecorderEvent =
   | { type: 'frame'; result: PoseDetection }

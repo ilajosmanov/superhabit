@@ -4,7 +4,7 @@ import { Joint, SIDE } from 'superhabit-pose/joints';
 import { body } from './__fixtures__/body';
 import { falseReps, scoreReps, tenPercent, traceFiles } from './__fixtures__/replay';
 import { gluteBridge, measureGluteBridge } from './glute-bridge';
-import type { Pose } from './geometry';
+import type { Pose } from '@/exercises/body/geometry';
 
 const FRAME = 66;
 // Fixed shoulder and ankle supports. The hip rises from a flat torso to a straight body line;

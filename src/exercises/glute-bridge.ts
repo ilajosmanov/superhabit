@@ -1,8 +1,16 @@
 import { SIDE } from 'superhabit-pose/joints';
 
-import { cycle, type CycleState } from './cycle';
+import { cycle, type CycleState } from '@/exercises/kinds/cycle';
 import { fmtMs, SETUP, type Exercise } from './exercise';
-import { angle, bestSide, dot, length, sub, type Joints, type Pose } from './geometry';
+import {
+  angle,
+  bestSide,
+  dot,
+  length,
+  sub,
+  type Joints,
+  type Pose,
+} from '@/exercises/body/geometry';
 
 // PushUpBench sweeps of starts 130–145° and peaks 155–170° stayed below the 60% gate.
 // Keep the expected 120–140° floor position and a peak within 20° of straight, rather than

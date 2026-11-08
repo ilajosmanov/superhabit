@@ -10,7 +10,7 @@ import {
   type SquatSample,
   type SquatState,
 } from './squat';
-import type { Pose } from './geometry';
+import type { Pose } from '@/exercises/body/geometry';
 import { body } from './__fixtures__/body';
 import { scoreReps, traceFiles } from './__fixtures__/replay';
 

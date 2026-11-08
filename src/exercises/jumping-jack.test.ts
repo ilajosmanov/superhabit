@@ -3,7 +3,7 @@ import { Joint } from 'superhabit-pose/joints';
 
 import { body } from './__fixtures__/body';
 import { falseReps, scoreReps, tenPercent, traceFiles } from './__fixtures__/replay';
-import type { Pose } from './geometry';
+import type { Pose } from '@/exercises/body/geometry';
 import { jumpingJack, measureJumpingJack } from './jumping-jack';
 
 const FRAME = 33;

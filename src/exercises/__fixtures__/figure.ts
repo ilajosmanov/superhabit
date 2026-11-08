@@ -1,7 +1,7 @@
 // A pose drawn joint by joint, for tests whose angles should be checkable on paper.
 import type { PoseLandmark } from 'superhabit-pose';
 
-import type { Pose } from '@/exercises/geometry';
+import type { Pose } from '@/exercises/body/geometry';
 
 type Point = readonly [x: number, y: number, z?: number];
 

@@ -13,8 +13,8 @@ import {
   type Pose,
   type Side,
   type Vec,
-} from './geometry';
-import { sided, type SidedState } from './sided';
+} from '@/exercises/body/geometry';
+import { sided, type SidedState } from '@/exercises/kinds/sided';
 
 // Local trace sweep with rear recovery >= SHALLOW: up 140–160°, down 100–120°,
 // lean 30–40°, stride 0.2–0.4 and visibility 0.2–0.5 never exceeded 5/15 clips.

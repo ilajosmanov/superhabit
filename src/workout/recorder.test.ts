@@ -6,7 +6,7 @@ import { EXERCISES } from '@/exercises/registry';
 import { body } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
 import { replay } from '@/exercises/__fixtures__/replay';
-import { parseTrace } from '@/exercises/trace';
+import { parseTrace } from '@/exercises/body/trace';
 import {
   challenge,
   createDirectory,

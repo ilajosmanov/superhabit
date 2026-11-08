@@ -10,7 +10,7 @@ import {
   tenPercent,
   traceFiles,
 } from './__fixtures__/replay';
-import type { Pose } from './geometry';
+import type { Pose } from '@/exercises/body/geometry';
 import { measureSitup, situp } from './situp';
 
 const FRAME = 66;

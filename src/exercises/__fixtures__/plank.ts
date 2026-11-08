@@ -2,7 +2,7 @@
 import type { PoseLandmark } from 'superhabit-pose';
 import { SIDE } from 'superhabit-pose/joints';
 
-import type { Pose } from '@/exercises/geometry';
+import type { Pose } from '@/exercises/body/geometry';
 
 type Plank = {
   /** Elbow angle, deg: 180 = arms straight. Standing: the forearm curls forward. */

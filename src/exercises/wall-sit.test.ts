@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
 import { figure } from './__fixtures__/figure';
-import type { Pose } from './geometry';
-import type { HoldState } from './hold';
+import type { Pose } from '@/exercises/body/geometry';
+import type { HoldState } from '@/exercises/kinds/hold';
 import { measureWallSit, wallSit } from './wall-sit';
 
 const { LEFT_SHOULDER: S, LEFT_HIP: H, LEFT_KNEE: K, LEFT_ANKLE: A } = Joint;

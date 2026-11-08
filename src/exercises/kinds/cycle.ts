@@ -1,6 +1,6 @@
 // One signal, smoothed and held for two samples, cycling waiting -> up -> down -> up.
 import type { Counter, Progress, Rep } from './progress';
-import { smooth, type Smooth, type Tuning } from './smooth';
+import { smooth, type Smooth, type Tuning } from '@/exercises/body/smooth';
 
 export type CycleConfig<M, A, R extends Rep> = {
   /** Null gates the signal, not form accumulation from an otherwise valid sample. */

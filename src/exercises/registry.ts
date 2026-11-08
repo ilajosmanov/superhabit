@@ -3,7 +3,7 @@ import { gluteBridge, type GluteBridgeSample, type GluteBridgeState } from './gl
 import { legRaise, type LegRaiseSample, type LegRaiseState } from './leg-raise';
 import { jumpingJack, type JumpingJackSample, type JumpingJackState } from './jumping-jack';
 import { lunge, type LungeSample, type LungeState } from './lunge';
-import type { HoldState } from './hold';
+import type { HoldState } from '@/exercises/kinds/hold';
 import { plank, type PlankSample } from './plank';
 import { pushup, type PushupSample, type PushupState } from './pushup';
 import { sidePlank, type SidePlankSample } from './side-plank';
@@ -12,10 +12,10 @@ import { sideSquat, squat, type SquatSample, type SquatState } from './squat';
 import { wallSit, type WallSitSample } from './wall-sit';
 
 // The exercise input: one frame's joints. Other folders import these from here, not from geometry.
-export type { BodyPart, Pose } from './geometry';
-export type { Kind, Phase, Progress } from './progress';
+export type { BodyPart, Pose } from '@/exercises/body/geometry';
+export type { Kind, Phase, Progress } from '@/exercises/kinds/progress';
 export type { Placement } from './exercise';
-export { outOfFrame } from './geometry';
+export { outOfFrame } from '@/exercises/body/geometry';
 export { orientation } from './exercise';
 
 /** The single list of exercises: one counter state and sample type per id. Add a key to both to add an exercise. */

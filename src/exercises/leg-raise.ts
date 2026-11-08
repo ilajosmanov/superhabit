@@ -1,8 +1,8 @@
 import { SIDE } from 'superhabit-pose/joints';
 
-import { cycle, type CycleState } from './cycle';
+import { cycle, type CycleState } from '@/exercises/kinds/cycle';
 import { fmtMs, SETUP, type Exercise } from './exercise';
-import { angle, bestSide, sub, tilt, type Joints, type Pose } from './geometry';
+import { angle, bestSide, sub, tilt, type Joints, type Pose } from '@/exercises/body/geometry';
 
 // Lying flat reads ~175° at the hip, legs straight up 90°. Start below 160°, count past 100°.
 const RAISE_UP = 160;

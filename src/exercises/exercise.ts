@@ -1,5 +1,5 @@
-import type { BodyPart, Joints, Pose } from './geometry';
-import type { Counter, Progress } from './progress';
+import type { BodyPart, Joints, Pose } from '@/exercises/body/geometry';
+import type { Counter, Progress } from '@/exercises/kinds/progress';
 
 export type Placement = 'front-upright' | 'side-floor' | 'side-upright';
 export type Orientation = 'portrait' | 'landscape';

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vite-plus/test';
 import { SIDE } from 'superhabit-pose/joints';
 
 import { figure } from './__fixtures__/figure';
-import type { Pose } from './geometry';
-import type { HoldState } from './hold';
+import type { Pose } from '@/exercises/body/geometry';
+import type { HoldState } from '@/exercises/kinds/hold';
 import { measureSidePlank, sidePlank } from './side-plank';
 
 type P = readonly [number, number, number?];

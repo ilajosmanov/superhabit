@@ -1,8 +1,16 @@
 import { SIDE } from 'superhabit-pose/joints';
 
 import { fmtMs, SETUP, type Exercise } from './exercise';
-import { angle, bestSide, distance, sub, tilt, type Joints, type Pose } from './geometry';
-import { hold, type HoldState } from './hold';
+import {
+  angle,
+  bestSide,
+  distance,
+  sub,
+  tilt,
+  type Joints,
+  type Pose,
+} from '@/exercises/body/geometry';
+import { hold, type HoldState } from '@/exercises/kinds/hold';
 
 /** Angles on the better-seen side, in degrees. */
 export type WallSitSample = {

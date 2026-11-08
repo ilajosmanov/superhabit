@@ -14,8 +14,8 @@ import {
   sub,
   type Joints,
   type Pose,
-} from './geometry';
-import { cycle, type CycleState } from './cycle';
+} from '@/exercises/body/geometry';
+import { cycle, type CycleState } from '@/exercises/kinds/cycle';
 import { fmtMs, SETUP, type Exercise } from './exercise';
 
 // Starting guesses; tune on device.

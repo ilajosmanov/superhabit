@@ -2,8 +2,8 @@ import { assert, describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
 import { plank, measurePlank } from './plank';
-import type { HoldState } from './hold';
-import type { Pose } from './geometry';
+import type { HoldState } from '@/exercises/kinds/hold';
+import type { Pose } from '@/exercises/body/geometry';
 import { plank as pose } from './__fixtures__/plank';
 import { loadTrace, replay, scoreHold, traceFiles } from './__fixtures__/replay';
 

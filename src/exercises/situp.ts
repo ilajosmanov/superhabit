@@ -1,6 +1,6 @@
 import { SIDE } from 'superhabit-pose/joints';
 
-import { cycle, type CycleState } from './cycle';
+import { cycle, type CycleState } from '@/exercises/kinds/cycle';
 import { fmtMs, SETUP, type Exercise } from './exercise';
 import {
   angle,
@@ -12,7 +12,7 @@ import {
   sub,
   type Joints,
   type Pose,
-} from './geometry';
+} from '@/exercises/body/geometry';
 
 // Bent thighs make a lying hip read nearer 120° than 180°; 80° requires the torso to curl up.
 // Trace tuning across up 65–100°, down 95–135° and visibility 0.1–0.5 never exceeded 3/10.

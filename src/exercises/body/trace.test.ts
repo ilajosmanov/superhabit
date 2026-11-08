@@ -4,10 +4,16 @@ import { join } from 'node:path';
 import type { PoseDetection } from 'superhabit-pose';
 import { describe, expect, it } from 'vite-plus/test';
 
-import { body } from './__fixtures__/body';
-import { loadTrace, replay, scoreHold, scoreReps, traceFiles } from './__fixtures__/replay';
-import { squat } from './squat';
-import type { Progress } from './progress';
+import { body } from '@/exercises/__fixtures__/body';
+import {
+  loadTrace,
+  replay,
+  scoreHold,
+  scoreReps,
+  traceFiles,
+} from '@/exercises/__fixtures__/replay';
+import { squat } from '@/exercises/squat';
+import type { Progress } from '@/exercises/kinds/progress';
 import { parseTrace, toFrame, toPose, type Trace } from './trace';
 
 const pose = body({ thigh: 70, shin: 25, lean: 10 });

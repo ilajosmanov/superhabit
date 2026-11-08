@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
-import { body } from './__fixtures__/body';
+import { body } from '@/exercises/__fixtures__/body';
 import { angle, bestSide, mid, seen, tilt } from './geometry';
 
 const at = (x: number, y: number, z = 0) => ({ x, y, z });

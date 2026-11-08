@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 
 import type { Rep } from './progress';
-import type { Side } from './geometry';
+import type { Side } from '@/exercises/body/geometry';
 import { sided, type SidedConfig } from './sided';
 
 type Sample = { l: number | null; r: number | null };

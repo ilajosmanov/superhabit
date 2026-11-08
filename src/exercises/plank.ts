@@ -1,8 +1,17 @@
 import { SIDE } from 'superhabit-pose/joints';
 
-import { angle, bestSide, dot, length, reject, sub, type Joints, type Pose } from './geometry';
+import {
+  angle,
+  bestSide,
+  dot,
+  length,
+  reject,
+  sub,
+  type Joints,
+  type Pose,
+} from '@/exercises/body/geometry';
 import { fmtMs, SETUP, type Exercise } from './exercise';
-import { hold, type HoldState } from './hold';
+import { hold, type HoldState } from '@/exercises/kinds/hold';
 
 /** Shape on the better-seen side, for forearm and high planks. */
 export type PlankSample = {
