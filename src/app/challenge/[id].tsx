@@ -2,7 +2,8 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { detail, summary } from '@/challenges/challenges';
+import { detail, summary, SUGGESTED } from '@/challenges/challenges';
+import { ChallengePreview } from '@/challenges/components/challenge-preview';
 import { HoldToStart } from '@/challenges/components/hold-to-start';
 import { saveFailed } from '@/challenges/components/save-failed';
 import { doneToday } from '@/challenges/days';
@@ -16,8 +17,8 @@ import { Screen } from '@/components/screen';
 import { PhoneSetup } from '@/workout/components/phone-setup';
 
 /**
- * What a challenge asks for and how to set up the phone. Not running: a tap joins it from today (again,
- * once a run is over). Running: hold to start today's set, and the pencil in the toolbar edits it. The red
+ * What a challenge asks for and how to set up the phone. Not running: the preview teaches it, and a tap
+ * joins it from today (again, once a run is over). Running: hold to start today's set, and the pencil in the toolbar edits it. The red
  * disc in the footer leaves any challenge you are in.
  */
 export default function ChallengeDetailScreen() {
@@ -40,7 +41,9 @@ export default function ChallengeDetailScreen() {
         : ` · ${last === run.day - 1 ? 'TODAY' : `DAY ${last + 1}`} ${Math.round(share * 100)}%`;
   const status = run
     ? `DAY ${run.day} OF ${run.days}${tried}`
-    : `${challenge.days} DAYS · DAY 1 IS TODAY`;
+    : `${!saved && SUGGESTED.has(id) ? 'SUGGESTED · ' : ''}${
+        challenge.days === 1 ? 'ONE GO' : `${challenge.days} DAYS · DAY 1 IS TODAY`
+      }`;
 
   return (
     <Screen
@@ -81,31 +84,41 @@ export default function ChallengeDetailScreen() {
         }}
       />
       <Text className="-mt-5 font-mono text-xs tracking-widest text-muted">
-        {status} · PHONE {phone}
+        {run ? `${status} · PHONE ${phone}` : status}
       </Text>
 
-      <View accessible accessibilityLabel={`${summary(challenge)}. ${tracking}`} className="gap-6">
-        {/* Clipped so the numeral rises out of its baseline, like the podium steps. */}
-        <View className="flex-row items-end justify-between overflow-hidden">
-          <Animated.View entering={FadeInDown.duration(500)}>
-            <Text className="-ml-1.5 font-sans text-9xl font-extralight leading-none tracking-tighter text-chalk">
-              {finite ? total : 'Max'}
-            </Text>
-          </Animated.View>
-          <Text className="pb-4 font-mono text-xs tracking-widest text-muted">
-            {countsReps ? 'CLEAN REPS' : 'SECONDS'}
-          </Text>
-        </View>
+      {run ? (
+        <>
+          <View
+            accessible
+            accessibilityLabel={`${summary(challenge)}. ${tracking}`}
+            className="gap-6"
+          >
+            {/* Clipped so the numeral rises out of its baseline, like the podium steps. */}
+            <View className="flex-row items-end justify-between overflow-hidden">
+              <Animated.View entering={FadeInDown.duration(500)}>
+                <Text className="-ml-1.5 font-sans text-9xl font-extralight leading-none tracking-tighter text-chalk">
+                  {finite ? total : 'Max'}
+                </Text>
+              </Animated.View>
+              <Text className="pb-4 font-mono text-xs tracking-widest text-muted">
+                {countsReps ? 'CLEAN REPS' : 'SECONDS'}
+              </Text>
+            </View>
 
-        <SetBars sets={sets} finite={finite} countsReps={countsReps} share={share} />
+            <SetBars sets={sets} finite={finite} countsReps={countsReps} share={share} />
 
-        <Text className="font-sans text-sm text-muted">{tracking}</Text>
-      </View>
+            <Text className="font-sans text-sm text-muted">{tracking}</Text>
+          </View>
 
-      <View className="gap-4">
-        <Text className="font-mono text-xs tracking-widest text-muted">BEFORE YOU START</Text>
-        <PhoneSetup exercise={first} />
-      </View>
+          <View className="gap-4">
+            <Text className="font-mono text-xs tracking-widest text-muted">BEFORE YOU START</Text>
+            <PhoneSetup exercise={first} />
+          </View>
+        </>
+      ) : (
+        <ChallengePreview challenge={challenge} />
+      )}
     </Screen>
   );
 }

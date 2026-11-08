@@ -108,6 +108,7 @@ export const situp: Exercise<SitupState, SitupSample> = {
   ...SETUP['side-floor'],
   hint: 'Sit up with knees bent, then lie back and curl up to count.',
   ready: 'Sit up with knees bent',
+  how: ['Lie back', 'Curl up again to count'],
   parts: ['head', 'hips', 'feet'],
   gauge: { down: SITUP_DOWN, up: SITUP_UP },
   measure: measureSitup,

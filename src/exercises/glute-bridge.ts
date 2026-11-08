@@ -84,6 +84,7 @@ export const gluteBridge: Exercise<GluteBridgeState, GluteBridgeSample> = {
   ...SETUP['side-floor'],
   hint: 'Start with hips down, knees bent and feet planted. Lift, then lower to count.',
   ready: 'Lie back with hips down',
+  how: ['Lift your hips into a straight line', 'Lower them to count'],
   parts: ['head', 'hips', 'feet'],
   gauge: { down: BRIDGE_DOWN, up: BRIDGE_UP },
   measure: measureGluteBridge,

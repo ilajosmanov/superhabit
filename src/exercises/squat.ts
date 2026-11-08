@@ -155,6 +155,7 @@ export const squat: Exercise<SquatState, SquatSample> = {
   ...SETUP['front-upright'],
   hint: 'Counting starts once you stand tall.',
   ready: 'Stand tall',
+  how: [`Sit back until your knees reach ${SQUAT_DOWN}°`, 'Stand all the way up'],
   parts: ['head', 'hips', 'feet'],
   gauge: { down: SQUAT_DOWN, up: SQUAT_UP },
   measure: measureSquat,

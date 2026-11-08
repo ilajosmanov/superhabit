@@ -47,6 +47,8 @@ export type Exercise<S extends Progress, M extends Measured> = Counter<S, M> & {
   hint: string;
   /** The start position, as a short heading while the counter waits for it. */
   ready: string;
+  /** One rep after `ready`, in steps, as the how-to card lists them; thresholds come from the counter. */
+  how: readonly string[];
   /** Must be in frame to start; the rest may be cut off. */
   parts: readonly BodyPart[];
   /** Null when there is no depth gauge or rep strip (hold / sequence). */

@@ -88,6 +88,7 @@ export const legRaise: Exercise<LegRaiseState, LegRaiseSample> = {
   ...SETUP['side-floor'],
   hint: 'Lie flat with legs straight. Raise them to vertical, then lower to count.',
   ready: 'Lie flat, legs straight',
+  how: ['Raise your legs to vertical', 'Lower them to count'],
   parts: ['head', 'hips', 'feet'],
   gauge: { down: RAISE_DOWN, up: RAISE_UP },
   measure: measureLegRaise,

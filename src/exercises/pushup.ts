@@ -117,6 +117,7 @@ export const pushup: Exercise<PushupState, PushupSample> = {
   ...SETUP['side-floor'],
   hint: 'Counting starts once you hold a plank.',
   ready: 'Get into a plank',
+  how: [`Lower until your elbows reach ${PUSHUP_DOWN}°`, 'Press back up to straight arms'],
   // Feet too: counting falls back to the knees, but the body line reads best heel to shoulder.
   parts: ['head', 'hands', 'hips', 'feet'],
   gauge: { down: PUSHUP_DOWN, up: PUSHUP_UP },

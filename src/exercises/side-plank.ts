@@ -106,6 +106,7 @@ export const sidePlank: Exercise<HoldState, SidePlankSample> = {
   ],
   hint: 'Face the phone. The clock starts once your hips lift into a straight line.',
   ready: 'Lie on your side, on one forearm',
+  how: ['Lift your hips into a straight line', 'The clock runs while you hold it'],
   parts: ['head', 'hips', 'feet'],
   gauge: null,
   measure: measureSidePlank,

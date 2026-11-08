@@ -69,6 +69,7 @@ export const plank: Exercise<HoldState, PlankSample> = {
   ...SETUP['side-floor'],
   hint: 'The clock starts once you hold a straight plank.',
   ready: 'Get into a plank',
+  how: ['Forearms down, heels to shoulders straight', 'The clock runs while you hold the line'],
   parts: ['head', 'hips', 'feet'],
   gauge: null,
   measure: measurePlank,

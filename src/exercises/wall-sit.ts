@@ -62,6 +62,7 @@ export const wallSit: Exercise<HoldState, WallSitSample> = {
   ...SETUP['side-upright'],
   hint: 'The clock starts once your thighs are level and your back is on the wall.',
   ready: 'Sit back against the wall',
+  how: ['Thighs level, back on the wall', 'The clock runs while you hold it'],
   parts: ['head', 'hips', 'feet'],
   gauge: null,
   measure: measureWallSit,

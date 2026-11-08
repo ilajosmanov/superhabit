@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { CHALLENGES, detail, summary, totalReps, totalSeconds } from './challenges';
+import { CHALLENGES, detail, plan, summary, totalReps, totalSeconds } from './challenges';
 import { defineChallenge, MAX, reps, seconds, type Session } from '@/workout/plan';
 
 const challenge = (session: Session) =>
@@ -196,5 +196,63 @@ describe('totals', () => {
       },
     ]);
     expect(totalSeconds(mixed)).toBe(40);
+  });
+});
+
+describe('plan', () => {
+  it('says rounds and rest once a part and puts the phone line where the phone moves', () => {
+    const tenFifteen = challenge([
+      {
+        steps: [
+          { exercise: 'pushup', goal: reps(10) },
+          { exercise: 'rest', goal: seconds(30) },
+        ],
+        rounds: 5,
+      },
+      {
+        steps: [
+          { exercise: 'squat', goal: reps(15) },
+          { exercise: 'rest', goal: seconds(30) },
+        ],
+        rounds: 5,
+      },
+    ]);
+    const { parts, single } = plan(tenFifteen);
+    expect(parts).toEqual([
+      {
+        label: 'PART 1 · 5 ROUNDS · 30 S REST BETWEEN',
+        rows: [{ exercise: 'pushup', goal: reps(10), move: 'Turn the phone sideways' }],
+      },
+      {
+        label: 'PART 2 · 5 ROUNDS · 30 S REST BETWEEN',
+        rows: [{ exercise: 'squat', goal: reps(15), move: 'Then stand the phone upright' }],
+      },
+    ]);
+    expect(single).toBeNull();
+  });
+
+  it('keeps one phone line while the phone stays put', () => {
+    const { parts, exercises } = plan(circuit);
+    expect(parts).toEqual([
+      {
+        label: '3 ROUNDS · 30 S REST BETWEEN',
+        rows: [
+          { exercise: 'pushup', goal: reps(10), move: 'Turn the phone sideways' },
+          { exercise: 'plank', goal: seconds(30) },
+        ],
+      },
+    ]);
+    expect(exercises).toEqual(['pushup', 'plank']);
+  });
+
+  it('gives a one-exercise, one-round session as a single row', () => {
+    const fifty = challenge([{ steps: [{ exercise: 'pushup', goal: reps(50) }], rounds: 1 }]);
+    expect(plan(fifty).single).toEqual({
+      exercise: 'pushup',
+      goal: reps(50),
+      move: 'Turn the phone sideways',
+    });
+    const twice = challenge([{ steps: [{ exercise: 'pushup', goal: reps(50) }], rounds: 2 }]);
+    expect(plan(twice).single).toBeNull();
   });
 });
