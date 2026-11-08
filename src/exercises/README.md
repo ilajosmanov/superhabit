@@ -13,7 +13,7 @@ plank (exercise)  =  hold (kind)  +  plank (position)  +  labels (name, phone se
 | ------------ | ------------------------------------------------------------- |
 | `kinds/`     | how counting works: cycle, sided, hold, sequence              |
 | `positions/` | which body position you are in, and whether your form is good |
-| `measures/`  | what moves: a joint angle, a height, a spread (not built yet) |
+| `measures/`  | what moves: a joint angle; later a height and a spread        |
 | `body/`      | reading the pose dots: geometry, smoothing, recorded traces   |
 
 This top level holds only the exercises themselves (`plank.ts`, `pushup.ts`, …), `exercise.ts`

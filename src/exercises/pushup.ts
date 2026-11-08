@@ -16,6 +16,7 @@ import {
   type Pose,
 } from '@/exercises/body/geometry';
 import { cycle, type CycleState } from '@/exercises/kinds/cycle';
+import { jointAngle } from '@/exercises/measures/joint-angle';
 import { fmtMs, SETUP, type Exercise } from './exercise';
 
 // Starting guesses; tune on device.
@@ -47,23 +48,26 @@ export type PushupSample = {
   joints: Joints;
 };
 
+const elbowAngle = jointAngle('elbow');
+
 /** Null unless the better-seen arm, hip and knee or ankle are in frame and every angle is finite. */
 export function measurePushup(pose: Pose): PushupSample | null {
   // Push-ups can fall back to the knee when the ankle is out of view.
   const side = bestSide(pose, (j) => [j.shoulder, j.elbow, j.wrist, j.hip, j.knee]);
   if (!side) return null;
+  const elbow = elbowAngle.read(pose, side);
+  if (!elbow) return null;
   const { shoulder: s, elbow: e, wrist: w, hip: h, knee: k, ankle: a } = SIDE[side];
   const world = pose.worldLandmarks;
   const foot = seen(pose, a) ? a : k;
   const forearm = sub(world[e], world[w]);
   const angles = {
-    elbow: angle(world[s], world[e], world[w]),
+    elbow: elbow.value,
     body: angle(world[s], world[h], world[foot]),
     reach: angle(world[h], world[s], world[w]),
     knees: dot(sub(world[k], world[w]), forearm) / length(forearm) ** 2,
   };
-  const joints: Joints = [s, e, w];
-  return Object.values(angles).every(Number.isFinite) ? { ...angles, joints } : null;
+  return Object.values(angles).every(Number.isFinite) ? { ...angles, joints: elbow.joints } : null;
 }
 
 type PushupReport = {
