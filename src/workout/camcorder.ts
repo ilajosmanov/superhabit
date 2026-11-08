@@ -16,7 +16,7 @@ export type VideoOutput = {
 };
 
 /**
- * roll: start a new file; cut: stop it; wrap: stop and wait for every file; keep: the best file, kept past the session;
+ * roll: start a new file; cut: stop it; wrap: stop and wait for every file;
  * share: keep every file in documents/videos when the session stops (the Done screen's movement-data switch);
  * lost: the camera dropped the output, so later rolls are no-ops and a take not started yet is given up.
  */
@@ -25,7 +25,6 @@ type CamcorderEvent =
   | { type: 'lost' }
   | { type: 'cut' }
   | { type: 'wrap' }
-  | { type: 'keep'; uri: string | null }
   | { type: 'share'; on: boolean };
 
 const folder = () => new Directory(Paths.cache, 'reps');
@@ -47,11 +46,11 @@ async function share(files: Iterable<File>) {
   }
 }
 
-/** Deletes `files` but `keep`; one failed delete does not stop the rest. */
-function prune(files: Iterable<File | Directory>, keep: string | null) {
+/** Deletes `files`; one failed delete does not stop the rest. */
+function prune(files: Iterable<File | Directory>) {
   for (const file of files) {
     try {
-      if (file.uri !== keep && file.exists) file.delete();
+      if (file.exists) file.delete();
     } catch (error) {
       console.warn('[camcorder] could not delete a recording', error);
     }
@@ -65,20 +64,18 @@ let takes = 0;
  * Films takes (video only) into the cache folder. Sends `rolling` once a take has really started,
  * `taken` once its file is final (`ok: false`: the encoder failed, the file is unusable) and `wrapped`
  * once every file of a `wrap` is final. Start failures only log: the take is simply not filmed.
- * Starts by deleting earlier sessions' files (their kept clip); on stop it cuts the take and, once
- * every file is final, deletes this session's files but the last `keep`, or moves them all to documents
- * when shared.
+ * Starts by deleting what an earlier session left behind; on stop it cuts the take and, once every file
+ * is final, deletes this session's files, or moves them all to documents when shared.
  */
 export const camcorder = fromCallback<CamcorderEvent, VideoOutput | undefined>(
   ({ input: video, receive, sendBack }) => {
     if (!video) return;
-    if (folder().exists) prune(folder().list(), null);
+    if (folder().exists) prune(folder().list());
     const files = new Set<File>();
     // CameraX records one file at a time, so each take starts once the previous file is final.
     // A take whose start never settles (the output is not bound) stalls the rest until `lost` gives it up.
     let previous = Promise.resolve();
     let cut = () => {};
-    let keep: string | null = null;
     // Kept unless the Done screen's switch turns it off; see ChallengeDone.
     let shared = true;
     let lost = false;
@@ -108,7 +105,7 @@ export const camcorder = fromCallback<CamcorderEvent, VideoOutput | undefined>(
             const taken = (ok: boolean) => {
               stopped = true; // the OS may finish a take early (backgrounding): nothing to stop
               // Given up by `lost`: wrap and cleanup already ran without it, so the late file is ours to delete.
-              if (abandoned) return prune([file], null);
+              if (abandoned) return prune([file]);
               sendBack({ type: 'taken', uri: file.uri, ok });
               finished();
             };
@@ -159,17 +156,15 @@ export const camcorder = fromCallback<CamcorderEvent, VideoOutput | undefined>(
       } else if (event.type === 'wrap') {
         cut();
         void previous.then(() => sendBack({ type: 'wrapped' }));
-      } else if (event.type === 'share') {
-        shared = event.on;
       } else {
-        // The rest wait for the session to stop: the switch to share them comes after this.
-        keep = event.uri;
+        // Waits for the session to stop: the Done screen's switch comes after the wrap.
+        shared = event.on;
       }
     });
     return () => {
       cut();
       // After every pending start and finalize, so a file that appears late is kept or deleted too.
-      void previous.then(() => (shared ? share(files) : prune(files, keep)));
+      void previous.then(() => (shared ? share(files) : prune(files)));
     };
   },
 );

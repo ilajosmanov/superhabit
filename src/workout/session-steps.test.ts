@@ -74,14 +74,14 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     squat();
     full.send({ type: 'next' });
     pushup();
-    expect(onFinished.mock.calls).toEqual([[1]]);
+    expect(onFinished.mock.calls).toEqual([[1, [1, 1]]]);
     full.stop();
 
     onFinished.mockClear();
     const cut = createActor(workoutSession, { input: { challenge, onFinished } }).start();
     squat();
     cut.send({ type: 'end' });
-    expect(onFinished.mock.calls).toEqual([[0.5]]);
+    expect(onFinished.mock.calls).toEqual([[0.5, [1, 0]]]);
     cut.stop();
   });
 
@@ -484,7 +484,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
 
   it('ends a set early on next while counting', () => {
     const actor = createActor(workoutSession, { input: { challenge } }).start();
-    expect(sessionView(actor.getSnapshot())).toMatchObject({ recording: false, best: null });
+    expect(sessionView(actor.getSnapshot())).toMatchObject({ recording: false });
     actor.send({ type: 'next' });
     expect(sessionView(actor.getSnapshot())).toMatchObject({ stage: 'switching', reps: 0 });
     expect(speak).toHaveBeenCalledWith(

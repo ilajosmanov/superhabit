@@ -6,7 +6,6 @@ import { body } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
 import {
   challenge,
-  clock,
   disk,
   files,
   finalizer,
@@ -33,14 +32,9 @@ const { sessionView } = await import('./session-view');
 afterEach(reset);
 
 describe('workoutSession filming', () => {
-  it('films each set from the start position and keeps every file on the phone', async () => {
+  it('films each set from the start position into its own file and keeps every file on the phone', async () => {
     const actor = createActor(workoutSession, { input: { challenge, video } }).start();
     const view = () => sessionView(actor.getSnapshot());
-    // `best` must only land once every file is final.
-    let finalWhenBest: boolean | undefined;
-    actor.subscribe(({ context }) => {
-      if (context.best && finalWhenBest === undefined) finalWhenBest = takes.every((t) => t.final);
-    });
     play(body({ thigh: 70, shin: 25 })); // crouched: still waiting, nothing filmed
     await flush();
     expect(takes).toHaveLength(0);
@@ -48,28 +42,21 @@ describe('workoutSession filming', () => {
     play(body({})); // standing: counting starts
     await flush();
     expect(view().recording).toBe(true);
-    const start = clock;
     play(body({ thigh: 70, shin: 25 }), body({}));
     expect(view()).toMatchObject({ stage: 'switching', recording: false });
     expect(stops()).toEqual([true]);
-    const squatClip = view().results[0].attempts[0].clip;
-    // The bottom lies in the 1.5 s crouch that followed the take's first frame.
-    expect(squatClip?.atMs).toBeGreaterThan(0);
-    expect(squatClip?.atMs).toBeLessThanOrEqual(clock - start - 1500);
 
     actor.send({ type: 'next' });
     play(plank({ elbow: 170 }));
     await flush();
     play(plank({ elbow: 95 }), plank({ elbow: 170 }));
-    expect(view()).toMatchObject({ stage: 'finished', best: null }); // files not final yet
+    expect(view()).toMatchObject({ stage: 'finished', final: false }); // files not final yet
     expect(disk.size).toBe(2);
     await flush();
-    // The squat went further past 100° than the push-up did.
+    expect(view().final).toBe(true);
     const [squatSet, pushupSet] = view().results;
-    expect(squatSet.attempts[0].depth).toBeLessThan(pushupSet.attempts[0].depth);
-    expect(view().best).toMatchObject({ ...squatClip, exercise: 'squat', name: 'squats', rep: 1 });
-    expect(finalWhenBest).toBe(true);
-    expect(view().best).toBe(view().best); // stable for shallowEqual
+    const filmed = [...disk].map((name) => `file:///cache/reps/${name}`);
+    expect([...squatSet.takes, ...pushupSet.takes]).toEqual(filmed); // one file each, in order
     expect(disk.size).toBe(2); // the Done screen's switch decides once it closes
     actor.stop();
     await flush();
@@ -77,12 +64,11 @@ describe('workoutSession filming', () => {
     expect([...files].filter((path) => path.startsWith('document/videos/'))).toHaveLength(2);
   });
 
-  it('keeps only the best rep file when the Done screen switch is off', async () => {
+  it('deletes every file when the Done screen switch is off', async () => {
     const actor = createActor(workoutSession, { input: { challenge, video } }).start();
     play(body({}));
     await flush();
     play(body({ thigh: 70, shin: 25 }), body({}));
-    const squatClip = sessionView(actor.getSnapshot()).results[0].attempts[0].clip;
     actor.send({ type: 'next' });
     play(plank({ elbow: 170 }));
     await flush();
@@ -91,16 +77,11 @@ describe('workoutSession filming', () => {
     actor.send({ type: 'shareTraces', share: false });
     actor.stop();
     await flush();
-    // The best file outlives the screen, for sharing; nothing is kept in documents.
-    expect([...disk].map((name) => `file:///cache/reps/${name}`)).toEqual([squatClip?.uri]);
-    expect(files.size).toBe(0);
-
-    // The next session deletes it before filming.
-    createActor(workoutSession, { input: { challenge, video } }).start().stop();
     expect(disk.size).toBe(0);
+    expect(files.size).toBe(0);
   });
 
-  it('unclips a set already in the results when its file fails after the set ended', async () => {
+  it('drops a file that fails after its set ended from that set', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const actor = createActor(workoutSession, { input: { challenge, video } }).start();
     const view = () => sessionView(actor.getSnapshot());
@@ -108,17 +89,17 @@ describe('workoutSession filming', () => {
     await flush();
     play(body({ thigh: 70, shin: 25 }), body({}));
     expect(view().stage).toBe('switching');
-    expect(view().results[0].attempts[0].clip).toBeDefined();
+    expect(view().results[0].takes).toHaveLength(1);
     takes[0].error = new Error('encoder'); // the squat file fails while finalizing
     await flush();
-    expect(view().results[0].attempts[0].clip).toBeUndefined();
+    expect(view().results[0].takes).toEqual([]);
 
     actor.send({ type: 'next' });
     play(plank({ elbow: 170 }));
     await flush();
     play(plank({ elbow: 95 }), plank({ elbow: 170 }));
     await flush();
-    expect(view().best).toMatchObject({ exercise: 'pushup', rep: 1 });
+    expect(view().results[1].takes).toHaveLength(1);
     actor.stop();
     warn.mockRestore();
   });
@@ -156,7 +137,7 @@ describe('workoutSession filming', () => {
     warn.mockRestore();
   });
 
-  it('cuts the take on pause, films again once back in position and keeps all files when left early', async () => {
+  it('cuts the take on pause, films again once back in position and keeps both files in the set', async () => {
     const actor = createActor(workoutSession, { input: { challenge: squatTest, video } }).start();
     const view = () => sessionView(actor.getSnapshot());
     play(body({}));
@@ -174,6 +155,8 @@ describe('workoutSession filming', () => {
     expect(view().recording).toBe(true);
     expect(stops()).toEqual([true, false]);
     expect(disk.size).toBe(2);
+    actor.send({ type: 'end' });
+    expect(view().results[0].takes).toHaveLength(2);
     actor.stop();
     expect(takes[1].stopped).toBe(true);
     await flush();
@@ -227,20 +210,19 @@ describe('workoutSession filming', () => {
     next.stop();
   });
 
-  it('never clips a rep from a failed take, nor after a take the OS ended', async () => {
+  it('leaves a failed file out of its set, and keeps one the OS ended early', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const actor = createActor(workoutSession, { input: { challenge: squatTest, video } }).start();
     const view = () => sessionView(actor.getSnapshot());
     play(body({}));
     await flush();
     squat();
-    expect(view().attempts[0].clip).toBeDefined();
     takes[0].end(new Error('encoder')); // the encoder fails: the file is unusable
     await flush();
     expect(view()).toMatchObject({ recording: false, attempts: [{ counted: true, cue: null }] });
-    expect(view().attempts[0].clip).toBeUndefined();
-    squat();
-    expect(view().attempts[1].clip).toBeUndefined();
+    actor.send({ type: 'end' });
+    await flush();
+    expect(view().results[0].takes).toEqual([]);
     actor.stop();
     await flush();
 
@@ -254,24 +236,10 @@ describe('workoutSession filming', () => {
     squat();
     ended.send({ type: 'end' });
     await flush();
-    const { results, best } = sessionView(ended.getSnapshot());
-    expect(results[0].attempts.map((a) => a.clip !== undefined)).toEqual([true, false]);
-    expect(best).toMatchObject({ rep: 1 });
+    expect(sessionView(ended.getSnapshot()).results[0].takes).toHaveLength(1);
     expect(warn).toHaveBeenCalledWith('[camcorder] recording failed', expect.any(Error));
     ended.stop();
     warn.mockRestore();
-  });
-
-  it('does not clip a rep whose bottom came before the take started', async () => {
-    const actor = createActor(workoutSession, { input: { challenge: squatTest, video } }).start();
-    play(body({}), body({ thigh: 70, shin: 25 })); // the take is still starting through the bottom
-    await flush();
-    play(body({}));
-    const { attempts, recording } = sessionView(actor.getSnapshot());
-    expect(recording).toBe(true);
-    expect(attempts).toEqual([expect.objectContaining({ counted: true })]);
-    expect(attempts[0].clip).toBeUndefined();
-    actor.stop();
   });
 
   it('wraps up without waiting on takes that never start once the camera drops video', async () => {
@@ -362,9 +330,8 @@ describe('workoutSession filming', () => {
     await flush();
     expect(sessionView(actor.getSnapshot())).toMatchObject({
       stage: 'finished',
-      results: [{ reps: 1 }],
+      results: [{ reps: 1, takes: [] }],
       recording: false,
-      best: null,
     });
     expect(warn).toHaveBeenCalled();
     actor.stop();

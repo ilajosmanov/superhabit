@@ -12,7 +12,7 @@ import { colors } from '@/theme';
 const CARD = 256;
 
 /**
- * Before you join, one card per exercise: the figure, which plays one rep on a loop when asked, then the
+ * One card per exercise: the figure, which plays one rep on a loop when asked, then the
  * rep in steps, start position first. One exercise fills the row; several swipe.
  */
 export function HowItCounts({ exercises }: { exercises: readonly ExerciseId[] }) {

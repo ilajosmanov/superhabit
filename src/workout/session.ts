@@ -18,14 +18,7 @@ import {
   type Progress,
 } from '@/exercises/registry';
 
-import {
-  bestRep,
-  clipTime,
-  shareDone,
-  type Attempt,
-  type BestRep,
-  type StepResult,
-} from './results';
+import { setAmounts, shareDone, type Attempt, type StepResult } from './results';
 import { camcorder, type VideoOutput } from './camcorder';
 import { done, expand, type Challenge, type FlatSteps } from './plan';
 
@@ -59,7 +52,7 @@ type Events =
   | { type: 'say'; text: string }
   | { type: 'rolling'; uri: string } // the camcorder's take really started
   | { type: 'taken'; uri: string; ok: boolean } // a take's file is final; not ok: unusable
-  | { type: 'wrapped' } // the camcorder finished every file and settled them (kept or deleted)
+  | { type: 'wrapped' } // the camcorder finished every file of the session
   | { type: 'flashOff' }
   | { type: 'captionOff' };
 
@@ -68,8 +61,11 @@ type OnPose = (result: PoseDetection, live: Live) => void;
 type Input = {
   challenge: Challenge;
   onPose?: OnPose;
-  /** Once, on reaching Done: how much of the session was done, 0 to 1 (1 = every goal met). */
-  onFinished?: (share: number) => void;
+  /**
+   * Once, on reaching Done: how much of the session was done, 0 to 1 (1 = every goal met), and what each
+   * exercise set got (`setAmounts`).
+   */
+  onFinished?: (share: number, sets: number[]) => void;
   video?: VideoOutput;
   record?: boolean;
 };
@@ -81,7 +77,7 @@ type Context = Counters &
     /** A detector frame was handled this set; until then nothing is known about framing. */
     framed: boolean;
     onPose?: OnPose;
-    onFinished?: (share: number) => void;
+    onFinished?: Input['onFinished'];
     video?: VideoOutput;
     record: boolean;
     /** The camera dropped the video output: nothing more is filmed this session. */
@@ -104,12 +100,12 @@ type Context = Counters &
     caption: string | null;
     flash: 'rep' | 'noRep' | null;
     attempts: readonly Attempt[];
+    /** This set's files so far, in order: a pause or resume starts a new one. */
+    takes: readonly string[];
     results: readonly StepResult[];
-    /** The file being filmed; `startMs` is the first detector frame after it started, null until then. */
-    take: { uri: string; startMs: number | null } | null;
-    /** Set once the camcorder wrapped up the finished session's files. */
-    best: BestRep | null;
-    /** Results are safe to read: every file is final (failed ones unclipped). */
+    /** The file being filmed. */
+    take: string | null;
+    /** Results are safe to read: every file is final (failed ones dropped from their set). */
     final: boolean;
   };
 
@@ -124,6 +120,7 @@ const NOT_LIVE: Live = { angle: null, lowest: null, joints: null };
 const FRESH_SET = {
   ...initialCounters,
   attempts: [],
+  takes: [],
   missing: NONE,
   candidate: null,
   framed: false,
@@ -217,8 +214,7 @@ function expireCounter<K extends ExerciseId>(c: Counters, id: K) {
   return patch;
 }
 
-const unclip = (attempts: readonly Attempt[], uri: string) =>
-  attempts.map((a) => (a.clip?.uri === uri ? { ...a, clip: undefined } : a));
+const without = (takes: readonly string[], uri: string) => takes.filter((take) => take !== uri);
 
 /** Metrics and cues of the last rep, or null before the first rep. */
 function statsOf<K extends ExerciseId>(c: Counters, id: K) {
@@ -241,6 +237,7 @@ function withSet(c: Context): readonly StepResult[] {
     noReps,
     heldMs,
     attempts: c.attempts,
+    takes: c.takes,
   };
   return [...c.results, { ...set, stats: statsOf(c, id) }];
 }
@@ -292,9 +289,6 @@ const session = setup<
       c.onPose?.(result, live);
       enqueue.assign(patch);
 
-      const { take } = c;
-      if (take && take.startMs === null) enqueue.assign({ take: { ...take, startMs: t } });
-
       // shortcut: event lines stay on in release builds for lab sessions (adb logcat -s ReactNativeJS);
       // drop them or gate them with the recorder setting before shipping.
       if (next.phase !== prev.phase)
@@ -304,17 +298,10 @@ const session = setup<
         const { counted, depth } = rep;
         console.info('[session]', id, counted ? 'rep' : 'no-rep', next.reps, next.noReps);
         console.info('[session]', id, statsOf({ ...c, ...patch }, id));
-        if (depth !== null) {
-          const attempt: Attempt = { counted, depth, cue: rep.cues[0] ?? null };
-          // Only a bottom filmed by the live take: not before it started, and `taken` clears it once it ends.
-          const atMs = take && take.startMs !== null ? clipTime(take.startMs, t, rep.upMs) : -1;
+        if (depth !== null)
           enqueue.assign({
-            attempts: [
-              ...c.attempts,
-              take && atMs >= 0 ? { ...attempt, clip: { uri: take.uri, atMs } } : attempt,
-            ],
+            attempts: [...c.attempts, { counted, depth, cue: rep.cues[0] ?? null }],
           });
-        }
         enqueue.assign({ flash: counted ? 'rep' : 'noRep' });
         enqueue.cancel('flash');
         const delay = counted ? REP_FLASH_MS : NO_REP_FLASH_MS;
@@ -407,7 +394,6 @@ export const workoutSession = session.createMachine({
     flash: null,
     results: [],
     take: null,
-    best: null,
     final: false,
   }),
   invoke: [
@@ -441,15 +427,15 @@ export const workoutSession = session.createMachine({
         if (!context.muted) enqueue.sendTo('speech', { type: 'say', text: event.text });
       }),
     },
-    // A take ends on cut, or early when the OS stops it: no later rep is in its file. A failed file is never played.
+    // A take ends on cut, or early when the OS stops it. A failed file is never played.
     // shortcut: a take the OS ended leaves the rest of the set unfilmed; roll again if that happens often.
     taken: {
       actions: enqueueActions(({ context: c, event: { uri, ok }, enqueue }) => {
-        if (c.take?.uri === uri) enqueue.assign({ take: null });
+        if (c.take === uri) enqueue.assign({ take: null });
         if (!ok)
           enqueue.assign({
-            attempts: unclip(c.attempts, uri),
-            results: c.results.map((set) => ({ ...set, attempts: unclip(set.attempts, uri) })),
+            takes: without(c.takes, uri),
+            results: c.results.map((set) => ({ ...set, takes: without(set.takes, uri) })),
           });
       }),
     },
@@ -466,7 +452,7 @@ export const workoutSession = session.createMachine({
       entry: assign({ stepStartedAt: ({ context }) => context.stepStartedAt ?? Date.now() }),
       invoke: { src: 'ticker' },
       // Films from the first frame out of 'waiting'. Pause, set end and `end` cut the take;
-      // resume or restart rolls a new file, so each file maps onto the detector clock with one offset.
+      // resume or restart rolls a new file.
       initial: 'ready',
       states: {
         // After a flip, until the new camera streams: frames still in flight from the old one must not count or film.
@@ -494,7 +480,10 @@ export const workoutSession = session.createMachine({
           exit: [sendTo('camcorder', { type: 'cut' }), assign({ take: null })],
           on: {
             rolling: {
-              actions: assign({ take: ({ event }) => ({ uri: event.uri, startMs: null }) }),
+              actions: assign(({ context, event }) => ({
+                take: event.uri,
+                takes: [...context.takes, event.uri],
+              })),
             },
           },
         },
@@ -631,12 +620,11 @@ export const workoutSession = session.createMachine({
         sendTo('camcorder', { type: 'wrap' }),
         // The Done summary is a portrait page, whatever the last set was.
         sendTo('orientation', { type: 'lock', orientation: 'portrait' }),
-        // shortcut: nothing consumes final yet; the save mutation will.
         // Without a video output the camcorder never films, so nothing is left to wait for.
         assign({ final: ({ context }) => context.video === undefined }),
-        ({ context }) => context.onFinished?.(shareDone(context.steps, context.results)),
+        ({ context: { steps, results, onFinished } }) =>
+          onFinished?.(shareDone(steps, results), setAmounts(steps, results)),
       ],
-      // Only now is every file final (failed ones unclipped), so the best is safe to play and the rest can go.
       on: {
         shareTraces: {
           actions: [
@@ -644,12 +632,9 @@ export const workoutSession = session.createMachine({
             sendTo('camcorder', ({ event }) => ({ type: 'share', on: event.share })),
           ],
         },
+        // Only now is every file final (failed ones dropped), so the sets are safe to play.
         wrapped: {
-          actions: enqueueActions(({ context, enqueue }) => {
-            const best = bestRep(context.results);
-            enqueue.assign({ best, final: true });
-            enqueue.sendTo('camcorder', { type: 'keep', uri: best?.uri ?? null });
-          }),
+          actions: assign({ final: true }),
         },
       },
     },

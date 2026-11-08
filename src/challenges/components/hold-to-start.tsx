@@ -16,7 +16,14 @@ const HOLD_MS = 700;
  * Starting opens the camera run, so it takes a deliberate press and hold; the pill fills as you hold.
  * Lit from above (lighter top, darker lip) so it reads as a physical key, not a flat shape.
  */
-export function HoldToStart({ onStart }: { onStart: () => void }) {
+export function HoldToStart({
+  onStart,
+  again = false,
+}: {
+  onStart: () => void;
+  /** Today's session is done already: the key says you go again. */
+  again?: boolean;
+}) {
   const progress = useSharedValue(0);
   const fill = useAnimatedStyle(() => ({ transform: [{ scaleX: progress.get() }] }));
   const start = () => {
@@ -30,7 +37,7 @@ export function HoldToStart({ onStart }: { onStart: () => void }) {
     <View className="overflow-hidden rounded-full">
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Start"
+        accessibilityLabel={again ? 'Go again' : 'Start'}
         // Screen readers can't hold: their double tap starts right away.
         accessibilityActions={[{ name: 'activate' }]}
         onAccessibilityAction={start}
@@ -61,7 +68,7 @@ export function HoldToStart({ onStart }: { onStart: () => void }) {
           ]}
         />
         <Text className="font-sans text-lg font-semibold tracking-tight text-ground">
-          Hold to start
+          {again ? 'Hold to go again' : 'Hold to start'}
         </Text>
       </Pressable>
     </View>

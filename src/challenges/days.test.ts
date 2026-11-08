@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { dayLabel, runOn, today } from './days';
+import { dayLabel, dayWord, runOn, today } from './days';
 
 describe('runOn', () => {
   // Each listed day fully done.
@@ -76,4 +76,16 @@ it('takes today from the local calendar, not UTC', () => {
 it('labels a day as weekday, date and month', () => {
   expect(dayLabel('2026-11-07')).toBe('SAT 7 NOV');
   expect(dayLabel('2026-03-01')).toBe('SUN 1 MAR');
+});
+
+it('says each day of a run in a word', () => {
+  const run = { day: 4, days: 14, from: '2026-11-01', progress: [1, 0, 0.999, 0] };
+  expect([0, 1, 2, 3, 4, 6].map((i) => dayWord(run, i))).toEqual([
+    'DONE',
+    'MISSED',
+    '99%',
+    'NOT YET',
+    'IN 1 DAY',
+    'IN 3 DAYS',
+  ]);
 });

@@ -72,11 +72,9 @@ export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>) {
     gauge: EXERCISES[id].gauge,
     /** Finished sets; on 'finished' includes the last (possibly partial) set. */
     results: c.results,
-    /** Finished and every file final, so results (and their clips) are safe to keep. */
+    /** Finished and every file final, so the sets' videos (`results[].takes`) are safe to play. */
     final: c.final,
     /** A take is being filmed (the REC dot). */
     recording: c.take !== null,
-    /** The deepest filmed counted rep of the challenge, once finished and its file is ready; null if none. */
-    best: c.best,
   };
 }

@@ -1,14 +1,9 @@
-import * as Haptics from 'expo-haptics';
 import { useRef, type ReactNode } from 'react';
-import { Platform, ScrollView } from 'react-native';
+import { ScrollView } from 'react-native';
+
+import { tick } from '@/components/tick';
 
 const GAP = 12;
-
-// Android's segment tick follows the user's touch-feedback setting.
-const tick = () =>
-  void (Platform.OS === 'android'
-    ? Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Segment_Tick)
-    : Haptics.selectionAsync());
 
 /**
  * Cards of one width in a row that runs to the screen edges and snaps card by card, with a detent tick

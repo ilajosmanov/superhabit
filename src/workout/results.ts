@@ -1,12 +1,8 @@
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 import type { FlatSteps, Goal } from './plan';
 
-/** Where a filmed rep sits: its file and the rep's bottom on that file's timeline. */
-// shortcut: clip URIs live in Paths.cache/reps, which the camcorder prunes on every start; persisting a result must move its best clip to Paths.document or drop clips.
-type Clip = { uri: string; atMs: number };
-
-/** `cue`: the first form cue, if any; `clip`: where the rep's bottom is filmed, absent when it was not. */
-export type Attempt = { counted: boolean; depth: number; cue: string | null; clip?: Clip };
+/** `cue`: the first form cue, if any. */
+export type Attempt = { counted: boolean; depth: number; cue: string | null };
 export type StepResult = {
   exercise: ExerciseId;
   round: number;
@@ -18,58 +14,40 @@ export type StepResult = {
   noReps: number;
   heldMs: number;
   attempts: readonly Attempt[];
+  /**
+   * The set's video files, in order (a pause starts a new one); none when it wasn't filmed.
+   * shortcut: they live in Paths.cache/reps until the session stops, then move to Paths.document/videos
+   * (or are deleted); a result kept past the session must follow its files there.
+   */
+  takes: readonly string[];
   // shortcut: stats is a formatted string; keep the numbers when results persist.
   stats: string | null;
 };
 
-/** The deepest counted rep that was filmed. `rep` is its 1-based number among its set's counted reps. */
-export type BestRep = Clip & { exercise: ExerciseId; name: string; rep: number; depth: number };
+/** How much of its goal one set did, 0 to 1; an open-ended set counts in full once anything was done. */
+export const setShare = (goal: Goal, amount: number) =>
+  goal.type === 'max' ? (amount > 0 ? 1 : 0) : Math.min(1, amount / goal.n);
 
 /**
- * The rep's bottom on its file's timeline. Every time is a detector frame timestamp (CameraX sensor clock,
- * ms); `startMs` is the first frame JS saw after the recorder reported started, so it runs a frame or so
- * late and the result lands slightly early, inside the clip's lead-in. Negative: before the file started.
+ * What each exercise set got, in session order: reps, or seconds held (not rounded: half a second still
+ * meets a MAX goal). A set never reached is 0, so there is one number per exercise step.
  */
-export const clipTime = (startMs: number, countedAtMs: number, upMs: number | null) =>
-  countedAtMs - (upMs ?? 0) - startMs;
-
-/**
- * Deepest filmed counted rep by how far past its exercise's `down` it went, in gauge spans so a
- * jumping jack's 0..1 spread compares with a squat's degrees; first wins ties. Exercises without
- * a gauge have no comparable depth.
- */
-export function bestRep(sets: readonly StepResult[]): BestRep | null {
-  let best: BestRep | null = null;
-  let margin = Infinity;
-  for (const { exercise, attempts } of sets) {
-    const { name, gauge } = EXERCISES[exercise];
-    if (!gauge) continue;
-    const { down, up } = gauge;
-    let rep = 0;
-    for (const { counted, depth, clip } of attempts) {
-      if (!counted) continue;
-      rep++;
-      const past = (depth - down) / (up - down);
-      if (clip && past < margin) {
-        best = { ...clip, exercise, name, rep, depth };
-        margin = past;
-      }
-    }
-  }
-  return best;
+export function setAmounts(steps: FlatSteps, results: readonly StepResult[]) {
+  return steps
+    .filter((step) => step.exercise !== 'rest')
+    .map((_, i) => {
+      const set = results.at(i);
+      if (!set) return 0;
+      return EXERCISES[set.exercise].kind === 'hold' ? set.heldMs / 1000 : set.reps;
+    });
 }
 
 /**
- * How much of the day's session was done, 0 to 1: each exercise set's share of its goal (an open-ended set
- * counts in full once anything was done), averaged over every set, so one skipped or never reached is 0.
- * 1 means every goal was met.
+ * How much of the day's session was done, 0 to 1: each exercise set's share of its goal, averaged over
+ * every set, so one skipped or never reached is 0. 1 means every goal was met.
  */
 export function shareDone(steps: FlatSteps, results: readonly StepResult[]) {
-  const sets = steps.filter((step) => step.exercise !== 'rest').length;
-  const done = results.reduce((sum, { goal, reps, heldMs }) => {
-    if (goal.type === 'max') return sum + (reps > 0 || heldMs > 0 ? 1 : 0);
-    const amount = goal.type === 'reps' ? reps : heldMs / 1000;
-    return sum + Math.min(1, amount / goal.n);
-  }, 0);
-  return done / sets;
+  const sets = steps.filter((step) => step.exercise !== 'rest');
+  const amounts = setAmounts(steps, results);
+  return sets.reduce((sum, { goal }, i) => sum + setShare(goal, amounts[i]), 0) / sets.length;
 }

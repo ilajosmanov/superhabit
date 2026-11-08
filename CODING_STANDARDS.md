@@ -15,7 +15,7 @@ src/challenges/     the challenge catalog: definitions, catalog entries, the car
   components/       UI only challenges uses (catalog tiles, joined cards, exercise stack)
   ↓
 src/workout/        the workout feature: plan model, session machine, results, camcorder, coaching
-  components/       UI only workout uses (platters, gauge, clip card)
+  components/       UI only workout uses (platters, gauge, session reel)
   pose/             camera → pose detection → skeleton drawing
   ↓
 src/exercises/      pure rep logic: angles, counters, the exercise registry
@@ -38,7 +38,7 @@ modules/pose/       the native pose detector (a Nitro module)
 - **No `../` imports.** Within a folder use `./name`; across folders use `@/…`. That keeps the layer
   bans above from being dodged with a relative path.
 - **No import cycles, type-only ones included.** A cycle means a contract sits in the wrong file: move
-  the shared types down into their own module (as `workout/results.ts` did for `session` ↔ best rep).
+  the shared types down into their own module (as `workout/results.ts` holds the result types the session and its screens share).
 
 ## Where a new file goes
 

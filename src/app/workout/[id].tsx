@@ -13,12 +13,12 @@ import {
 
 import { usePoseOverlay } from '@/workout/pose/overlay';
 import { PoseCamera } from '@/workout/pose/pose-camera';
+import { ChallengeDone } from '@/challenges/components/challenge-done';
 import { saveFailed } from '@/challenges/components/save-failed';
-import { today, type Day } from '@/challenges/days';
+import { today, type Day, type Run } from '@/challenges/days';
 import { recordTry, useChallenge } from '@/challenges/mine';
 import type { Challenge } from '@/workout/plan';
 import { BetweenSets } from '@/workout/components/between-sets';
-import { ChallengeDone } from '@/workout/components/challenge-done';
 import { LiveView } from '@/workout/components/live-view';
 import { PrimaryButton } from '@/components/primary-button';
 import { workoutSession } from '@/workout/session';
@@ -59,9 +59,10 @@ export default function ChallengeScreen() {
     <AndroidSession
       key={id}
       challenge={found.challenge}
+      run={found.run}
       // Any try counts toward the day, by its share; a one-go set is never stored.
-      onFinished={(share, day) => {
-        if (share > 0 && found.saved && !recordTry(id, day, share)) saveFailed();
+      onFinished={(share, sets, day) => {
+        if (share > 0 && found.saved && !recordTry(id, day, share, sets)) saveFailed();
       }}
     />
   );
@@ -69,11 +70,14 @@ export default function ChallengeScreen() {
 
 function AndroidSession({
   challenge,
+  run,
   onFinished,
 }: {
   challenge: Challenge;
+  /** Today's run, kept current: the Done screen says which day this session counted toward. */
+  run: Run | null;
   /** `day` is the one the session started on: a set finished at 00:05 still belongs to yesterday. */
-  onFinished: (share: number, day: Day) => void;
+  onFinished: (share: number, sets: number[], day: Day) => void;
 }) {
   useKeepAwake();
   const [day] = useState(today);
@@ -88,7 +92,7 @@ function AndroidSession({
       video,
       record: true,
       onPose,
-      onFinished: (share) => onFinished(share, day),
+      onFinished: (share, sets) => onFinished(share, sets, day),
     },
   });
   const landmarker = useSelector(session, (s) => s.context.landmarker);
@@ -126,23 +130,28 @@ function AndroidSession({
   return (
     <View className="flex-1 bg-ground">
       <StatusBar hidden />
-      <PoseCamera
-        cameraRef={camera}
-        landmarker={landmarker}
-        isActive={view.stage !== 'finished'}
-        joints={joints}
-        highlight={highlight}
-        tone={tone}
-        video={view.filming ? video : undefined}
-        camera={view.camera}
-        showSkeleton={view.skeleton}
-        onReady={send('cameraReady')}
-        onVideoLost={send('videoLost')}
-      />
+      {/* Gone once every file is final (stopped, not unmounted, until then, so no take is cut short):
+          a stopped camera's last frame showed through the Done page's video. */}
+      {!(view.stage === 'finished' && view.final) && (
+        <PoseCamera
+          cameraRef={camera}
+          landmarker={landmarker}
+          isActive={view.stage !== 'finished'}
+          joints={joints}
+          highlight={highlight}
+          tone={tone}
+          video={view.filming ? video : undefined}
+          camera={view.camera}
+          showSkeleton={view.skeleton}
+          onReady={send('cameraReady')}
+          onVideoLost={send('videoLost')}
+        />
+      )}
       {view.stage === 'finished' ? (
         <ChallengeDone
           view={view}
-          title={challenge.name}
+          challenge={challenge}
+          run={run}
           onShare={(share) => session.send({ type: 'shareTraces', share })}
           onClose={() => router.back()}
         />

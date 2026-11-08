@@ -27,6 +27,12 @@ export function dayLabel(day: Day) {
 export type Progress = Readonly<Record<Day, number>>;
 
 /**
+ * What each exercise set got on a day's best try, in session order: reps, or seconds held. Days saved
+ * before these were kept have none.
+ */
+export type SetsByDay = Readonly<Record<Day, readonly number[]>>;
+
+/**
  * Where a joined challenge stands on `today`. `from` is this run's day 1 (later than the join day after a
  * restart); `progress` has one share per day of the run so far, day 1 first, 0 for a day with no try.
  */
@@ -59,3 +65,19 @@ export function runOn(
 }
 
 export const doneToday = (run: Run) => run.progress[run.day - 1] >= 1;
+
+/** A share as the page says it, rounded down so a day just short of done never reads 100%. */
+export const percent = (share: number) => `${Math.floor(share * 100)}%`;
+
+/**
+ * Day `i` of a run (0 is day 1) in a word: DONE, how much of it (64%), NOT YET for today, MISSED before
+ * it, IN 3 DAYS after it.
+ */
+export function dayWord(run: Run, i: number) {
+  const ahead = i - (run.day - 1);
+  if (ahead > 0) return `IN ${ahead} ${ahead === 1 ? 'DAY' : 'DAYS'}`;
+  const share = run.progress[i];
+  if (share >= 1) return 'DONE';
+  if (share > 0) return percent(share);
+  return ahead === 0 ? 'NOT YET' : 'MISSED';
+}
