@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { Numeral } from './numeral';
 import { capitalise, type PlanRow, type plan } from '@/challenges/challenges';
 import { Icon } from '@/components/icon';
 import { ExerciseFigure } from '@/components/illustrations';
@@ -42,28 +42,7 @@ export function SessionPlan({
     return (
       <View className="gap-5">
         {single.move && <Move row={single} />}
-        {/* Clipped so the numeral rises out of its baseline, like the podium steps. */}
-        <View
-          accessible
-          accessibilityLabel={`${numeral} ${labels.join(' ')}`.toLowerCase()}
-          className="flex-row items-end justify-between overflow-hidden"
-        >
-          <Animated.View key={got} entering={FadeInDown.duration(500)}>
-            <Text
-              className="-ml-1.5 font-sans text-9xl font-extralight leading-none tracking-tighter"
-              style={{ color: share >= 1 ? colors.accent : colors.chalk }}
-            >
-              {numeral}
-            </Text>
-          </Animated.View>
-          <View className="items-end gap-1 pb-4">
-            {labels.map((label) => (
-              <Text key={label} className="font-mono text-xs tracking-widest text-muted">
-                {label}
-              </Text>
-            ))}
-          </View>
-        </View>
+        <Numeral n={numeral} labels={labels} met={share >= 1} />
         {day && <Fill share={share} height={6} />}
       </View>
     );

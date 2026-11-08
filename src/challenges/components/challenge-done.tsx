@@ -1,6 +1,7 @@
 import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Numeral } from './numeral';
 import { OVER_VIDEO } from './reel-player';
 import { SessionLoop } from './session-reel';
 import { numeralLabels, SessionPlan } from './session-plan';
@@ -146,26 +147,6 @@ function Hero({
           </Text>
         )}
       </View>
-      <View
-        pointerEvents="none"
-        accessible
-        accessibilityLabel={`${numeral.n} ${numeral.labels.join(' ').toLowerCase()}`}
-        className="absolute inset-x-6 bottom-0 flex-row items-end justify-between"
-      >
-        <Text
-          className="-ml-1.5 font-sans text-9xl font-extralight leading-none tracking-tighter"
-          style={{ color: numeral.met ? colors.accent : colors.chalk }}
-        >
-          {numeral.n}
-        </Text>
-        <View className="items-end gap-1 pb-4">
-          {numeral.labels.map((label) => (
-            <Text key={label} className="font-mono text-xs tracking-widest text-soft">
-              {label}
-            </Text>
-          ))}
-        </View>
-      </View>
     </>
   );
   return (
@@ -185,6 +166,10 @@ function Hero({
           {over(null)}
         </View>
       )}
+      {/* Outside `over`: the trees above swap as the files turn final, and it would rise again each time. */}
+      <View pointerEvents="none" className="absolute inset-x-6 bottom-0">
+        <Numeral {...numeral} />
+      </View>
     </View>
   );
 }
