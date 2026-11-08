@@ -3,8 +3,8 @@ import { useVideoPlayer, VideoView, type VideoPlayer } from 'expo-video';
 import { StyleSheet } from 'react-native';
 import { Easing, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { after, type Clip, type Spot } from '@/workout/reel';
-import { reelPlayback } from '@/workout/reel-playback';
+import { after, type Clip, type Spot } from '@/challenges/reel';
+import { reelPlayback } from '@/challenges/reel-playback';
 
 /** Ground at 70 %: buttons over the playing video. */
 export const OVER_VIDEO = 'rgba(13,14,11,0.7)';

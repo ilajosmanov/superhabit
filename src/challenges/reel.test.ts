@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { reps } from './plan';
+import { reps } from '@/workout/plan';
 import { after, pointAt, reelOf } from './reel';
-import type { StepResult } from './results';
+import type { StepResult } from '@/workout/results';
 
 const set = (seconds: number, takes: string[]): StepResult => ({
   exercise: 'squat',

@@ -4,7 +4,7 @@ import { Pressable, View, type ViewStyle } from 'react-native';
 import { OVER_VIDEO, Screens, useReel } from './reel-player';
 import { SessionViewer } from './session-viewer';
 import { IconButton } from '@/components/icon-button';
-import type { Clip, Spot } from '@/workout/reel';
+import type { Clip, Spot } from '@/challenges/reel';
 
 /**
  * The session's sets on a loop, one after another, sized and placed by `className`; `children` (given the

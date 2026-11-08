@@ -11,11 +11,11 @@ Imports only go down:
 src/app/            routes: read params, compose a screen, navigate
   ↓
 src/friends/        the friends feature (for now, the leaderboard preview)
-src/challenges/     the challenge catalog: definitions, catalog entries, the cards that browse them
-  components/       UI only challenges uses (catalog tiles, joined cards, exercise stack)
+src/challenges/     the challenge catalog: definitions, catalog entries, the reel of a session's sets
+  components/       UI only challenges uses (catalog tiles, joined cards, the Done page and its reel)
   ↓
 src/workout/        the workout feature: plan model, session machine, results, camcorder, coaching
-  components/       UI only workout uses (platters, gauge, session reel)
+  components/       UI only workout uses (platters, gauge, controls)
   pose/             camera → pose detection → skeleton drawing
   ↓
 src/exercises/      pure rep logic: angles, counters, the exercise registry
@@ -28,6 +28,8 @@ modules/pose/       the native pose detector (a Nitro module)
 
 - **A layer never imports one above it.** `workout/` knows nothing about the catalog, `exercises/` knows
   nothing about workouts, and `components/` knows nothing about any feature.
+- **A feature's `components/` and `pose/` are its own UI.** Another feature may use its logic (challenges
+  reads `workout/results.ts`) but not its views; only a route composes two features' UI.
 - **`exercises/` is framework-free:** no React, React Native, Expo, Skia or XState. It takes pose data
   and returns numbers, so plain tests cover it. It may import the pose module's _types_ only.
 - **Storage knows how, a feature knows what.** `storage/` reads and writes and reports a failed write;

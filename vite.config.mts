@@ -45,7 +45,7 @@ const layer = (
         patterns: [
           { regex: '^\\.\\./', message: "Import across folders with '@/'." },
           ...(banned.length
-            ? [{ group: banned, message: 'Imports go down the layers; see vite.config.mts.' }]
+            ? [{ group: banned, message: 'Layer ban; see CODING_STANDARDS.md.' }]
             : []),
         ],
       },
@@ -93,8 +93,17 @@ export default defineConfig({
       // logic) → components/ (shared UI), theme, storage/ (files kept on the phone; no UI, no feature rules).
       // An override replaces the rule's options, so each one repeats what still applies to its files.
       layer(['src/app/**'], [], [NO_EFFECTS]),
-      layer(['src/friends/**'], ['@/app/**'], [NO_EFFECTS]),
-      layer(['src/challenges/components/**'], ['@/app/**', '@/friends/**'], [NO_EFFECTS]),
+      // A feature's components/ and pose/ are its own UI: only routes may compose them with another's.
+      layer(
+        ['src/friends/**'],
+        ['@/app/**', '@/challenges/components/**', '@/workout/components/**', '@/workout/pose/**'],
+        [NO_EFFECTS],
+      ),
+      layer(
+        ['src/challenges/components/**'],
+        ['@/app/**', '@/friends/**', '@/workout/components/**', '@/workout/pose/**'],
+        [NO_EFFECTS],
+      ),
       layer(
         ['src/challenges/*.ts'],
         [

@@ -1,4 +1,4 @@
-import type { StepResult } from './results';
+import type { StepResult } from '@/workout/results';
 
 /** A filmed set: where it sits among the session's results (`set`) and its files, in order. */
 export type Clip = { set: number; result: StepResult; takes: readonly string[] };

@@ -1,18 +1,18 @@
 import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { OVER_VIDEO } from './reel-player';
+import { SessionLoop } from './session-reel';
 import { numeralLabels, SessionPlan } from './session-plan';
 import { plan } from '@/challenges/challenges';
 import { dayWord, type Run } from '@/challenges/days';
+import { reelOf, type Clip } from '@/challenges/reel';
+import { mss } from '@/components/duration';
 import { ExerciseFigure } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
 import { SwitchRow } from '@/components/switch-row';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 import { colors } from '@/theme';
-import { OVER_VIDEO } from '@/workout/components/reel-player';
-import { SessionLoop } from '@/workout/components/session-reel';
-import { reelOf, type Clip } from '@/workout/reel';
-import { mss } from '@/workout/components/controls';
 import { expand, type Challenge } from '@/workout/plan';
 import { setAmounts, shareDone } from '@/workout/results';
 import type { SessionView } from '@/workout/session-view';

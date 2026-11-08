@@ -21,7 +21,7 @@ import { IconButton } from '@/components/icon-button';
 import { tick } from '@/components/tick';
 import { EXERCISES } from '@/exercises/registry';
 import { colors } from '@/theme';
-import { pointAt, weight, type Clip, type Spot } from '@/workout/reel';
+import { pointAt, weight, type Clip, type Spot } from '@/challenges/reel';
 import { setShare } from '@/workout/results';
 
 /**

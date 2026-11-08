@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { AndroidSymbol } from 'expo-symbols';
 
+import { mss } from '@/components/duration';
 import { Icon } from '@/components/icon';
 import { IconButton } from '@/components/icon-button';
 import { colors } from '@/theme';
@@ -15,9 +16,6 @@ export const GLASS = 'border border-chalk/10 bg-surface/75';
 const GLASS_FILL = 'rgba(24,25,20,0.75)';
 /** Chalk at 10 %: a chip's fill inside the platter. */
 export const CHIP_FILL = 'rgba(242,240,232,0.1)';
-
-/** 312 -> "5:12". */
-export const mss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 /**
  * Lays session chrome over the full-bleed camera, 12px in from the safe area (camera cutout, system bars).

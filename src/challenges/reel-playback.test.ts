@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
 import type { VideoPlayerEvents, VideoSource } from 'expo-video';
 
-import { reps } from './plan';
+import { reps } from '@/workout/plan';
 import { reelOf } from './reel';
 import { reelPlayback } from './reel-playback';
-import type { StepResult } from './results';
+import type { StepResult } from '@/workout/results';
 
 const set = (takes: string[]): StepResult => ({
   exercise: 'squat',
