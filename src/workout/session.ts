@@ -59,7 +59,7 @@ type Events =
   | { type: 'say'; text: string }
   | { type: 'rolling'; uri: string } // the camcorder's take really started
   | { type: 'taken'; uri: string; ok: boolean } // a take's file is final; not ok: unusable
-  | { type: 'wrapped' } // the camcorder finished every file and deleted all but the best
+  | { type: 'wrapped' } // the camcorder finished every file and settled them (kept or deleted)
   | { type: 'flashOff' }
   | { type: 'captionOff' };
 
@@ -639,7 +639,10 @@ export const workoutSession = session.createMachine({
       // Only now is every file final (failed ones unclipped), so the best is safe to play and the rest can go.
       on: {
         shareTraces: {
-          actions: sendTo('recorder', ({ event }) => ({ type: 'share', on: event.share })),
+          actions: [
+            sendTo('recorder', ({ event }) => ({ type: 'share', on: event.share })),
+            sendTo('camcorder', ({ event }) => ({ type: 'share', on: event.share })),
+          ],
         },
         wrapped: {
           actions: enqueueActions(({ context, enqueue }) => {

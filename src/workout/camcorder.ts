@@ -16,7 +16,8 @@ export type VideoOutput = {
 };
 
 /**
- * roll: start a new file; cut: stop it; wrap: stop and wait for every file; keep: delete all this session's files but `uri`;
+ * roll: start a new file; cut: stop it; wrap: stop and wait for every file; keep: the best file, kept past the session;
+ * share: keep every file in documents/videos when the session stops (the Done screen's movement-data switch);
  * lost: the camera dropped the output, so later rolls are no-ops and a take not started yet is given up.
  */
 type CamcorderEvent =
@@ -24,9 +25,27 @@ type CamcorderEvent =
   | { type: 'lost' }
   | { type: 'cut' }
   | { type: 'wrap' }
-  | { type: 'keep'; uri: string | null };
+  | { type: 'keep'; uri: string | null }
+  | { type: 'share'; on: boolean };
 
 const folder = () => new Directory(Paths.cache, 'reps');
+
+/** Moves `files` to documents/videos; one failed move does not stop the rest. */
+async function share(files: Iterable<File>) {
+  try {
+    // shortcut: no backend yet, so shared videos stay in documents/videos; upload them once there is one.
+    const kept = new Directory(Paths.document, 'videos');
+    kept.create({ intermediates: true, idempotent: true });
+    const moves = await Promise.allSettled(
+      [...files].filter((file) => file.exists).map(async (file) => file.move(kept)),
+    );
+    for (const move of moves)
+      if (move.status === 'rejected')
+        console.warn('[camcorder] could not keep a video', move.reason);
+  } catch (error) {
+    console.warn('[camcorder] could not keep videos', error);
+  }
+}
 
 /** Deletes `files` but `keep`; one failed delete does not stop the rest. */
 function prune(files: Iterable<File | Directory>, keep: string | null) {
@@ -47,7 +66,8 @@ let takes = 0;
  * `taken` once its file is final (`ok: false`: the encoder failed, the file is unusable) and `wrapped`
  * once every file of a `wrap` is final. Start failures only log: the take is simply not filmed.
  * Starts by deleting earlier sessions' files (their kept clip); on stop it cuts the take and, once
- * every file is final, deletes this session's files but the last `keep`.
+ * every file is final, deletes this session's files but the last `keep`, or moves them all to documents
+ * when shared.
  */
 export const camcorder = fromCallback<CamcorderEvent, VideoOutput | undefined>(
   ({ input: video, receive, sendBack }) => {
@@ -59,6 +79,8 @@ export const camcorder = fromCallback<CamcorderEvent, VideoOutput | undefined>(
     let previous = Promise.resolve();
     let cut = () => {};
     let keep: string | null = null;
+    // Kept unless the Done screen's switch turns it off; see ChallengeDone.
+    let shared = true;
     let lost = false;
     let abandon = () => {};
 
@@ -137,15 +159,17 @@ export const camcorder = fromCallback<CamcorderEvent, VideoOutput | undefined>(
       } else if (event.type === 'wrap') {
         cut();
         void previous.then(() => sendBack({ type: 'wrapped' }));
+      } else if (event.type === 'share') {
+        shared = event.on;
       } else {
+        // The rest wait for the session to stop: the switch to share them comes after this.
         keep = event.uri;
-        prune(files, keep);
       }
     });
     return () => {
       cut();
-      // After every pending start and finalize, so a file that appears late is deleted too.
-      void previous.then(() => prune(files, keep));
+      // After every pending start and finalize, so a file that appears late is kept or deleted too.
+      void previous.then(() => (shared ? share(files) : prune(files, keep)));
     };
   },
 );

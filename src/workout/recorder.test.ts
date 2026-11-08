@@ -321,8 +321,9 @@ describe('sharing traces', () => {
 
   // Close and Back both stop the session; the switch's last position decides.
   it.each([
-    { switches: [], kept: [] },
-    { switches: [true], kept: ['document/traces'] },
+    { switches: [], kept: ['document/traces'] },
+    { switches: [false], kept: [] },
+    { switches: [false, true], kept: ['document/traces'] },
     { switches: [true, false], kept: [] },
   ])(
     'after switching $switches, keeps $kept once the session stops',
@@ -361,6 +362,7 @@ describe('sharing traces', () => {
     let land = () => {};
     writeFile.mockImplementationOnce(() => new Promise<void>((resolve) => (land = resolve)));
     const actor = await finished();
+    actor.send({ type: 'shareTraces', share: false });
     actor.stop();
     await flush();
     land();
@@ -368,11 +370,11 @@ describe('sharing traces', () => {
     expect(files.size).toBe(0);
   });
 
-  it('shares only the session that was shared', async () => {
+  it('deletes only the session that was switched off', async () => {
     const first = await finished();
+    first.send({ type: 'shareTraces', share: false });
     first.stop();
     const second = await finished();
-    second.send({ type: 'shareTraces', share: true });
     second.stop();
     await flush();
     expect(where()).toEqual(['document/traces']);

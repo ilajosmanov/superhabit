@@ -41,6 +41,11 @@ const cached = (name: string) => ({
     if (stuck.has(name)) throw new Error(`cannot delete ${name}`);
     disk.delete(name);
   },
+  // Kept videos join the trace folders' `files`.
+  move: (to: { uri: string }) => {
+    if (!disk.delete(name)) throw new Error(`${name} is gone`);
+    files.add(`${to.uri}/${name}`);
+  },
 });
 
 // The fake trace folders: file paths (contents are in `written`), and folders created empty. Camcorder
