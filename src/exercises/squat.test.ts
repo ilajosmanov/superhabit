@@ -96,9 +96,10 @@ describe('squat', () => {
   });
 });
 
-// Device clips with gravity, front-on. Labels are the reps in their video: one long deep squat and four
-// more after leg kicks and a bend to the floor, then five quick ones.
-const device = traceFiles('device').filter((path) => path.includes('/squat-1794169'));
+// Device clips with gravity, front-on, labelled with the reps in their video. Among them: leg kicks, a
+// bend to the floor, side lunges, half squats, sitting on the sofa and on the floor (none count),
+// and a deep squat held 3.5 s before standing (counts).
+const device = traceFiles('device').filter((path) => path.includes('/squat-'));
 // Plank and push-up clips with gravity: knees bend there (kneeling), but no squat is done. A dip while
 // standing at a clip's edge may still read as a failed rep.
 const floor = traceFiles('device').filter((path) => /\/(plank|pushup)-/.test(path));
