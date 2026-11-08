@@ -5,6 +5,7 @@
 - Configure Oxlint, Oxfmt, and Vitest in `vite.config.ts`. Expo / Metro handles app serving and builds.
 - Pin development tooling versions. When upgrading Vite+, align the Vite alias and Vitest version in `pnpm-workspace.yaml` with `vp toolchain`.
 - Put plain TypeScript tests beside their source as `src/**/*.test.ts`; import test APIs from `vite-plus/test`. Native component tests need a separate setup.
+- Recorded pose traces (`src/exercises/__fixtures__/traces/`) are git-ignored, and the clip tests skip silently without them. Right after creating a worktree (Claude or Codex), copy them in from the main checkout: `cp -r --reflink=auto /home/io/Work/superhabit/src/exercises/__fixtures__/traces <worktree>/src/exercises/__fixtures__/` (btrfs, so the copy is free).
 
 ## React rules
 
