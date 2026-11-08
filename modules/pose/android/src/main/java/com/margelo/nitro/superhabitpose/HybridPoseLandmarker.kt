@@ -1,6 +1,14 @@
 package com.margelo.nitro.superhabitpose
 
+import android.content.Context
 import android.graphics.PixelFormat
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.hardware.display.DisplayManager
+import android.view.Display
+import android.view.Surface
 import android.util.Log
 import androidx.annotation.Keep
 import androidx.camera.core.ImageProxy
@@ -18,6 +26,7 @@ import com.margelo.nitro.camera.HybridFrameSpec
 import com.margelo.nitro.camera.Point
 import com.margelo.nitro.camera.public.NativeFrame
 import java.util.Optional
+import kotlin.math.sqrt
 
 // Nitro finds this class by name at runtime, so R8 must not strip or rename it in release builds.
 @DoNotStrip
@@ -62,6 +71,59 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
       else -> Pair(x, y)
     }
 
+  // The phone's gravity in its own axes (x right, y up, z out of the screen), m/s². It reads "up":
+  // the sensor feels the push back against gravity.
+  @Volatile private var gravity: FloatArray? = null
+  private var sensors: SensorManager? = null
+  private var displays: DisplayManager? = null
+  private val gravityListener = object : SensorEventListener {
+    override fun onSensorChanged(event: SensorEvent) {
+      gravity = event.values.copyOf(3)
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+  }
+
+  // The fused gravity sensor ignores the phone's own shakes; a still phone's accelerometer reads the same.
+  private fun startGravity() {
+    val manager = NitroModules.applicationContext?.getSystemService(Context.SENSOR_SERVICE) as? SensorManager ?: return
+    val registered = listOf(Sensor.TYPE_GRAVITY, Sensor.TYPE_ACCELEROMETER).any { type ->
+      manager.getDefaultSensor(type)?.let { manager.registerListener(gravityListener, it, SensorManager.SENSOR_DELAY_GAME) } == true
+    }
+    if (!registered) {
+      Log.w(TAG, "no gravity sensor: positions judge shape alone")
+      return
+    }
+    sensors = manager
+    displays = NitroModules.applicationContext?.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
+  }
+
+  /**
+   * Down in the frame of the landmarks (x right, y down, z away from the camera), unit length. The
+   * camera follows the interface, which the workout locks to landscape for floor work, so the
+   * landmarks are upright to the screen: gravity turns with the display's rotation too. The back camera
+   * looks out of the screen's back, the front one out of its face: unmirrored, that flips x and z.
+   * World z points toward the camera, not away as MediaPipe's docs say: measured on front-camera clips,
+   * only this sign puts a body lying flat, and kneeling knees, at the wrists' height.
+   * shortcut: the back camera's z follows from that, unmeasured; record one back-camera clip lying flat.
+   * shortcut: reads the display's rotation now, not the frame's; during a screen flip a frame or two
+   * can disagree. Tie it to `rotationDegrees` if flips mid-set show wrong positions.
+   */
+  private fun down(front: Boolean): PoseVector? {
+    val g = gravity ?: return null
+    val n = sqrt(g[0] * g[0] + g[1] * g[1] + g[2] * g[2])
+    if (n < 1f) return null
+    // "Up" in the screen's axes (x right, y up), as in Android's accelerometer sample.
+    val (x, y) = when (displays?.getDisplay(Display.DEFAULT_DISPLAY)?.rotation) {
+      Surface.ROTATION_90 -> Pair(-g[1], g[0])
+      Surface.ROTATION_180 -> Pair(-g[0], -g[1])
+      Surface.ROTATION_270 -> Pair(g[1], -g[0])
+      else -> Pair(g[0], g[1])
+    }
+    val sign = if (front) -1f else 1f
+    return PoseVector((-sign * x / n).toDouble(), (y / n).toDouble(), (-sign * g[2] / n).toDouble())
+  }
+
   private var lastTimestampMs = 0L
   private var offsetMs = 0L
 
@@ -92,7 +154,7 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
   @Volatile override var onResult: ((result: PoseDetection) -> Unit)? = null
 
   @Synchronized
-  override fun detect(frame: HybridFrameSpec) {
+  override fun detect(frame: HybridFrameSpec, front: Boolean) {
     if (closed || failed) return
 
     try {
@@ -105,7 +167,10 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
       }
       val ts = nextTimestampMs(proxy.imageInfo.timestamp / 1_000_000)
       val started = System.nanoTime()
-      val detector = landmarker ?: createDetector()?.also { landmarker = it } ?: return
+      val detector = landmarker ?: createDetector()?.also {
+        landmarker = it
+        startGravity()
+      } ?: return
       val detected = buildImage(proxy).use { image ->
         detector.detectForVideo(
           image,
@@ -154,6 +219,7 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
           timestampMs = ts.toDouble(),
           landmarks = landmarks,
           worldLandmarks = worldLandmarks,
+          down = down(front).also { lastDown = it },
           cameraLandmarks = cameraLandmarks
         )
       )
@@ -167,6 +233,9 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
     if (closed) return
     closed = true
     onResult = null
+    sensors?.unregisterListener(gravityListener)
+    sensors = null
+    displays = null
     val detector = landmarker
     landmarker = null
     try {
@@ -202,11 +271,13 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
     }
   }
 
+  private var lastDown: PoseVector? = null
   private var windowStart = 0L
   private var frames = 0
   private var busyNs = 0L
 
-  // Read with `adb logcat -s PoseLandmarker`: results per second and time per frame (copy + inference).
+  // Read with `adb logcat -s PoseLandmarker`: results per second, time per frame (copy + inference),
+  // and down: about (0, 1, 0) whenever the screen is upright, the phone standing or on its long edge.
   private fun logSpeed(ns: Long) {
     val now = System.nanoTime()
     if (frames == 0) windowStart = now - ns
@@ -214,7 +285,8 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
     busyNs += ns
     val elapsed = now - windowStart
     if (elapsed < 5_000_000_000L) return
-    Log.i(TAG, "%.1f fps, %.1f ms/frame (%s)".format(frames * 1e9 / elapsed, busyNs / 1e6 / frames, delegate))
+    val d = lastDown?.let { "(%.2f, %.2f, %.2f)".format(it.x, it.y, it.z) } ?: "none"
+    Log.i(TAG, "%.1f fps, %.1f ms/frame (%s), down %s".format(frames * 1e9 / elapsed, busyNs / 1e6 / frames, delegate, d))
     frames = 0
     busyNs = 0L
   }

@@ -29,6 +29,9 @@ data class PoseDetection(
   val worldLandmarks: Array<PoseLandmark>,
   @DoNotStrip
   @Keep
+  val down: PoseVector?,
+  @DoNotStrip
+  @Keep
   val cameraLandmarks: Array<PoseCameraPoint>
 ) {
   /* primary constructor */
@@ -39,6 +42,7 @@ data class PoseDetection(
     return Objects.deepEquals(this.timestampMs, other.timestampMs)
       && Objects.deepEquals(this.landmarks, other.landmarks)
       && Objects.deepEquals(this.worldLandmarks, other.worldLandmarks)
+      && Objects.deepEquals(this.down, other.down)
       && Objects.deepEquals(this.cameraLandmarks, other.cameraLandmarks)
   }
 
@@ -47,6 +51,7 @@ data class PoseDetection(
       timestampMs,
       landmarks,
       worldLandmarks,
+      down,
       cameraLandmarks
     ).contentDeepHashCode()
   }
@@ -59,8 +64,8 @@ data class PoseDetection(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(timestampMs: Double, landmarks: Array<PoseLandmark>, worldLandmarks: Array<PoseLandmark>, cameraLandmarks: Array<PoseCameraPoint>): PoseDetection {
-      return PoseDetection(timestampMs, landmarks, worldLandmarks, cameraLandmarks)
+    private fun fromCpp(timestampMs: Double, landmarks: Array<PoseLandmark>, worldLandmarks: Array<PoseLandmark>, down: PoseVector?, cameraLandmarks: Array<PoseCameraPoint>): PoseDetection {
+      return PoseDetection(timestampMs, landmarks, worldLandmarks, down, cameraLandmarks)
     }
   }
 }

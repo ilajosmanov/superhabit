@@ -12,8 +12,11 @@
 
 #include "JPoseCameraPoint.hpp"
 #include "JPoseLandmark.hpp"
+#include "JPoseVector.hpp"
 #include "PoseCameraPoint.hpp"
 #include "PoseLandmark.hpp"
+#include "PoseVector.hpp"
+#include <optional>
 #include <vector>
 
 namespace margelo::nitro::superhabitpose {
@@ -41,6 +44,8 @@ namespace margelo::nitro::superhabitpose {
       jni::local_ref<jni::JArrayClass<JPoseLandmark>> landmarks = this->getFieldValue(fieldLandmarks);
       static const auto fieldWorldLandmarks = clazz->getField<jni::JArrayClass<JPoseLandmark>>("worldLandmarks");
       jni::local_ref<jni::JArrayClass<JPoseLandmark>> worldLandmarks = this->getFieldValue(fieldWorldLandmarks);
+      static const auto fieldDown = clazz->getField<JPoseVector>("down");
+      jni::local_ref<JPoseVector> down = this->getFieldValue(fieldDown);
       static const auto fieldCameraLandmarks = clazz->getField<jni::JArrayClass<JPoseCameraPoint>>("cameraLandmarks");
       jni::local_ref<jni::JArrayClass<JPoseCameraPoint>> cameraLandmarks = this->getFieldValue(fieldCameraLandmarks);
       return PoseDetection(
@@ -65,6 +70,7 @@ namespace margelo::nitro::superhabitpose {
           }
           return __vector;
         }(worldLandmarks),
+        down != nullptr ? std::make_optional(down->toCpp()) : std::nullopt,
         [&](auto&& __input) {
           size_t __size = __input->size();
           std::vector<PoseCameraPoint> __vector;
@@ -84,7 +90,7 @@ namespace margelo::nitro::superhabitpose {
      */
     [[maybe_unused]]
     static jni::local_ref<JPoseDetection::javaobject> fromCpp(const PoseDetection& value) {
-      using JSignature = JPoseDetection(double, jni::alias_ref<jni::JArrayClass<JPoseLandmark>>, jni::alias_ref<jni::JArrayClass<JPoseLandmark>>, jni::alias_ref<jni::JArrayClass<JPoseCameraPoint>>);
+      using JSignature = JPoseDetection(double, jni::alias_ref<jni::JArrayClass<JPoseLandmark>>, jni::alias_ref<jni::JArrayClass<JPoseLandmark>>, jni::alias_ref<JPoseVector>, jni::alias_ref<jni::JArrayClass<JPoseCameraPoint>>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
@@ -110,6 +116,7 @@ namespace margelo::nitro::superhabitpose {
           }
           return __array;
         }(value.worldLandmarks),
+        value.down.has_value() ? JPoseVector::fromCpp(value.down.value()) : nullptr,
         [&](auto&& __input) {
           size_t __size = __input.size();
           jni::local_ref<jni::JArrayClass<JPoseCameraPoint>> __array = jni::JArrayClass<JPoseCameraPoint>::newArray(__size);

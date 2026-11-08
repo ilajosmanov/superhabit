@@ -5,8 +5,9 @@ import { Joint, SIDE } from 'superhabit-pose/joints';
 /**
  * One frame's joints, as the detector gives them: `landmarks` in 0..1 frame coords (to check a
  * joint is really in view), `worldLandmarks` in metres (for angles). Index both with `Joint`.
+ * `down` is gravity in the world axes, when the phone gave it; recorded clips mostly lack it.
  */
-export type Pose = Pick<PoseDetection, 'landmarks' | 'worldLandmarks'>;
+export type Pose = Pick<PoseDetection, 'landmarks' | 'worldLandmarks' | 'down'>;
 
 /** MediaPipe indices [a, vertex, c] of a measured angle. */
 export type Joints = readonly [number, number, number];
@@ -42,6 +43,18 @@ const DOWN: Vec = { x: 0, y: 1, z: 0 };
 /** How far a downward vector (a hip minus a shoulder) tilts from vertical, degrees. */
 export const tilt = (v: Vec) => between(v, DOWN);
 
+/** The phone's gravity, unit length, or null when it gave none or a broken one. */
+export const gravity = ({ down }: Pose): Vec | null =>
+  down && [down.x, down.y, down.z].every(Number.isFinite) && Math.abs(length(down) - 1) < 0.01
+    ? down
+    : null;
+
+/** How far the line `from`→`to` rises from level by the phone's gravity, 0..90 degrees; null without it. */
+export const rise = (pose: Pose, from: Vec, to: Vec) => {
+  const down = gravity(pose);
+  return down ? Math.abs(90 - between(sub(to, from), down)) : null;
+};
+
 // Joints outside the frame are extrapolated by the model; don't trust them.
 export const inFrameWithVisibility = (p: PoseLandmark | undefined, minVisibility: number) =>
   !!p && p.visibility >= minVisibility && p.x > 0 && p.x < 1 && p.y > 0 && p.y < 1;
@@ -57,13 +70,12 @@ export type SideJoints = (typeof SIDE)[Side];
 
 /**
  * The side whose `pick`ed joints are all seen, preferring the higher lowest visibility (left on
- * a tie); null when neither side is complete. Side-on, the far limbs hide. `only` judges one side.
+ * a tie); null when neither side is complete. Side-on, the far limbs hide.
  */
 export function bestSide(
   pose: Pose,
   pick: (side: SideJoints) => readonly number[],
   minVisibility = MIN_VISIBILITY,
-  only?: Side,
 ): Side | null {
   const visibility = (side: Side) => {
     const joints = pick(SIDE[side]);
@@ -71,8 +83,8 @@ export function bestSide(
       ? Math.min(...joints.map((i) => pose.landmarks[i].visibility))
       : null;
   };
-  const left = only === 'right' ? null : visibility('left');
-  const right = only === 'left' ? null : visibility('right');
+  const left = visibility('left');
+  const right = visibility('right');
   if (right === null) return left === null ? null : 'left';
   return left === null || right > left ? 'right' : 'left';
 }

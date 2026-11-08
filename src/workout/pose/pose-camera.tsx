@@ -107,7 +107,7 @@ export function PoseCamera({
           // Results reach JS through the detector's native onResult callback, not across runtimes.
           // No `finally`: React Compiler skips any component that uses one.
           try {
-            landmarker.detect(frame);
+            landmarker.detect(frame, camera === 'front');
           } catch (error) {
             console.error('[pose] frame processing failed', error);
           }

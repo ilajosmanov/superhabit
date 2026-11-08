@@ -17,6 +17,9 @@
 #include "PoseLandmark.hpp"
 #include <vector>
 #include "JPoseLandmark.hpp"
+#include "PoseVector.hpp"
+#include <optional>
+#include "JPoseVector.hpp"
 #include "PoseCameraPoint.hpp"
 #include "JPoseCameraPoint.hpp"
 

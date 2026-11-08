@@ -2,6 +2,7 @@ import { assert, describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
 import { plank as pose } from '@/exercises/__fixtures__/plank';
+import type { Vec } from '@/exercises/body/geometry';
 import { measurePlank, plankPosition } from './plank';
 
 describe('measurePlank', () => {
@@ -80,5 +81,21 @@ describe('measurePlank', () => {
     const body = pose({});
     body.worldLandmarks[Joint.LEFT_KNEE] = body.worldLandmarks[Joint.LEFT_HIP];
     expect(measurePlank(body)).toBeNull();
+  });
+});
+
+describe('plankPosition.setup', () => {
+  // The fixture lies along +x on a floor at y = 0, so gravity is +y; along x it stands on end.
+  const setup = (down?: Vec) => {
+    const sample = measurePlank(down ? { ...pose({}), down } : pose({}));
+    assert(sample);
+    return plankPosition.setup(sample);
+  };
+
+  it('turns away the same shape stood on end, once the phone gives gravity', () => {
+    expect(setup({ x: 0, y: 1, z: 0 })).toBeNull();
+    expect(setup({ x: -1, y: 0, z: 0 })).toBe('Get down into a plank');
+    // Clips recorded without gravity keep passing on shape alone.
+    expect(setup()).toBeNull();
   });
 });

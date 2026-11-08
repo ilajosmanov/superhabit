@@ -237,17 +237,17 @@ export function cycle<P extends { side: Side }>(
       return { counted, cues, depth, downMs, upMs };
     },
   });
-  const on = (pose: Pose, at: P | null) => {
-    const reading = at && m.read(pose, at.side);
-    return at && reading ? { at, ...reading } : null;
+  const on = (pose: Pose, at: P, side: Side) => {
+    const reading = m.read(pose, side);
+    return reading ? { at, ...reading } : null;
   };
   return {
     ...counter,
     // The position picks its better-seen side at its own visibility bar; when the measure can't be
-    // read there (the elbow needs a higher one), the other side may still have both.
+    // read there (the elbow needs a higher one), the other limb stands in: a cycle moves both alike.
     measure: (pose) => {
       const at = p.read(pose);
-      return at && (on(pose, at) ?? on(pose, p.read(pose, at.side === 'left' ? 'right' : 'left')));
+      return at && (on(pose, at, at.side) ?? on(pose, at, at.side === 'left' ? 'right' : 'left'));
     },
     ready: p.ready,
     parts: BODY_PARTS.filter((part) => p.parts.includes(part) || m.parts.includes(part)),

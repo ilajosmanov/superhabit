@@ -55,7 +55,7 @@ namespace margelo::nitro::superhabitpose {
 
   public:
     // Methods
-    void detect(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& frame) override;
+    void detect(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& frame, bool front) override;
     void close() override;
 
   private:

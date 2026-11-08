@@ -7,6 +7,8 @@ export type TraceFrame = {
   t: number;
   landmarks: readonly TracePoint[];
   world: readonly TracePoint[];
+  /** Gravity in the world axes; absent in clips recorded without it. */
+  down?: readonly [x: number, y: number, z: number];
 };
 export type Trace = {
   version: 1;
@@ -65,6 +67,18 @@ function points(value: unknown, path: string): TracePoint[] {
   });
 }
 
+function unit(value: unknown, path: string): [number, number, number] {
+  const v = array(value, path);
+  if (v.length !== 3) throw new Error(`${path}: expected 3 coordinates`);
+  const out: [number, number, number] = [
+    finite(v[0], `${path}[0]`),
+    finite(v[1], `${path}[1]`),
+    finite(v[2], `${path}[2]`),
+  ];
+  if (Math.abs(Math.hypot(...out) - 1) >= 0.01) throw new Error(`${path}: expected unit length`);
+  return out;
+}
+
 /** Strict Trace v1 data; extra fields from dataset extraction are tolerated. */
 export function parseTrace(json: unknown): Trace {
   const root = record(json, 'trace');
@@ -97,7 +111,8 @@ export function parseTrace(json: unknown): Trace {
     const world = points(frame.world, `${at}.world`);
     if (landmarks.length !== world.length)
       throw new Error(`${at}.world: landmarks and world must both be empty or both have 33 points`);
-    return { t, landmarks, world };
+    if (frame.down === undefined) return { t, landmarks, world };
+    return { t, landmarks, world, down: unit(frame.down, `${at}.down`) };
   });
   return {
     version: 1,
@@ -119,6 +134,7 @@ export function toPose(frame: TraceFrame): Pose {
   return {
     landmarks: frame.landmarks.map(landmark),
     worldLandmarks: frame.world.map(landmark),
+    ...(frame.down && { down: { x: frame.down[0], y: frame.down[1], z: frame.down[2] } }),
   };
 }
 
@@ -133,5 +149,6 @@ export function toFrame(result: PoseDetection, t0: number): TraceFrame {
     t: result.timestampMs - t0,
     landmarks: result.landmarks.map(point),
     world: result.worldLandmarks.map(point),
+    ...(result.down && { down: [result.down.x, result.down.y, result.down.z] as const }),
   };
 }

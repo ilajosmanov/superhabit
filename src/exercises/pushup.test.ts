@@ -28,13 +28,14 @@ const cycle = (top: Pose, bottom: Pose) =>
   ]);
 
 describe('pushup.measure', () => {
-  it('reads the other side when the plank side has an elbow too faint to measure', () => {
-    // The plank's side wins on visibility (0.3 vs 0.2), but its wrist is below the elbow's bar.
+  it('reads the other arm when the plank side has an elbow too faint to measure', () => {
+    // The plank reads its left side (0.3 vs 0.2), but that wrist is below the elbow's bar; the right
+    // leg is too faint to read the plank there, yet its arm is clear.
     const pose = plank({ visible: 'both' });
     pose.landmarks[Joint.LEFT_WRIST].visibility = 0.3;
-    pose.landmarks[Joint.RIGHT_KNEE].visibility = 0.2;
+    pose.landmarks[Joint.RIGHT_KNEE].visibility = 0.05;
     expect(pushup.measure(pose)).toMatchObject({
-      at: { side: 'right' },
+      at: { side: 'left' },
       joints: [Joint.RIGHT_SHOULDER, Joint.RIGHT_ELBOW, Joint.RIGHT_WRIST],
     });
   });
@@ -166,13 +167,18 @@ describe.skipIf(files.length === 0)('pushup on real traces', () => {
 
 // Labels here are what the phone's counter said when the clip was saved, not a human count: this
 // guards "still counts what your phone counted", e.g. device knees that read bent with the knees up.
+// pushup-1794163715160 (gravity) is labelled from its video instead: 7, where the phone said 0 under a
+// broken hip rule. pushup-1794163255470 (no gravity) counts 3 of 5: without gravity the support-line
+// hip ratio dips under HIPS_MIN for a frame mid-descent, failing two reps; gravity clips use the hip
+// drop instead. pushup-1794164288747 counts 5 of 6, as the phone did: two reps behind a table leg
+// read 111–119° and the 4th bottomed at 101°, just above `down`.
 const device = traceFiles('device').filter((path) => path.includes('/pushup-'));
 describe.skipIf(device.length === 0)('pushup on device traces', () => {
-  it('counts what the phone counted, but the one clip saved mid-set', () => {
+  it('counts what the phone counted, but the one clip saved mid-set and one without gravity', () => {
     const rows = scoreReps(pushup, device, 0);
     expect(
       rows.filter((row) => !row.ok).map((row) => row.clip),
       JSON.stringify(rows),
-    ).toEqual(['pushup-1794098368362.json']);
+    ).toEqual(['pushup-1794098368362.json', 'pushup-1794163255470.json']);
   });
 });

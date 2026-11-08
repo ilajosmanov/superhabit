@@ -11,6 +11,8 @@
 namespace margelo::nitro::superhabitpose { struct PoseDetection; }
 // Forward declaration of `PoseLandmark` to properly resolve imports.
 namespace margelo::nitro::superhabitpose { struct PoseLandmark; }
+// Forward declaration of `PoseVector` to properly resolve imports.
+namespace margelo::nitro::superhabitpose { struct PoseVector; }
 // Forward declaration of `PoseCameraPoint` to properly resolve imports.
 namespace margelo::nitro::superhabitpose { struct PoseCameraPoint; }
 // Forward declaration of `HybridFrameSpec` to properly resolve imports.
@@ -25,6 +27,8 @@ namespace margelo::nitro::camera { class HybridFrameSpec; }
 #include "PoseLandmark.hpp"
 #include <vector>
 #include "JPoseLandmark.hpp"
+#include "PoseVector.hpp"
+#include "JPoseVector.hpp"
 #include "PoseCameraPoint.hpp"
 #include "JPoseCameraPoint.hpp"
 #include <memory>
@@ -80,9 +84,9 @@ namespace margelo::nitro::superhabitpose {
   }
 
   // Methods
-  void JHybridPoseLandmarkerSpec::detect(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& frame) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<margelo::nitro::camera::JHybridFrameSpec::JavaPart> /* frame */)>("detect");
-    method(_javaPart, std::dynamic_pointer_cast<margelo::nitro::camera::JHybridFrameSpec>(frame)->getJavaPart());
+  void JHybridPoseLandmarkerSpec::detect(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& frame, bool front) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<margelo::nitro::camera::JHybridFrameSpec::JavaPart> /* frame */, jboolean /* front */)>("detect");
+    method(_javaPart, std::dynamic_pointer_cast<margelo::nitro::camera::JHybridFrameSpec>(frame)->getJavaPart(), front);
   }
   void JHybridPoseLandmarkerSpec::close() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void()>("close");

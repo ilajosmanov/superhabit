@@ -44,6 +44,14 @@ describe('Trace v1', () => {
     }
   });
 
+  it('round-trips gravity when the phone gave it', () => {
+    // Distinct components, so a swapped or flipped axis can't round-trip unnoticed.
+    const down = { x: 0.36, y: 0.8, z: -0.48 };
+    const frame = toFrame({ ...detection(1000), down }, 1000);
+    const parsed = parseTrace(JSON.parse(JSON.stringify({ ...trace(), frames: [frame] })));
+    expect(toPose(parsed.frames[0])).toEqual({ ...pose, down });
+  });
+
   it('accepts extractor metadata and optional hold labels', () => {
     const raw = trace();
     expect(parseTrace({ ...raw, source: { ...raw.source, view: 'front' } }).source).toMatchObject({
@@ -137,6 +145,11 @@ describe('Trace v1', () => {
       'source.license',
     ],
     ['missing frames', (raw) => ({ ...raw, frames: null }), 'frames'],
+    [
+      'zero gravity',
+      (raw) => ({ ...raw, frames: [{ ...raw.frames[0], down: [0, 0, 0] }] }),
+      'frames[0].down',
+    ],
   ];
 
   it.each(invalid)('rejects %s with the field path', (_, corrupt, path) => {

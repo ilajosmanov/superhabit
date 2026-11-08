@@ -56,7 +56,7 @@ namespace margelo::nitro::superhabitpose {
 
     public:
       // Methods
-      virtual void detect(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& frame) = 0;
+      virtual void detect(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& frame, bool front) = 0;
       virtual void close() = 0;
 
     protected:

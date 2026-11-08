@@ -44,7 +44,7 @@ abstract class HybridPoseLandmarkerSpec: HybridObject() {
   // Methods
   @DoNotStrip
   @Keep
-  abstract fun detect(frame: com.margelo.nitro.camera.HybridFrameSpec): Unit
+  abstract fun detect(frame: com.margelo.nitro.camera.HybridFrameSpec, front: Boolean): Unit
   
   @DoNotStrip
   @Keep

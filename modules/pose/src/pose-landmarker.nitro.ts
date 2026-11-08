@@ -14,20 +14,31 @@ export interface PoseCameraPoint {
   y: number;
 }
 
+export interface PoseVector {
+  x: number;
+  y: number;
+  z: number;
+}
+
 export interface PoseDetection {
   timestampMs: number;
   /** Normalized 0..1 coordinates, rotated upright to the screen. Empty when no person. */
   landmarks: PoseLandmark[];
   /** Metres, origin between the hips. Use these for 3D angles, image landmarks for visibility. */
   worldLandmarks: PoseLandmark[];
+  /** Which way is down, unit length, in the worldLandmarks axes, from the phone's gravity sensor. Absent without one. */
+  down?: PoseVector;
   /** Opaque sensor coordinates for CameraRef.convertCameraPointToViewPoint(), not normalized. */
   cameraLandmarks: PoseCameraPoint[];
 }
 
 /** MediaPipe Pose Landmarker (BlazePose GHUM, 33 joints in MediaPipe order). */
 export interface PoseLandmarker extends HybridObject<{ android: 'kotlin' }> {
-  /** Run on a camera frame from a VisionCamera frame-processor worklet (pixelFormat 'rgb'). */
-  detect(frame: Frame): void;
+  /**
+   * Run on a camera frame from a VisionCamera frame-processor worklet (pixelFormat 'rgb'). `front`:
+   * the frame is from the front camera, which turns gravity's x and z the other way.
+   */
+  detect(frame: Frame, front: boolean): void;
   /**
    * Called on the JS thread with every detection (empty arrays when no person), straight from native,
    * so results never cross worklet runtimes. Not called after an error or close().
