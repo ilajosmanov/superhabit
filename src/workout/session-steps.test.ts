@@ -68,20 +68,26 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     actor.stop();
   });
 
-  it('reports once at Done how much of the session was done', () => {
-    const onFinished = vi.fn();
-    const full = createActor(workoutSession, { input: { challenge, onFinished } }).start();
+  it('reports after every set how much of the session is done, so a killed app keeps it', () => {
+    const onSaved = vi.fn();
+    const full = createActor(workoutSession, { input: { challenge, onSaved } }).start();
     squat();
+    // Before the last set: the squat set is already reported.
+    expect(onSaved.mock.calls).toEqual([[0.5, [1, 0]]]);
     full.send({ type: 'next' });
     pushup();
-    expect(onFinished.mock.calls).toEqual([[1, [1, 1]]]);
+    expect(onSaved.mock.calls).toEqual([
+      [0.5, [1, 0]],
+      [1, [1, 1]],
+    ]);
     full.stop();
 
-    onFinished.mockClear();
-    const cut = createActor(workoutSession, { input: { challenge, onFinished } }).start();
+    onSaved.mockClear();
+    const cut = createActor(workoutSession, { input: { challenge, onSaved } }).start();
     squat();
     cut.send({ type: 'end' });
-    expect(onFinished.mock.calls).toEqual([[0.5, [1, 0]]]);
+    // Ending between sets adds no set, so nothing new to report.
+    expect(onSaved.mock.calls).toEqual([[0.5, [1, 0]]]);
     cut.stop();
   });
 

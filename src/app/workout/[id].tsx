@@ -15,7 +15,7 @@ import { usePoseOverlay } from '@/workout/pose/overlay';
 import { PoseCamera } from '@/workout/pose/pose-camera';
 import { ChallengeDone } from '@/challenges/components/challenge-done';
 import { saveFailed } from '@/challenges/components/save-failed';
-import { today, type Day, type Run } from '@/challenges/days';
+import { today } from '@/challenges/days';
 import { recordTry, useChallenge } from '@/challenges/mine';
 import type { Challenge } from '@/workout/plan';
 import { BetweenSets } from '@/workout/components/between-sets';
@@ -55,32 +55,24 @@ export default function ChallengeScreen() {
     );
   }
   // A new id is a new session actor.
-  return (
-    <AndroidSession
-      key={id}
-      challenge={found.challenge}
-      run={found.run}
-      // Any try counts toward the day, by its share; a one-go set is never stored.
-      onFinished={(share, sets, day) => {
-        if (share > 0 && found.saved && !recordTry(id, day, share, sets)) saveFailed();
-      }}
-    />
-  );
+  return <AndroidSession key={id} id={id} challenge={found.challenge} />;
 }
 
-function AndroidSession({
-  challenge,
-  run,
-  onFinished,
-}: {
-  challenge: Challenge;
-  /** Today's run, kept current: the Done screen says which day this session counted toward. */
-  run: Run | null;
-  /** `day` is the one the session started on: a set finished at 00:05 still belongs to yesterday. */
-  onFinished: (share: number, sets: number[], day: Day) => void;
-}) {
+function AndroidSession({ id, challenge }: { id: string; challenge: Challenge }) {
   useKeepAwake();
+  // The day the session started on, not the permission prompt before it: a set finished at 00:05 still
+  // belongs to yesterday, and Done says so.
   const [day] = useState(today);
+  const found = useChallenge(id, day);
+  const run = found?.run ?? null;
+  const warned = useRef(false);
+  // Any try counts toward the day, by its share; a one-go set is never stored. Saved after every set, so
+  // a killed app keeps the sets done; a failed write is said once, and the next set tries again.
+  const onSaved = (share: number, sets: number[]) => {
+    if (share === 0 || !found?.saved || recordTry(id, day, share, sets)) return;
+    if (!warned.current) saveFailed();
+    warned.current = true;
+  };
   const router = useRouter();
   const camera = useRef<CameraRef>(null);
   const { joints, highlight, angle, lowest, onPose } = usePoseOverlay(camera);
@@ -92,7 +84,7 @@ function AndroidSession({
       video,
       record: true,
       onPose,
-      onFinished: (share, sets) => onFinished(share, sets, day),
+      onSaved,
     },
   });
   const landmarker = useSelector(session, (s) => s.context.landmarker);

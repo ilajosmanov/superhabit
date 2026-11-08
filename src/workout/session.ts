@@ -62,10 +62,10 @@ type Input = {
   challenge: Challenge;
   onPose?: OnPose;
   /**
-   * Once, on reaching Done: how much of the session was done, 0 to 1 (1 = every goal met), and what each
-   * exercise set got (`setAmounts`).
+   * After every set joins the results, so a killed app keeps what was done: how much of the session is
+   * done, 0 to 1 (1 = every goal met), and what each exercise set got (`setAmounts`). Only ever grows.
    */
-  onFinished?: (share: number, sets: number[]) => void;
+  onSaved?: (share: number, sets: number[]) => void;
   video?: VideoOutput;
   record?: boolean;
 };
@@ -77,7 +77,7 @@ type Context = Counters &
     /** A detector frame was handled this set; until then nothing is known about framing. */
     framed: boolean;
     onPose?: OnPose;
-    onFinished?: Input['onFinished'];
+    onSaved?: Input['onSaved'];
     video?: VideoOutput;
     record: boolean;
     /** The camera dropped the video output: nothing more is filmed this session. */
@@ -331,7 +331,10 @@ const session = setup<
       const { reps, noReps, heldMs } = context[exercise];
       console.info('[session]', exercise, 'set done', { reps, noReps, heldMs });
       enqueue.sendTo('recorder', saveTrace(context));
-      enqueue.assign({ results: withSet(context) });
+      const results = withSet(context);
+      enqueue.assign({ results });
+      const { steps, onSaved } = context;
+      enqueue(() => onSaved?.(shareDone(steps, results), setAmounts(steps, results)));
     }),
     // Back to the start position on the other camera; waits in counting.flipping for it to stream.
     flipSet: enqueueActions(({ context, enqueue }) => {
@@ -376,7 +379,7 @@ export const workoutSession = session.createMachine({
     ...FRESH_SET,
     landmarker: null,
     onPose: input.onPose,
-    onFinished: input.onFinished,
+    onSaved: input.onSaved,
     video: input.video,
     videoLost: false,
     record: input.record ?? false,
@@ -622,8 +625,6 @@ export const workoutSession = session.createMachine({
         sendTo('orientation', { type: 'lock', orientation: 'portrait' }),
         // Without a video output the camcorder never films, so nothing is left to wait for.
         assign({ final: ({ context }) => context.video === undefined }),
-        ({ context: { steps, results, onFinished } }) =>
-          onFinished?.(shareDone(steps, results), setAmounts(steps, results)),
       ],
       on: {
         shareTraces: {

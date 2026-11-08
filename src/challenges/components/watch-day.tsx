@@ -116,16 +116,21 @@ function Frame({
         <Text className="absolute left-3 top-3 font-mono text-xs tracking-widest text-muted">
           {`SET ${n}`}
         </Text>
-        {/* Material's filled icon button: it centres the symbol in its disc. 48dp target, 36dp disc. */}
-        <IconButton
-          icon="play_arrow"
-          label={`Play set ${n}`}
-          size={18}
-          fill={colors.ground}
-          diameter={36}
-          onPress={onPress}
+        {/* Material's filled icon button: it centres the symbol in its disc. 48dp target, 36dp disc.
+            Hidden from TalkBack: the card is the same button, with the full label. */}
+        <View
+          importantForAccessibility="no-hide-descendants"
           style={{ position: 'absolute', right: 6, bottom: 6 }}
-        />
+        >
+          <IconButton
+            icon="play_arrow"
+            label={`Play set ${n}`}
+            size={18}
+            fill={colors.ground}
+            diameter={36}
+            onPress={onPress}
+          />
+        </View>
       </View>
       <View className="gap-1 px-1">
         <Text numberOfLines={1} className="font-sans text-base text-chalk">

@@ -38,17 +38,22 @@ export function SessionPlan({
     const got = day?.done[0] ?? 0;
     const share = setShare(single.goal, got);
     const labels = numeralLabels(single, got, days);
+    const numeral = got === 0 ? amount(single.goal) : String(Math.floor(got));
     return (
       <View className="gap-5">
         {single.move && <Move row={single} />}
         {/* Clipped so the numeral rises out of its baseline, like the podium steps. */}
-        <View className="flex-row items-end justify-between overflow-hidden">
+        <View
+          accessible
+          accessibilityLabel={`${numeral} ${labels.join(' ')}`.toLowerCase()}
+          className="flex-row items-end justify-between overflow-hidden"
+        >
           <Animated.View key={got} entering={FadeInDown.duration(500)}>
             <Text
               className="-ml-1.5 font-sans text-9xl font-extralight leading-none tracking-tighter"
               style={{ color: share >= 1 ? colors.accent : colors.chalk }}
             >
-              {got === 0 ? amount(single.goal) : Math.floor(got)}
+              {numeral}
             </Text>
           </Animated.View>
           <View className="items-end gap-1 pb-4">

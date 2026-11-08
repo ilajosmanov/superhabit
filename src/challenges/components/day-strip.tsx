@@ -36,7 +36,11 @@ export function DayStrip({
     activeOffsetX: [-8, 8],
     failOffsetY: [-12, 12],
     // On touch down, so a tap picks its day without waiting for a drag.
-    onBegin: (e) => pick(e.x),
+    onBegin: (e) => {
+      // A new touch starts from the page's day: it may have moved on (midnight) since the last pick.
+      last.current = selected;
+      pick(e.x);
+    },
     onUpdate: (e) => pick(e.x),
   });
 
@@ -62,9 +66,10 @@ export function DayStrip({
           accessibilityLabel="Days of this challenge"
           accessibilityValue={{ text: `${label}, ${word}` }}
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-          onAccessibilityAction={({ nativeEvent }) =>
-            select(last.current + (nativeEvent.actionName === 'increment' ? 1 : -1))
-          }
+          onAccessibilityAction={({ nativeEvent }) => {
+            last.current = selected;
+            select(selected + (nativeEvent.actionName === 'increment' ? 1 : -1));
+          }}
           onLayout={({ nativeEvent }) => {
             width.current = nativeEvent.layout.width;
           }}

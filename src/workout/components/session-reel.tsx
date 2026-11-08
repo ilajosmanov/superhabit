@@ -66,11 +66,16 @@ function useReel(clips: readonly Clip[], start: Spot) {
   const progress = useSharedValue(0);
   // How far into a file to start once it loads: a jump lands before its duration is known.
   const into = useRef(0);
+  // A jumped-to file is loading: `currentTime` and `duration` still belong to the old one.
+  const loading = useRef(false);
   const share = (at: Spot, along: number) => (at.part + along) / clips[at.clip].takes.length;
 
   // The waiting player already holds the next file: show it, and load the one after into the other.
   const advance = () => {
     const next = after(clips, spot);
+    // A jump still loading is left behind: its seek must not land on the next file.
+    loading.current = false;
+    into.current = 0;
     waiting.play();
     shown.pause();
     progress.set(share(next, 0));
@@ -79,13 +84,16 @@ function useReel(clips: readonly Clip[], start: Spot) {
   };
   const go = (to: Spot, along = 0) => {
     if (same(to, spot)) {
+      // A scrub on while the file loads moves where it starts, so it resumes where the finger stopped.
+      if (loading.current) into.current = along;
       // seekBy, not assigning currentTime: React Compiler forbids mutating the hook's value.
-      if (shown.duration > 0) shown.seekBy(along * shown.duration - shown.currentTime);
+      else if (shown.duration > 0) shown.seekBy(along * shown.duration - shown.currentTime);
     } else if (along === 0 && same(to, after(clips, spot))) {
       advance();
       return;
     } else {
       into.current = along;
+      loading.current = true;
       setState({ spot: to, front });
       void shown.replaceAsync(uri(to));
       shown.play();
@@ -101,6 +109,7 @@ function useReel(clips: readonly Clip[], start: Spot) {
     (i: number) =>
     ({ duration }: { duration: number }) => {
       if (i !== front) return;
+      loading.current = false;
       if (into.current > 0) shown.seekBy(into.current * duration - shown.currentTime);
       into.current = 0;
     };
@@ -205,12 +214,8 @@ function Loop({
 }) {
   const { players, front, spot } = useReel(clips, start);
   return (
-    <Pressable
-      onPress={() => onWatch(spot)}
-      accessibilityRole="button"
-      accessibilityLabel="Watch the session full screen"
-      className={className}
-    >
+    // Tap anywhere for sight; TalkBack gets the button below and still reads the text over the video.
+    <Pressable onPress={() => onWatch(spot)} accessible={false} className={className}>
       <View className="absolute inset-0 opacity-75" pointerEvents="none">
         <Screens players={players} front={front} fit="cover" />
       </View>
@@ -305,6 +310,7 @@ function SessionViewer({
             <Pressable
               accessibilityRole="adjustable"
               accessibilityLabel="Sets of this session"
+              accessibilityValue={{ text: `set ${spot.clip + 1} of ${clips.length} filmed` }}
               accessibilityHint="Tap the right side for the next set, the left for the one before"
               accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
               onAccessibilityAction={({ nativeEvent }) =>
@@ -399,15 +405,14 @@ function SetBar({
   });
   return (
     <GestureDetector gesture={pan}>
+      // Touch only: the video above is the same control for TalkBack, with its actions. 48dp to
+      grab.
       <View
-        accessible
-        accessibilityRole="adjustable"
-        accessibilityLabel="Sets of this session"
-        accessibilityValue={{ text: `set ${now + 1} of ${clips.length} filmed` }}
+        importantForAccessibility="no-hide-descendants"
         onLayout={({ nativeEvent }) => {
           width.current = nativeEvent.layout.width;
         }}
-        className="h-7 flex-row items-center gap-0.75"
+        className="h-12 flex-row items-center gap-0.75"
       >
         {clips.map((clip, i) => (
           // Clips don't reorder.

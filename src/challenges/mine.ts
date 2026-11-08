@@ -12,12 +12,13 @@ const store = fileStore<readonly Saved[]>('challenges', { empty: [], parse, seri
 const runOf = (entry: Saved, day = today()) =>
   runOn(entry.challenge, entry.startedOn, entry.progress, day);
 
-/** A route id's challenge: yours first (an edited suggestion keeps its id), then ours. `run` is today's. */
+/** A route id's challenge: yours first (an edited suggestion keeps its id), then ours, with its run on `day`. */
 export function useChallenge(
   id: string,
+  day = today(),
 ): { challenge: Challenge; saved?: Saved; run: Run | null } | null {
   const mine = store.use().find((entry) => entry.id === id);
-  if (mine) return { challenge: mine.challenge, saved: mine, run: runOf(mine) };
+  if (mine) return { challenge: mine.challenge, saved: mine, run: runOf(mine, day) };
   const ours = CHALLENGES.get(id);
   return ours ? { challenge: ours, run: null } : null;
 }

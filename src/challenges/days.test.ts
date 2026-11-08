@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { dayLabel, dayWord, runOn, today } from './days';
+import { dayLabel, dayWord, percent, runOn, setsOn, today } from './days';
 
 describe('runOn', () => {
   // Each listed day fully done.
@@ -88,4 +88,24 @@ it('says each day of a run in a word', () => {
     'IN 1 DAY',
     'IN 3 DAYS',
   ]);
+});
+
+it('says a share as a whole percent, rounded down but not by float error', () => {
+  expect([0.57, 0.29, 0.999, 1].map(percent)).toEqual(['57%', '29%', '99%', '100%']);
+});
+
+describe('setsOn', () => {
+  const run = { day: 3, days: 14, from: '2026-11-01', progress: [0.5, 0, 1] };
+  it('gives the kept sets of a tried day, and nothing done on a day with no try', () => {
+    const kept = { '2026-11-01': [5, 0], '2026-11-03': [10, 30] };
+    expect(setsOn(run, kept, 0, 2)).toEqual([5, 0]);
+    expect(setsOn(run, kept, 1, 2)).toEqual([0, 0]);
+    expect(setsOn(run, kept, 2, 2)).toEqual([10, 30]);
+  });
+  it('knows nothing of a day ahead, a day tried before sets were kept, or sets an edit changed', () => {
+    // The phone's clock set back can leave sets on a day still ahead.
+    expect(setsOn(run, { '2026-11-04': [5, 0] }, 3, 2)).toBeUndefined();
+    expect(setsOn(run, {}, 0, 2)).toBeUndefined();
+    expect(setsOn(run, { '2026-11-01': [5, 0, 0] }, 0, 2)).toBeUndefined();
+  });
 });

@@ -6,7 +6,7 @@ import { HowItCounts } from './how-it-counts';
 import { SessionPlan } from './session-plan';
 import { WatchDay } from './watch-day';
 import { detail, plan } from '@/challenges/challenges';
-import { addDays, doneToday, percent, type Run } from '@/challenges/days';
+import { doneToday, percent, setsOn, type Run } from '@/challenges/days';
 import type { Saved } from '@/challenges/saved';
 import { setShare } from '@/workout/results';
 
@@ -23,11 +23,8 @@ export function JoinedChallenge({ saved, run }: { saved: Saved; run: Run }) {
   const session = plan(challenge);
   const { sets } = detail(challenge);
 
-  const share = run.progress[selected] ?? 0;
-  const kept = saved.sets[addDays(run.from, selected)];
-  // A day with no try got nothing from any set. One tried before sets were kept, or before an edit
-  // changed them, has only its share: the strip shows it and the rows show the plan alone.
-  const done = share === 0 ? sets.map(() => 0) : kept?.length === sets.length ? kept : undefined;
+  // Unknown for a day ahead or one with only its share: the rows show the plan alone.
+  const done = setsOn(run, saved.sets, selected, sets.length);
   const next =
     selected === today && done ? done.findIndex((n, i) => setShare(sets[i].goal, n) < 1) : -1;
 
