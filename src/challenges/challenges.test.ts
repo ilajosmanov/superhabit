@@ -19,23 +19,16 @@ const circuit = challenge([
 
 it('describes every shipped challenge in one sentence', () => {
   expect([...CHALLENGES].map(([id, entry]) => [id, summary(entry)])).toEqual([
-    ['pushup-fifty', '50 push-ups'],
-    ['squat-hundred', '100 squats'],
-    ['plank-minute', 'Plank 60 s'],
-    ['situp-thirty', '30 sit-ups'],
-    ['lunge-twenty', '20 lunges'],
-    ['bridge-thirty', '30 glute bridges'],
-    ['jacks-fifty', '50 jumping jacks'],
     [
       'floor-circuit',
-      '3 rounds: 10 push-ups, then 15 sit-ups, then 15 glute bridges, then plank 30 s',
+      '2 rounds: 3 push-ups, then 3 sit-ups, then 3 glute bridges, then plank 10 s',
     ],
-    ['standing-circuit', '5 rounds: 15 squats, then 20 jumping jacks'],
+    ['standing-circuit', '2 rounds: 3 squats, then 5 jumping jacks'],
     [
       'floor-ladder',
-      '3 push-ups, then 4 sit-ups, then 6 push-ups, then 8 sit-ups, then 9 push-ups, then 12 sit-ups, then 6 push-ups, then 8 sit-ups, then 3 push-ups, then 4 sit-ups',
+      '1 push-ups, then 1 sit-ups, then 2 push-ups, then 2 sit-ups, then 1 push-ups, then 1 sit-ups',
     ],
-    ['five-ten-fifteen', '5 rounds: 10 push-ups, then 5 rounds: 15 squats'],
+    ['five-ten-fifteen', '2 rounds: 3 push-ups, then 2 rounds: 3 squats'],
     ['pushup', 'Push-ups, as many as you can'],
     ['squat', 'Squats, as many as you can'],
     ['plank', 'Plank, as long as you can'],

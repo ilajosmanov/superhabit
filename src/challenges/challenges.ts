@@ -25,26 +25,16 @@ const daily = (name: string, days: number, exercise: ExerciseId, goal: Goal): Ch
   session: [{ steps: [{ exercise, goal }], rounds: 1 }],
 });
 const rest = (n: number) => ({ exercise: 'rest', goal: seconds(n) }) as const;
-/** A ladder rung: 3n push-ups, 4n sit-ups, then whatever follows (a rest, except on the last rung). */
+/** A ladder rung: n push-ups, n sit-ups, then whatever follows (a rest, except on the last rung). */
 const rung = (n: number, ...then: Step[]): Challenge['session'][number] => ({
-  steps: [
-    { exercise: 'pushup', goal: reps(3 * n) },
-    { exercise: 'situp', goal: reps(4 * n) },
-    ...then,
-  ],
+  steps: [{ exercise: 'pushup', goal: reps(n) }, { exercise: 'situp', goal: reps(n) }, ...then],
   rounds: 1,
 });
 
-/** Ours, joined as-is: daily basics first, then circuits. Route id -> challenge, in catalog order. */
+// shortcut: testing goals, a minute or two each; the real ones (and the daily basics) are at git tag
+// `real-goals`. Put them back before pilot users get the app.
+/** Ours, joined as-is: circuits only. Route id -> challenge, in catalog order. */
 const suggested: [string, Challenge][] = [
-  ['pushup-fifty', daily('Push-up fifty', 21, 'pushup', reps(50))],
-  ['squat-hundred', daily('Squat hundred', 21, 'squat', reps(100))],
-  ['plank-minute', daily('Plank minute', 21, 'plank', seconds(60))],
-  ['situp-thirty', daily('Sit-up thirty', 21, 'situp', reps(30))],
-  // Each leg's lunge counts, so 10 a leg.
-  ['lunge-twenty', daily('Lunge twenty', 21, 'lunge', reps(20))],
-  ['bridge-thirty', daily('Bridge thirty', 21, 'glute-bridge', reps(30))],
-  ['jacks-fifty', daily('Jacks fifty', 14, 'jumping-jack', reps(50))],
   // Circuits keep the phone in one spot, or move it once.
   [
     'floor-circuit',
@@ -55,13 +45,13 @@ const suggested: [string, Challenge][] = [
       session: [
         {
           steps: [
-            { exercise: 'pushup', goal: reps(10) },
-            { exercise: 'situp', goal: reps(15) },
-            { exercise: 'glute-bridge', goal: reps(15) },
-            { exercise: 'plank', goal: seconds(30) },
-            rest(60),
+            { exercise: 'pushup', goal: reps(3) },
+            { exercise: 'situp', goal: reps(3) },
+            { exercise: 'glute-bridge', goal: reps(3) },
+            { exercise: 'plank', goal: seconds(10) },
+            rest(10),
           ],
-          rounds: 3,
+          rounds: 2,
         },
       ],
     },
@@ -75,11 +65,11 @@ const suggested: [string, Challenge][] = [
       session: [
         {
           steps: [
-            { exercise: 'squat', goal: reps(15) },
-            { exercise: 'jumping-jack', goal: reps(20) },
-            rest(30),
+            { exercise: 'squat', goal: reps(3) },
+            { exercise: 'jumping-jack', goal: reps(5) },
+            rest(10),
           ],
-          rounds: 5,
+          rounds: 2,
         },
       ],
     },
@@ -90,14 +80,8 @@ const suggested: [string, Challenge][] = [
       name: 'Floor ladder',
       days: 14,
       restartOnMiss: false,
-      // Climbs to 9 push-ups and 12 sit-ups and back down.
-      session: [
-        rung(1, rest(30)),
-        rung(2, rest(30)),
-        rung(3, rest(30)),
-        rung(2, rest(30)),
-        rung(1),
-      ],
+      // Climbs to 2 push-ups and 2 sit-ups and back down.
+      session: [rung(1, rest(10)), rung(2, rest(10)), rung(1)],
     },
   ],
   // Cindy's push-ups and squats without the bar or the clock; the phone moves once, between blocks.
@@ -108,8 +92,8 @@ const suggested: [string, Challenge][] = [
       days: 14,
       restartOnMiss: false,
       session: [
-        { steps: [{ exercise: 'pushup', goal: reps(10) }, rest(30)], rounds: 5 },
-        { steps: [{ exercise: 'squat', goal: reps(15) }, rest(30)], rounds: 5 },
+        { steps: [{ exercise: 'pushup', goal: reps(3) }, rest(10)], rounds: 2 },
+        { steps: [{ exercise: 'squat', goal: reps(3) }, rest(10)], rounds: 2 },
       ],
     },
   ],
