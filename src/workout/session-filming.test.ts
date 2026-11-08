@@ -8,6 +8,7 @@ import {
   challenge,
   clock,
   disk,
+  files,
   finalizer,
   flush,
   modules,
@@ -32,7 +33,7 @@ const { sessionView } = await import('./session-view');
 afterEach(reset);
 
 describe('workoutSession filming', () => {
-  it('films each set from the start position and keeps only the best rep file', async () => {
+  it('films each set from the start position and keeps every file on the phone', async () => {
     const actor = createActor(workoutSession, { input: { challenge, video } }).start();
     const view = () => sessionView(actor.getSnapshot());
     // `best` must only land once every file is final.
@@ -68,11 +69,31 @@ describe('workoutSession filming', () => {
     expect(squatSet.attempts[0].depth).toBeLessThan(pushupSet.attempts[0].depth);
     expect(view().best).toMatchObject({ ...squatClip, exercise: 'squat', name: 'squats', rep: 1 });
     expect(finalWhenBest).toBe(true);
-    expect([...disk].map((name) => `file:///cache/reps/${name}`)).toEqual([squatClip?.uri]);
     expect(view().best).toBe(view().best); // stable for shallowEqual
+    expect(disk.size).toBe(2); // the Done screen's switch decides once it closes
     actor.stop();
     await flush();
-    expect(disk.size).toBe(1); // the best file outlives the screen, for sharing
+    expect(disk.size).toBe(0);
+    expect([...files].filter((path) => path.startsWith('document/videos/'))).toHaveLength(2);
+  });
+
+  it('keeps only the best rep file when the Done screen switch is off', async () => {
+    const actor = createActor(workoutSession, { input: { challenge, video } }).start();
+    play(body({}));
+    await flush();
+    play(body({ thigh: 70, shin: 25 }), body({}));
+    const squatClip = sessionView(actor.getSnapshot()).results[0].attempts[0].clip;
+    actor.send({ type: 'next' });
+    play(plank({ elbow: 170 }));
+    await flush();
+    play(plank({ elbow: 95 }), plank({ elbow: 170 }));
+    await flush();
+    actor.send({ type: 'shareTraces', share: false });
+    actor.stop();
+    await flush();
+    // The best file outlives the screen, for sharing; nothing is kept in documents.
+    expect([...disk].map((name) => `file:///cache/reps/${name}`)).toEqual([squatClip?.uri]);
+    expect(files.size).toBe(0);
 
     // The next session deletes it before filming.
     createActor(workoutSession, { input: { challenge, video } }).start().stop();
@@ -135,7 +156,7 @@ describe('workoutSession filming', () => {
     warn.mockRestore();
   });
 
-  it('cuts the take on pause, films again once back in position and deletes all files when left early', async () => {
+  it('cuts the take on pause, films again once back in position and keeps all files when left early', async () => {
     const actor = createActor(workoutSession, { input: { challenge: squatTest, video } }).start();
     const view = () => sessionView(actor.getSnapshot());
     play(body({}));
@@ -157,6 +178,7 @@ describe('workoutSession filming', () => {
     expect(takes[1].stopped).toBe(true);
     await flush();
     expect(disk.size).toBe(0);
+    expect(files.size).toBe(2);
   });
 
   it('starts a take only once the previous file is final, even on a quick pause and resume', async () => {
@@ -172,15 +194,16 @@ describe('workoutSession filming', () => {
     actor.stop();
   });
 
-  it('deletes a file that appears after leaving', async () => {
+  it('keeps a file that appears after leaving', async () => {
     const actor = createActor(workoutSession, { input: { challenge: squatTest, video } }).start();
     play(body({}));
     for (let i = 0; i < 50 && !takes.length; i++) await Promise.resolve(); // starting, no file yet
     actor.stop();
     expect(disk.size).toBe(0);
-    await flush(); // the file appears, is finalized, then deleted
+    await flush(); // the file appears, is finalized, then kept
     expect(takes).toMatchObject([{ final: true }]);
     expect(disk.size).toBe(0);
+    expect(files.size).toBe(1);
   });
 
   it('cleans up only its own files when it finalizes after the next session started', async () => {

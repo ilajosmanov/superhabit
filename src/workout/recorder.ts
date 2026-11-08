@@ -19,7 +19,7 @@ const NOMINAL_FPS = 15;
 const MAX_FRAMES = NOMINAL_FPS * 600;
 
 // Each session's traces wait in their own cache folder. When the session stops, they move to
-// documents/traces if you shared them and are deleted otherwise (Close, Back, leaving mid-set).
+// documents/traces unless the Done screen's switch was turned off, which deletes them.
 // They hold joint positions only, never video.
 const pending = () => new Directory(Paths.cache, 'traces');
 /** Session folders still writing or settling; a new session's sweep leaves them alone. */
@@ -73,7 +73,8 @@ export const recorder = fromCallback<RecorderEvent, boolean>(({ input: on, recei
   live.add(id);
   const folder = new Directory(pending(), id);
   const writes: Promise<void>[] = [];
-  let shared = false;
+  // Kept unless the Done screen's switch turns it off; see ChallengeDone.
+  let shared = true;
   let frames: TraceFrame[] = [];
   let t0: number | null = null;
   const drop = () => {

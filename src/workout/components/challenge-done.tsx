@@ -70,8 +70,9 @@ export function ChallengeDone({
     ? `${amount === 1 ? 'second' : 'seconds'} held`
     : `clean ${amount === 1 ? 'rep' : 'reps'}`;
   const { best } = view;
-  // Off until you turn it on: sharing is your choice, never a default.
-  const [share, setShare] = useState(false);
+  // shortcut: on by default while we collect test sets, and nothing is uploaded yet; once a backend
+  // uploads what is kept, start it off again: sharing is your choice, never a default.
+  const [share, setShare] = useState(true);
   const minutes = Math.floor(view.elapsedS / 60);
   const seconds = view.elapsedS % 60;
 
@@ -119,11 +120,11 @@ export function ChallengeDone({
           ))}
         </View>
         <SwitchRow
-          label="Share movement data (no video)"
+          label="Keep sets on this phone"
           note={
             share
-              ? 'Thank you. Your joint positions, as plain numbers, help us count reps better for everyone. No video and no face leave your phone.'
-              : 'Only joint positions as plain numbers: no video, no face. It is how we teach the camera to count better.'
+              ? 'Your joint positions and the videos of your sets stay on this phone, to teach the camera to count better. Nothing is uploaded.'
+              : 'Joint positions and videos of this session are deleted when you close it.'
           }
           value={share}
           onChange={(on) => {
