@@ -29,9 +29,17 @@ export default function ChallengeDetailScreen() {
   const { challenge, saved, run } = found;
   const { total, countsReps, tracking, phone, first, sets } = detail(challenge);
   const finite = Number.isFinite(total);
-  const done = !!run && doneToday(run);
+  // The latest day of this run with a try: today's, or an earlier one's until today has one.
+  const last = run ? run.progress.findLastIndex((share) => share > 0) : -1;
+  const share = run && last >= 0 ? run.progress[last] : 0;
+  const tried =
+    !run || last < 0
+      ? ''
+      : doneToday(run)
+        ? ' · DONE TODAY'
+        : ` · ${last === run.day - 1 ? 'TODAY' : `DAY ${last + 1}`} ${Math.round(share * 100)}%`;
   const status = run
-    ? `DAY ${run.day} OF ${run.days}${done ? ' · DONE TODAY' : ''}`
+    ? `DAY ${run.day} OF ${run.days}${tried}`
     : `${challenge.days} DAYS · DAY 1 IS TODAY`;
 
   return (
@@ -89,7 +97,7 @@ export default function ChallengeDetailScreen() {
           </Text>
         </View>
 
-        <SetBars sets={sets} finite={finite} countsReps={countsReps} done={done} />
+        <SetBars sets={sets} finite={finite} countsReps={countsReps} share={share} />
 
         <Text className="font-sans text-sm text-muted">{tracking}</Text>
       </View>
