@@ -52,8 +52,8 @@ const LIFT_MIN = 0.35;
 // shortcut: these shape gates also credit other movements (6/10 push-up, 0/10 squat clips ≥10s);
 // revisit movement rejection after reviewing device traces, before relying on this for accuracy.
 
-export function measurePlank(pose: Pose): PlankSample | null {
-  const side = bestSide(pose, (j) => Object.values(j), MIN_VISIBILITY);
+export function measurePlank(pose: Pose, only?: Side): PlankSample | null {
+  const side = bestSide(pose, (j) => Object.values(j), MIN_VISIBILITY, only);
   if (!side) return null;
   const { shoulder: s, elbow: e, wrist: w, hip: h, knee: k, ankle: a } = SIDE[side];
   const world = pose.worldLandmarks;
@@ -79,7 +79,8 @@ export function measurePlank(pose: Pose): PlankSample | null {
 export const plankPosition: Position<PlankSample> = {
   ready: 'Get into a plank',
   lost: 'Back into your plank',
-  measure: measurePlank,
+  parts: ['head', 'hands', 'hips', 'feet'],
+  read: measurePlank,
   setup: (m) => {
     if (m.reach < REACH_MIN || m.reach > REACH_MAX) return 'Get into a plank';
     // Knees down is a kneeling plank: another position, not a plank with poor form.

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { cycle, type CycleConfig } from './cycle';
+import { engine, type CycleConfig } from './cycle';
 import type { Counter, Progress, Rep } from './progress';
 
 type Attempt = { samples: number };
 const counter = (config: Partial<CycleConfig<number, Attempt, Rep>> = {}) =>
-  cycle<number, Attempt, Rep>({
+  engine<number, Attempt, Rep>({
     signal: (m) => m,
     up: 160,
     down: 100,
@@ -26,7 +26,7 @@ function play(ex: ReturnType<typeof counter>, values: number[], start = ex.initi
   return values.reduce((s, value, i) => hold(ex, s, value, i * 200 * 66), start);
 }
 
-describe('cycle', () => {
+describe('engine', () => {
   it('counts a complete falling-signal cycle and leaves the input state untouched', () => {
     const ex = counter();
     const before = structuredClone(ex.initial);

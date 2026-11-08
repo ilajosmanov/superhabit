@@ -3,13 +3,16 @@
 How counting works, independent of any exercise. A kind takes one sample per frame and returns the
 next state. It is pure: the same state and sample always give the same result.
 
-| Kind                | Counts                                                         | Example           |
-| ------------------- | -------------------------------------------------------------- | ----------------- |
-| `cycle.ts`          | one signal going down and back up is one rep                   | squat             |
-| `sided.ts`          | a cycle on each side, counted together                         | lunge             |
-| `position-cycle.ts` | a cycle gated by a position: setup at the top, form throughout | push-up           |
-| `hold.ts`           | time spent in a position; poor form pauses, leaving it breaks  | plank             |
-| `sequence.ts`       | named poses in order, such as standing → plank → standing      | burpee (none yet) |
+| Kind          | Counts                                                                            | Example           |
+| ------------- | --------------------------------------------------------------------------------- | ----------------- |
+| `cycle.ts`    | a measure going down and back up in a position: setup at the top, form throughout | push-up           |
+| `hold.ts`     | time spent in a position; poor form pauses, leaving it breaks                     | plank             |
+| `sided.ts`    | a cycle on each side, counted together                                            | lunge             |
+| `sequence.ts` | named poses in order, such as standing → plank → standing                         | burpee (none yet) |
+
+`cycle(position, measure, thresholds)` and `hold(position)` return a `Detector`: the counter plus
+how it reads a pose, the start heading, the parts to frame, the gauge and the stats line. The
+exercises not rebuilt yet, and `sided`, still call the cycle's `engine` with their own callbacks.
 
 `progress.ts` is what every kind reports to the workout runner: reps, failed reps, held time,
 phase and the last attempt. The runner never knows which exercise is running.

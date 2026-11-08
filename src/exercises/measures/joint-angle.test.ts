@@ -18,9 +18,11 @@ describe('jointAngle', () => {
   });
 
   it('reads the knee: 180 standing straight, 180 − thigh − shin when bent', () => {
-    expect(knee.read(body({}), 'right')?.value).toBeCloseTo(180);
+    expect(knee.read(body({}), 'right')).toEqual({
+      value: expect.closeTo(180),
+      joints: [Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE],
+    });
     expect(knee.read(body({ thigh: 70, shin: 25 }), 'right')?.value).toBeCloseTo(85);
-    expect(knee.joints('right')).toEqual([Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE]);
   });
 
   it('is null when a joint of that side is hidden or out of frame', () => {

@@ -1,6 +1,6 @@
 import { SIDE } from 'superhabit-pose/joints';
 
-import { fmtMs, SETUP, type Exercise } from './exercise';
+import { exercise, SETUP } from './exercise';
 import {
   angle,
   bestSide,
@@ -10,7 +10,8 @@ import {
   type Joints,
   type Pose,
 } from '@/exercises/body/geometry';
-import { hold, type HoldState } from '@/exercises/kinds/hold';
+import { hold } from '@/exercises/kinds/hold';
+import type { Position } from '@/exercises/positions/position';
 
 /** Angles on the better-seen side, in degrees. */
 export type WallSitSample = {
@@ -51,7 +52,12 @@ export function measureWallSit(pose: Pose): WallSitSample | null {
   return Object.values(shape).every(Number.isFinite) ? { ...shape, joints } : null;
 }
 
-const wallSitHold = hold<WallSitSample>({
+// shortcut: a position inside its exercise until a second exercise needs it; move to positions/.
+const wallSitPosition: Position<WallSitSample> = {
+  ready: 'Sit back against the wall',
+  lost: 'Back into your wall sit',
+  parts: ['head', 'hips', 'feet'],
+  read: measureWallSit,
   // shortcut: every cue counts as leaving the position until this exercise is rebuilt on a position.
   form: () => null,
   setup: (m) => {
@@ -62,19 +68,11 @@ const wallSitHold = hold<WallSitSample>({
     if (m.knee < KNEE_MIN || m.hip < HIP_MIN) return 'Come up until your thighs are level';
     return null;
   },
-  lost: 'Back into your wall sit',
-});
+};
 
-export const wallSit: Exercise<HoldState, WallSitSample> = {
-  ...wallSitHold,
+export const wallSit = exercise(hold(wallSitPosition), {
   name: 'wall sit',
   placement: 'side-upright',
   ...SETUP['side-upright'],
   hint: 'The clock starts once your thighs are level and your back is on the wall.',
-  ready: 'Sit back against the wall',
-  parts: ['head', 'hips', 'feet'],
-  gauge: null,
-  measure: measureWallSit,
-  stats: ({ heldMs, noReps }) =>
-    `HELD ${fmtMs(heldMs)} · ${noReps} ${noReps === 1 ? 'BREAK' : 'BREAKS'}`,
-};
+});

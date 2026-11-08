@@ -12,7 +12,7 @@ import {
   type Joints,
   type Pose,
 } from '@/exercises/body/geometry';
-import { cycle, type CycleState } from '@/exercises/kinds/cycle';
+import { engine, type CycleState } from '@/exercises/kinds/cycle';
 import { fmtMs, SETUP, type Exercise } from './exercise';
 
 const MAX_ASYMMETRY = 35; // degrees between left and right knee
@@ -116,7 +116,7 @@ type Attempt = {
 /** Tracks the knee angle of the straighter leg. */
 export type SquatState = CycleState<Attempt, RepReport>;
 
-const squatCycle = cycle<SquatSample, Attempt, RepReport>({
+const squatCycle = engine<SquatSample, Attempt, RepReport>({
   signal: (m) => Math.max(...m.legs),
   up: SQUAT_UP,
   down: SQUAT_DOWN,

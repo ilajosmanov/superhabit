@@ -1,11 +1,17 @@
-// One signal, smoothed and held for two samples, cycling waiting -> up -> down -> up.
-import type { Counter, Progress, Rep } from './progress';
+// A position held while one measure goes down and back up: one rep. The position's setup is judged
+// at the top, where the body is at rest; its form on every frame of the rep.
+import { BODY_PARTS, type Joints, type Pose, type Side } from '@/exercises/body/geometry';
 import { smooth, type Smooth, type Tuning } from '@/exercises/body/smooth';
+import type { Measure } from '@/exercises/measures/measure';
+import type { Position } from '@/exercises/positions/position';
+import { fmtMs, type Counter, type Detector, type Progress, type Rep } from './progress';
 
 export type CycleConfig<M, A, R extends Rep> = {
   /** Null gates the signal, not form accumulation from an otherwise valid sample. */
   signal(m: M): number | null;
   smoothing?: Tuning;
+  /** Every value the signal can take; others are dropped. Degrees by default. */
+  range?: readonly [number, number];
   up: number;
   down: number;
   shallow: number;
@@ -48,9 +54,14 @@ function timing(a: Timing, nowMs: number) {
   return { downMs, upMs };
 }
 
-export function cycle<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<CycleState<A, R>, M> {
-  // Signals are degrees, 0..180; unit signals (0..1) fit inside it.
-  const [lo, hi] = [0, 180];
+/**
+ * One signal, smoothed and held for two samples, cycling waiting -> up -> down -> up.
+ * shortcut: exported for the exercises not yet rebuilt on a position, and for sided; make it
+ * private to this file once they all use `cycle`.
+ */
+export function engine<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<CycleState<A, R>, M> {
+  // Unit signals (0..1) fit inside the default degrees.
+  const [lo, hi] = c.range ?? [0, 180];
   // Identity for falling signals preserves the angle counters' operation order exactly.
   const mirror = (x: number) => (c.down > c.up ? lo + hi - x : x);
   const up = mirror(c.up);
@@ -174,5 +185,74 @@ export function cycle<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<Cyc
       signal: s.filter ? mirror(s.filter.x) : null,
       lowest: s.phase === 'waiting' || s.min >= hi ? null : mirror(s.min),
     }),
+  };
+}
+
+export type CycleOptions = {
+  /** The measure at or past this is the top: where a rep starts and ends. */
+  up: number;
+  /** Reached this on the way: deep enough to count. */
+  down: number;
+  /** Moved past this without reaching `down`: a failed rep. */
+  shallow: number;
+  /** A full rep faster than this is counted, with a cue to slow down. */
+  fastMs: number;
+  /** Said after a failed rep that was in position but not deep enough: 'Go lower'. */
+  deeper: string;
+};
+
+/** One frame: the position's reading and the measure on the same side. */
+export type CycleSample<P> = { at: P; value: number; joints: Joints };
+
+/** The first form cue of the attempt. */
+type Attempt = { cue: string | null };
+
+export type CycleReport = Rep & { depth: number; downMs: number | null; upMs: number | null };
+
+export function cycle<P extends { side: Side }>(
+  p: Position<P>,
+  m: Measure,
+  o: CycleOptions,
+): Detector<CycleState<Attempt, CycleReport>, CycleSample<P>> {
+  const placed = (s: CycleSample<P>) => p.setup(s.at) === null;
+  const good = (s: CycleSample<P>) => placed(s) && p.form(s.at) === null;
+  const counter = engine<CycleSample<P>, Attempt, CycleReport>({
+    signal: (s) => s.value,
+    range: m.range,
+    up: o.up,
+    down: o.down,
+    shallow: o.shallow,
+    start: good,
+    // The bottom counts only with good form; setup is not judged mid-movement.
+    turn: (s) => p.form(s.at) === null,
+    // A shallow dip is a failed rep only while still in the position.
+    tried: (_a, s) => placed(s),
+    clean: (a, s) => a.cue === null && placed(s),
+    fresh: { cue: null },
+    add: (a, s) => (a.cue === null ? { cue: p.form(s.at) } : a),
+    report: (a, s, { counted, depth, downMs, upMs }) => {
+      const fast = downMs !== null && upMs !== null && downMs + upMs < o.fastMs;
+      const cue = !counted && (p.setup(s.at) ?? a.cue ?? o.deeper);
+      const cues = [cue, fast && 'Slow down'].filter((x): x is string => !!x);
+      return { counted, cues, depth, downMs, upMs };
+    },
+  });
+  const on = (pose: Pose, at: P | null) => {
+    const reading = at && m.read(pose, at.side);
+    return at && reading ? { at, ...reading } : null;
+  };
+  return {
+    ...counter,
+    // The position picks its better-seen side at its own visibility bar; when the measure can't be
+    // read there (the elbow needs a higher one), the other side may still have both.
+    measure: (pose) => {
+      const at = p.read(pose);
+      return at && (on(pose, at) ?? on(pose, p.read(pose, at.side === 'left' ? 'right' : 'left')));
+    },
+    ready: p.ready,
+    parts: BODY_PARTS.filter((part) => p.parts.includes(part) || m.parts.includes(part)),
+    gauge: { down: o.down, up: o.up },
+    stats: ({ lastRep: r }) =>
+      r && `${Math.round(r.depth)}° · ${fmtMs(r.downMs)}↓ ${fmtMs(r.upMs)}↑`,
   };
 }

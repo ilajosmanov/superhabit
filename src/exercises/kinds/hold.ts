@@ -1,8 +1,5 @@
-import { fit as fitOf, type Position } from '@/exercises/positions/position';
-import type { Counter, Progress } from './progress';
-
-/** A hold needs only the position's judgement and its tracking-loss cue. */
-export type HoldConfig<M> = Pick<Position<M>, 'setup' | 'form' | 'lost'>;
+import type { Position } from '@/exercises/positions/position';
+import { fmtMs, type Detector, type Progress } from './progress';
 
 const ENTER_MS = 300;
 const GRACE_MS = 800;
@@ -22,11 +19,22 @@ export type HoldState = Progress & {
   cue: string | null;
 };
 
+/** How one frame fits the position. Null: in it, with good form. `out`: setup failed. */
+type Fit = { cue: string; out: boolean } | null;
+
+/** Setup first: a body out of the position has no form to judge. */
+function fit<P>(p: Position<P>, sample: P): Fit {
+  const setup = p.setup(sample);
+  if (setup) return { cue: setup, out: true };
+  const form = p.form(sample);
+  return form ? { cue: form, out: false } : null;
+}
+
 /**
  * A hold clock driven entirely by detector timestamps, including entry and forgiven gaps.
  * Leaving the position breaks the hold; poor form inside it only pauses the clock and says the cue.
  */
-export function hold<M>(c: HoldConfig<M>): Counter<HoldState, M> {
+export function hold<P>(p: Position<P>): Detector<HoldState, P> {
   const initial: HoldState = {
     reps: 0,
     noReps: 0,
@@ -59,16 +67,16 @@ export function hold<M>(c: HoldConfig<M>): Counter<HoldState, M> {
   /** A failed attempt for the runner: counted in noReps, its cue said once. */
   const miss = (cue: string) => ({ counted: false, cues: [cue], depth: null, upMs: null });
 
-  function step(s: HoldState, sample: M | null, nowMs: number): HoldState {
+  function step(s: HoldState, sample: P | null, nowMs: number): HoldState {
     if (s.lastAt !== null && nowMs <= s.lastAt) return s;
     // Entry also needs observed frames within the grace window.
     if (s.phase === 'waiting' && s.lastAt !== null && nowMs - s.lastAt > GRACE_MS) {
       s = { ...s, since: nowMs };
     }
-    const fit = sample === null ? null : fitOf(c, sample);
-    const inShape = sample !== null && fit === null;
-    const placed = sample !== null && (fit === null || !fit.out);
-    s = { ...s, lastAt: nowMs, cue: fit?.cue ?? s.cue };
+    const fits = sample === null ? null : fit(p, sample);
+    const inShape = sample !== null && fits === null;
+    const placed = sample !== null && (fits === null || !fits.out);
+    s = { ...s, lastAt: nowMs, cue: fits?.cue ?? s.cue };
 
     // Apply a break before accepting a good frame after a detector stall.
     if (s.phase === 'active' && s.lastPlaced !== null && nowMs - s.lastPlaced > GRACE_MS) {
@@ -77,7 +85,7 @@ export function hold<M>(c: HoldConfig<M>): Counter<HoldState, M> {
         phase: 'waiting',
         noReps: s.noReps + 1,
         broken: true,
-        lastRep: miss(s.cue ?? c.lost),
+        lastRep: miss(s.cue ?? p.lost),
         since: null,
         lastIn: null,
         lastPlaced: null,
@@ -87,7 +95,7 @@ export function hold<M>(c: HoldConfig<M>): Counter<HoldState, M> {
     }
     // Still in the position, but not in shape for longer than the grace: count the slip once.
     if (s.phase === 'active' && !s.slipped && s.lastIn !== null && nowMs - s.lastIn > GRACE_MS) {
-      s = { ...s, noReps: s.noReps + 1, slipped: true, lastRep: miss(s.cue ?? c.lost) };
+      s = { ...s, noReps: s.noReps + 1, slipped: true, lastRep: miss(s.cue ?? p.lost) };
     }
 
     if (inShape) {
@@ -130,5 +138,11 @@ export function hold<M>(c: HoldConfig<M>): Counter<HoldState, M> {
     step,
     reset,
     live: () => ({ signal: null, lowest: null }),
+    measure: (pose) => p.read(pose),
+    ready: p.ready,
+    parts: p.parts,
+    gauge: null,
+    stats: ({ heldMs, noReps }) =>
+      `HELD ${fmtMs(heldMs)} · ${noReps} ${noReps === 1 ? 'BREAK' : 'BREAKS'}`,
   };
 }

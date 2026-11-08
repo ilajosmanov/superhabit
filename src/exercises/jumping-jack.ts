@@ -1,6 +1,6 @@
 import { Joint, SIDE } from 'superhabit-pose/joints';
 
-import { cycle, type CycleState } from '@/exercises/kinds/cycle';
+import { engine, type CycleState } from '@/exercises/kinds/cycle';
 import { fmtMs, type Exercise } from './exercise';
 import { angle, distance, seen, STRAIGHT, type Joints, type Pose } from '@/exercises/body/geometry';
 
@@ -61,7 +61,7 @@ export type JumpingJackState = CycleState<Attempt, JumpingJackReport>;
 
 const closed = (m: JumpingJackSample) => m.arms <= JACK_CLOSED && m.spread <= JACK_CLOSED;
 
-const jackCycle = cycle<JumpingJackSample, Attempt, JumpingJackReport>({
+const jackCycle = engine<JumpingJackSample, Attempt, JumpingJackReport>({
   signal: (m) => m.signal,
   // Unit signals need a larger beta than degree signals; 0.8 follows quick cycles while
   // letting raw limbs finish closing. This preserves 6/11 traces with the closure check.

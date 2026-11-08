@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { hold, type HoldConfig, type HoldState } from './hold';
+import type { Position } from '@/exercises/positions/position';
+import { hold, type HoldState } from './hold';
 import type { Counter } from './progress';
 
-const counter = (config: Partial<HoldConfig<number>> = {}) =>
+const counter = (config: Partial<Position<number>> = {}) =>
   hold<number>({
+    ready: 'Get into position',
+    lost: 'Back into position',
+    parts: [],
+    read: () => null,
     setup: (m) => (m >= 0 ? null : 'Hips up'),
     form: () => null,
-    lost: 'Back into position',
     ...config,
   });
 

@@ -57,12 +57,13 @@ export type SideJoints = (typeof SIDE)[Side];
 
 /**
  * The side whose `pick`ed joints are all seen, preferring the higher lowest visibility (left on
- * a tie); null when neither side is complete. Side-on, the far limbs hide.
+ * a tie); null when neither side is complete. Side-on, the far limbs hide. `only` judges one side.
  */
 export function bestSide(
   pose: Pose,
   pick: (side: SideJoints) => readonly number[],
   minVisibility = MIN_VISIBILITY,
+  only?: Side,
 ): Side | null {
   const visibility = (side: Side) => {
     const joints = pick(SIDE[side]);
@@ -70,13 +71,15 @@ export function bestSide(
       ? Math.min(...joints.map((i) => pose.landmarks[i].visibility))
       : null;
   };
-  const left = visibility('left');
-  const right = visibility('right');
+  const left = only === 'right' ? null : visibility('left');
+  const right = only === 'left' ? null : visibility('right');
   if (right === null) return left === null ? null : 'left';
   return left === null || right > left ? 'right' : 'left';
 }
 
-export type BodyPart = 'head' | 'hands' | 'hips' | 'feet';
+/** In the order the framing checklist names them. */
+export const BODY_PARTS = ['head', 'hands', 'hips', 'feet'] as const;
+export type BodyPart = (typeof BODY_PARTS)[number];
 
 // Either side will do: side-on, the far limbs hide behind the body.
 const PART_JOINTS: Record<BodyPart, readonly number[]> = {

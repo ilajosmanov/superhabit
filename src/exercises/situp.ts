@@ -1,6 +1,6 @@
 import { SIDE } from 'superhabit-pose/joints';
 
-import { cycle, type CycleState } from '@/exercises/kinds/cycle';
+import { engine, type CycleState } from '@/exercises/kinds/cycle';
 import { fmtMs, SETUP, type Exercise } from './exercise';
 import {
   angle,
@@ -66,7 +66,7 @@ type SitupReport = {
 };
 export type SitupState = CycleState<Attempt, SitupReport>;
 
-const situpCycle = cycle<SitupSample, Attempt, SitupReport>({
+const situpCycle = engine<SitupSample, Attempt, SitupReport>({
   signal: (m) => m.hip,
   up: SITUP_UP,
   down: SITUP_DOWN,

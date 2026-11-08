@@ -1,6 +1,6 @@
 import { SIDE } from 'superhabit-pose/joints';
 
-import { fmtMs, SETUP, type Exercise } from './exercise';
+import { exercise, SETUP } from './exercise';
 import {
   angle,
   dot,
@@ -14,7 +14,8 @@ import {
   type Pose,
   type Vec,
 } from '@/exercises/body/geometry';
-import { hold, type HoldState } from '@/exercises/kinds/hold';
+import { hold } from '@/exercises/kinds/hold';
+import type { Position } from '@/exercises/positions/position';
 
 /** Shape of a side plank seen from the front, in degrees and shoulder heights. */
 export type SidePlankSample = {
@@ -81,7 +82,12 @@ export function measureSidePlank(pose: Pose): SidePlankSample | null {
   return Object.values(shape).every(Number.isFinite) ? { ...shape, joints } : null;
 }
 
-const sidePlankHold = hold<SidePlankSample>({
+// shortcut: a position inside its exercise until a second exercise needs it; move to positions/.
+const sidePlankPosition: Position<SidePlankSample> = {
+  ready: 'Lie on your side, on one forearm',
+  lost: 'Back into your side plank',
+  parts: ['head', 'hips', 'feet'],
+  read: measureSidePlank,
   // shortcut: every cue counts as leaving the position until this exercise is rebuilt on a position.
   form: () => null,
   setup: (m) => {
@@ -92,11 +98,9 @@ const sidePlankHold = hold<SidePlankSample>({
     if (m.body < BODY_MIN || m.hips < HIPS_MIN) return 'Lift your hips';
     return null;
   },
-  lost: 'Back into your side plank',
-});
+};
 
-export const sidePlank: Exercise<HoldState, SidePlankSample> = {
-  ...sidePlankHold,
+export const sidePlank = exercise(hold(sidePlankPosition), {
   name: 'side plank',
   // The floor spot, but you face the phone: the body line runs across the frame.
   placement: 'side-floor',
@@ -107,10 +111,4 @@ export const sidePlank: Exercise<HoldState, SidePlankSample> = {
     'Head to feet in frame',
   ],
   hint: 'Face the phone. The clock starts once your hips lift into a straight line.',
-  ready: 'Lie on your side, on one forearm',
-  parts: ['head', 'hips', 'feet'],
-  gauge: null,
-  measure: measureSidePlank,
-  stats: ({ heldMs, noReps }) =>
-    `HELD ${fmtMs(heldMs)} · ${noReps} ${noReps === 1 ? 'BREAK' : 'BREAKS'}`,
-};
+});

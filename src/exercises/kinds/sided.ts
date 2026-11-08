@@ -1,4 +1,4 @@
-import { cycle, type CycleConfig, type CycleState } from './cycle';
+import { engine, type CycleConfig, type CycleState } from './cycle';
 import type { Side } from '@/exercises/body/geometry';
 import type { Counter, Progress, Rep } from './progress';
 
@@ -15,8 +15,8 @@ export type SidedState<A, R extends Rep> = Progress & {
 
 /** Two independent cycles sharing an exercise's rules; every clean side rep counts. */
 export function sided<M, A, R extends Rep>(c: SidedConfig<M, A, R>): Counter<SidedState<A, R>, M> {
-  const left = cycle({ ...c, signal: (m: M) => c.signal(m, 'left') });
-  const right = cycle({ ...c, signal: (m: M) => c.signal(m, 'right') });
+  const left = engine({ ...c, signal: (m: M) => c.signal(m, 'left') });
+  const right = engine({ ...c, signal: (m: M) => c.signal(m, 'right') });
   type State = SidedState<A, R>;
   const initial: State = {
     reps: 0,

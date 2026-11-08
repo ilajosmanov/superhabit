@@ -1,15 +1,17 @@
-import type { Joints, Pose, Side } from '@/exercises/body/geometry';
+import type { BodyPart, Joints, Pose, Side } from '@/exercises/body/geometry';
 
 /** One frame's reading: the number a kind counts on, and the joints to draw it with. */
 export type Reading = { value: number; joints: Joints };
 
 /**
- * What moves in an exercise, read on one side. The exercise picks the side, because its position
- * needs joints seen too.
+ * What moves in an exercise, read on one side. The kind picks the side, because the position
+ * needs joints seen there too.
  */
 export type Measure = {
-  /** The joints it reads on a side, so the exercise can pick a side where all of them are seen. */
-  joints: (side: Side) => Joints;
+  /** Must be in frame, besides the position's parts. */
+  parts: readonly BodyPart[];
+  /** Every value it can read, low to high; the counter drops anything outside. */
+  range: readonly [number, number];
   /** Null when one of its joints is not seen or the value is not finite. Pure. */
   read: (pose: Pose, side: Side) => Reading | null;
 };

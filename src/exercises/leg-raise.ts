@@ -1,6 +1,6 @@
 import { SIDE } from 'superhabit-pose/joints';
 
-import { cycle, type CycleState } from '@/exercises/kinds/cycle';
+import { engine, type CycleState } from '@/exercises/kinds/cycle';
 import { fmtMs, SETUP, type Exercise } from './exercise';
 import { angle, bestSide, sub, tilt, type Joints, type Pose } from '@/exercises/body/geometry';
 
@@ -53,7 +53,7 @@ type LegRaiseReport = {
 export type LegRaiseState = CycleState<Attempt, LegRaiseReport>;
 
 const flat = (m: LegRaiseSample) => m.knee >= KNEES_MIN && m.torso <= TORSO_MAX;
-const legRaiseCycle = cycle<LegRaiseSample, Attempt, LegRaiseReport>({
+const legRaiseCycle = engine<LegRaiseSample, Attempt, LegRaiseReport>({
   signal: (m) => m.hip,
   up: RAISE_UP,
   down: RAISE_DOWN,

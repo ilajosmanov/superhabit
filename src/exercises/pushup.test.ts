@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
-import { pushup, type PushupState } from './pushup';
+import { pushup } from './pushup';
 import type { Pose } from '@/exercises/body/geometry';
 import { plank } from './__fixtures__/plank';
 import { scoreReps, traceFiles } from './__fixtures__/replay';
@@ -9,7 +9,7 @@ import { scoreReps, traceFiles } from './__fixtures__/replay';
 const FRAME = 66; // ms between detector results
 // [pose, fromMs, toMs]: hold a pose long enough for the smoothing filter to settle.
 const play = (spans: [Pose | null, from: number, to?: number][], start = pushup.initial) =>
-  spans.reduce<PushupState>((state, [pose, from, to = from]) => {
+  spans.reduce<typeof pushup.initial>((state, [pose, from, to = from]) => {
     for (let t = from; t <= to; t += FRAME)
       state = pushup.step(state, pose && pushup.measure(pose), t);
     return state;
@@ -26,6 +26,19 @@ const cycle = (top: Pose, bottom: Pose) =>
     [bottom, 1566, 3000],
     [top, 3066, 4500],
   ]);
+
+describe('pushup.measure', () => {
+  it('reads the other side when the plank side has an elbow too faint to measure', () => {
+    // The plank's side wins on visibility (0.3 vs 0.2), but its wrist is below the elbow's bar.
+    const pose = plank({ visible: 'both' });
+    pose.landmarks[Joint.LEFT_WRIST].visibility = 0.3;
+    pose.landmarks[Joint.RIGHT_KNEE].visibility = 0.2;
+    expect(pushup.measure(pose)).toMatchObject({
+      at: { side: 'right' },
+      joints: [Joint.RIGHT_SHOULDER, Joint.RIGHT_ELBOW, Joint.RIGHT_WRIST],
+    });
+  });
+});
 
 describe('pushup.step', () => {
   it('waits for a plank top before counting', () => {

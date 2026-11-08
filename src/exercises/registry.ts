@@ -1,16 +1,14 @@
 import type { Exercise } from './exercise';
-import { gluteBridge, type GluteBridgeSample, type GluteBridgeState } from './glute-bridge';
-import { legRaise, type LegRaiseSample, type LegRaiseState } from './leg-raise';
-import { jumpingJack, type JumpingJackSample, type JumpingJackState } from './jumping-jack';
-import { lunge, type LungeSample, type LungeState } from './lunge';
-import type { HoldState } from '@/exercises/kinds/hold';
+import { gluteBridge } from './glute-bridge';
+import { jumpingJack } from './jumping-jack';
+import { legRaise } from './leg-raise';
+import { lunge } from './lunge';
 import { plank } from './plank';
-import type { PlankSample } from './positions/plank';
-import { pushup, type PushupSample, type PushupState } from './pushup';
-import { sidePlank, type SidePlankSample } from './side-plank';
-import { situp, type SitupSample, type SitupState } from './situp';
-import { sideSquat, squat, type SquatSample, type SquatState } from './squat';
-import { wallSit, type WallSitSample } from './wall-sit';
+import { pushup } from './pushup';
+import { sidePlank } from './side-plank';
+import { situp } from './situp';
+import { sideSquat, squat } from './squat';
+import { wallSit } from './wall-sit';
 
 // The exercise input: one frame's joints. Other folders import these from here, not from geometry.
 export type { BodyPart, Pose } from '@/exercises/body/geometry';
@@ -19,38 +17,8 @@ export type { Placement } from './exercise';
 export { outOfFrame } from '@/exercises/body/geometry';
 export { orientation } from './exercise';
 
-/** The single list of exercises: one counter state and sample type per id. Add a key to both to add an exercise. */
-export type Counters = {
-  squat: SquatState;
-  pushup: PushupState;
-  plank: HoldState;
-  situp: SitupState;
-  'glute-bridge': GluteBridgeState;
-  'jumping-jack': JumpingJackState;
-  lunge: LungeState;
-  'side-squat': SquatState;
-  'wall-sit': HoldState;
-  'side-plank': HoldState;
-  'leg-raise': LegRaiseState;
-};
-export type Samples = {
-  squat: SquatSample;
-  pushup: PushupSample;
-  plank: PlankSample;
-  situp: SitupSample;
-  'glute-bridge': GluteBridgeSample;
-  'jumping-jack': JumpingJackSample;
-  lunge: LungeSample;
-  'side-squat': SquatSample;
-  'wall-sit': WallSitSample;
-  'side-plank': SidePlankSample;
-  'leg-raise': LegRaiseSample;
-};
-export type ExerciseId = keyof Counters & keyof Samples;
-
-// Mapped type so `EXERCISES[id].step(counters[id], …)` type-checks for a generic id.
-// A missing entry for a Counters key is a compile error.
-export const EXERCISES: { [K in ExerciseId]: Exercise<Counters[K], Samples[K]> } = {
+/** The single list of exercises. Add an entry here, and to `initialCounters`, to add an exercise. */
+const LIST = {
   squat,
   pushup,
   plank,
@@ -63,6 +31,14 @@ export const EXERCISES: { [K in ExerciseId]: Exercise<Counters[K], Samples[K]> }
   'side-plank': sidePlank,
   'leg-raise': legRaise,
 };
+type List = typeof LIST;
+export type ExerciseId = keyof List;
+/** Each exercise's counter state and sample, by id. */
+export type Counters = { [K in ExerciseId]: List[K]['initial'] };
+export type Samples = { [K in ExerciseId]: NonNullable<ReturnType<List[K]['measure']>> };
+
+// Mapped type so `EXERCISES[id].step(counters[id], …)` type-checks for a generic id.
+export const EXERCISES: { [K in ExerciseId]: Exercise<Counters[K], Samples[K]> } = LIST;
 
 /** Fresh counters for every exercise; typed against Counters so a new key cannot be forgotten. */
 export const initialCounters: Counters = {

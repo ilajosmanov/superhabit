@@ -5,11 +5,12 @@ named after it (`joint-angle.ts`).
 
 `measure.ts` is what every measure must provide:
 
-- `joints(side)`: the joints it reads, so the exercise can pick a side where they are all seen.
 - `read(pose, side)`: the number and the joints to draw it with. Null when a joint is hidden.
+- `parts`: the body parts it needs in frame, added to the position's.
+- `range`: every value it can read; the counter drops anything outside.
 
-A measure reads one side and never picks it: the exercise does, because its position needs joints
-seen on that side too. It knows nothing about thresholds or reps.
+A measure reads one side and never picks it: the kind does, because its position needs joints seen
+on that side too. When the position's side can't be measured, the kind tries the other side. It knows nothing about thresholds or reps.
 
 | Measure          | Reads                                          | Example         |
 | ---------------- | ---------------------------------------------- | --------------- |

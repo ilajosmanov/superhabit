@@ -1,6 +1,6 @@
 import { SIDE } from 'superhabit-pose/joints';
 
-import { cycle, type CycleState } from '@/exercises/kinds/cycle';
+import { engine, type CycleState } from '@/exercises/kinds/cycle';
 import { fmtMs, SETUP, type Exercise } from './exercise';
 import {
   angle,
@@ -57,7 +57,7 @@ type GluteBridgeReport = {
 export type GluteBridgeState = CycleState<Attempt, GluteBridgeReport>;
 
 const planted = (m: GluteBridgeSample) => Math.abs(m.floor) <= FLOOR_MAX;
-const gluteBridgeCycle = cycle<GluteBridgeSample, Attempt, GluteBridgeReport>({
+const gluteBridgeCycle = engine<GluteBridgeSample, Attempt, GluteBridgeReport>({
   signal: (m) => m.hip,
   up: BRIDGE_UP,
   down: BRIDGE_DOWN,

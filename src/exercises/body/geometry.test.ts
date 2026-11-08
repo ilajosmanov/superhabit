@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
 import { body } from '@/exercises/__fixtures__/body';
-import { angle, bestSide, mid, seen, tilt } from './geometry';
+import { angle, bestSide, mid, seen, tilt, type SideJoints } from './geometry';
 
 const at = (x: number, y: number, z = 0) => ({ x, y, z });
 
@@ -38,5 +38,18 @@ describe('bestSide', () => {
     pose.landmarks[Joint.RIGHT_ANKLE].x = 1.2;
     expect(seen(pose, Joint.RIGHT_ANKLE)).toBe(false);
     expect(bestSide(pose, (j) => [j.hip, j.knee, j.ankle])).toBe('left');
+  });
+
+  it('judges only the side asked for, even when the other is better seen', () => {
+    const pose = body({});
+    const legs = (j: SideJoints) => [j.hip, j.knee, j.ankle];
+    pose.landmarks[Joint.LEFT_KNEE].visibility = 0.9;
+    pose.landmarks[Joint.RIGHT_KNEE].visibility = 0.6;
+    expect(bestSide(pose, legs, 0.5, 'right')).toBe('right');
+    pose.landmarks[Joint.RIGHT_KNEE].visibility = 0.3;
+    expect(bestSide(pose, legs, 0.5, 'right')).toBeNull();
+    pose.landmarks[Joint.LEFT_KNEE].visibility = 0.3;
+    pose.landmarks[Joint.RIGHT_KNEE].visibility = 0.9;
+    expect(bestSide(pose, legs, 0.5, 'left')).toBeNull();
   });
 });
