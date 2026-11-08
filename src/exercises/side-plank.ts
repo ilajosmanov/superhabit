@@ -82,15 +82,17 @@ export function measureSidePlank(pose: Pose): SidePlankSample | null {
 }
 
 const sidePlankHold = hold<SidePlankSample>({
-  check: (m) => {
-    if (m.lying < LYING_MIN) return 'Lie on your side, on one forearm';
-    if (m.stack < STACK_MIN) return 'Turn onto your side, facing the phone';
-    if (m.reach < REACH_MIN || m.reach > REACH_MAX) return 'Prop up on your forearm';
-    if (m.knees < KNEES_MIN) return 'Straighten your legs';
-    if (m.body < BODY_MIN || m.hips < HIPS_MIN) return 'Lift your hips';
+  // shortcut: every cue counts as leaving the position until this exercise is rebuilt on a position.
+  fit: (m) => {
+    if (m.lying < LYING_MIN) return { cue: 'Lie on your side, on one forearm', out: true };
+    if (m.stack < STACK_MIN) return { cue: 'Turn onto your side, facing the phone', out: true };
+    if (m.reach < REACH_MIN || m.reach > REACH_MAX)
+      return { cue: 'Prop up on your forearm', out: true };
+    if (m.knees < KNEES_MIN) return { cue: 'Straighten your legs', out: true };
+    if (m.body < BODY_MIN || m.hips < HIPS_MIN) return { cue: 'Lift your hips', out: true };
     return null;
   },
-  lostCue: 'Back into your side plank',
+  lost: 'Back into your side plank',
 });
 
 export const sidePlank: Exercise<HoldState, SidePlankSample> = {

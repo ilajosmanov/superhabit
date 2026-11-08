@@ -5,8 +5,8 @@ import type { Counter } from './progress';
 
 const counter = (config: Partial<HoldConfig<number>> = {}) =>
   hold<number>({
-    check: (m) => (m >= 0 ? null : 'Hips up'),
-    lostCue: 'Back into position',
+    fit: (m) => (m >= 0 ? null : { cue: 'Hips up', out: true }),
+    lost: 'Back into position',
     ...config,
   });
 
@@ -181,7 +181,7 @@ describe('hold', () => {
 
   it('keeps the latest form cue through tracking loss until the break', () => {
     const ex = counter({
-      check: (m) => (m >= 0 ? null : m === -1 ? 'Hips up' : 'Straighten legs'),
+      fit: (m) => (m >= 0 ? null : { cue: m === -1 ? 'Hips up' : 'Straighten legs', out: true }),
     });
     const active = frames(ex, ex.initial, 0, 0, 660);
     const firstCue = ex.step(active, -1, 726);
@@ -189,5 +189,43 @@ describe('hold', () => {
     const broken = frames(ex, latestCue, null, 858, 1518);
     expect(broken.lastRep?.cues).toEqual(['Straighten legs']);
     expect(broken).toMatchObject({ heldMs: 660, noReps: 1 });
+  });
+  describe('poor form inside the position', () => {
+    // -1 leaves the position; -2 stays in it with the hips sagging.
+    const ex = counter({
+      fit: (m) =>
+        m >= 0
+          ? null
+          : m === -1
+            ? { cue: 'Get into a plank', out: true }
+            : { cue: 'Hips up', out: false },
+    });
+    const held = frames(ex, ex.initial, 0, 0, 660);
+    const sagging = frames(ex, held, -2, 726, 2046);
+
+    it('pauses the clock and counts the slip once, without breaking the hold', () => {
+      expect(sagging).toMatchObject({
+        phase: 'active',
+        broken: false,
+        heldMs: 660,
+        noReps: 1,
+        lastRep: { counted: false, cues: ['Hips up'] },
+      });
+    });
+
+    it('resumes the clock from the first good frame, not crediting the sag', () => {
+      const back = frames(ex, sagging, 0, 2112, 3102);
+      expect(back).toMatchObject({ phase: 'active', heldMs: 660 + 990, noReps: 1 });
+    });
+
+    it('still breaks when the body then leaves the position', () => {
+      const left = frames(ex, sagging, -1, 2112, 3102);
+      expect(left).toMatchObject({
+        phase: 'waiting',
+        broken: true,
+        noReps: 2,
+        lastRep: { cues: ['Get into a plank'] },
+      });
+    });
   });
 });

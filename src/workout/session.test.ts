@@ -159,7 +159,9 @@ describe('workoutSession starts, stops, writes rows and finishes', () => {
     expect(actor.getSnapshot().context.plank.heldMs).toBe(heldMs);
     hold(500, plank({}));
     expect(view()).toMatchObject({ stage: 'counting', phase: 'active', results: [] });
-    hold(1500, plank({ sag: 40 }));
+    hold(1500, plank({ sag: 40 })); // Sagging says the cue and pauses the clock; MAX goes on.
+    expect(view()).toMatchObject({ stage: 'counting', phase: 'active', results: [] });
+    hold(1500, plank({ kneeling: true })); // Leaving the plank ends it.
     expect(view()).toMatchObject({
       stage: 'finished',
       reachedEnd: true,
@@ -168,14 +170,18 @@ describe('workoutSession starts, stops, writes rows and finishes', () => {
         {
           exercise: 'plank',
           goal: MAX,
-          noReps: 1,
+          noReps: 2,
           attempts: [],
           startedAt: NOW,
           endedAt: NOW + 5000,
         },
       ],
     });
-    expect(spoken()).toEqual(['Go', 'Keep your body straight. 2 seconds. Challenge done.']);
+    expect(spoken()).toEqual([
+      'Go',
+      'Keep your body straight',
+      'Knees off the floor. 2 seconds. Challenge done.',
+    ]);
     actor.stop();
   });
 

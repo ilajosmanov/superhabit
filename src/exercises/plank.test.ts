@@ -1,7 +1,7 @@
 import { assert, describe, expect, it } from 'vite-plus/test';
-import { Joint } from 'superhabit-pose/joints';
 
-import { plank, measurePlank } from './plank';
+import { plank } from './plank';
+import { measurePlank } from './positions/plank';
 import type { HoldState } from '@/exercises/kinds/hold';
 import type { Pose } from '@/exercises/body/geometry';
 import { plank as pose } from './__fixtures__/plank';
@@ -13,88 +13,6 @@ const play = (body: Pose | null, from: number, to: number, state = plank.initial
   return state;
 };
 
-describe('measurePlank', () => {
-  it.each([false, true])('reads a straight body and knees with forearms=%s', (forearms) => {
-    const sample = measurePlank(pose({ forearms }));
-    assert(sample);
-    expect(sample.body).toBeCloseTo(180);
-    expect(sample.knees).toBeCloseTo(180);
-    expect(sample.reach).toBeGreaterThanOrEqual(50);
-    expect(sample.reach).toBeLessThanOrEqual(120);
-  });
-
-  it('uses the better-seen side and reports the body-line joints', () => {
-    expect(measurePlank(pose({ visible: 'right', sag: 40 }))).toMatchObject({
-      body: expect.closeTo(140),
-      joints: [Joint.RIGHT_SHOULDER, Joint.RIGHT_HIP, Joint.RIGHT_ANKLE],
-    });
-  });
-
-  it('uses the other side when the near knee is hidden', () => {
-    const body = pose({ visible: 'both' });
-    body.landmarks[Joint.LEFT_KNEE].visibility = 0.05;
-    expect(measurePlank(body)?.joints).toEqual([
-      Joint.RIGHT_SHOULDER,
-      Joint.RIGHT_HIP,
-      Joint.RIGHT_ANKLE,
-    ]);
-  });
-
-  it('prefers the clear far side over a barely visible near ankle', () => {
-    const body = pose({ visible: 'both' });
-    body.landmarks[Joint.LEFT_ANKLE].visibility = 0.11;
-    for (const joint of [
-      Joint.RIGHT_SHOULDER,
-      Joint.RIGHT_ELBOW,
-      Joint.RIGHT_WRIST,
-      Joint.RIGHT_HIP,
-      Joint.RIGHT_KNEE,
-      Joint.RIGHT_ANKLE,
-    ])
-      body.landmarks[joint].visibility = 0.8;
-    expect(measurePlank(body)?.joints).toEqual([
-      Joint.RIGHT_SHOULDER,
-      Joint.RIGHT_HIP,
-      Joint.RIGHT_ANKLE,
-    ]);
-  });
-
-  it('rejects a cropped wrist even with the tuned visibility threshold', () => {
-    const body = pose({});
-    body.landmarks[Joint.LEFT_WRIST].x = 1.1;
-    body.landmarks[Joint.RIGHT_WRIST].x = 1.1;
-    expect(measurePlank(body)).toBeNull();
-  });
-
-  it.each(['x', 'y', 'visibility'] as const)('rejects ankles with invalid %s', (field) => {
-    const body = pose({});
-    for (const ankle of [Joint.LEFT_ANKLE, Joint.RIGHT_ANKLE])
-      body.landmarks[ankle][field] = field === 'visibility' ? 0.05 : 1.1;
-    expect(measurePlank(body)).toBeNull();
-    expect(play(body, 0, 5000)).toMatchObject({ phase: 'waiting', heldMs: 0 });
-  });
-
-  it.each(['x', 'visibility'] as const)(
-    'chooses the other side when the near ankle has invalid %s',
-    (field) => {
-      const body = pose({ visible: 'both' });
-      body.landmarks[Joint.LEFT_ANKLE][field] = field === 'visibility' ? 0.05 : 1.1;
-      expect(measurePlank(body)?.joints).toEqual([
-        Joint.RIGHT_SHOULDER,
-        Joint.RIGHT_HIP,
-        Joint.RIGHT_ANKLE,
-      ]);
-      expect(play(body, 0, 5000).heldMs).toBeGreaterThanOrEqual(4600);
-    },
-  );
-
-  it('rejects coincident joints instead of passing an invalid angle to the hold', () => {
-    const body = pose({});
-    body.worldLandmarks[Joint.LEFT_KNEE] = body.worldLandmarks[Joint.LEFT_HIP];
-    expect(measurePlank(body)).toBeNull();
-  });
-});
-
 describe('plank', () => {
   it.each([false, true])('credits a 5 s hold with forearms=%s', (forearms) => {
     const state = play(pose({ forearms }), 0, 5000);
@@ -104,14 +22,14 @@ describe('plank', () => {
   });
 
   it.each([false, true])(
-    'breaks with the body cue after sagging 40 degrees for 1 s with forearms=%s',
+    'pauses with the body cue, without breaking, after sagging 40 degrees for 1 s with forearms=%s',
     (forearms) => {
       const held = play(pose({ forearms }), 0, 4950);
-      const broken = play(pose({ forearms, sag: 40 }), 5016, 6006, held);
-      expect(broken).toMatchObject({
-        phase: 'waiting',
+      const sagging = play(pose({ forearms, sag: 40 }), 5016, 6006, held);
+      expect(sagging).toMatchObject({
+        phase: 'active',
         noReps: 1,
-        broken: true,
+        broken: false,
         heldMs: 4950,
         lastRep: { cues: ['Keep your body straight'] },
       });
@@ -135,7 +53,7 @@ describe('plank', () => {
       heldMs: 0,
     });
     expect(play(rotate(pose({ forearms, sag: 40 })), 5016, 6006, held)).toMatchObject({
-      phase: 'waiting',
+      phase: 'active',
       heldMs: 4950,
       noReps: 1,
       lastRep: { cues: ['Keep your body straight'] },
@@ -215,9 +133,13 @@ describe('plank', () => {
 
 const files = traceFiles('plank');
 describe.skipIf(files.length === 0)('plank on real traces', () => {
-  it('holds for enough of at least 7 clips', () => {
+  // By name, so one clip getting worse can't hide behind another getting better.
+  it('holds for enough of every clip but the two known misses', () => {
     const rows = scoreHold(plank, files, 0.7, 1500);
-    expect(rows.filter((row) => row.ok).length, JSON.stringify(rows)).toBeGreaterThanOrEqual(7);
+    expect(
+      rows.filter((row) => !row.ok).map((row) => row.clip),
+      JSON.stringify(rows),
+    ).toEqual(['plank/plank_2.mp4', 'plank/plank_6.mp4']);
   });
 
   it('credits no squat clip with a 10 s plank', () => {
