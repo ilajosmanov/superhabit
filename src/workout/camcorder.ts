@@ -27,6 +27,9 @@ type CamcorderEvent =
   | { type: 'wrap' }
   | { type: 'share'; on: boolean };
 
+/** `share`: the session's, until the Done screen's switch says otherwise. */
+type CamcorderInput = { video: VideoOutput | undefined; share: boolean };
+
 const folder = () => new Directory(Paths.cache, 'reps');
 
 /** Moves `files` to documents/videos; one failed move does not stop the rest. */
@@ -67,8 +70,8 @@ let takes = 0;
  * Starts by deleting what an earlier session left behind; on stop it cuts the take and, once every file
  * is final, deletes this session's files, or moves them all to documents when shared.
  */
-export const camcorder = fromCallback<CamcorderEvent, VideoOutput | undefined>(
-  ({ input: video, receive, sendBack }) => {
+export const camcorder = fromCallback<CamcorderEvent, CamcorderInput>(
+  ({ input: { video, share: kept }, receive, sendBack }) => {
     if (!video) return;
     if (folder().exists) prune(folder().list());
     const files = new Set<File>();
@@ -76,8 +79,8 @@ export const camcorder = fromCallback<CamcorderEvent, VideoOutput | undefined>(
     // A take whose start never settles (the output is not bound) stalls the rest until `lost` gives it up.
     let previous = Promise.resolve();
     let cut = () => {};
-    // Kept unless the Done screen's switch turns it off; see ChallengeDone.
-    let shared = true;
+    // The session's `share`, until the Done screen's switch changes it.
+    let shared = kept;
     let lost = false;
     let abandon = () => {};
 

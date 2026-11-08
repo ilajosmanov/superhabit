@@ -74,6 +74,8 @@ export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>) {
     results: c.results,
     /** Finished and every file final, so the sets' videos (`results[].takes`) are safe to play. */
     final: c.final,
+    /** Keep this session's traces and videos on the phone (the Done screen's switch). */
+    share: c.share,
     /** A take is being filmed (the REC dot). */
     recording: c.take !== null,
   };

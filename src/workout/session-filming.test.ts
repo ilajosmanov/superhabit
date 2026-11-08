@@ -58,6 +58,7 @@ describe('workoutSession filming', () => {
     const filmed = [...disk].map((name) => `file:///cache/reps/${name}`);
     expect([...squatSet.takes, ...pushupSet.takes]).toEqual(filmed); // one file each, in order
     expect(disk.size).toBe(2); // the Done screen's switch decides once it closes
+    expect(view().share).toBe(true); // and starts on
     actor.stop();
     await flush();
     expect(disk.size).toBe(0);
@@ -75,6 +76,7 @@ describe('workoutSession filming', () => {
     play(plank({ elbow: 95 }), plank({ elbow: 170 }));
     await flush();
     actor.send({ type: 'shareTraces', share: false });
+    expect(sessionView(actor.getSnapshot()).share).toBe(false); // the switch shows what it decided
     actor.stop();
     await flush();
     expect(disk.size).toBe(0);

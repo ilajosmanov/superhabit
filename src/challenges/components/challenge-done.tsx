@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -57,9 +56,6 @@ export function ChallengeDone({
         }
       : { n: view.results.reduce((n, set) => n + set.reps, 0), labels: ['CLEAN', 'REPS'] };
   const day = run ? [`DAY ${run.day} OF ${run.days}`, dayWord(run, run.day - 1)] : ['ONE GO'];
-  // shortcut: on by default while we collect test sets, and nothing is uploaded yet; once a backend
-  // uploads what is kept, start it off again: sharing is your choice, never a default.
-  const [share, setShare] = useState(true);
 
   return (
     <View
@@ -84,16 +80,13 @@ export function ChallengeDone({
           <SwitchRow
             label="Keep sets on this phone"
             note={
-              share
+              view.share
                 ? 'Your joint positions and the videos of your sets stay on this phone, to teach the camera to count better. Nothing is uploaded.'
                 : 'Joint positions and videos of this session are deleted when you close it.'
             }
-            value={share}
-            onChange={(on) => {
-              setShare(on);
-              // Sent on every flip, so leaving by Back keeps the choice too.
-              onShare(on);
-            }}
+            value={view.share}
+            // Sent on every flip, so leaving by Back keeps the choice too.
+            onChange={onShare}
           />
         </View>
       </ScrollView>

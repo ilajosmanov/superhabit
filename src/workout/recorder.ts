@@ -12,6 +12,9 @@ export type RecorderEvent =
   // The Done screen's "share movement data" switch: whether this session's traces are kept for sending.
   | { type: 'share'; on: boolean };
 
+/** `on`: record at all; `share`: the session's, until the Done screen's switch says otherwise. */
+type RecorderInput = { on: boolean; share: boolean };
+
 /** Written when a trace is too short to measure its rate: the detector's usual pace. */
 const NOMINAL_FPS = 15;
 // shortcut: a set longer than ten minutes leaves no trace (its labels would describe frames it lacks);
@@ -66,15 +69,16 @@ async function settle(folder: Directory, writes: readonly Promise<void>[], share
 }
 
 /** Buffers one step's counting frames and saves each as a Trace v1 file when `record` is on. */
-export const recorder = fromCallback<RecorderEvent, boolean>(({ input: on, receive }) => {
+export const recorder = fromCallback<RecorderEvent, RecorderInput>(({ input, receive }) => {
+  const { on, share } = input;
   if (!on) return;
   sweep();
   const id = `${Date.now()}-${sessions++}`;
   live.add(id);
   const folder = new Directory(pending(), id);
   const writes: Promise<void>[] = [];
-  // Kept unless the Done screen's switch turns it off; see ChallengeDone.
-  let shared = true;
+  // The session's `share`, until the Done screen's switch changes it.
+  let shared = share;
   let frames: TraceFrame[] = [];
   let t0: number | null = null;
   const drop = () => {

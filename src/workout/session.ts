@@ -107,6 +107,8 @@ type Context = Counters &
     take: string | null;
     /** Results are safe to read: every file is final (failed ones dropped from their set). */
     final: boolean;
+    /** Keep this session's traces and videos on the phone when it stops (the Done screen's switch). */
+    share: boolean;
   };
 
 const CAPTION_MS = 3000;
@@ -398,6 +400,9 @@ export const workoutSession = session.createMachine({
     results: [],
     take: null,
     final: false,
+    // shortcut: on by default while we collect test sets, and nothing is uploaded yet; once a backend
+    // uploads what is kept, start it off again: sharing is your choice, never a default.
+    share: true,
   }),
   invoke: [
     { src: 'landmarker' },
@@ -407,8 +412,16 @@ export const workoutSession = session.createMachine({
       id: 'orientation',
       input: ({ context }) => lockFor(context),
     },
-    { src: 'camcorder', id: 'camcorder', input: ({ context }) => context.video },
-    { src: 'recorder', id: 'recorder', input: ({ context }) => context.record },
+    {
+      src: 'camcorder',
+      id: 'camcorder',
+      input: ({ context }) => ({ video: context.video, share: context.share }),
+    },
+    {
+      src: 'recorder',
+      id: 'recorder',
+      input: ({ context }) => ({ on: context.record, share: context.share }),
+    },
   ],
   on: {
     ready: { actions: assign({ landmarker: ({ event }) => event.landmarker }) },
@@ -629,6 +642,7 @@ export const workoutSession = session.createMachine({
       on: {
         shareTraces: {
           actions: [
+            assign({ share: ({ event }) => event.share }),
             sendTo('recorder', ({ event }) => ({ type: 'share', on: event.share })),
             sendTo('camcorder', ({ event }) => ({ type: 'share', on: event.share })),
           ],
