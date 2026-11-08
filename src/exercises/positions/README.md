@@ -14,8 +14,9 @@ exercises share one: the plank position serves the plank and the push-up.
 - `form`: is the form good (hips sagging)? Judged on every frame, through the movement too.
 - `ready` and `lost`: the heading while waiting, and the cue after losing track of you.
 
-With the phone's gravity (`gravity(pose)`), a position judges what is off the floor; without it
-(older clips) it falls back to shape alone, which can't tell lying or standing from a plank.
+A position judges what is off the floor by the phone's gravity (`gravity(pose)`) and reads nothing
+without it: shape alone can't tell lying or standing from a plank. Tune it on device clips with
+gravity, labelled from their video.
 
 A position knows nothing about reps or clocks; that is the kind's job. Tune thresholds on recorded
 clips, and say in a comment which clips set them.

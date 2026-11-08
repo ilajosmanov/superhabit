@@ -233,9 +233,9 @@ describe.skipIf(files.length === 0)('gluteBridge on real traces', () => {
     );
   });
 
-  const others = ['squat', 'pushup', 'plank'];
+  const others = ['squat'];
   it.skipIf(others.some((e) => traceFiles(e).length === 0))(
-    'counts no false reps on squat, push-up or plank traces',
+    'counts no false reps on squat traces',
     () => {
       expect(falseReps(gluteBridge, others)).toEqual({});
     },

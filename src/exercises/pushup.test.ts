@@ -144,41 +144,17 @@ describe('pushup.step', () => {
   });
 });
 
-// Before the plank position: the same 6 missed, so 4/10 within ±1 both ways.
-const MISSES = [
-  'stu4_46.mp4',
-  'stu5_47.mp4',
-  'stu7_45.mp4',
-  'stu8_42.mp4',
-  'stu8_45.mp4',
-  'stu9_52.mp4',
-];
-const files = traceFiles('pushup');
-describe.skipIf(files.length === 0)('pushup on real traces', () => {
-  // By name, so one clip getting worse can't hide behind another getting better.
-  it('counts within ±1 on every clip but the known misses', () => {
-    const rows = scoreReps(pushup, files, 1);
-    expect(
-      rows.filter((row) => !row.ok).map((row) => row.clip),
-      JSON.stringify(rows),
-    ).toEqual(MISSES);
-  });
-});
-
-// Labels here are what the phone's counter said when the clip was saved, not a human count: this
-// guards "still counts what your phone counted", e.g. device knees that read bent with the knees up.
-// pushup-1794163715160 (gravity) is labelled from its video instead: 7, where the phone said 0 under a
-// broken hip rule. pushup-1794163255470 (no gravity) counts 3 of 5: without gravity the support-line
-// hip ratio dips under HIPS_MIN for a frame mid-descent, failing two reps; gravity clips use the hip
-// drop instead. pushup-1794164288747 counts 5 of 6, as the phone did: two reps behind a table leg
-// read 111–119° and the 4th bottomed at 101°, just above `down`.
+// Device clips with gravity. Labels are what the phone counted, except pushup-1794163715160: 7, from
+// its video, where the phone said 0 under a broken hip rule. pushup-1794164288747 counts 5 of 6, as
+// the phone did: two reps behind a table leg read 111–119° and the 4th bottomed at 101°, just above
+// `down`.
 const device = traceFiles('device').filter((path) => path.includes('/pushup-'));
 describe.skipIf(device.length === 0)('pushup on device traces', () => {
-  it('counts what the phone counted, but the one clip saved mid-set and one without gravity', () => {
+  it('counts what the phone counted', () => {
     const rows = scoreReps(pushup, device, 0);
     expect(
       rows.filter((row) => !row.ok).map((row) => row.clip),
       JSON.stringify(rows),
-    ).toEqual(['pushup-1794098368362.json', 'pushup-1794163255470.json']);
+    ).toEqual([]);
   });
 });

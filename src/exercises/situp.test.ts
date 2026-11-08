@@ -282,9 +282,9 @@ describe.skipIf(files.length === 0)('situp on real traces', () => {
     );
   });
 
-  const others = ['squat', 'pushup', 'plank'];
+  const others = ['squat'];
   it.skipIf(others.some((e) => traceFiles(e).length === 0))(
-    'counts no sit-ups on squat, push-up or plank traces',
+    'counts no sit-ups on squat traces',
     () => {
       expect(falseReps(situp, others)).toEqual({});
     },

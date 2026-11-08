@@ -5,15 +5,8 @@ import type { PoseDetection } from 'superhabit-pose';
 import { describe, expect, it } from 'vite-plus/test';
 
 import { body } from '@/exercises/__fixtures__/body';
-import {
-  loadTrace,
-  replay,
-  scoreHold,
-  scoreReps,
-  traceFiles,
-} from '@/exercises/__fixtures__/replay';
+import { loadTrace, replay, scoreReps, traceFiles } from '@/exercises/__fixtures__/replay';
 import { squat } from '@/exercises/squat';
-import type { Progress } from '@/exercises/kinds/progress';
 import { parseTrace, toFrame, toPose, type Trace } from './trace';
 
 const pose = body({ thigh: 70, shin: 25, lean: 10 });
@@ -58,10 +51,7 @@ describe('Trace v1', () => {
       dataset: 'synthetic',
       clip: 'squat',
     });
-    expect(parseTrace({ ...raw, labels: { holdMs: 1500, inShape: true } }).labels).toEqual({
-      holdMs: 1500,
-      inShape: true,
-    });
+    expect(parseTrace({ ...raw, labels: { holdMs: 1500 } }).labels).toEqual({ holdMs: 1500 });
     expect(parseTrace({ ...raw, labels: {} }).labels).toEqual({});
   });
 
@@ -136,7 +126,6 @@ describe('Trace v1', () => {
     ['negative rep label', (raw) => ({ ...raw, labels: { reps: -1 } }), 'labels.reps'],
     ['fractional rep label', (raw) => ({ ...raw, labels: { reps: 1.5 } }), 'labels.reps'],
     ['negative hold label', (raw) => ({ ...raw, labels: { holdMs: -1 } }), 'labels.holdMs'],
-    ['nonboolean shape label', (raw) => ({ ...raw, labels: { inShape: 1 } }), 'labels.inShape'],
     ['zero fps', (raw) => ({ ...raw, fps: 0 }), 'fps'],
     ['nonfinite fps', (raw) => ({ ...raw, fps: NaN }), 'fps'],
     [
@@ -240,68 +229,5 @@ describe('Trace v1', () => {
 
   it('returns no files for an exercise without local traces', () => {
     expect(traceFiles('missing-synthetic-exercise')).toEqual([]);
-  });
-});
-
-describe('scoreHold', () => {
-  // Supply a fixed counter result to isolate scoring from the future hold reducer.
-  const counter = (heldMs: number) => ({
-    initial: {
-      reps: 0,
-      noReps: 0,
-      heldMs,
-      phase: 'waiting',
-      broken: false,
-      lastRep: null,
-    } satisfies Progress,
-    step: (state: Progress) => state,
-    measure: () => null,
-  });
-  const score = (labels: Trace['labels'], heldMs: number, ratio = 0.7, toleranceMs = 100) => {
-    const directory = mkdtempSync(join(tmpdir(), 'superhabit-hold-score-'));
-    try {
-      const path = join(directory, 'clip.json');
-      writeFileSync(
-        path,
-        JSON.stringify({
-          ...trace(),
-          labels,
-          frames: [0, 1000].map((t) => toFrame(detection(t), 0)),
-        }),
-      );
-      return scoreHold(counter(heldMs), [path], ratio, toleranceMs);
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-    }
-  };
-
-  it.each([{}, { reps: 1 }, { inShape: false }])(
-    'skips clips without a hold label: %j',
-    (labels) => {
-      expect(score(labels, 700)).toEqual([]);
-    },
-  );
-
-  it('accepts exactly the in-shape duration ratio and rejects one millisecond below it', () => {
-    expect(score({ inShape: true }, 700)).toEqual([
-      { clip: 'squat', expected: 1000, got: 700, ok: true },
-    ]);
-    expect(score({ inShape: true }, 699)[0].ok).toBe(false);
-  });
-
-  it.each([900, 1100])('includes the absolute tolerance boundary at %i ms', (heldMs) => {
-    expect(score({ holdMs: 1000 }, heldMs)[0].ok).toBe(true);
-  });
-
-  it.each([899, 1101])('rejects results outside the absolute tolerance at %i ms', (heldMs) => {
-    expect(score({ holdMs: 1000 }, heldMs)[0].ok).toBe(false);
-  });
-
-  it('scores a zero hold label and uses timed labels in preference to inShape', () => {
-    expect(score({ holdMs: 0, inShape: true }, 100)).toEqual([
-      { clip: 'squat', expected: 0, got: 100, ok: true },
-    ]);
-    expect(score({ holdMs: 0 }, 101)[0].ok).toBe(false);
-    expect(score({ holdMs: 0 }, 0, 0.7, 0)[0].ok).toBe(true);
   });
 });

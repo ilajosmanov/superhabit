@@ -72,24 +72,3 @@ export function falseReps<S extends Progress, M>(
   );
   return Object.fromEntries(rows.filter(([, reps]) => reps > 0));
 }
-
-/** In-shape clips use a minimum duration ratio; timed labels use an absolute tolerance. */
-export function scoreHold<S extends Progress, M>(
-  ex: ReplayExercise<S, M>,
-  files: string[],
-  ratio: number,
-  toleranceMs: number,
-): Row[] {
-  return files.flatMap((path) => {
-    const trace = loadTrace(path);
-    if (trace.labels.holdMs === undefined && trace.labels.inShape !== true) return [];
-    const duration = (trace.frames.at(-1)?.t ?? 0) - (trace.frames[0]?.t ?? 0);
-    const expected = trace.labels.holdMs ?? duration;
-    const got = replay(ex, trace).heldMs;
-    const ok =
-      trace.labels.holdMs === undefined
-        ? got >= ratio * duration
-        : Math.abs(got - expected) <= toleranceMs;
-    return [{ clip: trace.source.clip, expected, got, ok }];
-  });
-}

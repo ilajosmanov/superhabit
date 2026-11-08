@@ -14,7 +14,7 @@ export type Trace = {
   version: 1;
   source: { dataset: string; clip: string; url: string; license: string };
   exercise: string;
-  labels: { reps?: number; holdMs?: number; inShape?: boolean };
+  labels: { reps?: number; holdMs?: number };
   fps: number;
   frames: readonly TraceFrame[];
 };
@@ -93,10 +93,6 @@ export function parseTrace(json: unknown): Trace {
   }
   if (labels.holdMs !== undefined)
     parsedLabels.holdMs = nonnegative(labels.holdMs, 'labels.holdMs');
-  if (labels.inShape !== undefined) {
-    if (typeof labels.inShape !== 'boolean') throw new Error('labels.inShape: expected a boolean');
-    parsedLabels.inShape = labels.inShape;
-  }
   const fps = finite(root.fps, 'fps');
   if (fps <= 0) throw new Error('fps: expected a positive number');
   let lastT = -1;

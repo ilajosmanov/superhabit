@@ -290,9 +290,9 @@ describe.skipIf(files.length === 0)('lunge on real traces', () => {
 
   // Recording torso form during gated frames removes the three former stu6_63.mp4 false reps.
   // Now none in ten squat, ten push-up or nine plank clips. Keep this audit from regressing.
-  const others = ['squat', 'pushup', 'plank'];
+  const others = ['squat'];
   it.skipIf(others.some((e) => traceFiles(e).length === 0))(
-    'counts no false reps on squat, push-up or plank traces',
+    'counts no false reps on squat traces',
     () => {
       expect(falseReps(lunge, others)).toEqual({});
     },

@@ -6,20 +6,35 @@ import type { Vec } from '@/exercises/body/geometry';
 import { measurePlank, plankPosition } from './plank';
 
 describe('measurePlank', () => {
-  it.each([false, true])('reads a straight body and knees with forearms=%s', (forearms) => {
-    const sample = measurePlank(pose({ forearms }));
+  it('reads heights above the wrists along gravity, in forearm lengths', () => {
+    // Fixture: shoulders 0.58 m up, hips halfway to the ankles, knees halfway again; forearm 0.28 m.
+    const sample = measurePlank(pose({}));
     assert(sample);
-    expect(sample.body).toBeCloseTo(180);
-    expect(sample.knees).toBeCloseTo(180);
+    expect(sample.hip).toBeCloseTo(0.29 / 0.28, 1);
+    expect(sample.knee).toBeCloseTo(0.145 / 0.28, 1);
+    expect(sample.drop).toBeCloseTo(0);
+    expect(sample.rise).toBeCloseTo(22.6, 0);
     expect(sample.reach).toBeGreaterThanOrEqual(50);
     expect(sample.reach).toBeLessThanOrEqual(120);
   });
 
+  it('reads a sag as the hip below the body line, and a pike above it', () => {
+    expect(measurePlank(pose({ sag: 40 }))?.drop).toBeGreaterThan(0.4);
+    const piked = pose({});
+    for (const hip of [Joint.LEFT_HIP, Joint.RIGHT_HIP]) piked.worldLandmarks[hip].y -= 0.3;
+    expect(measurePlank(piked)?.drop).toBeLessThan(-0.6);
+  });
+
+  it('reads nothing without gravity: shape alone is the same turned on end', () => {
+    expect(measurePlank({ ...pose({}), down: undefined })).toBeNull();
+  });
+
   it('uses the better-seen side and reports the body-line joints', () => {
-    expect(measurePlank(pose({ visible: 'right', sag: 40 }))).toMatchObject({
-      body: expect.closeTo(140),
-      joints: [Joint.RIGHT_SHOULDER, Joint.RIGHT_HIP, Joint.RIGHT_ANKLE],
-    });
+    expect(measurePlank(pose({ visible: 'right' }))?.joints).toEqual([
+      Joint.RIGHT_SHOULDER,
+      Joint.RIGHT_HIP,
+      Joint.RIGHT_ANKLE,
+    ]);
   });
 
   it('uses the other side when the near knee is hidden', () => {
@@ -30,6 +45,14 @@ describe('measurePlank', () => {
       Joint.RIGHT_HIP,
       Joint.RIGHT_ANKLE,
     ]);
+  });
+
+  it('reads the far knee down on the floor only when it is clearly seen', () => {
+    const body = pose({});
+    body.worldLandmarks[Joint.RIGHT_KNEE].y = 0;
+    expect(measurePlank(body)?.knee).toBeCloseTo(0.145 / 0.28, 1);
+    body.landmarks[Joint.RIGHT_KNEE].visibility = 0.7;
+    expect(measurePlank(body)?.knee).toBeCloseTo(0);
   });
 
   it('prefers the clear far side over a barely visible near ankle', () => {
@@ -79,23 +102,27 @@ describe('measurePlank', () => {
 
   it('rejects coincident joints instead of passing an invalid angle to the hold', () => {
     const body = pose({});
-    body.worldLandmarks[Joint.LEFT_KNEE] = body.worldLandmarks[Joint.LEFT_HIP];
+    body.worldLandmarks[Joint.LEFT_SHOULDER] = body.worldLandmarks[Joint.LEFT_HIP];
     expect(measurePlank(body)).toBeNull();
   });
 });
 
 describe('plankPosition.setup', () => {
-  // The fixture lies along +x on a floor at y = 0, so gravity is +y; along x it stands on end.
-  const setup = (down?: Vec) => {
-    const sample = measurePlank(down ? { ...pose({}), down } : pose({}));
-    assert(sample);
-    return plankPosition.setup(sample);
-  };
-
-  it('turns away the same shape stood on end, once the phone gives gravity', () => {
+  it('turns away the same shape stood on end', () => {
+    // The fixture lies along +x on a floor at y = 0, so gravity is +y; along x it stands on end.
+    const setup = (down: Vec) => {
+      const sample = measurePlank({ ...pose({}), down });
+      assert(sample);
+      return plankPosition.setup(sample);
+    };
     expect(setup({ x: 0, y: 1, z: 0 })).toBeNull();
     expect(setup({ x: -1, y: 0, z: 0 })).toBe('Get down into a plank');
-    // Clips recorded without gravity keep passing on shape alone.
-    expect(setup()).toBeNull();
+  });
+
+  it('tells lying (hips down, body straight) from a sag (hips down, bent)', () => {
+    const lying = measurePlank(pose({}));
+    assert(lying);
+    expect(plankPosition.setup({ ...lying, hip: 0.2, drop: 0.2 })).toBe('Get into a plank');
+    expect(plankPosition.setup({ ...lying, hip: 0.2, drop: 0.9 })).toBeNull();
   });
 });
