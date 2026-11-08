@@ -67,6 +67,8 @@ export default defineConfig({
     rules: {
       'react/rules-of-hooks': 'error',
       'react/exhaustive-deps': 'error',
+      // A `// comment` between JSX tags renders as text.
+      'react/jsx-no-comment-textnodes': 'error',
       // Types come from generics, annotations and narrowing, never assertions.
       'typescript/consistent-type-assertions': ['error', { assertionStyle: 'never' }],
       'typescript/no-non-null-assertion': 'error',
