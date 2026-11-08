@@ -102,10 +102,10 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
    * Down in the frame of the landmarks (x right, y down, z away from the camera), unit length. The
    * camera follows the interface, which the workout locks to landscape for floor work, so the
    * landmarks are upright to the screen: gravity turns with the display's rotation too. The back camera
-   * looks out of the screen's back, the front one out of its face: unmirrored, that flips x and z.
-   * World z points toward the camera, not away as MediaPipe's docs say: measured on front-camera clips,
-   * only this sign puts a body lying flat, and kneeling knees, at the wrists' height.
-   * shortcut: the back camera's z follows from that, unmeasured; record one back-camera clip lying flat.
+   * looks out of the screen's back, the front one out of its face: unmirrored, that flips x.
+   * z is the same for both: on front-camera clips only this sign puts a body lying flat, and kneeling
+   * knees, at the wrists' height; on back-camera wall sits only this sign reads a back flat on the wall
+   * as upright as the front camera does (64–70° otherwise). shortcut: the back camera's x is unmeasured.
    * shortcut: reads the display's rotation now, not the frame's; during a screen flip a frame or two
    * can disagree. Tie it to `rotationDegrees` if flips mid-set show wrong positions.
    */
@@ -121,7 +121,7 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
       else -> Pair(g[0], g[1])
     }
     val sign = if (front) -1f else 1f
-    return PoseVector((-sign * x / n).toDouble(), (y / n).toDouble(), (-sign * g[2] / n).toDouble())
+    return PoseVector((-sign * x / n).toDouble(), (y / n).toDouble(), (g[2] / n).toDouble())
   }
 
   private var lastTimestampMs = 0L
