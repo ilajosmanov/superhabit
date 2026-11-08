@@ -12,10 +12,10 @@ named after it (`joint-angle.ts`).
 A measure reads one side and never picks it: the kind does, because its position needs joints seen
 on that side too. When the position's side can't be measured, the kind tries the other side. It knows nothing about thresholds or reps.
 
-| Measure          | Reads                                                         | Example          |
-| ---------------- | ------------------------------------------------------------- | ---------------- |
-| `joint-angle.ts` | the angle at the elbow or knee; 180 = straight                | push-up (elbow)  |
-| `height.ts`      | the hip over the knee along gravity, in thigh lengths; 1 = up | squat (its hips) |
+| Measure          | Reads                                                  | Example                                       |
+| ---------------- | ------------------------------------------------------ | --------------------------------------------- |
+| `joint-angle.ts` | the angle at the elbow, knee or hip; 180 = straight    | push-up (elbow), leg raise (hip)              |
+| `elevation.ts`   | how far a segment rises over level by gravity, degrees | squat's thighs, sit-up's torso, bridge's hips |
 
 `bothSides(measure, gap)` (in `measure.ts`) reads both limbs when both are seen: the higher, or
 nothing when they differ by more than `gap`; with one seen, that one alone. A squat's knees move

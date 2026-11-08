@@ -1,74 +1,65 @@
-import { describe, expect, it } from 'vite-plus/test';
-import { Joint } from 'superhabit-pose/joints';
+import { assert, describe, expect, it } from 'vite-plus/test';
+import { SIDE } from 'superhabit-pose/joints';
 
-import { figure } from './__fixtures__/figure';
-import { legRaise, measureLegRaise, type LegRaiseState } from './leg-raise';
-
-const { LEFT_SHOULDER: S, LEFT_HIP: H, LEFT_KNEE: K, LEFT_ANKLE: A } = Joint;
-const RIGHT = [Joint.RIGHT_SHOULDER, Joint.RIGHT_HIP, Joint.RIGHT_KNEE, Joint.RIGHT_ANKLE];
-const rad = Math.PI / 180;
-/** y up from the floor, as world y down needs it negated. */
-const at = (deg: number, r: number, from: readonly [number, number] = [0, 0]) =>
-  [from[0] + r * Math.cos(deg * rad), from[1] - r * Math.sin(deg * rad)] as const;
-
-/**
- * On the back, side-on from the left, head toward −x and hips at the origin. `legs`: thighs raised
- * off the floor, degrees; `knee`: shins bent back from the thigh line; `torso`: shoulders raised.
- */
-const lying = ({ legs = 0, knee = 0, torso = 0 } = {}) => {
-  const k = at(legs, 0.45);
-  return figure(
-    { [S]: at(180 - torso, 0.5), [H]: [0, 0], [K]: k, [A]: at(legs + knee, 0.45, k) },
-    RIGHT,
-  );
-};
+import type { Pose } from '@/exercises/body/geometry';
+import { onBack } from './__fixtures__/body';
+import { loadTrace, replay, traceFiles } from './__fixtures__/replay';
+import { legRaise } from './leg-raise';
 
 const FRAME = 66;
-// Each position is held long enough for the smoothing filter to settle on it.
-const run = (poses: ReturnType<typeof lying>[], from: LegRaiseState = legRaise.initial) =>
-  poses.reduce<LegRaiseState>((state, pose) => {
-    const start = (state.lastSeenAt ?? 0) + FRAME;
-    for (let i = 0; i < 60; i++)
-      state = legRaise.step(state, measureLegRaise(pose), start + i * FRAME);
+/** Each pose held for 2 s, as the counter sees it. */
+const play = (poses: Pose[]) =>
+  poses.reduce((state, pose, i) => {
+    for (let t = i * 2000; t < (i + 1) * 2000; t += FRAME)
+      state = legRaise.step(state, legRaise.measure(pose), t);
     return state;
-  }, from);
+  }, legRaise.initial);
+
+const flat = onBack({});
+const raised = onBack({ thigh: 85, shin: -85 });
 
 describe('leg raise', () => {
-  it('reads the hip opening to 180° lying flat and 90° with legs straight up', () => {
-    expect(measureLegRaise(lying())).toMatchObject({
-      hip: expect.closeTo(180),
-      knee: expect.closeTo(180),
-      torso: expect.closeTo(0),
-    });
-    expect(measureLegRaise(lying({ legs: 90 }))?.hip).toBeCloseTo(90);
-  });
-
   it('counts raising straight legs to vertical and lowering them', () => {
-    expect(run([lying(), lying({ legs: 90 }), lying()])).toMatchObject({ reps: 1, noReps: 0 });
-  });
-
-  it('ignores a small lift and flags a half raise', () => {
-    expect(run([lying(), lying({ legs: 30 }), lying()])).toMatchObject({ reps: 0, noReps: 0 });
-    expect(run([lying(), lying({ legs: 60 }), lying()])).toMatchObject({
-      reps: 0,
-      noReps: 1,
-      lastRep: { cues: ['Raise your legs higher'] },
+    expect(play([flat, raised, flat])).toMatchObject({
+      reps: 1,
+      noReps: 0,
+      lastRep: { counted: true, depth: expect.closeTo(95, 0), cues: [] },
     });
   });
 
-  it.each([
-    ['bent knees', lying({ legs: 90, knee: 90 }), 'Keep your legs straight'],
-    // A straight-leg sit-up closes the hip as much as a leg raise does.
-    ['a sit-up', lying({ torso: 85 }), 'Keep your back on the floor'],
-  ])('refuses %s', (_, top, cue) => {
-    expect(run([lying(), top, lying()])).toMatchObject({
+  it('refuses tucked knees and a V-up', () => {
+    expect(play([flat, onBack({ thigh: 85 }), flat])).toMatchObject({
       reps: 0,
-      noReps: 1,
-      lastRep: { cues: [cue] },
+      lastRep: { cues: ['Keep your legs straight'] },
+    });
+    expect(play([flat, onBack({ thigh: 85, shin: -85, lean: 30 }), flat])).toMatchObject({
+      reps: 0,
+      lastRep: { cues: ['Keep your back on the floor'] },
     });
   });
 
-  it('waits to start until lying flat with straight legs', () => {
-    expect(run([lying({ knee: 90 }), lying({ legs: 90 }), lying({ knee: 90 })]).reps).toBe(0);
+  it('counts nothing for one leg raised alone', () => {
+    const one = onBack({ thigh: 85, shin: -85 });
+    for (const j of ['hip', 'knee', 'ankle'] as const)
+      one.worldLandmarks[SIDE.right[j]] = flat.worldLandmarks[SIDE.right[j]];
+    expect(play([flat, one, flat])).toMatchObject({ reps: 0, noReps: 0 });
+  });
+});
+
+// Labelled from its video: phone on the floor side-on, gravity on.
+const CLIPS: Record<string, { reps: number; noReps: number }> = {
+  // 9 raises, one held at the top; one leg alone 4 times (nothing), half raises (nothing), 2 V-ups,
+  // a raise into sitting up and a tuck (all fail), and getting up at the end bent-kneed (fails).
+  'leg-raise-1794176280181': { reps: 9, noReps: 5 },
+};
+const clips = Object.entries(CLIPS).map(([clip, expected]) => ({
+  clip,
+  expected,
+  path: traceFiles('device').find((p) => p.endsWith(`${clip}.json`)),
+}));
+describe.skipIf(clips.some((c) => !c.path))('leg raise on device clips with gravity', () => {
+  it.each(clips)('$clip', ({ path, expected }) => {
+    assert(path);
+    expect(replay(legRaise, loadTrace(path))).toMatchObject(expected);
   });
 });

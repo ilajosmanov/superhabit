@@ -6,7 +6,7 @@ import { bestRep, clipTime, shareDone } from './results';
 import type { Attempt, StepResult } from './results';
 import { expand, MAX, reps, seconds } from './plan';
 
-// Gauges come from the registry: squat down 100°, push-up down 90°, glute bridge down 160° (rising).
+// Gauges come from the registry: squat down 100°, push-up down 90°, glute bridge up 3°, down 18° (rising).
 const set = (exercise: ExerciseId, attempts: Omit<Attempt, 'cue'>[]): StepResult => ({
   exercise,
   round: 1,
@@ -55,10 +55,10 @@ describe('bestRep', () => {
     });
   });
 
-  it('ranks a squat a fifth of its range past 100° over a glute bridge 3° past 160°, though its angle is larger', () => {
+  it('ranks a squat a fifth of its range past 100° over a glute bridge 1° past 18°', () => {
     const sets = [
       set('squat', [{ counted: true, depth: 88, clip: clip(1000) }]),
-      set('glute-bridge', [{ counted: true, depth: 163, clip: clip(500) }]),
+      set('glute-bridge', [{ counted: true, depth: 19, clip: clip(500) }]),
     ];
     expect(bestRep(sets)).toMatchObject({ exercise: 'squat', name: 'squats', depth: 88 });
   });
@@ -75,13 +75,14 @@ describe('bestRep', () => {
   });
 
   it('compares rising and falling gauges by margin beyond their own down threshold', () => {
+    // Degrees past would pick the squat; a fraction of each gauge picks the bridge.
     const falling = set('squat', [
-      { counted: true, depth: 95, clip: clip(1) }, // 5° past 100
+      { counted: true, depth: 88, clip: clip(1) }, // 12° past 100: 0.2 of its 60° span
     ]);
-    const rising = set('glute-bridge', [{ counted: true, depth: 170, clip: clip(2) }]); // 10° past 160
+    const rising = set('glute-bridge', [{ counted: true, depth: 22, clip: clip(2) }]); // 4° past 18: 0.27 of 15°
     expect(bestRep([falling, rising])).toMatchObject({
       name: 'glute bridges',
-      depth: 170,
+      depth: 22,
       atMs: 2,
     });
   });

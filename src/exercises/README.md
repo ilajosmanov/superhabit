@@ -19,7 +19,7 @@ line.
 | ------------ | ------------------------------------------------------------- |
 | `kinds/`     | how counting works: cycle, sided, hold, sequence              |
 | `positions/` | which body position you are in, and whether your form is good |
-| `measures/`  | what moves: a joint angle, a height; later a spread           |
+| `measures/`  | what moves: a joint angle, an elevation; later a spread       |
 | `body/`      | reading the pose dots: geometry, smoothing, recorded traces   |
 
 This top level holds only the exercises themselves (`plank.ts`, `pushup.ts`, …), `exercise.ts`

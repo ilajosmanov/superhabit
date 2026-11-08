@@ -2,7 +2,8 @@
 
 Which body position you are in. One file per position, named after it (`plank.ts`). Several
 exercises share one: the plank position serves the plank and the push-up; standing serves the
-squat and the side squat.
+squat and the side squat. `back.ts` holds two that share one reading: on your back with knees bent
+(sit-up, glute bridge) and with legs straight (leg raise).
 
 `position.ts` is what every position must provide:
 

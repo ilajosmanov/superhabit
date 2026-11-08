@@ -1,6 +1,6 @@
 import { exercise, SETUP } from './exercise';
 import { cycle } from './kinds/cycle';
-import { height } from './measures/height';
+import { elevation } from './measures/elevation';
 import { jointAngle } from './measures/joint-angle';
 import { bothSides } from './measures/measure';
 import { standingPosition } from './positions/standing';
@@ -15,10 +15,10 @@ const squatCycle = cycle(
     shallow: 140,
     fastMs: 800,
     deeper: 'Go deeper',
-    // The hips over the knees, in thigh lengths: 0.7 or less at the bottom (the thighs 45° or more
-    // from upright). A shallow dip is a failed rep only once under 0.95, so kneeling or a bend to the
-    // phone stays silent; a real 140° half squat reads ~0.92.
-    also: { measure: height('thigh'), down: 0.7, shallow: 0.95 },
+    // The thighs' elevation: 44° or less at the bottom (45° or more from upright). A shallow dip is a
+    // failed rep only once under 72°, so kneeling or a bend to the phone stays silent; a real 140°
+    // half squat reads ~67°.
+    also: { measure: elevation('thigh'), down: 44, shallow: 72 },
   },
 );
 

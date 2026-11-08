@@ -35,3 +35,18 @@ export const body = ({ thigh = 0, shin = 0, lean = 0, knees = 0.1, side = false 
   // World y is down, so the phone's gravity is too.
   return { landmarks: image, worldLandmarks: world, down: { x: 0, y: 1, z: 0 } };
 };
+
+/**
+ * `body` lying on its back, side-on: gravity along its depth, so `lean` raises the torso (below 0,
+ * the hips) and `thigh` the knees; `shin: thigh` plants the feet. Wrists behind the head, or on the
+ * floor by the hips.
+ */
+export const onBack = (shape: Body, hands: 'head' | 'floor' = 'head'): Pose => {
+  const pose = body(shape);
+  const world = pose.worldLandmarks;
+  for (const { shoulder, hip, wrist } of [SIDE.left, SIDE.right]) {
+    const s = world[shoulder];
+    world[wrist] = hands === 'head' ? { ...s, y: 1.3 * s.y, z: 1.3 * s.z } : { ...world[hip] };
+  }
+  return { ...pose, down: { x: 0, y: 0, z: 1 } };
+};

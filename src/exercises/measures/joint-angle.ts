@@ -3,11 +3,11 @@ import { SIDE } from 'superhabit-pose/joints';
 import { angle, seen, STRAIGHT, type Joints } from '@/exercises/body/geometry';
 import type { Measure } from './measure';
 
-// shortcut: elbow and knee only; add the hip (shoulder–hip–knee) when sit-up is rebuilt on it.
 /** Each joint that bends, between its two neighbours, and the body parts those sit in. */
 const BENDS = {
   elbow: { ends: ['shoulder', 'elbow', 'wrist'], parts: ['head', 'hands'] },
   knee: { ends: ['hip', 'knee', 'ankle'], parts: ['hips', 'feet'] },
+  hip: { ends: ['shoulder', 'hip', 'knee'], parts: ['head', 'hips'] },
 } as const;
 
 export type Bend = keyof typeof BENDS;
