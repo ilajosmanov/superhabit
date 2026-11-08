@@ -199,13 +199,18 @@ export type CycleOptions = {
   fastMs: number;
   /** Said after a failed rep that was in position but not deep enough: 'Go lower'. */
   deeper: string;
+  /**
+   * A second measure on the same side that must fall too: past `down` for the bottom, past
+   * `shallow` for a failed rep. A squat's hips, so bent knees alone (kneeling, a bend) are no rep.
+   */
+  also?: { measure: Measure; down: number; shallow: number };
 };
 
-/** One frame: the position's reading and the measure on the same side. */
-export type CycleSample<P> = { at: P; value: number; joints: Joints };
+/** One frame: the position's reading and the measure on the same side; `also` is NaN unconfigured. */
+export type CycleSample<P> = { at: P; value: number; joints: Joints; also: number };
 
-/** The first form cue of the attempt. */
-type Attempt = { cue: string | null };
+/** The first form cue of the attempt, and the lowest `also`. */
+type Attempt = { cue: string | null; also: number };
 
 export type CycleReport = Rep & { depth: number; downMs: number | null; upMs: number | null };
 
@@ -216,6 +221,7 @@ export function cycle<P extends { side: Side }>(
 ): Detector<CycleState<Attempt, CycleReport>, CycleSample<P>> {
   const placed = (s: CycleSample<P>) => p.setup(s.at) === null;
   const good = (s: CycleSample<P>) => placed(s) && p.form(s.at) === null;
+  const past = (value: number, limit: 'down' | 'shallow') => !o.also || value <= o.also[limit];
   const counter = engine<CycleSample<P>, Attempt, CycleReport>({
     signal: (s) => s.value,
     range: m.range,
@@ -224,12 +230,12 @@ export function cycle<P extends { side: Side }>(
     shallow: o.shallow,
     start: good,
     // The bottom counts only with good form; setup is not judged mid-movement.
-    turn: (s) => p.form(s.at) === null,
+    turn: (s) => p.form(s.at) === null && past(s.also, 'down'),
     // A shallow dip is a failed rep only while still in the position.
-    tried: (_a, s) => placed(s),
+    tried: (a, s) => placed(s) && past(a.also, 'shallow'),
     clean: (a, s) => a.cue === null && placed(s),
-    fresh: { cue: null },
-    add: (a, s) => (a.cue === null ? { cue: p.form(s.at) } : a),
+    fresh: { cue: null, also: Infinity },
+    add: (a, s) => ({ cue: a.cue ?? p.form(s.at), also: Math.min(a.also, s.also) }),
     report: (a, s, { counted, depth, downMs, upMs }) => {
       const fast = downMs !== null && upMs !== null && downMs + upMs < o.fastMs;
       const cue = !counted && (p.setup(s.at) ?? a.cue ?? o.deeper);
@@ -239,7 +245,8 @@ export function cycle<P extends { side: Side }>(
   });
   const on = (pose: Pose, at: P, side: Side) => {
     const reading = m.read(pose, side);
-    return reading ? { at, ...reading } : null;
+    const also = o.also ? o.also.measure.read(pose, side) : { value: NaN };
+    return reading && also ? { at, ...reading, also: also.value } : null;
   };
   return {
     ...counter,
@@ -250,7 +257,9 @@ export function cycle<P extends { side: Side }>(
       return at && (on(pose, at, at.side) ?? on(pose, at, at.side === 'left' ? 'right' : 'left'));
     },
     ready: p.ready,
-    parts: BODY_PARTS.filter((part) => p.parts.includes(part) || m.parts.includes(part)),
+    parts: BODY_PARTS.filter((part) =>
+      [p.parts, m.parts, o.also?.measure.parts ?? []].some((parts) => parts.includes(part)),
+    ),
     gauge: { down: o.down, up: o.up },
     stats: ({ lastRep: r }) =>
       r && `${Math.round(r.depth)}° · ${fmtMs(r.downMs)}↓ ${fmtMs(r.upMs)}↑`,

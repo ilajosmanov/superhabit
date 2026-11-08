@@ -54,7 +54,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
       sets: 1,
     });
     const stats = () => EXERCISES.squat.stats(actor.getSnapshot().context.squat);
-    expect(stats()).toMatch(/° · SYM \d+° · .*↓ .*↑ · LEAN \d+°/);
+    expect(stats()).toMatch(/^\d+° · .*↓ .*↑$/);
     actor.send({ type: 'pause' });
     actor.send({ type: 'restart' });
     expect(sessionView(actor.getSnapshot())).toMatchObject({ reps: 0, phase: 'waiting' });

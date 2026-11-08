@@ -120,3 +120,53 @@ describe('engine', () => {
     });
   });
 });
+
+describe('engine thresholds, glitches and tracking gaps', () => {
+  it('accepts the exact up and down thresholds', () => {
+    const s = play(counter(), [160, 100, 160]);
+    expect(s).toMatchObject({ reps: 1, noReps: 0, phase: 'up' });
+    expect(s.lastRep?.depth).toBeCloseTo(100);
+  });
+
+  it('waits for the top before an attempt, and counts only back at the top', () => {
+    expect(play(counter(), [90, 120, 150])).toMatchObject({ phase: 'waiting', reps: 0, noReps: 0 });
+    expect(play(counter(), [170, 90, 150, 95, 150])).toMatchObject({ reps: 0, noReps: 0 });
+  });
+
+  it('switches phase only once a crossing holds for two samples', () => {
+    const ex = counter();
+    const once = ex.step(ex.initial, 170, 0);
+    expect(once.phase).toBe('waiting');
+    expect(ex.step(once, 170, 66).phase).toBe('up');
+  });
+
+  it('smooths away a one-frame dip past the bottom', () => {
+    const ex = counter();
+    const top = play(ex, [170]);
+    const t = (top.lastSeenAt ?? 0) + 66;
+    expect(hold(ex, ex.step(top, 100, t), 170, t + 66)).toMatchObject({
+      reps: 0,
+      noReps: 0,
+      lastRep: null,
+    });
+  });
+
+  it('keeps an attempt through a one-second gap, and drops it when frames stall longer', () => {
+    const ex = counter();
+    const bottom = play(ex, [170, 90]);
+    const at = bottom.lastSeenAt ?? 0;
+    expect(hold(ex, ex.step(bottom, null, at + 500), 170, at + 1000)).toMatchObject({ reps: 1 });
+    expect(hold(ex, bottom, 170, at + 1100)).toMatchObject({ reps: 0, noReps: 0, phase: 'up' });
+  });
+
+  it.each([NaN, Infinity, -Infinity, -1, 181])(
+    'ignores an invalid value (%s) without extending tracking or losing the rep',
+    (invalid) => {
+      const ex = counter();
+      const bottom = play(ex, [170, 90]);
+      const at = bottom.lastSeenAt ?? 0;
+      expect(ex.step(bottom, invalid, at + 66)).toBe(bottom);
+      expect(hold(ex, bottom, 170, at + 132)).toMatchObject({ reps: 1, lastRep: { depth: 90 } });
+    },
+  );
+});

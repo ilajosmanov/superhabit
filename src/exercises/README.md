@@ -8,6 +8,7 @@ An exercise is built from primitives, each in its own folder:
 ```ts
 plank   = exercise(hold(plankPosition), labels)
 push-up = exercise(cycle(plankPosition, jointAngle('elbow'), thresholds), labels)
+squat   = exercise(cycle(standingPosition, bothSides(jointAngle('knee'), 35), thresholds), labels)
 ```
 
 Labels are the name, the phone spot and its setup copy, and the hint. The kind works out the rest
@@ -18,7 +19,7 @@ line.
 | ------------ | ------------------------------------------------------------- |
 | `kinds/`     | how counting works: cycle, sided, hold, sequence              |
 | `positions/` | which body position you are in, and whether your form is good |
-| `measures/`  | what moves: a joint angle; later a height and a spread        |
+| `measures/`  | what moves: a joint angle, a height; later a spread           |
 | `body/`      | reading the pose dots: geometry, smoothing, recorded traces   |
 
 This top level holds only the exercises themselves (`plank.ts`, `pushup.ts`, …), `exercise.ts`
