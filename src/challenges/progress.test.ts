@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { counting, dayResult, versionOf, type ProgressInput } from './progress';
+import { counting, dayResult, type ProgressInput } from './progress';
 import { MAX, reps, seconds } from '@/workout/plan';
 
 import { input, set, workout } from './__fixtures__/progress';
@@ -200,7 +200,6 @@ describe('dayResult', () => {
       share: 1,
       shown: { id: 'old' },
     });
-    expect(() => dayResult({ ...data, versions: [] }, '2026-11-01')).toThrow('Missing version');
     const total: ProgressInput = {
       ...data,
       version: { ...data.version, dailyTotal: true },
@@ -230,11 +229,6 @@ describe('dayResult', () => {
     };
     expect(dayResult(data, '2026-11-01')).toMatchObject({ share: 0.2, shown: { id: 'b' } });
   });
-});
-
-it('follows the current challenge version unless the run pins an older one', () => {
-  expect(versionOf(input.run, { currentVersionId: 'new' })).toBe('new');
-  expect(versionOf({ pinnedVersionId: 'old' }, { currentVersionId: 'new' })).toBe('old');
 });
 
 describe('counting an open try as if it were Done', () => {

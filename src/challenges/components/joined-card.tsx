@@ -5,13 +5,13 @@ import { ExerciseStack, StepsButton } from './exercise-stack';
 import { Icon } from '@/components/icon';
 import { colors } from '@/theme';
 import type { CatalogEntry } from '@/challenges/catalog';
-import { doneToday, type Run } from '@/challenges/run-view';
+import { doneToday, type RunView } from '@/challenges/run-view';
 
 /**
  * One square per day: amber = done, filled from the bottom by the share of a partial try, amber outline =
  * today, hairline = no try or still ahead.
  */
-function DayGrid({ run: { day, days, progress } }: { run: Run }) {
+function DayGrid({ run: { day, days, progress } }: { run: RunView }) {
   return (
     // 176 wide fits ten 12px squares with 6px gaps, so the grid wraps at ten a row.
     <View className="w-44 flex-row flex-wrap gap-1.5">
@@ -44,7 +44,7 @@ export function JoinedCard({
   entry,
   style,
 }: {
-  run: Run;
+  run: RunView;
   entry: CatalogEntry;
   style?: ViewStyle;
 }) {

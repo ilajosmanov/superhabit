@@ -1,15 +1,11 @@
 import * as SplashScreen from 'expo-splash-screen';
-import { assign, fromPromise, setup } from 'xstate';
+import { assign, fromPromise, setup, type PromiseActorLogic } from 'xstate';
 
 import { dayClock, type DayEvent } from './day';
 import { seed } from '@/challenges/library';
 import { migrateDatabase } from '@/storage/database';
 import { today, type Day } from '@/workout/day';
 import { findOpenWorkout, recovery } from '@/workout/recovery';
-
-const migrate = fromPromise(() => migrateDatabase());
-const seeding = fromPromise(async () => seed());
-const check = fromPromise(async () => findOpenWorkout());
 
 type Context = {
   error: string;
@@ -23,6 +19,7 @@ type Context = {
  * Gets the phone ready before any screen reads it: opens the database, brings its tables up to date,
  * adds our challenges, and offers back a workout left open. The splash stays up until there is something
  * to show; `error` stays set while a Retry runs. Each step lives with its owner; this only orders them.
+ * It also keeps today for the screens (`dayClock`), from launch on.
  *
  *   migrating --> seeding --> checking --> ready
  *       ^    \--------\----------\--> failed (shows the error) --retry
@@ -33,16 +30,22 @@ export const startup = setup<
   Context,
   { type: 'retry' } | DayEvent,
   {
-    migrate: typeof migrate;
-    seed: typeof seeding;
-    check: typeof check;
+    migrate: PromiseActorLogic<void>;
+    seed: PromiseActorLogic<void>;
+    check: PromiseActorLogic<{ id: string } | null>;
     recovery: typeof recovery;
     dayClock: typeof dayClock;
   },
   { recovery: 'recovery' },
   { hideSplash: undefined; fail: undefined }
 >({
-  actors: { migrate, seed: seeding, check, recovery, dayClock },
+  actors: {
+    migrate: fromPromise(() => migrateDatabase()),
+    seed: fromPromise(async () => seed()),
+    check: fromPromise(async () => findOpenWorkout()),
+    recovery,
+    dayClock,
+  },
   actions: {
     hideSplash: () => SplashScreen.hide(),
     fail: assign({ error: ({ event }) => ('error' in event ? String(event.error) : '') }),

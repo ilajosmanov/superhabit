@@ -19,11 +19,12 @@ export function JoinedChallenge({ joined: { challenge, run, amounts } }: { joine
   // Today until you pick another day.
   const [picked, setPicked] = useState<number | null>(null);
   const selected = picked ?? today;
-  const session = plan(challenge);
-  const { sets } = detail(challenge);
-
-  // Unknown for a day ahead or a try under another version: the rows show the plan alone.
-  const done = amounts.at(selected);
+  // A day ahead shows the plan alone; a day with a try, the version that try was done on.
+  const day = amounts.at(selected);
+  const shown = day?.version ?? challenge;
+  const done = day?.done;
+  const session = plan(shown);
+  const { sets } = detail(shown);
   const next =
     selected === today && done ? done.findIndex((n, i) => setShare(sets[i].goal, n) < 1) : -1;
 
@@ -44,7 +45,7 @@ export function JoinedChallenge({ joined: { challenge, run, amounts } }: { joine
 
       <DayStrip run={run} selected={selected} onSelect={setPicked} />
 
-      <SessionPlan plan={session} days={challenge.days} day={done && { done, next }} />
+      <SessionPlan plan={session} days={shown.days} day={done && { done, next }} />
 
       {done && (
         <WatchDay

@@ -10,9 +10,10 @@ import { sets, workouts } from '@/storage/schema';
 
 /** What the session tells its log: a set finished, Done was pressed, or you chose to discard it. */
 export type LogEvent = { type: 'set'; set: StepResult } | { type: 'done' } | { type: 'discard' };
-export type LogInput = { workoutId: string };
 /** The run and version a workout counts toward; both null for a free log (one go at an exercise). */
 export type LogTarget = { runId: string | null; versionId: string | null };
+/** The session's workout: its id, what it counts toward, and when the session started. */
+export type LogInput = { workoutId: string; target: LogTarget; start: Date };
 
 /** A workout as it opens: where and when it started, never recomputed. */
 export function workoutStart(id: string, target: LogTarget, now = new Date()) {
@@ -84,14 +85,13 @@ export function discardWorkout(workoutId: string) {
 }
 
 /**
- * One session's writes, for as long as the session runs, started at `start`: each finished set, then
- * Done or Discard. A set that fails to write is kept and written again before the next write; Done saves
- * only once every set is in and answers `logSaved` or `logFailed`, Discard answers `logDiscarded` or
- * `logFailed`. A failed set write is sent back as `logFailed` too. Stopping without Done (nothing was
+ * One session's writes, for as long as the session runs: each finished set, then Done or Discard. A set
+ * that fails to write is kept and written again before the next write; Done saves only once every set
+ * is in and answers `logSaved` or `logFailed`, Discard answers `logDiscarded` or `logFailed`. A failed set write is sent back as `logFailed` too. Stopping without Done (nothing was
  * counted) discards the workout; after a failed Done it stays open, and the next start offers it again.
  */
-export const workoutLog = (target: LogTarget, start: Date) =>
-  fromCallback<LogEvent, LogInput>(({ input: { workoutId }, receive, sendBack }) => {
+export const workoutLog = fromCallback<LogEvent, LogInput>(
+  ({ input: { workoutId, target, start }, receive, sendBack }) => {
     const workout = workoutStart(workoutId, target, start);
     let unwritten: StepResult[] = [];
     let doneAsked = false;
@@ -129,4 +129,5 @@ export const workoutLog = (target: LogTarget, start: Date) =>
     return () => {
       if (!doneAsked && !discarded) write(() => discardWorkout(workoutId));
     };
-  });
+  },
+);

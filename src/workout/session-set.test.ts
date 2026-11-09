@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 import { createActor } from 'xstate';
 
@@ -14,6 +14,7 @@ import {
   halfSquat,
   headOut,
   hold,
+  LOG,
   modules,
   NOW,
   plan,
@@ -26,22 +27,28 @@ import {
   takes,
   video,
 } from './__fixtures__/session';
+import { migrateDatabase } from '@/storage/__fixtures__/database';
 
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
 vi.mock('superhabit-pose', () => modules['superhabit-pose']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 vi.mock('expo-screen-orientation', () => modules['expo-screen-orientation']);
+vi.mock('expo-constants', () => modules['expo-constants']);
+vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 
 const { workoutSession } = await import('./session');
 const { sessionView } = await import('./session-view');
 
+beforeAll(migrateDatabase);
 afterEach(reset);
 
 describe('workoutSession inside a set: frames, reps, pause, coaching, framing, camera flip', () => {
   it('keeps the squat test open-ended, speaks each rep and hands every frame to the screen', () => {
     const onPose = vi.fn();
-    const actor = createActor(workoutSession, { input: { challenge: squatTest, onPose } }).start();
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, onPose },
+    }).start();
     const before = frames;
     squat();
     squat();
@@ -65,7 +72,9 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
 
   it('hands the measured angle, depth so far and joints with every frame', () => {
     const onPose = vi.fn();
-    const actor = createActor(workoutSession, { input: { challenge: squatTest, onPose } }).start();
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, onPose },
+    }).start();
     play(body({ thigh: 70, shin: 25 })); // crouched: not started
     expect(onPose.mock.lastCall?.[1]).toMatchObject({ lowest: null });
     play(body({}), body({ thigh: 70, shin: 25 }));
@@ -81,7 +90,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
 
   it('pauses, resumes, restarts and ends a set, timing only while counting', () => {
     vi.useFakeTimers({ now: NOW });
-    const actor = createActor(workoutSession, { input: { challenge: squatTest } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
     const view = () => sessionView(actor.getSnapshot());
     vi.advanceTimersByTime(2000);
     squat();
@@ -114,7 +123,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
   });
 
   it('drops the rep in progress on pause, so resuming needs the start position again', () => {
-    const actor = createActor(workoutSession, { input: { challenge: squatTest } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
     play(body({}), body({ thigh: 70, shin: 25 })); // down, mid rep
     actor.send({ type: 'pause' });
     actor.send({ type: 'resume' }); // well inside the tracking timeout
@@ -126,7 +135,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
   });
 
   it('keeps each finished set and the partial one on end', () => {
-    const actor = createActor(workoutSession, { input: { challenge } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge } }).start();
     squat();
     expect(sessionView(actor.getSnapshot()).results).toMatchObject([
       { exercise: 'squat', reps: 1 },
@@ -143,7 +152,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
     });
     actor.stop();
 
-    const switching = createActor(workoutSession, { input: { challenge } }).start();
+    const switching = createActor(workoutSession, { input: { ...LOG, challenge } }).start();
     squat();
     switching.send({ type: 'end' });
     expect(sessionView(switching.getSnapshot()).results).toHaveLength(1);
@@ -152,7 +161,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
 
   it('calls and flashes each rep and no-rep', () => {
     vi.useFakeTimers({ now: NOW });
-    const actor = createActor(workoutSession, { input: { challenge: squatTest } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
     const view = () => sessionView(actor.getSnapshot());
     expect(view()).toMatchObject({ call: null, flash: null, gauge: { down: 100, up: 160 } });
     squat();
@@ -182,6 +191,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, {
       input: {
+        ...LOG,
         challenge: plan({ exercise: 'plank', goal: seconds(60) }),
       },
     }).start();
@@ -212,7 +222,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
 
   it('captions every phrase but speaks none while muted', () => {
     vi.useFakeTimers({ now: NOW });
-    const actor = createActor(workoutSession, { input: { challenge: squatTest } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
     const view = () => sessionView(actor.getSnapshot());
     actor.send({ type: 'toggleVoice' });
     squat();
@@ -229,7 +239,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
   });
 
   it('shows every part out of frame until the first detector frame', () => {
-    const actor = createActor(workoutSession, { input: { challenge: squatTest } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
     const view = () => sessionView(actor.getSnapshot());
     expect(view().missing).toEqual(['head', 'hips', 'feet']);
     hold(100, body({}));
@@ -238,7 +248,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
   });
 
   it('reports parts out of frame once stable, only while waiting', () => {
-    const actor = createActor(workoutSession, { input: { challenge: squatTest } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
     const view = () => sessionView(actor.getSnapshot());
     const crouched = body({ thigh: 70, shin: 25 }); // all in frame, not started
     hold(500, feetOut(body({})));
@@ -260,7 +270,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
   });
 
   it('keeps the count when the pose is lost mid-set, and carries on without "Go"', () => {
-    const actor = createActor(workoutSession, { input: { challenge: squatTest } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
     const view = () => sessionView(actor.getSnapshot());
     expect(view().started).toBe(false);
     squat();
@@ -275,7 +285,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
 
   it('keeps a burpee set started when the pose is lost after a rep', () => {
     const actor = createActor(workoutSession, {
-      input: { challenge: plan({ exercise: 'burpee', goal: MAX }) },
+      input: { ...LOG, challenge: plan({ exercise: 'burpee', goal: MAX }) },
     }).start();
     const view = () => sessionView(actor.getSnapshot());
     const standing = plank({ standing: true });
@@ -288,7 +298,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
   });
 
   it('toggles the skeleton and flips the camera only before the first attempt', () => {
-    const actor = createActor(workoutSession, { input: { challenge } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge } }).start();
     const view = () => sessionView(actor.getSnapshot());
     const noReps = () => actor.getSnapshot().context.squat.noReps;
     expect(view()).toMatchObject({ skeleton: true, camera: 'front' });
@@ -309,7 +319,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
   it('ignores frames after a flip until the new camera streams, so old frames neither count nor film', async () => {
     const onPose = vi.fn();
     const actor = createActor(workoutSession, {
-      input: { challenge: squatTest, video, onPose },
+      input: { ...LOG, challenge: squatTest, video, onPose },
     }).start();
     const view = () => sessionView(actor.getSnapshot());
     actor.send({ type: 'flipCamera' });
@@ -326,7 +336,9 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
   });
 
   it('keeps waiting for the new camera when a flip is paused and resumed before it streams', async () => {
-    const actor = createActor(workoutSession, { input: { challenge: squatTest, video } }).start();
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, video },
+    }).start();
     const view = () => sessionView(actor.getSnapshot());
     actor.send({ type: 'flipCamera' });
     actor.send({ type: 'pause' });

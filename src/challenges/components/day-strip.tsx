@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Text, View } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 
-import { dayWord, type Run } from '@/challenges/run-view';
+import { dayWord, type RunView } from '@/challenges/run-view';
 import { addDays, dayLabel } from '@/workout/day';
 import { tick } from '@/components/tick';
 import { colors } from '@/theme';
@@ -16,7 +16,7 @@ export function DayStrip({
   selected,
   onSelect,
 }: {
-  run: Run;
+  run: RunView;
   selected: number;
   onSelect: (day: number) => void;
 }) {

@@ -1,4 +1,4 @@
-import { and, eq, ne } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { uuid } from 'expo';
 
 import { OURS, SUGGESTED_CHALLENGES } from './suggested';
@@ -42,10 +42,7 @@ export function seed() {
           .values(versionRow(id, versionId, versions.length + 1, challenge))
           .run();
       }
-      tx.update(challenges)
-        .set({ currentVersionId: versionId })
-        .where(and(eq(challenges.id, id), ne(challenges.currentVersionId, versionId)))
-        .run();
+      tx.update(challenges).set({ currentVersionId: versionId }).where(eq(challenges.id, id)).run();
     }
   });
 }

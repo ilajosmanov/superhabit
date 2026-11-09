@@ -6,7 +6,7 @@ import { OVER_VIDEO } from './reel-player';
 import { SessionLoop } from './session-reel';
 import { numeralLabels, SessionPlan } from './session-plan';
 import { plan } from '@/challenges/challenges';
-import { dayWord, type Run } from '@/challenges/run-view';
+import { dayWord, type RunView } from '@/challenges/run-view';
 import { reelOf, type Clip } from '@/challenges/reel';
 import { mss } from '@/components/duration';
 import { ExerciseFigure } from '@/components/illustrations';
@@ -36,7 +36,7 @@ export function ChallengeDone({
 }: {
   view: SessionView;
   challenge: Challenge;
-  run: Run | null;
+  run: RunView | null;
   /** Whether to keep this session's traces for sending; unshared ones are deleted as the session stops. */
   onShare: (share: boolean) => void;
   onClose: () => void;

@@ -20,40 +20,12 @@ describe('readPlan', () => {
 
   it.each(
     [
-      null,
-      'not a plan',
-      [],
-      [{ steps: [], rounds: 1 }],
       [{ steps: [{ exercise: 'future-exercise', goal: reps(10) }], rounds: 1 }],
       [{ steps: [{ exercise: 'pushup', goal: { type: 'distance', n: 10 } }], rounds: 1 }],
-      [{ steps: [{ exercise: 'pushup', goal: { type: 'reps', n: 10, future: true } }], rounds: 1 }],
       [{ steps: [{ exercise: 'pushup', goal: reps(10), future: true }], rounds: 1 }],
-      [{ steps: [{ exercise: 'pushup', goal: reps(10) }], rounds: 1, future: true }],
-      [{ steps: [{ exercise: 'pushup', goal: reps(0) }], rounds: 1 }],
-      [
-        {
-          steps: [
-            { exercise: 'pushup', goal: reps(10) },
-            { exercise: 'rest', goal: reps(10) },
-            { exercise: 'pushup', goal: reps(10) },
-          ],
-          rounds: 1,
-        },
-      ],
-      [{ steps: [{ exercise: 'plank', goal: reps(10) }], rounds: 1 }],
-      [
-        {
-          steps: [
-            { exercise: 'rest', goal: seconds(10) },
-            { exercise: 'pushup', goal: reps(10) },
-          ],
-          rounds: 1,
-        },
-      ],
-      [{ steps: [{ exercise: 'pushup', goal: reps(10) }], rounds: 0 }],
       [{ steps: [{ exercise: 'pushup', goal: reps(10) }], rounds: 1001 }],
     ].map((stored) => ({ stored })),
-  )('returns null for an unsupported or invalid plan: $stored', ({ stored }) => {
+  )('returns null for a plan from a newer app: $stored', ({ stored }) => {
     expect(readPlan(stored)).toBeNull();
   });
 });

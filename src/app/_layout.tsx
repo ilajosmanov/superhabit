@@ -4,12 +4,14 @@ import { useMachine } from '@xstate/react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { startup } from '@/bootstrap/startup';
 import { Today } from '@/bootstrap/today';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
+import { db } from '@/storage/database';
 import { colors } from '@/theme';
 import { RecoverPrompt } from '@/workout/components/recover-prompt';
 
@@ -55,6 +57,7 @@ export default function RootLayout() {
           cross-fades the two, which ghosts one page through the other. */}
       {state.matches('ready') && (
         <Today value={state.context.today}>
+          <DrizzleStudio />
           <Stack
             screenOptions={{
               headerShown: false,
@@ -71,4 +74,10 @@ export default function RootLayout() {
       <StatusBar style="light" />
     </GestureHandlerRootView>
   );
+}
+
+// Dev builds only (the plugin is a no-op in production): shift+m in the Expo CLI opens Drizzle Studio.
+function DrizzleStudio() {
+  useDrizzleStudio(db().$client);
+  return null;
 }

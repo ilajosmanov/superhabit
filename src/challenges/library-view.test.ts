@@ -1,9 +1,7 @@
-import { expect, it, vi } from 'vite-plus/test';
+import { expect, it } from 'vite-plus/test';
 
 import { sessionChallenge, type Library } from './library-view';
 import { reps } from '@/workout/plan';
-
-vi.mock('expo-file-system', () => ({}));
 
 const version = (id: string, name: string, days: number) => ({
   id,

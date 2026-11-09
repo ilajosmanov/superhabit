@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
 
 import { MAX, reps, seconds } from './plan';
@@ -11,11 +11,12 @@ import {
   challenge,
   createDirectory,
   files,
-  moveFile,
   flush,
   frames,
   hold,
+  LOG,
   modules,
+  moveFile,
   native,
   NOW,
   plan,
@@ -27,22 +28,26 @@ import {
   writeFile,
   written,
 } from './__fixtures__/session';
+import { migrateDatabase } from '@/storage/__fixtures__/database';
 
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
 vi.mock('superhabit-pose', () => modules['superhabit-pose']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 vi.mock('expo-screen-orientation', () => modules['expo-screen-orientation']);
+vi.mock('expo-constants', () => modules['expo-constants']);
+vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 
 const { workoutSession } = await import('./session');
 const { sessionView } = await import('./session-view');
 
+beforeAll(migrateDatabase);
 afterEach(reset);
 
 describe('dev pose recorder', () => {
   it('keeps a trace readable after a long pause between short counting stretches', async () => {
     const actor = createActor(workoutSession, {
-      input: { challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest, record: true },
     }).start();
     const pose = body({});
     for (const timestampMs of [1000, 1066])
@@ -63,7 +68,7 @@ describe('dev pose recorder', () => {
 
   it('drops duplicate and decreasing detector timestamps to keep the trace readable', async () => {
     const actor = createActor(workoutSession, {
-      input: { challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest, record: true },
     }).start();
     const pose = body({});
     for (const timestampMs of [1000, 1000, 990, 1066, 1066, 1033, 1132])
@@ -78,7 +83,7 @@ describe('dev pose recorder', () => {
 
   it('writes a readable single-frame trace with the fallback frame rate', async () => {
     const actor = createActor(workoutSession, {
-      input: { challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest, record: true },
     }).start();
     native.onResult?.({ ...body({}), timestampMs: 1000, cameraLandmarks: [] });
     actor.send({ type: 'end' });
@@ -102,7 +107,7 @@ describe('dev pose recorder', () => {
         });
       else writeFile.mockRejectedValueOnce(error);
       const actor = createActor(workoutSession, {
-        input: { challenge, record: true },
+        input: { ...LOG, challenge, record: true },
       }).start();
       squat();
       await flush();
@@ -133,7 +138,7 @@ describe('dev pose recorder', () => {
 
   it('writes a replayable Trace v1 with the counter’s two reps on End', async () => {
     const actor = createActor(workoutSession, {
-      input: { challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest, record: true },
     }).start();
     squat();
     squat();
@@ -171,7 +176,7 @@ describe('dev pose recorder', () => {
 
   it('drops the previous buffer on restart and starts the new trace at zero', async () => {
     const actor = createActor(workoutSession, {
-      input: { challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest, record: true },
     }).start();
     const before = frames;
     squat();
@@ -192,7 +197,7 @@ describe('dev pose recorder', () => {
   });
 
   it('does not create a directory or write files without record enabled', async () => {
-    const actor = createActor(workoutSession, { input: { challenge } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge } }).start();
     squat(); // Natural completion must also leave the recorder disabled.
     actor.send({ type: 'next' });
     pushup();
@@ -204,7 +209,7 @@ describe('dev pose recorder', () => {
 
   it('writes held milliseconds on natural completion of a two-second plank', async () => {
     const actor = createActor(workoutSession, {
-      input: { challenge: plan({ exercise: 'plank', goal: seconds(2) }), record: true },
+      input: { ...LOG, challenge: plan({ exercise: 'plank', goal: seconds(2) }), record: true },
     }).start();
     hold(2400, plank({}));
     await flush();
@@ -219,7 +224,7 @@ describe('dev pose recorder', () => {
 
   it('keeps only counting frames across a pause and saves once when ended while paused', async () => {
     const actor = createActor(workoutSession, {
-      input: { challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest, record: true },
     }).start();
     const started = frames;
     squat();
@@ -242,7 +247,7 @@ describe('dev pose recorder', () => {
 
   it('drops frames on a camera flip', async () => {
     const actor = createActor(workoutSession, {
-      input: { challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest, record: true },
     }).start();
     play(body({})); // Before the first attempt a flip is allowed while counting.
     actor.send({ type: 'flipCamera' });
@@ -265,6 +270,7 @@ describe('dev pose recorder', () => {
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, {
       input: {
+        ...LOG,
         challenge: plan(
           { exercise: 'squat', goal: reps(1) },
           { exercise: 'rest', goal: seconds(30) },
@@ -297,7 +303,7 @@ describe('dev pose recorder', () => {
 
   it('writes nothing when a step has no counting frames', async () => {
     const actor = createActor(workoutSession, {
-      input: { challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest, record: true },
     }).start();
     actor.send({ type: 'end' });
     await flush();
@@ -312,7 +318,7 @@ describe('sharing traces', () => {
   // One squat set, then End: the Done screen with one trace written.
   const finished = async () => {
     const actor = createActor(workoutSession, {
-      input: { challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest, record: true },
     }).start();
     squat();
     actor.send({ type: 'end' });
@@ -345,7 +351,7 @@ describe('sharing traces', () => {
       .mockRejectedValueOnce(new Error('no space'))
       .mockImplementationOnce(() => new Promise<void>((resolve) => (land = resolve)));
     const actor = createActor(workoutSession, {
-      input: { challenge, record: true },
+      input: { ...LOG, challenge, record: true },
     }).start();
     squat();
     actor.send({ type: 'next' });
@@ -389,7 +395,7 @@ describe('sharing traces', () => {
     first.send({ type: 'shareTraces', share: true });
     first.stop();
     const second = createActor(workoutSession, {
-      input: { challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest, record: true },
     }).start();
     land();
     await flush();
@@ -399,7 +405,7 @@ describe('sharing traces', () => {
 
   it('keeps no trace of a set past the frame cap', async () => {
     const actor = createActor(workoutSession, {
-      input: { challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest, record: true },
     }).start();
     const pose = body({});
     for (let i = 0; i <= 9000; i++)

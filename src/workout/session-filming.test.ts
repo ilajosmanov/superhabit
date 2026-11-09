@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
 
 import type { VideoOutput } from './camcorder';
@@ -10,6 +10,7 @@ import {
   files,
   finalizer,
   flush,
+  LOG,
   modules,
   play,
   reset,
@@ -20,21 +21,25 @@ import {
   takes,
   video,
 } from './__fixtures__/session';
+import { migrateDatabase } from '@/storage/__fixtures__/database';
 
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
 vi.mock('superhabit-pose', () => modules['superhabit-pose']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 vi.mock('expo-screen-orientation', () => modules['expo-screen-orientation']);
+vi.mock('expo-constants', () => modules['expo-constants']);
+vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 
 const { workoutSession } = await import('./session');
 const { sessionView } = await import('./session-view');
 
+beforeAll(migrateDatabase);
 afterEach(reset);
 
 describe('workoutSession filming', () => {
   it('films each set from the start position into its own file and keeps every file on the phone', async () => {
-    const actor = createActor(workoutSession, { input: { challenge, video } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge, video } }).start();
     const view = () => sessionView(actor.getSnapshot());
     play(body({ thigh: 70, shin: 25 })); // crouched: still waiting, nothing filmed
     await flush();
@@ -67,7 +72,7 @@ describe('workoutSession filming', () => {
   });
 
   it('deletes every file when the Done screen switch is off', async () => {
-    const actor = createActor(workoutSession, { input: { challenge, video } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge, video } }).start();
     play(body({}));
     await flush();
     play(body({ thigh: 70, shin: 25 }), body({}));
@@ -86,7 +91,7 @@ describe('workoutSession filming', () => {
 
   it('drops a file that fails after its set ended from that set', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const actor = createActor(workoutSession, { input: { challenge, video } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge, video } }).start();
     const view = () => sessionView(actor.getSnapshot());
     play(body({}));
     await flush();
@@ -108,7 +113,9 @@ describe('workoutSession filming', () => {
   });
 
   it('marks the results final only once every file is', async () => {
-    const actor = createActor(workoutSession, { input: { challenge: squatTest, video } }).start();
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, video },
+    }).start();
     const view = () => sessionView(actor.getSnapshot());
     play(body({}));
     await flush();
@@ -121,7 +128,7 @@ describe('workoutSession filming', () => {
   });
 
   it('marks the results final as soon as it finishes without a video output', () => {
-    const actor = createActor(workoutSession, { input: { challenge: squatTest } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
     squat();
     expect(sessionView(actor.getSnapshot()).final).toBe(false);
     actor.send({ type: 'end' });
@@ -134,14 +141,18 @@ describe('workoutSession filming', () => {
     disk.add('old-a.mp4');
     disk.add('old-b.mp4');
     stuck.add('old-a.mp4');
-    createActor(workoutSession, { input: { challenge, video } }).start().stop();
+    createActor(workoutSession, { input: { ...LOG, challenge, video } })
+      .start()
+      .stop();
     expect([...disk]).toEqual(['old-a.mp4']);
     expect(warn).toHaveBeenCalledOnce();
     warn.mockRestore();
   });
 
   it('cuts the take on pause, films again once back in position and keeps both files in the set', async () => {
-    const actor = createActor(workoutSession, { input: { challenge: squatTest, video } }).start();
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, video },
+    }).start();
     const view = () => sessionView(actor.getSnapshot());
     play(body({}));
     await flush();
@@ -168,7 +179,9 @@ describe('workoutSession filming', () => {
   });
 
   it('starts a take only once the previous file is final, even on a quick pause and resume', async () => {
-    const actor = createActor(workoutSession, { input: { challenge: squatTest, video } }).start();
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, video },
+    }).start();
     play(body({}));
     await flush();
     actor.send({ type: 'pause' });
@@ -181,7 +194,9 @@ describe('workoutSession filming', () => {
   });
 
   it('keeps a file that appears after leaving', async () => {
-    const actor = createActor(workoutSession, { input: { challenge: squatTest, video } }).start();
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, video },
+    }).start();
     play(body({}));
     for (let i = 0; i < 50 && !takes.length; i++) await Promise.resolve(); // starting, no file yet
     actor.stop();
@@ -193,7 +208,9 @@ describe('workoutSession filming', () => {
   });
 
   it('cleans up only its own files when it finalizes after the next session started', async () => {
-    const actor = createActor(workoutSession, { input: { challenge: squatTest, video } }).start();
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, video },
+    }).start();
     play(body({}));
     await flush();
     const slow: (() => void)[] = [];
@@ -202,7 +219,9 @@ describe('workoutSession filming', () => {
     actor.stop();
     finalizer.held = null;
 
-    const next = createActor(workoutSession, { input: { challenge: squatTest, video } }).start();
+    const next = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, video },
+    }).start();
     play(body({}));
     await flush();
     expect(sessionView(next.getSnapshot()).recording).toBe(true);
@@ -215,7 +234,9 @@ describe('workoutSession filming', () => {
 
   it('leaves a failed file out of its set, and keeps one the OS ended early', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const actor = createActor(workoutSession, { input: { challenge: squatTest, video } }).start();
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, video },
+    }).start();
     const view = () => sessionView(actor.getSnapshot());
     play(body({}));
     await flush();
@@ -229,7 +250,9 @@ describe('workoutSession filming', () => {
     actor.stop();
     await flush();
 
-    const ended = createActor(workoutSession, { input: { challenge: squatTest, video } }).start();
+    const ended = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, video },
+    }).start();
     play(body({}));
     await flush();
     squat();
@@ -259,7 +282,7 @@ describe('workoutSession filming', () => {
     };
     let wrapped = false;
     const actor = createActor(workoutSession, {
-      input: { challenge: squatTest, video: unbound },
+      input: { ...LOG, challenge: squatTest, video: unbound },
       inspect: (e) => {
         if (e.type === '@xstate.event' && e.event.type === 'wrapped') wrapped = true;
       },
@@ -305,7 +328,7 @@ describe('workoutSession filming', () => {
       }),
     };
     const actor = createActor(workoutSession, {
-      input: { challenge: squatTest, video: late },
+      input: { ...LOG, challenge: squatTest, video: late },
     }).start();
     play(body({}));
     await flush();
@@ -324,7 +347,7 @@ describe('workoutSession filming', () => {
     const broken: VideoOutput = { createRecorder: () => Promise.reject(new Error('unbound')) };
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const actor = createActor(workoutSession, {
-      input: { challenge: squatTest, video: broken },
+      input: { ...LOG, challenge: squatTest, video: broken },
     }).start();
     play(body({}));
     await flush();

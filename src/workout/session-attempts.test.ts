@@ -1,22 +1,26 @@
-import { afterEach, expect, it, vi } from 'vite-plus/test';
+import { afterEach, beforeAll, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
 
 import { body } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
 import { MAX } from './plan';
-import { clock, hold, modules, native, plan, reset, squatTest } from './__fixtures__/session';
+import { clock, hold, LOG, modules, native, plan, reset, squatTest } from './__fixtures__/session';
+import { migrateDatabase } from '@/storage/__fixtures__/database';
 
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
 vi.mock('superhabit-pose', () => modules['superhabit-pose']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 vi.mock('expo-screen-orientation', () => modules['expo-screen-orientation']);
+vi.mock('expo-constants', () => modules['expo-constants']);
+vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 
 const { workoutSession } = await import('./session');
+beforeAll(migrateDatabase);
 afterEach(reset);
 
 it('keeps the times of both counted and shallow cycle attempts in the finished set', () => {
-  const actor = createActor(workoutSession, { input: { challenge: squatTest } }).start();
+  const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
   const top = body({});
   const bottom = body({ thigh: 70, shin: 25 });
   const shallow = body({ thigh: 25, shin: 20 });
@@ -37,7 +41,7 @@ it('keeps the times of both counted and shallow cycle attempts in the finished s
 
 it('keeps sequence attempts with no depth or bottom, including a timed-out attempt', () => {
   const actor = createActor(workoutSession, {
-    input: { challenge: plan({ exercise: 'burpee', goal: MAX }) },
+    input: { ...LOG, challenge: plan({ exercise: 'burpee', goal: MAX }) },
   }).start();
   const start = clock;
   const standing = plank({ standing: true });

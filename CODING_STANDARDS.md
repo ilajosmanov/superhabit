@@ -13,7 +13,8 @@ src/app/            routes: read params, compose a screen, navigate
 src/bootstrap/      the app's start: the splash, database, seeding, recovery, and today
   ↓
 src/friends/        the friends feature (for now, the leaderboard preview)
-src/challenges/     the challenge catalog: definitions, catalog entries, the reel of a session's sets
+src/challenges/     the challenge catalog: definitions, catalog entries, your library (challenges and runs
+                    kept on the phone), run progress, the reel of a session's sets
   components/       UI only challenges uses (catalog tiles, joined cards, the Done page and its reel)
   ↓
 src/workout/        the workout feature: plan model, session machine, results, camcorder, coaching

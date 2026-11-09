@@ -29,6 +29,7 @@ const set = (workoutId: string, planStep: number): StepResult => ({
   takes: [],
   stats: null,
 });
+const input = (workoutId: string) => ({ workoutId, target: FREE, start: new Date() });
 const workouts = () => db().select().from(schema.workouts).all();
 const sets = () => db().select().from(schema.sets).all();
 const outbox = () => db().select().from(schema.outbox).all();
@@ -86,18 +87,16 @@ describe('workout log', () => {
     ]);
   });
 
-  it('leaves the workout open, and queues nothing, when the outbox write fails', () => {
-    logSet(workoutStart('w', FREE), set('w', 0));
+  it('opens no workout when its first set fails to write', () => {
     db().run(
-      sql`create trigger full before insert on outbox begin select raise(abort, 'disk full'); end`,
+      sql`create trigger full before insert on sets begin select raise(abort, 'disk full'); end`,
     );
     try {
-      expect(() => saveWorkout('w')).toThrow();
+      expect(() => logSet(workoutStart('w', FREE), set('w', 0))).toThrow();
     } finally {
       db().run(sql`drop trigger full`);
     }
-    expect(workouts()[0].status).toBe('open');
-    expect(outbox()).toEqual([]);
+    expect(workouts()).toEqual([]);
   });
 
   it('discards an open workout with its sets, never a saved one', () => {
@@ -111,21 +110,11 @@ describe('workout log', () => {
     expect(sets().map(({ workoutId }) => workoutId)).toEqual(['kept']);
   });
 
-  it('keeps one open workout at a time', () => {
-    logSet(workoutStart('first', FREE), set('first', 0));
-    expect(() => logSet(workoutStart('second', FREE), set('second', 0))).toThrow();
-    expect(workouts().map(({ id }) => id)).toEqual(['first']);
-  });
-
   it('discards the workout when the session stops without Done, and keeps it after Done', () => {
-    const left = createActor(workoutLog(FREE, new Date()), {
-      input: { workoutId: 'left' },
-    }).start();
+    const left = createActor(workoutLog, { input: input('left') }).start();
     left.send({ type: 'set', set: set('left', 0) });
     left.stop();
-    const done = createActor(workoutLog(FREE, new Date()), {
-      input: { workoutId: 'done' },
-    }).start();
+    const done = createActor(workoutLog, { input: input('done') }).start();
     done.send({ type: 'set', set: set('done', 0) });
     done.send({ type: 'done' });
     done.stop();
@@ -136,7 +125,7 @@ describe('workout log', () => {
 
 describe('the session log', () => {
   it('writes a set that failed again before Done, so Done keeps every set', () => {
-    const log = createActor(workoutLog(FREE, new Date()), { input: { workoutId: 'w' } }).start();
+    const log = createActor(workoutLog, { input: input('w') }).start();
     log.send({ type: 'set', set: set('w', 0) });
     db().run(
       sql`create trigger flaky before insert on sets when new.plan_step = 1 begin select raise(abort, 'disk full'); end`,
@@ -156,10 +145,8 @@ describe('the session log', () => {
     ).toEqual([0, 1, 2]);
   });
 
-  it('keeps the workout open when Done fails, and discards it when you choose to', () => {
-    const failed = createActor(workoutLog(FREE, new Date()), {
-      input: { workoutId: 'failed' },
-    }).start();
+  it('keeps the workout open, with nothing queued, when Done fails', () => {
+    const failed = createActor(workoutLog, { input: input('failed') }).start();
     failed.send({ type: 'set', set: set('failed', 0) });
     db().run(
       sql`create trigger full before insert on outbox begin select raise(abort, 'disk full'); end`,
@@ -171,15 +158,7 @@ describe('the session log', () => {
     }
     failed.stop();
     expect(workouts().map(({ id, status }) => [id, status])).toEqual([['failed', 'open']]);
-
-    discardWorkout('failed');
-    const discarded = createActor(workoutLog(FREE, new Date()), {
-      input: { workoutId: 'gone' },
-    }).start();
-    discarded.send({ type: 'set', set: set('gone', 0) });
-    discarded.send({ type: 'discard' });
-    expect(workouts()).toEqual([]);
-    discarded.stop();
+    expect(outbox()).toEqual([]);
   });
 });
 
@@ -187,8 +166,8 @@ describe('Discard', () => {
   it('answers whether the workout is gone, so the page leaves only once it is', () => {
     const replies: string[] = [];
     const session = createActor(
-      setup({ actors: { log: workoutLog(FREE, new Date()) } }).createMachine({
-        invoke: { src: 'log', id: 'log', input: { workoutId: 'w' } },
+      setup({ actors: { log: workoutLog } }).createMachine({
+        invoke: { src: 'log', id: 'log', input: input('w') },
         on: { '*': { actions: ({ event }) => replies.push(event.type) } },
       }),
     ).start();

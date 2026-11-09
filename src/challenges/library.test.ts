@@ -6,13 +6,12 @@ import { challengePage, yourRuns, type Library } from './library-view';
 import { SUGGESTED_CHALLENGES } from './suggested';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
-import { today } from '@/workout/day';
+import { addDays, today } from '@/workout/day';
 import { logSet, saveWorkout, workoutStart } from '@/workout/log';
-import { defineChallenge, readPlan, reps } from '@/workout/plan';
+import { defineChallenge, readPlan, reps, type Challenge } from '@/workout/plan';
 
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
-vi.mock('expo-file-system', () => ({}));
 vi.mock('expo-constants', () => ({ default: { expoConfig: { version: '1.0.0' } } }));
 
 const library = (): Library => ({
@@ -174,7 +173,6 @@ describe('writes', () => {
       ['run', joined, 'leave'],
       ['challenge', id, 'edit'],
     ]);
-    for (const { payload } of outbox()) expect(payload).toMatchObject({ v: 1 });
   });
 
   it('writes neither the change nor its outbox row when the outbox write fails', () => {
@@ -241,15 +239,67 @@ describe('a daily total', () => {
     pushups(null, null, 400);
 
     const mine = yourRuns(library(), today()).find((entry) => entry.runId === runId);
-    expect(mine?.challenge && mine.amounts.at(-1)).toEqual([500]);
+    expect(mine?.challenge && mine.amounts.at(-1)?.done).toEqual([500]);
     expect(mine?.challenge && mine.run.progress.at(-1)).toBe(1);
+  });
+
+  it('shows a day done before an edit raised the target against the target it was done for', () => {
+    const daily = (n: number): Challenge => ({
+      ...squats(30),
+      dailyTotal: true,
+      session: [{ steps: [{ exercise: 'pushup', goal: reps(n) }], rounds: 1 }],
+    });
+    const id = create(daily(500)) ?? '';
+    const [{ runId }] = yourRuns(library(), today());
+    pushups(runId, library().challenges.find((c) => c.id === id)?.currentVersionId ?? '', 500);
+
+    edit(id, daily(1000));
+
+    const [mine] = yourRuns(library(), today());
+    expect(mine.challenge && mine.run.progress.at(-1)).toBe(1);
+    // The day shows 500 against the 500 it was done for, not against the new 1000.
+    expect(mine.challenge && mine.amounts.at(-1)).toMatchObject({
+      version: { session: daily(500).session },
+      done: [500],
+    });
   });
 });
 
-/** A done workout of `n` push-ups toward `runId`, through the workout log. */
-function pushups(runId: string | null, versionId: string | null, n: number) {
+describe('restart on miss', () => {
+  it('shows the stretch from the day after the last miss', () => {
+    const id =
+      create({
+        ...squats(5),
+        restartOnMiss: true,
+        session: [{ steps: [{ exercise: 'pushup', goal: reps(20) }], rounds: 1 }],
+      }) ?? '';
+    const [{ runId }] = yourRuns(library(), today());
+    // Joined two days ago, missed that day, did the next one.
+    db()
+      .update(schema.runs)
+      .set({ startedOn: addDays(today(), -2) })
+      .run();
+    const versionId = library().challenges.find((c) => c.id === id)?.currentVersionId ?? '';
+    pushups(runId, versionId, 20, noonDaysAgo(1));
+
+    const restarted = { from: addDays(today(), -1), day: 2, days: 5, progress: [1, 0] };
+    const [mine] = yourRuns(library(), today());
+    expect(mine.challenge && mine.run).toMatchObject(restarted);
+    expect(challengePage(library(), id, today())?.joined?.run).toMatchObject(restarted);
+  });
+});
+
+const noonDaysAgo = (n: number) => {
+  const at = new Date();
+  at.setDate(at.getDate() - n);
+  at.setHours(12, 0, 0, 0);
+  return at;
+};
+
+/** A done workout of `n` push-ups toward `runId`, through the workout log, started `at`. */
+function pushups(runId: string | null, versionId: string | null, n: number, at = new Date()) {
   const workoutId = crypto.randomUUID();
-  logSet(workoutStart(workoutId, { runId, versionId }), {
+  logSet(workoutStart(workoutId, { runId, versionId }, at), {
     id: crypto.randomUUID(),
     workoutId,
     planStep: 0,

@@ -56,7 +56,12 @@ export default function ChallengeDetailScreen() {
             ) : (
               <PrimaryButton
                 label={page.ranBefore ? 'Start again' : 'Join'}
-                onPress={() => join(id) ?? saveFailed()}
+                onPress={() => {
+                  const started = join(id);
+                  // The page follows the new run, not the one over that its link named.
+                  if (started) router.setParams({ run: started });
+                  else saveFailed();
+                }}
               />
             )}
           </View>

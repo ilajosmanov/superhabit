@@ -22,7 +22,7 @@ import { EXERCISES, initialCounters, orientation } from '@/exercises/registry';
 
 import { finishSet, type StepResult } from './results';
 import { camcorder, type VideoOutput } from './camcorder';
-import type { LogEvent, LogInput } from './log';
+import { workoutLog, type LogTarget } from './log';
 import { done, expand, type Challenge } from './plan';
 
 type Events =
@@ -58,8 +58,12 @@ type OnPose = (result: PoseDetection, live: Live) => void;
 /** `video`: the camera's video output (also passed to PoseCamera); without it nothing is filmed. */
 type Input = {
   challenge: Challenge;
-  /** The workout's id when the route needs it first (to tell its own open workout from one left over). */
-  workoutId?: string;
+  /** Known before the session starts, to tell this workout from one an earlier session left open. */
+  workoutId: string;
+  /** What the workout counts toward; the log keeps it with the workout. */
+  target: LogTarget;
+  /** When the session started: the workout's day and start time. */
+  start: Date;
   onPose?: OnPose;
   video?: VideoOutput;
   record?: boolean;
@@ -76,6 +80,8 @@ type Context = Counting & {
   stepS: number;
   stepStartedAt: number | null;
   workoutId: string;
+  target: LogTarget;
+  start: Date;
   setId: string;
   countdown: number;
   /** Ran through the last step, even with zero reps via next; `end` leaves it false. */
@@ -103,8 +109,6 @@ type Context = Counting & {
   saved: boolean;
   /** The log threw the workout away (Discard went through). */
   discarded: boolean;
-  /** The log's last write failed; it tries the unwritten sets again with the next one. */
-  unsaved: boolean;
 };
 
 const CAPTION_MS = 3000;
@@ -135,10 +139,6 @@ const landmarker = fromCallback<Events>(({ sendBack }) => {
   return () => instance.close();
 });
 
-// The route provides the real log (`workoutLog` in log.ts) with the run it counts toward; without one,
-// as in most tests, nothing is kept.
-const log = fromCallback<LogEvent, LogInput>(() => {});
-
 /** Ticks once a second for as long as it is invoked, so elapsed time only runs in those states. */
 const ticker = fromCallback(({ sendBack }) => {
   const id = setInterval(() => sendBack({ type: 'tick' }), 1000);
@@ -152,7 +152,7 @@ type Actors = {
   ticker: typeof ticker;
   camcorder: typeof camcorder;
   recorder: typeof recorder;
-  log: typeof log;
+  log: typeof workoutLog;
 };
 
 const isLast = (c: Context) => c.step === c.steps.length - 1;
@@ -202,7 +202,15 @@ const session = setup<
   string,
   Input
 >({
-  actors: { landmarker, speech, orientation: orientationLock, ticker, camcorder, recorder, log },
+  actors: {
+    landmarker,
+    speech,
+    orientation: orientationLock,
+    ticker,
+    camcorder,
+    recorder,
+    log: workoutLog,
+  },
   actions: {
     nextStep: assign(({ context }) => ({
       // During a rest the view still shows the exercise just finished.
@@ -285,7 +293,9 @@ const ADVANCE = [
 export const workoutSession = session.createMachine({
   context: ({ input }) => ({
     ...freshSet(),
-    workoutId: input.workoutId ?? uuid.v4(),
+    workoutId: input.workoutId,
+    target: input.target,
+    start: input.start,
     landmarker: null,
     onPose: input.onPose,
     video: input.video,
@@ -311,7 +321,6 @@ export const workoutSession = session.createMachine({
     share: true,
     saved: false,
     discarded: false,
-    unsaved: false,
   }),
   invoke: [
     { src: 'landmarker' },
@@ -331,7 +340,11 @@ export const workoutSession = session.createMachine({
       id: 'recorder',
       input: ({ context }) => ({ on: context.record, share: context.share }),
     },
-    { src: 'log', id: 'log', input: ({ context }) => ({ workoutId: context.workoutId }) },
+    {
+      src: 'log',
+      id: 'log',
+      input: ({ context: { workoutId, target, start } }) => ({ workoutId, target, start }),
+    },
   ],
   on: {
     ready: { actions: assign({ landmarker: ({ event }) => event.landmarker }) },
@@ -369,8 +382,7 @@ export const workoutSession = session.createMachine({
     videoLost: { actions: [sendTo('camcorder', { type: 'lost' }), assign({ videoLost: true })] },
     // Outside counting.flipping (paused mid-flip, or the first start): just note the camera streams.
     cameraReady: { actions: assign({ flipPending: false }) },
-    logFailed: { actions: assign({ unsaved: true }) },
-    logSaved: { actions: assign({ saved: true, unsaved: false }) },
+    logSaved: { actions: assign({ saved: true }) },
     logDiscarded: { actions: assign({ discarded: true }) },
     flashOff: { actions: assign({ flash: null }) },
     captionOff: { actions: assign({ caption: null }) },

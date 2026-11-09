@@ -1,19 +1,18 @@
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 
-import { createActor, fromCallback } from 'xstate';
+import { sql } from 'drizzle-orm';
+import { createActor } from 'xstate';
 
 import { defineChallenge, MAX, reps, seconds, type Step } from './plan';
 import { EXERCISES } from '@/exercises/registry';
-import type { LogEvent, LogInput } from './log';
 
 import { plank } from '@/exercises/__fixtures__/plank';
 import {
   challenge,
-  fakeLog,
   hold,
-  logged,
   LANDSCAPE,
   lockAsync,
+  LOG,
   modules,
   NOW,
   plan,
@@ -25,21 +24,30 @@ import {
   squat,
   squatTest,
 } from './__fixtures__/session';
+import { db, migrateDatabase } from '@/storage/__fixtures__/database';
+import * as schema from '@/storage/schema';
 
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
 vi.mock('superhabit-pose', () => modules['superhabit-pose']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 vi.mock('expo-screen-orientation', () => modules['expo-screen-orientation']);
+vi.mock('expo-constants', () => modules['expo-constants']);
+vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 
 const { workoutSession } = await import('./session');
 const { sessionView } = await import('./session-view');
 
+const workouts = () => db().select().from(schema.workouts).all();
+const sets = () => db().select().from(schema.sets).all();
+const outbox = () => db().select().from(schema.outbox).all();
+
+beforeAll(migrateDatabase);
 afterEach(reset);
 
 describe('workoutSession moves between steps: sets, rests, countdowns, phone placement', () => {
   it('runs a squat set, waits between sets, then a push-up set', () => {
-    const actor = createActor(workoutSession, { input: { challenge } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge } }).start();
     squat();
     expect(sessionView(actor.getSnapshot())).toMatchObject({
       stage: 'switching',
@@ -72,47 +80,54 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     actor.stop();
   });
 
-  it('logs each set as it finishes, in plan order, and Done once', () => {
-    const actor = createActor(workoutSession.provide({ actors: { log: fakeLog } }), {
-      input: { challenge },
-    }).start();
+  it('keeps each set as it finishes, in plan order, and Done saves the workout with them once', () => {
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge } }).start();
     squat();
-    // Before the last set: the squat set is already in the log, so a killed app keeps it.
-    expect(logged.map(({ type }) => type)).toEqual(['set']);
+    // Before the last set: the squat set is already kept, so a killed app keeps it.
+    expect(sets().map(({ exercise }) => exercise)).toEqual(['squat']);
     actor.send({ type: 'next' });
     pushup();
     actor.send({ type: 'save' });
     actor.send({ type: 'save' });
-    expect(
-      logged.map((event) =>
-        event.type === 'set' ? [event.set.planStep, event.set.exercise] : event.type,
-      ),
-    ).toEqual([[0, 'squat'], [1, 'pushup'], 'done']);
+
+    expect(actor.getSnapshot().context.saved).toBe(true);
+    expect(workouts()).toEqual([expect.objectContaining({ id: 'w', status: 'done' })]);
+    const counted = [expect.objectContaining({ counted: true })];
+    expect(sets()).toEqual([
+      expect.objectContaining({ planStep: 0, exercise: 'squat', reps: 1, attempts: counted }),
+      expect.objectContaining({ planStep: 1, exercise: 'pushup', reps: 1, attempts: counted }),
+    ]);
+    expect(outbox()).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          workout: expect.objectContaining({
+            id: 'w',
+            sets: [expect.anything(), expect.anything()],
+          }),
+        }),
+      }),
+    ]);
     actor.stop();
   });
 
-  it('is saved only once the log says so, and a failed Done can be tried again', () => {
-    let full = true;
-    const dones: string[] = [];
-    const flaky = fromCallback<LogEvent, LogInput>(({ receive, sendBack }) => {
-      receive((event) => {
-        if (event.type !== 'done') return;
-        dones.push(full ? 'failed' : 'saved');
-        sendBack({ type: full ? 'logFailed' : 'logSaved' });
-      });
-    });
-    const actor = createActor(workoutSession.provide({ actors: { log: flaky } }), {
-      input: { challenge: squatTest },
-    }).start();
+  it('is saved only once the database took it, and a failed Done can be tried again', () => {
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
     actor.send({ type: 'end' });
-    actor.send({ type: 'save' });
+    // Nothing counted: back from the Done page leaves without asking.
+    expect(sessionView(actor.getSnapshot()).counted).toBe(false);
+    db().run(
+      sql`create trigger full before insert on outbox begin select raise(abort, 'disk full'); end`,
+    );
+    try {
+      actor.send({ type: 'save' });
+    } finally {
+      db().run(sql`drop trigger full`);
+    }
     // Known as soon as Done is sent: the route reads it right after.
-    expect(actor.getSnapshot().context).toMatchObject({ saved: false, unsaved: true });
-    full = false;
+    expect(actor.getSnapshot().context.saved).toBe(false);
     actor.send({ type: 'save' });
-    actor.send({ type: 'save' });
-    expect(actor.getSnapshot().context).toMatchObject({ saved: true, unsaved: false });
-    expect(dones).toEqual(['failed', 'saved']);
+    expect(actor.getSnapshot().context.saved).toBe(true);
+    expect(workouts()).toEqual([expect.objectContaining({ status: 'done' })]);
     actor.stop();
   });
 
@@ -120,6 +135,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, {
       input: {
+        ...LOG,
         challenge: plan(
           { exercise: 'squat', goal: reps(1) },
           { exercise: 'plank', goal: seconds(30) },
@@ -154,6 +170,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
   it('shows the next exercise across a rest and counts only exercise sets', () => {
     const actor = createActor(workoutSession, {
       input: {
+        ...LOG,
         challenge: plan(
           { exercise: 'squat', goal: reps(1) },
           { exercise: 'rest', goal: seconds(30) },
@@ -192,7 +209,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
         { steps: [{ exercise: 'pushup', goal: reps(2) }], rounds: 1 },
       ],
     });
-    const actor = createActor(workoutSession, { input: { challenge: repeated } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge: repeated } }).start();
     const view = () => sessionView(actor.getSnapshot());
     expect(view()).toMatchObject({ set: 1, sets: 3, target: 1 });
     squat();
@@ -223,6 +240,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     const onPose = vi.fn();
     const actor = createActor(workoutSession, {
       input: {
+        ...LOG,
         challenge: plan({ exercise: 'squat', goal: reps(1) }, { exercise: 'squat', goal: reps(1) }),
         onPose,
       },
@@ -274,6 +292,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, {
       input: {
+        ...LOG,
         challenge: plan(
           { exercise: 'squat', goal: reps(1) },
           { exercise: 'rest', goal: seconds(30) },
@@ -323,6 +342,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, {
       input: {
+        ...LOG,
         challenge: plan(
           { exercise: 'squat', goal: reps(1) },
           { exercise: 'rest', goal: seconds(30) },
@@ -347,6 +367,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, {
       input: {
+        ...LOG,
         challenge: plan(
           { exercise: 'squat', goal: reps(1) },
           { exercise: 'rest', goal: MAX },
@@ -374,6 +395,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, {
       input: {
+        ...LOG,
         challenge: plan(
           { exercise: 'squat', goal: reps(1) },
           { exercise: 'rest', goal: seconds(30) },
@@ -429,7 +451,9 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
               { exercise: 'squat', goal: reps(1) },
               { exercise: 'squat', goal: reps(1) },
             ];
-      const actor = createActor(workoutSession, { input: { challenge: plan(...steps) } }).start();
+      const actor = createActor(workoutSession, {
+        input: { ...LOG, challenge: plan(...steps) },
+      }).start();
       squat();
       if (stage === 'paused') actor.send({ type: 'pause' });
       expect(sessionView(actor.getSnapshot()).stage).toBe(stage);
@@ -446,7 +470,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
 
   it('keeps the partial exercise row when ending directly from a counting pause', () => {
     vi.useFakeTimers({ now: NOW });
-    const actor = createActor(workoutSession, { input: { challenge: squatTest } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
     vi.advanceTimersByTime(2000);
     squat();
     squat();
@@ -477,6 +501,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, {
       input: {
+        ...LOG,
         challenge: plan({ exercise: 'squat', goal: reps(1) }, { exercise: 'squat', goal: reps(1) }),
       },
     }).start();
@@ -493,6 +518,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, {
       input: {
+        ...LOG,
         challenge: plan({ exercise: 'squat', goal: reps(1) }, { exercise: 'squat', goal: reps(1) }),
       },
     }).start();
@@ -517,7 +543,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
   });
 
   it('ends a set early on next while counting', () => {
-    const actor = createActor(workoutSession, { input: { challenge } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge } }).start();
     expect(sessionView(actor.getSnapshot())).toMatchObject({ recording: false });
     actor.send({ type: 'next' });
     expect(sessionView(actor.getSnapshot())).toMatchObject({ stage: 'switching', reps: 0 });
@@ -532,7 +558,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
   });
 
   it('locks landscape only after next, and portrait when finished and on stop', () => {
-    const actor = createActor(workoutSession, { input: { challenge } }).start();
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge } }).start();
     expect(lockAsync.mock.calls).toEqual([[PORTRAIT]]);
     squat();
     expect(sessionView(actor.getSnapshot()).stage).toBe('switching');

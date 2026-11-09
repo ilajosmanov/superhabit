@@ -1,7 +1,8 @@
 /**
  * Fakes for the boundaries a session touches (native detector, speech, file system, orientation lock,
  * camera video output) and pose helpers that drive it. Each test file mocks the native modules with
- * `modules`, then imports `./session` dynamically, and calls `reset` after each test.
+ * `modules` and the database with Node's SQLite (`@/storage/__fixtures__/database`), then imports
+ * `./session` dynamically, and calls `reset` after each test.
  */
 import type { PoseDetection } from 'superhabit-pose';
 import { Joint } from 'superhabit-pose/joints';
@@ -10,10 +11,10 @@ import { vi } from 'vite-plus/test';
 import type { Pose } from '@/exercises/registry';
 import { body } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
-import { fromCallback } from 'xstate';
 
+import { db } from '@/storage/__fixtures__/database';
+import * as schema from '@/storage/schema';
 import type { VideoOutput } from '@/workout/camcorder';
-import type { LogEvent, LogInput } from '@/workout/log';
 import { defineChallenge, MAX, reps, type Step } from '@/workout/plan';
 
 export const speak = vi.fn();
@@ -129,9 +130,16 @@ export const modules = {
     lockAsync,
     OrientationLock: { PORTRAIT, LANDSCAPE },
   },
+  'expo-constants': { default: { expoConfig: { version: '1.0.0' } } },
 };
 
 export const NOW = Date.UTC(2026, 10, 6, 7);
+/** The session's workout: a free log started at NOW. */
+export const LOG = {
+  workoutId: 'w',
+  target: { runId: null, versionId: null },
+  start: new Date(NOW),
+};
 /** Detector time (ms) and frame count, continued across calls and tests. */
 export let clock = 0;
 export let frames = 0;
@@ -228,24 +236,12 @@ export const video: VideoOutput = {
   },
 };
 // Lets the camcorder's promise chains and the fake's ticks settle.
-/** What the session sent its log, in order; provide `fakeLog` as the session's `log` actor. */
-export const logged: LogEvent[] = [];
-export const fakeLog = fromCallback<LogEvent, LogInput>(({ receive, sendBack }) => {
-  receive((event) => {
-    logged.push(event);
-    if (event.type === 'done') sendBack({ type: 'logSaved' });
-    if (event.type === 'discard') sendBack({ type: 'logDiscarded' });
-  });
-});
-export const loggedSets = () =>
-  logged.flatMap((event) => (event.type === 'set' ? [event.set] : []));
-
 export const flush = async () => {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
 };
 export const stops = () => takes.map((t) => t.stopped);
 
-/** After each test: real timers, and no takes or files left from it. */
+/** After each test: real timers, and no takes, files or workouts left from it. */
 export function reset() {
   vi.useRealTimers();
   takes.length = 0;
@@ -254,5 +250,6 @@ export function reset() {
   written.length = 0;
   files.clear();
   folders.clear();
-  logged.length = 0;
+  db().delete(schema.workouts).run();
+  db().delete(schema.outbox).run();
 }

@@ -47,7 +47,7 @@ const stepSchema = z.union([
 ]);
 const blockSchema = z.strictObject({
   steps: z.tuple([stepSchema], stepSchema),
-  // shortcut: at most 1000 rounds, as in the legacy reader; raise when a real plan needs more.
+  // shortcut: at most 1000 rounds; raise when a real plan needs more.
   rounds: z.number().int().positive().max(1000),
 });
 const sessionSchema = z.tuple([blockSchema], blockSchema);

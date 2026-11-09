@@ -2,7 +2,7 @@ import { toEntry, type CatalogEntry } from './catalog';
 import { ONE_GO, oneGo } from './challenges';
 import { draftOf } from './draft';
 import { counting, runCalendar, versionOf, type DayResult, type Version } from './progress';
-import { doneToday, type Run } from './run-view';
+import { doneToday, type RunView } from './run-view';
 import { OURS, SUGGESTED_CHALLENGES } from './suggested';
 import { userId } from '@/storage/account';
 import type * as schema from '@/storage/schema';
@@ -29,13 +29,12 @@ export type Joined = {
   runId: string;
   /** The version the run follows. */
   challenge: Readable;
-  run: Run;
+  run: RunView;
   /**
    * What each exercise set got on each day of `progress`, on the try the day shows (a daily total: the
-   * day's sum); nothing done on a day with no try. Undefined for a try under another version: its sets
-   * don't line up with this plan.
+   * day's sum), against the version that try was done on; nothing done on a day with no try.
    */
-  amounts: readonly (readonly number[] | undefined)[];
+  amounts: readonly { version: Readable; done: readonly number[] }[];
 };
 /** A run whose version is from a newer app: shown with "Update the app", never with another version. */
 export type Unavailable = { challengeId: string; runId: string; name: string; challenge: null };
@@ -48,13 +47,26 @@ function readVersion(row: Library['versions'][number]): Readable | null {
   return session && { id, name, days, dailyTotal, restartOnMiss, session };
 }
 
-function amountsOn(version: Readable, result: DayResult, sets: readonly LoggedSet[]) {
-  if (result.total !== undefined) return [result.total];
-  const { shown } = result;
-  if (shown && shown.versionId !== version.id) return undefined;
-  const steps = expand(version.session);
-  return setAmounts(steps, workoutResults(steps, shown?.id ?? '', sets));
+function amountsOn(
+  versions: readonly Readable[],
+  version: Readable,
+  { shown, total }: DayResult,
+  sets: readonly LoggedSet[],
+) {
+  // An edit never rescores a try: it reads against the version it was done on.
+  const at = versions.find(({ id }) => id === shown?.versionId) ?? version;
+  if (total !== undefined) return { version: at, done: [total] };
+  const steps = expand(at.session);
+  return { version: at, done: setAmounts(steps, workoutResults(steps, shown?.id ?? '', sets)) };
 }
+
+/** The library with its stored JSON read once: every version's plan, every set. */
+const read = (library: Library) => ({
+  library,
+  versions: library.versions.map((row) => ({ row, version: readVersion(row) })),
+  sets: readSets(library.sets),
+});
+type Read = ReturnType<typeof read>;
 
 /** A session under way: its open workout, and the version it started on. */
 export type During = { workoutId: string; versionId: string | null };
@@ -66,26 +78,27 @@ export type During = { workoutId: string; versionId: string | null };
  * whatever was edited since.
  */
 function yours(
-  library: Library,
+  { library, ...stored }: Read,
   run: Library['runs'][number],
   today: Day,
   during?: During,
 ): Yours | null {
   const challenge = library.challenges.find(({ id }) => id === run.challengeId);
   if (!challenge) return null;
-  const rows = library.versions.filter((v) => v.challengeId === challenge.id);
-  const row = rows.find(({ id }) => id === (during?.versionId ?? versionOf(run, challenge)));
-  const version = row && readVersion(row);
+  const rows = stored.versions.filter(({ row }) => row.challengeId === challenge.id);
+  const wanted = during?.versionId ?? versionOf(run, challenge);
+  const found = rows.find(({ row }) => row.id === wanted);
+  const version = found?.version;
   if (!version) {
-    const name = row?.name ?? '';
+    const name = found?.row.name ?? '';
     return run.endedOn ? null : { challengeId: challenge.id, runId: run.id, name, challenge: null };
   }
-  const versions = rows.flatMap((v) => readVersion(v) ?? []);
+  const versions = rows.flatMap((v) => v.version ?? []);
   // Tries under a version this app can't read are left out: their plan can't be scored.
   const workouts = library.workouts.filter(
     (w) => w.runId === run.id && versions.some(({ id }) => id === w.versionId),
   );
-  const sets = readSets(library.sets);
+  const { sets } = stored;
   const input = { run, version, versions, workouts, sets };
   const { days, state } = runCalendar(during ? counting(input, during.workoutId) : input, today);
   if (state.state !== 'active') return null;
@@ -101,23 +114,25 @@ function yours(
       from: state.from,
       progress: stretch.map(({ result }) => result.share),
     },
-    amounts: stretch.map(({ result }) => amountsOn(version, result, sets)),
+    amounts: stretch.map(({ result }) => amountsOn(versions, version, result, sets)),
   };
 }
 
 /** A run by id, while it is still going; `during` as in `yours`. */
 export function runById(library: Library, runId: string, today: Day, during?: During) {
   const run = library.runs.find(({ id }) => id === runId);
-  return run ? yours(library, run, today, during) : null;
+  return run ? yours(read(library), run, today, during) : null;
 }
 
 const order = (entry: Yours) => (!entry.challenge ? 2 : doneToday(entry.run) ? 1 : 0);
 
 /** Every run still going: due today first, then done today, then those needing an app update. */
-export const yourRuns = (library: Library, today: Day) =>
-  library.runs
-    .flatMap((run) => yours(library, run, today) ?? [])
+export function yourRuns(library: Library, today: Day) {
+  const stored = read(library);
+  return library.runs
+    .flatMap((run) => yours(stored, run, today) ?? [])
     .sort((a, b) => order(a) - order(b));
+}
 
 const current = (library: Library, challenge: Library['challenges'][number]) => {
   const row = library.versions.find(({ id }) => id === challenge.currentVersionId);
@@ -143,7 +158,8 @@ export function challengePage(library: Library, id: string, today: Day, runId?: 
   const row = library.challenges.find((c) => c.id === id);
   if (!row) return null;
   const runs = library.runs.filter((run) => run.challengeId === id);
-  const going = runs.flatMap((run) => yours(library, run, today) ?? []);
+  const stored = read(library);
+  const going = runs.flatMap((run) => yours(stored, run, today) ?? []);
   const mine =
     runId === undefined
       ? (going.at(-1) ?? null)
@@ -151,10 +167,9 @@ export function challengePage(library: Library, id: string, today: Day, runId?: 
   const challenge = mine ? mine.challenge : current(library, row);
   const length = challenge?.days === 1 ? 'ONE GO' : `${challenge?.days} DAYS · DAY 1 IS TODAY`;
   return {
-    name:
-      mine?.challenge === null
-        ? mine.name
-        : (library.versions.find((v) => v.id === row.currentVersionId)?.name ?? ''),
+    name: mine?.challenge
+      ? mine.challenge.name
+      : (mine?.name ?? library.versions.find(({ id }) => id === row.currentVersionId)?.name ?? ''),
     challenge,
     /** Your run on this page; with `challenge` null it needs an app update. */
     runId: mine?.runId ?? null,

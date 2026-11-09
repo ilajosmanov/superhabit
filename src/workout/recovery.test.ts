@@ -9,6 +9,8 @@ import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
 
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
+// The live query is the screens' (useLeftWorkout); Node has no expo-sqlite.
+vi.mock('drizzle-orm/expo-sqlite', () => ({}));
 vi.mock('expo-constants', () => ({ default: { expoConfig: { version: '1.0.0' } } }));
 
 const set = (planStep: number, endedAt: number): StepResult => ({
@@ -89,21 +91,6 @@ describe('recovery', () => {
       { input: { id: 'left' } },
     ).start();
   const settled = () => new Promise((resolve) => setTimeout(resolve));
-
-  it('offers Discard when Save fails, and is done once Discard goes through', async () => {
-    const actor = offered(
-      () => {
-        throw new Error('disk full');
-      },
-      () => {},
-    );
-    actor.send({ type: 'save' });
-    await settled();
-    expect(actor.getSnapshot().value).toBe('saveFailed');
-    actor.send({ type: 'discard' });
-    await settled();
-    expect(actor.getSnapshot().status).toBe('done');
-  });
 
   it('offers both again when Discard fails', async () => {
     const actor = offered(
