@@ -12,7 +12,8 @@
       "icon": "./assets/expo.icon",
       "infoPlist": {
         "NSCameraUsageDescription": "Superhabit uses the camera to count your reps and check your form."
-      }
+      },
+      "bundleIdentifier": "com.ilajosmanov.superhabit"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +24,9 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.ilajosmanov.superhabit",
-      "permissions": ["android.permission.CAMERA"]
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -39,7 +42,8 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 26
+            "minSdkVersion": 26,
+            "kotlinVersion": "2.2.10"
           }
         }
       ],
@@ -47,7 +51,10 @@
         "expo-font",
         {
           "ios": {
-            "fonts": ["./assets/fonts/Geist.ttf", "./assets/fonts/GeistMono.ttf"]
+            "fonts": [
+              "./assets/fonts/Geist.ttf",
+              "./assets/fonts/GeistMono.ttf"
+            ]
           },
           "android": {
             "fonts": [
