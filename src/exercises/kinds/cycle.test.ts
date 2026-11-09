@@ -54,26 +54,6 @@ describe('engine', () => {
     expect(s.lastRep?.counted).toBe(false);
   });
 
-  it('retains form from gated signals without extending their tracking lifetime', () => {
-    const ex = counter({
-      signal: (m) => (m === 50 ? null : m),
-      add: (a, m) => ({ samples: a.samples + Number(m === 50) }),
-      clean: (a) => a.samples === 0,
-      report: (a, _m, r) => ({ ...r, cues: a.samples ? ['Keep upright'] : [] }),
-    });
-    const bottom = play(ex, [170, 90]);
-    const gated = ex.step(bottom, 50, (bottom.lastSeenAt ?? 0) + 66);
-    expect(gated.lastSeenAt).toBe(bottom.lastSeenAt);
-    expect(gated.filter).toBe(bottom.filter);
-    const done = hold(ex, gated, 170, (bottom.lastSeenAt ?? 0) + 132);
-    expect(done).toMatchObject({
-      reps: 0,
-      noReps: 1,
-      lastRep: { counted: false, cues: ['Keep upright'] },
-    });
-    expect(ex.step(gated, 50, (bottom.lastSeenAt ?? 0) + 1001).phase).toBe('waiting');
-  });
-
   it('keeps counts on reset and requires the start before another attempt', () => {
     const ex = counter();
     const completed = play(ex, [170, 90, 170, 130, 170]);

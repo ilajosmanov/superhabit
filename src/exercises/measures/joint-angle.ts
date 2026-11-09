@@ -8,6 +8,8 @@ const BENDS = {
   elbow: { ends: ['shoulder', 'elbow', 'wrist'], parts: ['head', 'hands'] },
   knee: { ends: ['hip', 'knee', 'ankle'], parts: ['hips', 'feet'] },
   hip: { ends: ['shoulder', 'hip', 'knee'], parts: ['head', 'hips'] },
+  /** The arm raised from the side: about 20 hanging, 180 straight overhead. */
+  shoulder: { ends: ['hip', 'shoulder', 'elbow'], parts: ['head', 'hands', 'hips'] },
 } as const;
 
 export type Bend = keyof typeof BENDS;

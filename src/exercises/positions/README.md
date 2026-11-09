@@ -1,10 +1,19 @@
 # positions
 
-Which body position you are in. One file per position, named after it (`plank.ts`). Several
-exercises share one: the plank position serves the plank and the push-up; standing serves the
-squat and the side squat. `back.ts` holds two that share one reading: on your back with knees bent
-(sit-up, glute bridge) and with legs straight (leg raise). `seated.ts` is seated in the air (wall
-sit).
+Which body position you are in. One file per position, named after it (`plank.ts`); several
+exercises share one.
+
+| File            | Position                                             | Exercises                               |
+| --------------- | ---------------------------------------------------- | --------------------------------------- |
+| `plank.ts`      | plank, forearm or high, side-on                      | plank, push-up, burpee                  |
+| `standing.ts`   | standing (`standingPosition`)                        | squat, side squat, jumping jack, burpee |
+|                 | standing with the torso kept up (`uprightPosition`)  | lunge                                   |
+| `back.ts`       | on your back, knees bent (`kneesBentPosition`)       | sit-up, glute bridge                    |
+|                 | on your back, legs straight (`legsStraightPosition`) | leg raise                               |
+| `seated.ts`     | seated in the air (`inTheAirPosition`)               | wall sit                                |
+| `side-plank.ts` | on one forearm, facing the phone                     | side plank                              |
+
+Variants in one file share one reading and differ in their checks.
 
 `position.ts` is what every position must provide:
 

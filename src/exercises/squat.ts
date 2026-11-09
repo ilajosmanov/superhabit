@@ -16,7 +16,7 @@ const squatCycle = cycle(
     down,
     shallow: 140,
     fastMs: 800,
-    deeper: 'Go deeper',
+    short: 'Go deeper',
     // The thighs' elevation: 44° or less at the bottom (45° or more from upright). A shallow dip is a
     // failed rep only once under 72°, so kneeling or a bend to the phone stays silent; a real 140°
     // half squat reads ~67°.

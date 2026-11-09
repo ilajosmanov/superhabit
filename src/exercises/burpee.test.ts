@@ -2,9 +2,8 @@ import { assert, describe, expect, it } from 'vite-plus/test';
 
 import { body } from './__fixtures__/body';
 import { plank } from './__fixtures__/plank';
-import { loadTrace, traceFiles } from './__fixtures__/replay';
+import { repsInSpans, traceFiles } from './__fixtures__/replay';
 import type { Pose } from '@/exercises/body/geometry';
-import { toPose } from '@/exercises/body/trace';
 import type { SequenceState } from '@/exercises/kinds/sequence';
 import { burpee } from './burpee';
 
@@ -79,15 +78,7 @@ describe.skipIf(clips.some((path) => !path))('burpee on device clips with gravit
   it.each(Object.entries(BURPEES))('%s: counts each real burpee once', (clip, spans) => {
     const path = clips.find((p) => p?.endsWith(clip));
     assert(path);
-    let state = burpee.initial;
-    const reps: number[] = [];
-    for (const frame of loadTrace(path).frames) {
-      const pose = frame.landmarks.length ? toPose(frame) : null;
-      const next = burpee.step(state, pose && burpee.measure(pose), frame.t);
-      if (next.reps > state.reps) reps.push(frame.t / 1000);
-      state = next;
-    }
-    const inside = spans.map(([from, to]) => reps.filter((t) => t >= from && t <= to).length);
+    const { reps, inside } = repsInSpans(burpee, path, spans);
     expect(inside, JSON.stringify(reps)).toEqual(spans.map(() => 1));
     expect(reps, JSON.stringify(reps)).toHaveLength(spans.length);
   });

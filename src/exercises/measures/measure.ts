@@ -17,17 +17,24 @@ export type Measure = {
 };
 
 /**
- * Both limbs moving alike (a squat's knees). With both seen it reads the higher, the limb that moved
- * least, and nothing when they differ by more than `gap`: one limb moving alone (a kick) is not the
- * exercise. With one seen, that one stands in, as side-on where the far limb hides.
+ * Both limbs moving alike (a squat's knees). With both seen it reads the `higher` value (by default)
+ * or the `lower`: a squat reads its straighter knee, so both must bend; a jack its lower arm, so both
+ * must rise; a lunge its more bent knee, the front one. Nothing when they differ by more than `gap`:
+ * one limb moving alone (a kick) is not the exercise. With one seen, that one stands in, as side-on
+ * where the far limb hides. The same limb is read at the top, so the other may stop up to `gap` short
+ * of it there.
  */
-export const bothSides = (m: Measure, gap: number): Measure => ({
+export const bothSides = (
+  m: Measure,
+  gap: number,
+  read: 'higher' | 'lower' = 'higher',
+): Measure => ({
   ...m,
   read: (pose, side) => {
     const own = m.read(pose, side);
     const other = m.read(pose, side === 'left' ? 'right' : 'left');
     if (!own || !other) return own;
     if (Math.abs(own.value - other.value) > gap) return null;
-    return { ...own, value: Math.max(own.value, other.value) };
+    return { ...own, value: (read === 'lower' ? Math.min : Math.max)(own.value, other.value) };
   },
 });

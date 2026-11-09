@@ -10,7 +10,7 @@ export const situp = exercise(
     down: 50,
     shallow: 30,
     fastMs: 1000,
-    deeper: 'Sit up higher',
+    short: 'Sit up higher',
   }),
   {
     name: 'sit-ups',

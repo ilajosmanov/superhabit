@@ -1,15 +1,13 @@
 // A position held while one measure goes down and back up: one rep. The position's setup is judged
 // at the top, where the body is at rest; its form on every frame of the rep.
 import { BODY_PARTS, type Joints, type Pose, type Side } from '@/exercises/body/geometry';
-import { smooth, type Smooth, type Tuning } from '@/exercises/body/smooth';
+import { smooth, type Smooth } from '@/exercises/body/smooth';
 import type { Measure } from '@/exercises/measures/measure';
 import type { Position } from '@/exercises/positions/position';
 import { fmtMs, type Counter, type Detector, type Progress, type Rep } from './progress';
 
 export type CycleConfig<M, A, R extends Rep> = {
-  /** Null gates the signal, not form accumulation from an otherwise valid sample. */
-  signal(m: M): number | null;
-  smoothing?: Tuning;
+  signal(m: M): number;
   /** Every value the signal can take; others are dropped. Degrees by default. */
   range?: readonly [number, number];
   up: number;
@@ -17,6 +15,8 @@ export type CycleConfig<M, A, R extends Rep> = {
   shallow: number;
   start?(m: M): boolean;
   turn?(m: M): boolean;
+  /** Back at the top, the attempt ends only once this holds too. */
+  top?(m: M): boolean;
   fresh: A;
   add(a: A, m: M): A;
   clean?(a: A, m: M): boolean;
@@ -29,12 +29,10 @@ export type CycleConfig<M, A, R extends Rep> = {
       depth: number;
       downMs: number | null;
       upMs: number | null;
-      /** Frames of the attempt without a measurement: the body left the frame. */
-      unseen: number;
     },
   ): R;
 };
-type Timing = { startAt?: number; bottomAt?: number; unseen?: number };
+type Timing = { startAt?: number; bottomAt?: number };
 export type CycleState<A, R extends Rep> = Progress & {
   lastRep: R | null;
   min: number; // extreme since the last top in normalised space; hi = none
@@ -55,9 +53,8 @@ function timing(a: Timing, nowMs: number) {
 }
 
 /**
- * One signal, smoothed and held for two samples, cycling waiting -> up -> down -> up.
- * shortcut: exported for the exercises not yet rebuilt on a position, and for sided; make it
- * private to this file once they all use `cycle`.
+ * One signal, smoothed and held for two samples, cycling waiting -> up -> down -> up. Exported for
+ * its own tests; exercises use `cycle`.
  */
 export function engine<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<CycleState<A, R>, M> {
   // Unit signals (0..1) fit inside the default degrees.
@@ -105,9 +102,9 @@ export function engine<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<Cy
   }
 
   /** A threshold needs two consecutive smoothed samples beyond it. */
-  function hold(s: State, value: number | null, nowMs: number) {
-    if (value === null || !Number.isFinite(value) || value < lo || value > hi) return null;
-    const filter = smooth(s.filter, mirror(value), nowMs / 1000, c.smoothing);
+  function hold(s: State, value: number, nowMs: number) {
+    if (!Number.isFinite(value) || value < lo || value > hi) return null;
+    const filter = smooth(s.filter, mirror(value), nowMs / 1000);
     return {
       s: { ...s, filter, prev: filter.x, lastSeenAt: nowMs },
       low: Math.max(filter.x, s.prev ?? NaN),
@@ -118,26 +115,8 @@ export function engine<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<Cy
   function step(s: State, sample: M | null, nowMs: number): State {
     if (s.lastSeenAt !== undefined && nowMs <= s.lastSeenAt) return s;
     s = expire(s, nowMs);
-    if (sample === null)
-      return s.phase === 'waiting'
-        ? s
-        : { ...s, attempt: { ...s.attempt, unseen: (s.attempt.unseen ?? 0) + 1 } };
-    const signal = c.signal(sample);
-    // A gated signal can still carry form (e.g. torso lean as a lunge stride closes).
-    // Keep the signal's tracking clock and filter untouched; unseen time still expires the cycle.
-    if (signal === null)
-      return s.phase === 'waiting'
-        ? s
-        : {
-            ...s,
-            attempt: {
-              ...c.add(s.attempt, sample),
-              startAt: s.attempt.startAt,
-              bottomAt: s.attempt.bottomAt,
-              unseen: s.attempt.unseen,
-            },
-          };
-    const held = hold(s, signal, nowMs);
+    if (sample === null) return s;
+    const held = hold(s, c.signal(sample), nowMs);
     if (!held) return s;
     const { low, high } = held;
     s = held.s;
@@ -150,10 +129,9 @@ export function engine<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<Cy
       ...c.add(s.attempt, sample),
       startAt: s.attempt.startAt,
       bottomAt: low < s.min ? nowMs : s.attempt.bottomAt,
-      unseen: s.attempt.unseen,
     };
     const min = Math.min(s.min, low);
-    if (high >= up) {
+    if (high >= up && (c.top?.(sample) ?? true)) {
       const done: State = { ...s, phase: 'up', min: hi, attempt: fresh(nowMs) };
       const turned = s.phase === 'down';
       if (turned || (min < shallow && (c.tried?.(attempt, sample) ?? true))) {
@@ -166,7 +144,6 @@ export function engine<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<Cy
             counted,
             depth: mirror(min),
             ...timing(attempt, nowMs),
-            unseen: attempt.unseen ?? 0,
           }),
         };
       }
@@ -197,19 +174,26 @@ export type CycleOptions = {
   shallow: number;
   /** A full rep faster than this is counted, with a cue to slow down. */
   fastMs: number;
-  /** Said after a failed rep that was in position but not deep enough: 'Go lower'. */
-  deeper: string;
+  /** Said after a rep that moved past `shallow` but fell short of `down`: 'Go lower', 'Lift your hips higher'. */
+  short: string;
   /**
-   * A second measure on the same side that must fall too: past `down` for the bottom, past
-   * `shallow` for a failed rep. A squat's hips, so bent knees alone (kneeling, a bend) are no rep.
+   * A second measure on the same side that must move too: past `down` for the bottom, past `shallow`
+   * for a failed rep. It falls when `down` is under `shallow`, else rises. A squat's hips, so bent
+   * knees alone (kneeling, a bend) are no rep; a lunge's feet apart, so a squat is no lunge.
    */
-  also?: { measure: Measure; down: number; shallow: number };
+  also?: {
+    measure: Measure;
+    down: number;
+    shallow: number;
+    /** Back past this before the rep ends at the top: a jack's feet together, whichever lands last. */
+    up?: number;
+  };
 };
 
-/** One frame: the position's reading and the measure on the same side; `also` is NaN unconfigured. */
+/** One frame: the position's reading and the measure on the same side; `also` negated when it rises, NaN unconfigured. */
 export type CycleSample<P> = { at: P; value: number; joints: Joints; also: number };
 
-/** The first form cue of the attempt, and the lowest `also`. */
+/** The first form cue of the attempt, and the furthest `also`. */
 type Attempt = { cue: string | null; also: number };
 
 export type CycleReport = Rep & { depth: number; downMs: number | null; upMs: number | null };
@@ -221,24 +205,29 @@ export function cycle<P extends { side: Side }>(
 ): Detector<CycleState<Attempt, CycleReport>, CycleSample<P>> {
   const placed = (s: CycleSample<P>) => p.setup(s.at) === null;
   const good = (s: CycleSample<P>) => placed(s) && p.form(s.at) === null;
-  const past = (value: number, limit: 'down' | 'shallow') => !o.also || value <= o.also[limit];
+  // A rising `also` is mirrored, so the attempt keeps its lowest either way.
+  const flip = o.also && o.also.down > o.also.shallow ? -1 : 1;
+  const past = (value: number, limit: 'down' | 'shallow') =>
+    !o.also || value <= flip * o.also[limit];
+  const home = (s: CycleSample<P>) => o.also?.up === undefined || s.also >= flip * o.also.up;
   const counter = engine<CycleSample<P>, Attempt, CycleReport>({
     signal: (s) => s.value,
     range: m.range,
     up: o.up,
     down: o.down,
     shallow: o.shallow,
-    start: good,
+    start: (s) => good(s) && home(s),
     // The bottom counts only with good form; setup is not judged mid-movement.
     turn: (s) => p.form(s.at) === null && past(s.also, 'down'),
     // A shallow dip is a failed rep only while still in the position.
     tried: (a, s) => placed(s) && past(a.also, 'shallow'),
+    top: home,
     clean: (a, s) => a.cue === null && placed(s),
     fresh: { cue: null, also: Infinity },
     add: (a, s) => ({ cue: a.cue ?? p.form(s.at), also: Math.min(a.also, s.also) }),
     report: (a, s, { counted, depth, downMs, upMs }) => {
       const fast = downMs !== null && upMs !== null && downMs + upMs < o.fastMs;
-      const cue = !counted && (p.setup(s.at) ?? a.cue ?? o.deeper);
+      const cue = !counted && (p.setup(s.at) ?? a.cue ?? o.short);
       const cues = [cue, fast && 'Slow down'].filter((x): x is string => !!x);
       return { counted, cues, depth, downMs, upMs };
     },
@@ -246,7 +235,7 @@ export function cycle<P extends { side: Side }>(
   const on = (pose: Pose, at: P, side: Side) => {
     const reading = m.read(pose, side);
     const also = o.also ? o.also.measure.read(pose, side) : { value: NaN };
-    return reading && also ? { at, ...reading, also: also.value } : null;
+    return reading && also ? { at, ...reading, also: flip * also.value } : null;
   };
   return {
     ...counter,
