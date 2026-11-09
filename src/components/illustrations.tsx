@@ -72,7 +72,8 @@ const STANDING: Pose = {
 };
 /**
  * Each exercise by id (this layer can't import the registry): `pose` is its figure; `rep`, when it moves,
- * is the other end of one rep, drawn with the same path commands so one morphs into the other.
+ * is the other end of one rep, drawn with the same path commands so one morphs into the other; `mid`, when
+ * a limb swings far, is the pose half-way, since a straight morph cuts the arc and shortens the limb.
  */
 const EXERCISE = {
   squat: { pose: SQUAT, rep: STANDING },
@@ -103,15 +104,17 @@ const EXERCISE = {
     pose: { head: [11, 7], body: 'M11 10v7M11 17h9M20 17v9M11 12l5 3M7 4v22M7 26h19' },
   },
   'side-plank': { pose: { head: [6, 12], body: 'M8 15l19 10.5M9 16v10M11 16.5 13 8M3 26h26' } },
+  // The leg swings 75° about the hip, so a straight morph would shrink it mid-way: `mid` keeps it on the arc.
   'leg-raise': {
-    pose: { head: [5, 23], body: 'M8 24L17 24M17 24L22 9M3 26h26' },
+    pose: { head: [5, 23], body: 'M8 24L17 24M17 24L20.4 13.5M3 26h26' },
+    mid: { head: [5, 23], body: 'M8 24L17 24M17 24L26.1 17.8M3 26h26' },
     rep: { head: [5, 23], body: 'M8 24L17 24M17 24L28 24.6M3 26h26' },
   },
   burpee: {
     pose: { head: [16.5, 5], body: 'M16.5 8L17 26M16.4 9.5L16.8 14L17 18M3 26h26' },
     rep: { head: [26, 12], body: 'M23 15L5 22M21 15.8L21.3 20.4L21.6 25M3 26h26' },
   },
-} satisfies Record<string, { pose: Pose; rep?: Pose }>;
+} satisfies Record<string, { pose: Pose; rep?: Pose; mid?: Pose }>;
 type ExerciseKey = keyof typeof EXERCISE;
 
 const still = ({ head: [x, y], body }: Pose) => ring(x, y, HEAD) + body;
@@ -139,20 +142,26 @@ export function ExerciseMotion({ exercise, ...p }: FigureProps & { exercise: Exe
   // Both ends parse to the same verbs, so Skia can blend them point by point.
   const from = Skia.Path.MakeFromSVGString(still(figure.pose));
   const to = 'rep' in figure ? Skia.Path.MakeFromSVGString(still(figure.rep)) : null;
+  const mid = 'mid' in figure ? Skia.Path.MakeFromSVGString(still(figure.mid)) : null;
   if (!from || !to) return <ExerciseFigure exercise={exercise} {...p} />;
-  return <Moving from={from} to={to} {...p} />;
+  return <Moving from={from} to={to} mid={mid} {...p} />;
 }
 
 function Moving({
   from,
   to,
+  mid,
   size = 24,
   color = colors.chalk,
   weight = 1.5,
-}: FigureProps & { from: SkPath; to: SkPath }) {
+}: FigureProps & { from: SkPath; to: SkPath; mid: SkPath | null }) {
   const clock = useClock();
-  // `interpolate` weighs the path it is called on: 1 = `from`, 0 = `to`.
-  const path = useDerivedValue(() => from.interpolate(to, 1 - repAt(clock.get(), PERIOD)) ?? from);
+  // `interpolate` weighs the path it is called on: 1 = itself, 0 = the argument.
+  const path = useDerivedValue(() => {
+    const t = repAt(clock.get(), PERIOD);
+    if (!mid) return from.interpolate(to, 1 - t) ?? from;
+    return (t < 0.5 ? from.interpolate(mid, 1 - 2 * t) : mid.interpolate(to, 2 - 2 * t)) ?? from;
+  });
   return (
     <Canvas style={{ width: size, height: size }} pointerEvents="none">
       <Group transform={[{ scale: size / 32 }]}>
