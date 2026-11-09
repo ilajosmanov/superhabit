@@ -5,14 +5,30 @@ import { fileURLToPath } from 'node:url';
 
 import type { Pose } from '@/exercises/body/geometry';
 import type { Progress } from '@/exercises/kinds/progress';
-import { toPose, type TraceFrame } from '@/exercises/body/trace';
-import { decodeTrace } from '@/exercises/trace-file';
+import {
+  decodeTrace,
+  type RecordedFrame,
+  type TraceFrame,
+  type TraceHeader,
+  type TracePoint,
+} from '@/storage/trace-file';
 
 type ReplayExercise<S extends Progress, M> = {
   initial: S;
+  reset(s: S): S;
   step(s: S, sample: M | null, nowMs: number): S;
   measure(pose: Pose): M | null;
 };
+
+/** A recorded frame's dots as the counters read them. */
+export function toPose(frame: TraceFrame): Pose {
+  const landmark = ([x, y, z, visibility]: TracePoint) => ({ x, y, z, visibility });
+  return {
+    landmarks: frame.landmarks.map(landmark),
+    worldLandmarks: frame.world.map(landmark),
+    ...(frame.down && { down: { x: frame.down[0], y: frame.down[1], z: frame.down[2] } }),
+  };
+}
 
 /** List eagerly, decode lazily: missing data skips, present but malformed data fails. */
 export function traceFiles(
@@ -31,16 +47,49 @@ export function loadTrace(path: string) {
   return decodeTrace(readFileSync(path));
 }
 
+type ReplayTrace = {
+  frames: readonly (TraceFrame & Partial<Pick<RecordedFrame, 'waiting'>>)[];
+  header?: Pick<TraceHeader, 'stretches'>;
+};
+
+/** The same frame walk drives both totals and the clip suite's rep timestamps. */
+function* replaySteps<S extends Progress, M>(ex: ReplayExercise<S, M>, trace: ReplayTrace) {
+  const stretches = trace.header?.stretches;
+  const pauses = stretches?.filter((stretch) => stretch.kind === 'paused') ?? [];
+  let pause = 0;
+  let state = ex.initial;
+  for (const frame of trace.frames) {
+    // Session events use the last frame's time: reset after that frame, keeping accumulated totals.
+    while (pause < pauses.length && pauses[pause].startMs < frame.t) {
+      state = ex.reset(state);
+      pause++;
+    }
+    if (stretches) {
+      const live = stretches.some(
+        (stretch) =>
+          (stretch.kind === 'waiting' || stretch.kind === 'counting') &&
+          frame.t >= stretch.startMs &&
+          frame.t <= stretch.endMs,
+      );
+      // Touching endpoints can also belong to countdown/pause; the frame records which side saw it.
+      // 'counter suspended' is session.ts's waiting reason for the frame that pauses the counter.
+      if (!live || frame.waiting === 'counter suspended') continue;
+    }
+    const previous = state;
+    state = ex.step(
+      state,
+      frame.landmarks.length === 0 ? null : ex.measure(toPose(frame)),
+      frame.t,
+    );
+    yield { frame, previous, state };
+  }
+}
+
 /** Detector timestamps drive the real measurement and counter, including tracking loss. */
-export function replay<S extends Progress, M>(
-  ex: ReplayExercise<S, M>,
-  trace: { frames: readonly TraceFrame[] },
-): S {
-  return trace.frames.reduce(
-    (state, frame) =>
-      ex.step(state, frame.landmarks.length === 0 ? null : ex.measure(toPose(frame)), frame.t),
-    ex.initial,
-  );
+export function replay<S extends Progress, M>(ex: ReplayExercise<S, M>, trace: ReplayTrace): S {
+  let state = ex.initial;
+  for (const step of replaySteps(ex, trace)) state = step.state;
+  return state;
 }
 
 export type Row = { clip: string; expected: number; got: number; ok: boolean };
@@ -64,14 +113,10 @@ export function scoreReps<S extends Progress, M>(
 
 /** When each rep counted, in seconds of the trace. */
 function repTimes<S extends Progress, M>(ex: ReplayExercise<S, M>, path: string): number[] {
-  let state = ex.initial;
-  return loadTrace(path).frames.flatMap((frame) => {
-    const pose = frame.landmarks.length === 0 ? null : ex.measure(toPose(frame));
-    const next = ex.step(state, pose, frame.t);
-    const counted = next.reps > state.reps;
-    state = next;
-    return counted ? [frame.t / 1000] : [];
-  });
+  const times: number[] = [];
+  for (const { frame, previous, state } of replaySteps(ex, loadTrace(path)))
+    if (state.reps > previous.reps) times.push(frame.t / 1000);
+  return times;
 }
 
 /**

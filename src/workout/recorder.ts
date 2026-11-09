@@ -1,147 +1,161 @@
-import { Directory, File, Paths } from 'expo-file-system';
-import type { PoseDetection } from 'superhabit-pose';
+import { Platform } from 'react-native';
+import type { PoseDetection, PoseLandmark } from 'superhabit-pose';
 import { fromCallback } from 'xstate';
 
 import { COUNTER_VERSIONS, type ExerciseId } from '@/exercises/registry';
-import { toFrame } from '@/exercises/body/trace';
-import { encodeTrace, type RecordedFrame, type TraceHeader } from '@/exercises/trace-file';
+import {
+  traceBuilder,
+  type RecordedFrame,
+  type TraceHeader,
+  type TracePoint,
+} from '@/storage/trace-file';
 
+import { sweepTraceTemps, writeTrace } from './recorder-file';
+
+type Stretch = NonNullable<TraceHeader['stretches']>[number];
+type Window = { setId: string; exercise: ExerciseId; camera: 'front' | 'back' };
 export type RecorderEvent =
-  | { type: 'frame'; result: PoseDetection }
-  | { type: 'save'; exercise: ExerciseId; counted: TraceHeader['counted'] }
-  | { type: 'drop' }
-  // The Done screen's "share movement data" switch: whether this session's traces are kept for sending.
-  | { type: 'share'; on: boolean };
+  | ({ type: 'stage'; kind: Stretch['kind'] } & Window)
+  | { type: 'frame'; result: PoseDetection; phase: string; waiting: string | null }
+  | { type: 'save'; counted: TraceHeader['counted'] };
 
-/** `on`: record at all; `share`: the session's, until the Done screen's switch says otherwise. */
-type RecorderInput = { on: boolean; share: boolean };
+// shortcut: a window past 9000 frames leaves no trace (its count would describe frames it lacks);
+// stream to disk if sets longer than 5 min at 30 fps matter.
+const MAX_FRAMES = 9000;
 
-/** The detector's usual pace. */
-const NOMINAL_FPS = 15;
-// shortcut: a set longer than ten minutes leaves no trace (its count would describe frames it lacks);
-// stream to disk if longer sets matter.
-const MAX_FRAMES = NOMINAL_FPS * 600;
-
-// Each session's traces wait in their own cache folder. When the session stops, they move to
-// documents/traces unless the Done screen's switch was turned off, which deletes them.
-// They hold joint positions only, never video.
-const pending = () => new Directory(Paths.cache, 'traces');
-/** Session folders still writing or settling; a new session's sweep leaves them alone. */
-const live = new Set<string>();
-// Module-wide: two sessions in the same millisecond must not share a folder.
-let sessions = 0;
-
-// shortcut: a killed app's unshared traces stay in its private cache until the next workout's sweep (or
-// Android clears the cache); sweep at app start too once something runs there.
-/** Deletes folders no live session owns: what a killed app left behind. */
-function sweep() {
-  try {
-    const root = pending();
-    if (!root.exists) return;
-    for (const folder of root.list()) if (!live.has(folder.name)) folder.delete();
-  } catch (error) {
-    console.warn('[recorder] could not delete old traces', error);
-  }
+/** One detector result as the set's trace keeps it, `t` ms after the set's first frame. */
+function toFrame(
+  result: PoseDetection,
+  t: number,
+  phase: string,
+  waiting: string | null,
+): RecordedFrame {
+  const point = ({ x, y, z, visibility }: PoseLandmark): TracePoint => [x, y, z, visibility];
+  return {
+    t,
+    landmarks: result.landmarks.map(point),
+    world: result.worldLandmarks.map(point),
+    ...(result.down && { down: [result.down.x, result.down.y, result.down.z] }),
+    presence: result.landmarks.map((landmark) => landmark.presence ?? NaN),
+    phase,
+    waiting,
+    inferenceMs: result.inferenceMs,
+    brightness: result.brightness,
+  };
 }
 
-/** After every write lands: shared traces move to documents, then the session folder goes. */
-async function settle(folder: Directory, writes: readonly Promise<void>[], shared: boolean) {
-  await Promise.all(writes);
-  try {
-    if (shared && folder.exists) {
-      // shortcut: no backend yet, so kept traces stay in documents/traces; upload them once there is one.
-      const kept = new Directory(Paths.document, 'traces');
-      kept.create({ intermediates: true, idempotent: true });
-      // Every move settles before the folder goes, so one failure cannot cut the others short.
-      const moves = await Promise.allSettled(folder.list().map((file) => file.move(kept)));
-      for (const move of moves)
-        if (move.status === 'rejected')
-          console.warn('[recorder] could not keep a trace', move.reason);
-    }
-  } catch (error) {
-    console.warn('[recorder] could not keep traces', error);
-  }
-  try {
-    if (folder.exists) folder.delete();
-  } catch (error) {
-    console.warn('[recorder] could not delete traces', error);
-  }
-  live.delete(folder.name);
-}
-
-/** Buffers one step's counting frames and saves each as a trace v2 (`.sht`) file when `record` is on. */
-export const recorder = fromCallback<RecorderEvent, RecorderInput>(({ input, receive }) => {
-  const { on, share } = input;
-  if (!on) return;
-  sweep();
-  const id = `${Date.now()}-${sessions++}`;
-  live.add(id);
-  const folder = new Directory(pending(), id);
-  const writes: Promise<void>[] = [];
-  // The session's `share`, until the Done screen's switch changes it.
-  let shared = share;
-  let frames: RecordedFrame[] = [];
+/**
+ * Packs each frame from countdown through set end, including waiting and pauses, as it arrives, so the
+ * set's end has little left to do; every finished trace stays local.
+ */
+export const recorder = fromCallback<RecorderEvent, { on: boolean }>(({ input, receive }) => {
+  if (!input.on) return;
+  sweepTraceTemps();
+  let window: Window | null = null;
+  let trace = traceBuilder();
+  let stretches: Stretch[] = [];
+  let camera: TraceHeader['camera'] = null;
+  let delegate: PoseDetection['delegate'] | undefined;
   let lastT = -1;
   let t0: number | null = null;
+  /** The window keeps no trace: it ran too long, or a frame couldn't be kept. */
+  let lost = false;
   const drop = () => {
-    frames = [];
+    window = null;
+    trace = traceBuilder();
+    stretches = [];
+    camera = null;
+    delegate = undefined;
     lastT = -1;
     t0 = null;
+    lost = false;
+  };
+  const lose = () => {
+    lost = true;
+    trace = traceBuilder();
+  };
+  // State events use the latest accepted detector time; a frame's counter change uses that frame's t.
+  // Touching endpoints avoid invented time between detector samples, including a frame-free pause.
+  const mark = (kind: Stretch['kind'], t = Math.max(0, lastT)) => {
+    const previous = stretches.at(-1);
+    if (previous) previous.endMs = t;
+    if (previous?.kind !== kind) stretches.push({ kind, startMs: t, endMs: t });
   };
 
   receive((event) => {
-    if (event.type === 'drop') {
-      drop();
-    } else if (event.type === 'share') {
-      shared = event.on;
+    if (event.type === 'stage') {
+      if (window?.setId !== event.setId) drop();
+      window = event;
+      mark(event.kind);
     } else if (event.type === 'frame') {
-      t0 ??= event.result.timestampMs;
-      const frame = toFrame(event.result, t0);
-      if (frames.length < MAX_FRAMES && frame.t > lastT) {
-        frames.push({ ...frame, phase: null, waiting: null, inferenceMs: null, brightness: null });
-        lastT = frame.t;
-      }
-    } else {
-      // At the cap the set ran on unrecorded.
-      const full = frames.length >= MAX_FRAMES;
-      if (frames.length === 0 || full) {
-        if (full) console.info('[recorder] set too long to keep a trace');
-        drop();
+      if (!window || lost) return;
+      const { result, phase, waiting } = event;
+      t0 ??= result.timestampMs;
+      const t = Math.round(result.timestampMs - t0);
+      if (t <= lastT) return;
+      if (trace.frames === MAX_FRAMES) {
+        console.info('[recorder] set too long to keep a trace');
+        lose();
         return;
       }
-      const setId = `${event.exercise}-${Date.now()}`;
-      const name = `${setId}.sht`;
-      const recorded = frames;
-      drop();
-      writes.push(
-        (async () => {
-          // shortcut: encoding blocks the JS thread at the set's end (tens of ms per thousand frames on
-          // a desktop); step 2.4 rebuilds the recorder.
-          const bytes = encodeTrace(
-            {
-              exercise: event.exercise,
-              setId,
-              counterVersion: COUNTER_VERSIONS[event.exercise],
-              device: null,
-              camera: null,
-              takes: [],
-              consent: [],
-              counted: event.counted,
-              labels: {},
+      const kind = stretches.at(-1)?.kind;
+      if (kind === 'waiting' || kind === 'counting')
+        mark(phase === 'waiting' ? 'waiting' : 'counting', t);
+      else if (kind) mark(kind, t);
+      try {
+        trace.add(toFrame(result, t, phase, waiting));
+      } catch (error) {
+        console.warn('[recorder] could not keep a frame; the set keeps no trace', error);
+        lose();
+        return;
+      }
+      lastT = t;
+      delegate ??= result.delegate;
+      camera ??= {
+        facing: window.camera,
+        fps: null,
+        width: result.frameWidth,
+        height: result.frameHeight,
+        rotation:
+          result.rotation === 90 || result.rotation === 180 || result.rotation === 270
+            ? result.rotation
+            : 0,
+        mirrored: window.camera === 'front',
+        // shortcut: the detector doesn't report the camera's field of view; add it when calibrated.
+        fieldOfView: null,
+      };
+    } else {
+      if (window && trace.frames > 0 && !lost) {
+        mark(stretches.at(-1)?.kind ?? 'waiting');
+        void writeTrace(
+          {
+            exercise: window.exercise,
+            setId: window.setId,
+            counterVersion: COUNTER_VERSIONS[window.exercise],
+            device: {
+              // RN 0.88's Model is Android-only; no hardware model is exposed by Platform on iOS.
+              // shortcut: use unknown on iOS until device-model collection is needed there.
+              model: Platform.OS === 'android' ? Platform.constants.Model : 'unknown',
+              os: `${Platform.OS} ${Platform.OS === 'android' ? Platform.constants.Release : Platform.Version}`,
+              delegate,
             },
-            recorded,
-          );
-          folder.create({ intermediates: true, idempotent: true });
-          await new File(folder, name).write(bytes);
-          console.info('[recorder] saved', name, recorded.length, 'frames', event.counted);
-        })().catch((error) => console.warn('[recorder] could not write', error)),
-      );
+            // Frames per second over the set; NaN (one frame) and 0 (a sparse set) are unmeasured.
+            camera: camera && {
+              ...camera,
+              fps: Math.round(((trace.frames - 1) * 1000) / lastT) || null,
+            },
+            stretches,
+            takes: [],
+            consent: [],
+            counted: event.counted,
+            labels: {},
+          },
+          trace,
+        );
+      }
+      drop();
     }
   });
-  // shortcut: a pause leaves a gap in one file (replay sees a tracking loss, as the counter's reset
-  // does); split per segment if replay disagrees.
-  return () => {
-    drop();
-    void settle(folder, writes, shared);
-  };
+  // Committed file jobs keep their captured buffers; only the unfinished window belongs to teardown.
+  return drop;
 });

@@ -29,7 +29,10 @@ data class PoseLandmark(
   val z: Double,
   @DoNotStrip
   @Keep
-  val visibility: Double
+  val visibility: Double,
+  @DoNotStrip
+  @Keep
+  val presence: Double?
 ) {
   /* primary constructor */
 
@@ -40,6 +43,7 @@ data class PoseLandmark(
       && Objects.deepEquals(this.y, other.y)
       && Objects.deepEquals(this.z, other.z)
       && Objects.deepEquals(this.visibility, other.visibility)
+      && Objects.deepEquals(this.presence, other.presence)
   }
 
   override fun hashCode(): Int {
@@ -47,7 +51,8 @@ data class PoseLandmark(
       x,
       y,
       z,
-      visibility
+      visibility,
+      presence
     ).contentDeepHashCode()
   }
 
@@ -59,8 +64,8 @@ data class PoseLandmark(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(x: Double, y: Double, z: Double, visibility: Double): PoseLandmark {
-      return PoseLandmark(x, y, z, visibility)
+    private fun fromCpp(x: Double, y: Double, z: Double, visibility: Double, presence: Double?): PoseLandmark {
+      return PoseLandmark(x, y, z, visibility, presence)
     }
   }
 }

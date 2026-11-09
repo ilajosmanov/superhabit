@@ -1,9 +1,8 @@
 import { assert, describe, expect, it } from 'vite-plus/test';
 
 import { body } from './__fixtures__/body';
-import { loadTrace, traceFiles } from './__fixtures__/replay';
+import { loadTrace, toPose, traceFiles } from './__fixtures__/replay';
 import type { Pose } from '@/exercises/body/geometry';
-import { toPose } from '@/exercises/body/trace';
 import type { HoldState } from '@/exercises/kinds/hold';
 import { wallSit } from './wall-sit';
 

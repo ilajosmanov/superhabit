@@ -138,5 +138,14 @@ export function countFrame(c: Counting, result: PoseDetection) {
   if (framing.patch?.missing)
     console.info('[session]', id, 'out of frame', framing.patch.missing.join(', ') || 'none');
   if (framing.phrase) say.push(framing.phrase);
-  return { update, live, flash, say };
+  // The raw frame explains waiting immediately; the screen's framing checklist settles separately.
+  const waiting =
+    next.phase !== 'waiting'
+      ? null
+      : result.landmarks.length === 0
+        ? 'no body'
+        : parts?.length
+          ? `out of frame: ${parts.join(', ')}`
+          : 'start position';
+  return { update, live, flash, say, phase: next.phase, waiting };
 }

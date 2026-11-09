@@ -17,11 +17,13 @@
 #include "PoseLandmark.hpp"
 #include <vector>
 #include "JPoseLandmark.hpp"
-#include "PoseVector.hpp"
 #include <optional>
+#include "PoseVector.hpp"
 #include "JPoseVector.hpp"
 #include "PoseCameraPoint.hpp"
 #include "JPoseCameraPoint.hpp"
+#include "PoseDelegate.hpp"
+#include "JPoseDelegate.hpp"
 
 namespace margelo::nitro::superhabitpose {
 

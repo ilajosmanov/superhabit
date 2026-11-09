@@ -7,6 +7,8 @@ import { recovery } from '@/workout/recovery';
 vi.mock('@/challenges/library', () => ({}));
 vi.mock('@/storage/database', () => ({}));
 vi.mock('drizzle-orm/expo-sqlite', () => ({}));
+vi.mock('expo-file-system', () => ({}));
+vi.mock('superhabit-gzip-file', () => ({}));
 vi.mock('expo-constants', () => ({ default: {} }));
 vi.mock('expo-splash-screen', () => ({ hide: () => {} }));
 vi.mock('react-native', () => ({

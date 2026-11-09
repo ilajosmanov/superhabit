@@ -11,9 +11,11 @@
 #include "PoseDetection.hpp"
 
 #include "JPoseCameraPoint.hpp"
+#include "JPoseDelegate.hpp"
 #include "JPoseLandmark.hpp"
 #include "JPoseVector.hpp"
 #include "PoseCameraPoint.hpp"
+#include "PoseDelegate.hpp"
 #include "PoseLandmark.hpp"
 #include "PoseVector.hpp"
 #include <optional>
@@ -48,6 +50,18 @@ namespace margelo::nitro::superhabitpose {
       jni::local_ref<JPoseVector> down = this->getFieldValue(fieldDown);
       static const auto fieldCameraLandmarks = clazz->getField<jni::JArrayClass<JPoseCameraPoint>>("cameraLandmarks");
       jni::local_ref<jni::JArrayClass<JPoseCameraPoint>> cameraLandmarks = this->getFieldValue(fieldCameraLandmarks);
+      static const auto fieldBrightness = clazz->getField<double>("brightness");
+      double brightness = this->getFieldValue(fieldBrightness);
+      static const auto fieldInferenceMs = clazz->getField<double>("inferenceMs");
+      double inferenceMs = this->getFieldValue(fieldInferenceMs);
+      static const auto fieldFrameWidth = clazz->getField<double>("frameWidth");
+      double frameWidth = this->getFieldValue(fieldFrameWidth);
+      static const auto fieldFrameHeight = clazz->getField<double>("frameHeight");
+      double frameHeight = this->getFieldValue(fieldFrameHeight);
+      static const auto fieldRotation = clazz->getField<double>("rotation");
+      double rotation = this->getFieldValue(fieldRotation);
+      static const auto fieldDelegate = clazz->getField<JPoseDelegate>("delegate");
+      jni::local_ref<JPoseDelegate> delegate = this->getFieldValue(fieldDelegate);
       return PoseDetection(
         timestampMs,
         [&](auto&& __input) {
@@ -80,7 +94,13 @@ namespace margelo::nitro::superhabitpose {
             __vector.push_back(__element->toCpp());
           }
           return __vector;
-        }(cameraLandmarks)
+        }(cameraLandmarks),
+        brightness,
+        inferenceMs,
+        frameWidth,
+        frameHeight,
+        rotation,
+        delegate->toCpp()
       );
     }
 
@@ -90,7 +110,7 @@ namespace margelo::nitro::superhabitpose {
      */
     [[maybe_unused]]
     static jni::local_ref<JPoseDetection::javaobject> fromCpp(const PoseDetection& value) {
-      using JSignature = JPoseDetection(double, jni::alias_ref<jni::JArrayClass<JPoseLandmark>>, jni::alias_ref<jni::JArrayClass<JPoseLandmark>>, jni::alias_ref<JPoseVector>, jni::alias_ref<jni::JArrayClass<JPoseCameraPoint>>);
+      using JSignature = JPoseDetection(double, jni::alias_ref<jni::JArrayClass<JPoseLandmark>>, jni::alias_ref<jni::JArrayClass<JPoseLandmark>>, jni::alias_ref<JPoseVector>, jni::alias_ref<jni::JArrayClass<JPoseCameraPoint>>, double, double, double, double, double, jni::alias_ref<JPoseDelegate>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
@@ -126,7 +146,13 @@ namespace margelo::nitro::superhabitpose {
             __array->setElement(__i, *__elementJni);
           }
           return __array;
-        }(value.cameraLandmarks)
+        }(value.cameraLandmarks),
+        value.brightness,
+        value.inferenceMs,
+        value.frameWidth,
+        value.frameHeight,
+        value.rotation,
+        JPoseDelegate::fromCpp(value.delegate)
       );
     }
   };

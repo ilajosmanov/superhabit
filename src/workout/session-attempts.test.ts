@@ -8,7 +8,9 @@ import { clock, hold, LOG, modules, native, plan, reset, squatTest } from './__f
 import { migrateDatabase } from '@/storage/__fixtures__/database';
 
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
+vi.mock('react-native', () => modules['react-native']);
 vi.mock('superhabit-pose', () => modules['superhabit-pose']);
+vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 vi.mock('expo-screen-orientation', () => modules['expo-screen-orientation']);

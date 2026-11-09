@@ -30,7 +30,7 @@
 
 
 
-
+#include <optional>
 
 namespace margelo::nitro::superhabitpose {
 
@@ -43,10 +43,11 @@ namespace margelo::nitro::superhabitpose {
     double y     SWIFT_PRIVATE;
     double z     SWIFT_PRIVATE;
     double visibility     SWIFT_PRIVATE;
+    std::optional<double> presence     SWIFT_PRIVATE;
 
   public:
     PoseLandmark() = default;
-    explicit PoseLandmark(double x, double y, double z, double visibility): x(x), y(y), z(z), visibility(visibility) {}
+    explicit PoseLandmark(double x, double y, double z, double visibility, std::optional<double> presence): x(x), y(y), z(z), visibility(visibility), presence(presence) {}
 
   public:
     friend bool operator==(const PoseLandmark& lhs, const PoseLandmark& rhs) = default;
@@ -65,7 +66,8 @@ namespace margelo::nitro {
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "x"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "y"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "z"))),
-        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "visibility")))
+        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "visibility"))),
+        JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "presence")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::superhabitpose::PoseLandmark& arg) {
@@ -74,6 +76,7 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "y"), JSIConverter<double>::toJSI(runtime, arg.y));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "z"), JSIConverter<double>::toJSI(runtime, arg.z));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "visibility"), JSIConverter<double>::toJSI(runtime, arg.visibility));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "presence"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.presence));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -88,6 +91,7 @@ namespace margelo::nitro {
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "y")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "z")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "visibility")))) return false;
+      if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "presence")))) return false;
       return true;
     }
   };

@@ -15,6 +15,8 @@ namespace margelo::nitro::superhabitpose { struct PoseLandmark; }
 namespace margelo::nitro::superhabitpose { struct PoseVector; }
 // Forward declaration of `PoseCameraPoint` to properly resolve imports.
 namespace margelo::nitro::superhabitpose { struct PoseCameraPoint; }
+// Forward declaration of `PoseDelegate` to properly resolve imports.
+namespace margelo::nitro::superhabitpose { enum class PoseDelegate; }
 // Forward declaration of `HybridFrameSpec` to properly resolve imports.
 namespace margelo::nitro::camera { class HybridFrameSpec; }
 
@@ -31,6 +33,8 @@ namespace margelo::nitro::camera { class HybridFrameSpec; }
 #include "JPoseVector.hpp"
 #include "PoseCameraPoint.hpp"
 #include "JPoseCameraPoint.hpp"
+#include "PoseDelegate.hpp"
+#include "JPoseDelegate.hpp"
 #include <memory>
 #include <VisionCamera/HybridFrameSpec.hpp>
 #include <VisionCamera/JHybridFrameSpec.hpp>

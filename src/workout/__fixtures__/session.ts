@@ -4,6 +4,7 @@
  * `modules` and the database with Node's SQLite (`@/storage/__fixtures__/database`), then imports
  * `./session` dynamically, and calls `reset` after each test.
  */
+import { gzipSync } from 'fflate';
 import type { PoseDetection } from 'superhabit-pose';
 import { Joint } from 'superhabit-pose/joints';
 import { vi } from 'vite-plus/test';
@@ -31,8 +32,8 @@ export const disk = new Set<string>();
 export const stuck = new Set<string>();
 export const written: { name: string; bytes: Uint8Array }[] = [];
 export const createDirectory = vi.fn();
-/** Each trace move awaits this first; make it reject or wait to fail or slow a move. */
-export const moveFile = vi.fn(async () => {});
+/** The native rename boundary; throw to simulate a failed finalization. */
+export const renameFile = vi.fn();
 export const writeFile = vi.fn(async (name: string, bytes: Uint8Array) => {
   written.push({ name, bytes });
 });
@@ -77,38 +78,27 @@ class FakeDirectory {
     createDirectory(options);
     folders.add(this.uri);
   }
-  /** A folder's own files and the folders right under it. */
+  /** Camcorder cache files or a pending trace folder's own files. */
   list() {
     if (this.uri === REPS) return [...disk].map(cached);
-    const children = new Set(
-      [...files, ...folders]
-        .filter((path) => under(path, this.uri))
-        .map((path) => path.slice(this.uri.length + 1).split('/')[0]),
-    );
-    return [...children].map((child) =>
-      files.has(`${this.uri}/${child}`)
-        ? traceFile(this.uri, child)
-        : new FakeDirectory(this.uri, child),
-    );
-  }
-  delete() {
-    for (const path of files) if (under(path, this.uri)) files.delete(path);
-    for (const path of folders)
-      if (path === this.uri || under(path, this.uri)) folders.delete(path);
+    return [...files]
+      .filter((path) => under(path, this.uri) && !path.slice(this.uri.length + 1).includes('/'))
+      .map((path) => traceFile(this.uri, path.slice(this.uri.length + 1)));
   }
 }
 const traceFile = (folder: string, name: string) => ({
-  // Like the real one: a write landing in a folder deleted meanwhile fails.
-  write: async (bytes: Uint8Array) => {
-    await writeFile(name, bytes);
-    if (!new FakeDirectory(folder).exists) throw new Error(`${folder} is gone`);
-    files.add(`${folder}/${name}`);
+  uri: `${folder}/${name}`,
+  name,
+  get exists() {
+    return files.has(`${folder}/${name}`);
   },
-  // Like the real one: a move whose source was deleted meanwhile fails.
-  move: async (to: FakeDirectory) => {
-    await moveFile();
+  delete: () => {
+    files.delete(`${folder}/${name}`);
+  },
+  rename: (to: string) => {
+    renameFile(to);
     if (!files.has(`${folder}/${name}`)) throw new Error(`${folder}/${name} is gone`);
-    files.add(`${to.uri}/${name}`);
+    files.add(`${folder}/${to}`);
     files.delete(`${folder}/${name}`);
   },
 });
@@ -116,6 +106,16 @@ const traceFile = (folder: string, name: string) => ({
 /** Module fakes, for `vi.mock(name, () => modules[name])` in each test file. */
 export const modules = {
   'superhabit-pose': { createPoseLandmarker: () => native },
+  // The native gzip writes into the fake trace folders; `written` keeps the gzipped bytes.
+  'superhabit-gzip-file': {
+    writeGzip: async (bytes: ArrayBuffer, uri: string) => {
+      await writeFile(uri.slice(uri.lastIndexOf('/') + 1), gzipSync(new Uint8Array(bytes)));
+      files.add(uri);
+    },
+  },
+  'react-native': {
+    Platform: { OS: 'android', Version: 37, constants: { Model: 'Pixel 9', Release: '17' } },
+  },
   'expo-speech': { speak, stop: vi.fn() },
   'expo-file-system': {
     Paths: { cache: { uri: 'cache' }, document: { uri: 'document' } },

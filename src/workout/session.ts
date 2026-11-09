@@ -39,7 +39,7 @@ type Events =
   | { type: 'flipCamera' }
   | { type: 'cameraReady' } // the camera's preview streams again (after a flip)
   | { type: 'videoLost' } // the camera dropped the video output: nothing more can be filmed
-  | { type: 'shareTraces'; share: boolean } // finished: keep this session's traces for sending, or not
+  | { type: 'keepVideos'; share: boolean } // finished: the video retention switch; traces follow the workout
   | { type: 'save' } // finished: Done; the workout is kept once the log says so
   | { type: 'discard' } // finished: leave without keeping the workout
   | { type: 'logSaved' } // the log saved the workout
@@ -103,7 +103,7 @@ type Context = Counting & {
   take: string | null;
   /** Results are safe to read: every file is final (failed ones dropped from their set). */
   final: boolean;
-  /** Keep this session's traces and videos on the phone when it stops (the Done screen's switch). */
+  /** Keep this session's videos on the phone when it stops; traces follow the workout. */
   share: boolean;
   /** The log saved the workout (Done went through). */
   saved: boolean;
@@ -168,8 +168,17 @@ function saveTrace(c: Context): RecorderEvent {
   const { reps, heldMs } = c[exercise];
   return {
     type: 'save',
-    exercise,
     counted: EXERCISES[exercise].kind === 'hold' ? { heldMs } : { reps },
+  };
+}
+
+function traceStage(c: Context, kind: 'countdown' | 'waiting' | 'paused'): RecorderEvent {
+  return {
+    type: 'stage',
+    kind,
+    setId: c.setId,
+    exercise: lastExercise(c).exercise,
+    camera: c.camera,
   };
 }
 
@@ -186,7 +195,7 @@ const without = (takes: readonly string[], uri: string) => takes.filter((take) =
  *      | pause (also from countdown)
  *   paused --resume | restart--> counting;  end: any stage but finished --> finished
  *
- * Only `counting` steps a counter; every other stage only hands frames to the screen.
+ * Only `counting` steps a counter; countdown and paused frames also go to the recorder.
  * Everything said goes through `say`, so the caption is set even when muted.
  * finished is not `type: 'final'`: a final root state would stop speech and cut "Challenge done".
  */
@@ -196,7 +205,13 @@ const session = setup<
   Events,
   Actors,
   {},
-  { nextStep: undefined; countFrame: undefined; saveSet: undefined; flipSet: undefined },
+  {
+    nextStep: undefined;
+    countFrame: undefined;
+    saveSet: undefined;
+    flipSet: undefined;
+    suspendedFrame: undefined;
+  },
   { isLast: undefined; nextIsRest: undefined; samePlacement: undefined; restIsTimed: undefined },
   'rest',
   string,
@@ -212,6 +227,18 @@ const session = setup<
     log: workoutLog,
   },
   actions: {
+    suspendedFrame: enqueueActions(({ context, event, enqueue }) => {
+      if (event.type !== 'pose') return;
+      const { phase } = context[lastExercise(context).exercise];
+      enqueue.sendTo('recorder', {
+        type: 'frame',
+        result: event.result,
+        phase,
+        // Replay (exercises/__fixtures__/replay.ts) skips frames with this reason; rename both together.
+        waiting: phase === 'waiting' ? 'counter suspended' : null,
+      });
+      context.onPose?.(event.result, NOT_LIVE);
+    }),
     nextStep: assign(({ context }) => ({
       // During a rest the view still shows the exercise just finished.
       ...(nextIsRest(context) ? {} : freshSet()),
@@ -222,8 +249,8 @@ const session = setup<
     countFrame: enqueueActions(({ context: c, event, enqueue }) => {
       if (event.type !== 'pose') return;
       const { result } = event;
-      if (c.record) enqueue.sendTo('recorder', { type: 'frame', result });
-      const { update, live, flash, say } = countFrame(c, result);
+      const { update, live, flash, say, phase, waiting } = countFrame(c, result);
+      if (c.record) enqueue.sendTo('recorder', { type: 'frame', result, phase, waiting });
       c.onPose?.(result, live);
       enqueue.assign(update);
       if (flash) {
@@ -254,7 +281,6 @@ const session = setup<
     }),
     // Back to the start position on the other camera; waits in counting.flipping for it to stream.
     flipSet: enqueueActions(({ context, enqueue }) => {
-      enqueue.sendTo('recorder', { type: 'drop' });
       enqueue.assign({
         ...freshSet(),
         // A flip inside counting targets its child, so counting's entry does not stamp the start again.
@@ -262,6 +288,7 @@ const session = setup<
         camera: flip(context),
         flipPending: true,
       });
+      enqueue.sendTo('recorder', ({ context }) => traceStage(context, 'waiting'));
     }),
   },
   guards: {
@@ -338,7 +365,7 @@ export const workoutSession = session.createMachine({
     {
       src: 'recorder',
       id: 'recorder',
-      input: ({ context }) => ({ on: context.record, share: context.share }),
+      input: ({ context }) => ({ on: context.record }),
     },
     {
       src: 'log',
@@ -390,7 +417,10 @@ export const workoutSession = session.createMachine({
   initial: 'counting',
   states: {
     counting: {
-      entry: assign({ stepStartedAt: ({ context }) => context.stepStartedAt ?? Date.now() }),
+      entry: [
+        assign({ stepStartedAt: ({ context }) => context.stepStartedAt ?? Date.now() }),
+        sendTo('recorder', ({ context }) => traceStage(context, 'waiting')),
+      ],
       invoke: { src: 'ticker' },
       // Films from the first frame out of 'waiting'. Pause, set end and `end` cut the take;
       // resume or restart rolls a new file.
@@ -449,12 +479,16 @@ export const workoutSession = session.createMachine({
     },
     // Detector frames keep arriving (root `pose`) but nothing counts, so resuming needs the start position again.
     paused: {
-      entry: assign(({ context }) => expireCounter(context, lastExercise(context).exercise)),
+      entry: [
+        assign(({ context }) => expireCounter(context, lastExercise(context).exercise)),
+        sendTo('recorder', ({ context }) => traceStage(context, 'paused')),
+      ],
       on: {
+        pose: { actions: 'suspendedFrame' },
         resume: 'counting',
         restart: {
           target: 'counting',
-          actions: [sendTo('recorder', { type: 'drop' }), assign(() => freshSet())],
+          actions: assign(() => freshSet()),
         },
         end: [
           {
@@ -496,6 +530,7 @@ export const workoutSession = session.createMachine({
     },
     countdown: {
       entry: enqueueActions(({ context, enqueue }) => {
+        enqueue.sendTo('recorder', traceStage(context, 'countdown'));
         // Keep the preceding completion phrase audible; the first numeral is visual only.
         if (context.countdown < COUNTDOWN_S)
           enqueue.raise({ type: 'say', text: String(context.countdown) });
@@ -514,6 +549,7 @@ export const workoutSession = session.createMachine({
       // `next` skips the countdown: the next step is already current. The position check's
       // camera chip is live here too.
       on: {
+        pose: { actions: 'suspendedFrame' },
         pause: 'paused',
         end: 'finished',
         next: 'counting',
@@ -565,10 +601,9 @@ export const workoutSession = session.createMachine({
         assign({ final: ({ context }) => context.video === undefined }),
       ],
       on: {
-        shareTraces: {
+        keepVideos: {
           actions: [
             assign({ share: ({ event }) => event.share }),
-            sendTo('recorder', ({ event }) => ({ type: 'share', on: event.share })),
             sendTo('camcorder', ({ event }) => ({ type: 'share', on: event.share })),
           ],
         },

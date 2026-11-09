@@ -32,7 +32,25 @@ data class PoseDetection(
   val down: PoseVector?,
   @DoNotStrip
   @Keep
-  val cameraLandmarks: Array<PoseCameraPoint>
+  val cameraLandmarks: Array<PoseCameraPoint>,
+  @DoNotStrip
+  @Keep
+  val brightness: Double,
+  @DoNotStrip
+  @Keep
+  val inferenceMs: Double,
+  @DoNotStrip
+  @Keep
+  val frameWidth: Double,
+  @DoNotStrip
+  @Keep
+  val frameHeight: Double,
+  @DoNotStrip
+  @Keep
+  val rotation: Double,
+  @DoNotStrip
+  @Keep
+  val delegate: PoseDelegate
 ) {
   /* primary constructor */
 
@@ -44,6 +62,12 @@ data class PoseDetection(
       && Objects.deepEquals(this.worldLandmarks, other.worldLandmarks)
       && Objects.deepEquals(this.down, other.down)
       && Objects.deepEquals(this.cameraLandmarks, other.cameraLandmarks)
+      && Objects.deepEquals(this.brightness, other.brightness)
+      && Objects.deepEquals(this.inferenceMs, other.inferenceMs)
+      && Objects.deepEquals(this.frameWidth, other.frameWidth)
+      && Objects.deepEquals(this.frameHeight, other.frameHeight)
+      && Objects.deepEquals(this.rotation, other.rotation)
+      && Objects.deepEquals(this.delegate, other.delegate)
   }
 
   override fun hashCode(): Int {
@@ -52,7 +76,13 @@ data class PoseDetection(
       landmarks,
       worldLandmarks,
       down,
-      cameraLandmarks
+      cameraLandmarks,
+      brightness,
+      inferenceMs,
+      frameWidth,
+      frameHeight,
+      rotation,
+      delegate
     ).contentDeepHashCode()
   }
 
@@ -64,8 +94,8 @@ data class PoseDetection(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(timestampMs: Double, landmarks: Array<PoseLandmark>, worldLandmarks: Array<PoseLandmark>, down: PoseVector?, cameraLandmarks: Array<PoseCameraPoint>): PoseDetection {
-      return PoseDetection(timestampMs, landmarks, worldLandmarks, down, cameraLandmarks)
+    private fun fromCpp(timestampMs: Double, landmarks: Array<PoseLandmark>, worldLandmarks: Array<PoseLandmark>, down: PoseVector?, cameraLandmarks: Array<PoseCameraPoint>, brightness: Double, inferenceMs: Double, frameWidth: Double, frameHeight: Double, rotation: Double, delegate: PoseDelegate): PoseDetection {
+      return PoseDetection(timestampMs, landmarks, worldLandmarks, down, cameraLandmarks, brightness, inferenceMs, frameWidth, frameHeight, rotation, delegate)
     }
   }
 }

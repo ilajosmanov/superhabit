@@ -1,5 +1,4 @@
-// Trace v2 (`.sht`): one file per set, the only format from piece 2 on. It sits above body/ because its
-// header describes the set (exercise, counter version, consent, takes), not only the pose dots.
+// Trace v2 (`.sht`): one file per set, the only format from piece 2 on.
 // gzip( "SHT2" · header length (uint32) · JSON header · time column · int16 columns ), little-endian.
 // The time column holds int32 deltas in ms, so the first frame is time 0 and a long pause survives.
 // Each int16 column holds round(value × scale) as wrap-around deltas from the previous frame (the first
@@ -8,8 +7,6 @@
 import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import { Joint } from 'superhabit-pose/joints';
 import { z } from 'zod';
-
-import type { TraceFrame, TracePoint } from '@/exercises/body/trace';
 
 const MAGIC = 'SHT2';
 const MISSING = -32768;
@@ -49,6 +46,16 @@ const BRIGHTNESS = INFERENCE + 1;
 /** Flags and list indices: always scale 1. */
 const CATEGORICAL = [0, PHASE, WAITING];
 
+export type TracePoint = readonly [x: number, y: number, z: number, visibility: number];
+/** A frame's pose dots, `t` ms after the set's first frame. */
+export type TraceFrame = {
+  t: number;
+  landmarks: readonly TracePoint[];
+  world: readonly TracePoint[];
+  /** Gravity in the world axes; absent in clips recorded without it. */
+  down?: readonly [x: number, y: number, z: number];
+};
+
 /** One detector result as a set's trace keeps it. */
 export type RecordedFrame = TraceFrame & {
   /** Per image point, how likely it is inside the frame; absent when the detector didn't say. */
@@ -72,12 +79,19 @@ const headerSchema = z.strictObject({
     .strictObject({ dataset: z.string(), clip: z.string(), url: z.string(), license: z.string() })
     .optional(),
   /** Null when the clip was recorded before devices were noted. */
-  device: z.strictObject({ model: z.string(), os: z.string() }).nullable(),
+  device: z
+    .strictObject({
+      model: z.string(),
+      os: z.string(),
+      delegate: z.enum(['gpu', 'cpu']).optional(),
+    })
+    .nullable(),
   /** Null when the clip was recorded before cameras were noted. */
   camera: z
     .strictObject({
       facing: z.enum(['front', 'back']),
-      fps: z.number().positive(),
+      /** Frames per second over the set; null when it can't be measured (a single frame). */
+      fps: z.number().positive().nullable(),
       /** The analysed frame's size in pixels, upright. */
       width: z.number().int().positive(),
       height: z.number().int().positive(),
@@ -100,6 +114,24 @@ const headerSchema = z.strictObject({
         ),
       'takes must each end after they start, in order, without overlapping',
     ),
+  /** Session stages in file time; optional for v2 clips recorded before the recorder noted them. */
+  stretches: z
+    .array(
+      z.strictObject({
+        kind: z.enum(['countdown', 'waiting', 'counting', 'paused']),
+        startMs: ms,
+        endMs: ms,
+      }),
+    )
+    .refine(
+      (stretches) =>
+        stretches.every(
+          ({ startMs, endMs }, i) =>
+            startMs <= endMs && (i === 0 || startMs >= stretches[i - 1].endMs),
+        ),
+      'stretches must each end after they start, in order, without overlapping',
+    )
+    .optional(),
   /** The consents in force at capture. */
   consent: z.array(z.string()),
   /** What the counter said at the end of the set. */
@@ -120,15 +152,20 @@ export type TraceHeader = z.infer<typeof headerSchema>;
 /** The header as the recorder fills it; the encoder adds the rest. */
 export type TraceInfo = Omit<TraceHeader, 'phases' | 'waitingReasons' | 'frames' | 'columns'>;
 
-/** Distinct values in order of first appearance, and each one's index (NaN for null). */
-function indexOf(values: readonly (string | null)[]) {
+/** Distinct names in order of first appearance, and each one's index (NaN for null). */
+function names() {
   const index = new Map<string, number>();
-  for (const value of values) if (value !== null && !index.has(value)) index.set(value, index.size);
-  // Past this an index no longer fits in int16 at scale 1.
-  if (index.size > LARGEST + 1) throw new Error(`trace: more than ${LARGEST + 1} distinct names`);
   return {
-    list: [...index.keys()],
-    at: (value: string | null) => (value === null ? NaN : (index.get(value) ?? NaN)),
+    list: () => [...index.keys()],
+    at(value: string | null) {
+      if (value === null) return NaN;
+      const at = index.get(value);
+      if (at !== undefined) return at;
+      // Past this an index no longer fits in int16 at scale 1.
+      if (index.size > LARGEST) throw new Error(`trace: more than ${LARGEST + 1} distinct names`);
+      index.set(value, index.size);
+      return index.size - 1;
+    },
   };
 }
 
@@ -178,71 +215,98 @@ function fill(frame: RecordedFrame, phase: number, waiting: number, row: Float64
   row[BRIGHTNESS] = frame.brightness ?? NaN;
 }
 
-function checkFrames(frames: readonly RecordedFrame[]) {
-  frames.forEach((frame, i) => {
-    const previous = i === 0 ? 0 : frames[i - 1].t;
-    const ok = i === 0 ? frame.t === 0 : frame.t > previous && frame.t - previous <= 2 ** 31 - 1;
-    if (!Number.isInteger(frame.t) || !ok)
-      throw new Error(`frames[${i}].t: expected whole ms, 0 first, then strictly increasing`);
-    const points = frame.landmarks.length;
-    if ((points !== 0 && points !== JOINTS.length) || frame.world.length !== points)
-      throw new Error(`frames[${i}]: expected 33 image and 33 world points, or none`);
-    if (frame.presence && frame.presence.length !== points)
-      throw new Error(`frames[${i}].presence: expected one per image point`);
-  });
+function checkFrame(frame: RecordedFrame, i: number, previous: number) {
+  const ok = i === 0 ? frame.t === 0 : frame.t > previous && frame.t - previous <= 2 ** 31 - 1;
+  if (!Number.isInteger(frame.t) || !ok)
+    throw new Error(`frames[${i}].t: expected whole ms, 0 first, then strictly increasing`);
+  const points = frame.landmarks.length;
+  if ((points !== 0 && points !== JOINTS.length) || frame.world.length !== points)
+    throw new Error(`frames[${i}]: expected 33 image and 33 world points, or none`);
+  if (frame.presence && frame.presence.length !== points)
+    throw new Error(`frames[${i}].presence: expected one per image point`);
 }
 
+const WIDTH = COLUMNS.length;
+/** Frames per block of raw values: blocks grow a set's buffer without copying what it holds. */
+const BLOCK = 256;
+
+/**
+ * A set's trace packed frame by frame as the set runs, so its end has no per-frame work but one
+ * quantizing pass. `bytes(info)` is the whole file before gzip.
+ */
+export function traceBuilder() {
+  const blocks: Float64Array[] = [];
+  const times: number[] = [];
+  /** Per column, the largest magnitude seen: the file's scale is chosen from it at the end. */
+  const largest = new Float64Array(WIDTH);
+  const phases = names();
+  const reasons = names();
+
+  return {
+    get frames() {
+      return times.length;
+    },
+    /** Throws on a frame the format can't hold, before keeping any of it. */
+    add(recorded: RecordedFrame) {
+      const i = times.length;
+      checkFrame(recorded, i, times[i - 1]);
+      const frame = clean(recorded);
+      if (i % BLOCK === 0) blocks.push(new Float64Array(BLOCK * WIDTH));
+      const at = (i % BLOCK) * WIDTH;
+      const row = blocks[blocks.length - 1].subarray(at, at + WIDTH);
+      fill(frame, phases.at(frame.phase), reasons.at(frame.waiting), row);
+      for (let c = 0; c < WIDTH; c++)
+        if (!Number.isNaN(row[c])) largest[c] = Math.max(largest[c], Math.abs(row[c]));
+      times.push(frame.t);
+    },
+    bytes(info: TraceInfo): Uint8Array<ArrayBuffer> {
+      const n = times.length;
+      // Categorical columns never widen: names() keeps their values within int16.
+      const columns = COLUMNS.map(({ name, scale }, c) => {
+        while (Math.round(largest[c] * scale) > LARGEST) scale /= 2;
+        return { name, scale };
+      });
+      // The header comes from our own code, so a schema error here is a bug: throw.
+      const header = headerSchema.parse({
+        ...info,
+        phases: phases.list(),
+        waitingReasons: reasons.list(),
+        frames: n,
+        columns,
+      });
+      const json = strToU8(JSON.stringify(header));
+      const start = 8 + json.length;
+      const values = start + 4 * n;
+      const bytes = new Uint8Array(values + 2 * n * WIDTH);
+      const view = new DataView(bytes.buffer);
+      bytes.set(strToU8(MAGIC));
+      view.setUint32(4, json.length, true);
+      bytes.set(json, 8);
+      for (let i = 0; i < n; i++)
+        view.setInt32(start + 4 * i, times[i] - (times[i - 1] ?? 0), true);
+      for (let c = 0; c < WIDTH; c++) {
+        const scale = columns[c].scale;
+        let previous = 0;
+        for (let i = 0, at = values + 2 * c * n; i < n; i++, at += 2) {
+          const value = blocks[(i / BLOCK) | 0][(i % BLOCK) * WIDTH + c];
+          const q = Number.isNaN(value) ? MISSING : Math.round(value * scale);
+          // setInt16 keeps the low 16 bits, so a delta between far-apart values wraps and still adds back.
+          view.setInt16(at, q - previous, true);
+          previous = q;
+        }
+      }
+      return bytes;
+    },
+  };
+}
+
+export type TraceBuilder = ReturnType<typeof traceBuilder>;
+
 /** A set's trace as a `.sht` file. A glitched value drops only what `clean` says. */
-export function encodeTrace(info: TraceInfo, recorded: readonly RecordedFrame[]): Uint8Array {
-  checkFrames(recorded);
-  const frames = recorded.map(clean);
-  const n = frames.length;
-  const phases = indexOf(frames.map((frame) => frame.phase));
-  const reasons = indexOf(frames.map((frame) => frame.waiting));
-  const row = new Float64Array(COLUMNS.length);
-  const fillRow = (frame: RecordedFrame) =>
-    fill(frame, phases.at(frame.phase), reasons.at(frame.waiting), row);
-
-  const largest = new Float64Array(COLUMNS.length);
-  for (const frame of frames) {
-    fillRow(frame);
-    for (let c = 0; c < row.length; c++)
-      if (Number.isFinite(row[c])) largest[c] = Math.max(largest[c], Math.abs(row[c]));
-  }
-  // Categorical columns never widen: indexOf keeps their values within int16.
-  const columns = COLUMNS.map(({ name, scale }, c) => {
-    while (Math.round(largest[c] * scale) > LARGEST) scale /= 2;
-    return { name, scale };
-  });
-
-  // The header comes from our own code, so a schema error here is a bug: throw.
-  const header = headerSchema.parse({
-    ...info,
-    phases: phases.list,
-    waitingReasons: reasons.list,
-    frames: n,
-    columns,
-  });
-  const json = strToU8(JSON.stringify(header));
-  const times = 8 + json.length;
-  const values = times + 4 * n;
-  const bytes = new Uint8Array(values + 2 * n * columns.length);
-  const view = new DataView(bytes.buffer);
-  bytes.set(strToU8(MAGIC));
-  view.setUint32(4, json.length, true);
-  bytes.set(json, 8);
-  const previous = new Int32Array(columns.length);
-  frames.forEach((frame, i) => {
-    view.setInt32(times + 4 * i, frame.t - (i === 0 ? 0 : frames[i - 1].t), true);
-    fillRow(frame);
-    for (let c = 0; c < columns.length; c++) {
-      const q = Number.isFinite(row[c]) ? Math.round(row[c] * columns[c].scale) : MISSING;
-      // setInt16 keeps the low 16 bits, so a delta between far-apart values wraps and still adds back.
-      view.setInt16(values + 2 * (c * n + i), q - previous[c], true);
-      previous[c] = q;
-    }
-  });
-  return gzipSync(bytes);
+export function encodeTrace(info: TraceInfo, frames: readonly RecordedFrame[]): Uint8Array {
+  const builder = traceBuilder();
+  for (const frame of frames) builder.add(frame);
+  return gzipSync(builder.bytes(info));
 }
 
 function parseHeader(bytes: Uint8Array): TraceHeader {

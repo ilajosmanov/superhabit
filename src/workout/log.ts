@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import Constants from 'expo-constants';
 import { fromCallback } from 'xstate';
 
+import { deleteTraces } from './recorder-file';
 import { today } from './day';
 import type { StepResult } from './results';
 import { db } from '@/storage/database';
@@ -77,11 +78,20 @@ export function saveWorkout(workoutId: string, endedAt = Date.now()) {
 }
 
 /** Throws an open workout away with its sets; a saved one is never touched. */
-export function discardWorkout(workoutId: string) {
+export function discardWorkout(workoutId: string, unwritten: readonly StepResult[] = []) {
+  const workout = db().select().from(workouts).where(eq(workouts.id, workoutId)).get();
+  if (workout?.status === 'done') return;
+  const rows = db().select({ id: sets.id }).from(sets).where(eq(sets.workoutId, workoutId)).all();
   db()
     .delete(workouts)
     .where(and(eq(workouts.id, workoutId), eq(workouts.status, 'open')))
     .run();
+  // After the rows: a workout still offered for Save must keep its traces.
+  try {
+    deleteTraces([...rows, ...unwritten].map((set) => set.id));
+  } catch (error) {
+    console.warn('[log] could not delete discarded traces', error);
+  }
 }
 
 /**
@@ -112,7 +122,7 @@ export const workoutLog = fromCallback<LogEvent, LogInput>(
     };
     receive((event) => {
       if (event.type === 'discard') {
-        discarded = write(() => discardWorkout(workoutId));
+        discarded = write(() => discardWorkout(workoutId, unwritten));
         if (discarded) unwritten = [];
         sendBack({ type: discarded ? 'logDiscarded' : 'logFailed' });
         return;
@@ -127,7 +137,7 @@ export const workoutLog = fromCallback<LogEvent, LogInput>(
       sendBack({ type: saved ? 'logSaved' : 'logFailed' });
     });
     return () => {
-      if (!doneAsked && !discarded) write(() => discardWorkout(workoutId));
+      if (!doneAsked && !discarded) write(() => discardWorkout(workoutId, unwritten));
     };
   },
 );

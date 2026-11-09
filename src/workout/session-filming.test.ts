@@ -24,7 +24,9 @@ import {
 import { migrateDatabase } from '@/storage/__fixtures__/database';
 
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
+vi.mock('react-native', () => modules['react-native']);
 vi.mock('superhabit-pose', () => modules['superhabit-pose']);
+vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 vi.mock('expo-screen-orientation', () => modules['expo-screen-orientation']);
@@ -81,7 +83,7 @@ describe('workoutSession filming', () => {
     await flush();
     play(plank({ elbow: 95 }), plank({ elbow: 170 }));
     await flush();
-    actor.send({ type: 'shareTraces', share: false });
+    actor.send({ type: 'keepVideos', share: false });
     expect(sessionView(actor.getSnapshot()).share).toBe(false); // the switch shows what it decided
     actor.stop();
     await flush();

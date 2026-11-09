@@ -1,99 +1,260 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
+import { setImmediate } from 'node:timers';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
+import { sql } from 'drizzle-orm';
 
-import { MAX, reps, seconds } from './plan';
+import { MAX, seconds } from './plan';
 import { body, detection } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
-import { replay } from '@/exercises/__fixtures__/replay';
+import { replay, toPose } from '@/exercises/__fixtures__/replay';
 import { COUNTER_VERSIONS, EXERCISES } from '@/exercises/registry';
-import { decodeTrace } from '@/exercises/trace-file';
+import { decodeTrace } from '@/storage/trace-file';
+
 import {
   challenge,
   createDirectory,
+  feetOut,
   files,
   flush,
   frames,
   hold,
   LOG,
   modules,
-  moveFile,
   native,
   NOW,
   plan,
   play,
   pushup,
+  renameFile,
   reset,
   squat,
   squatTest,
   writeFile,
   written,
 } from './__fixtures__/session';
-import { migrateDatabase } from '@/storage/__fixtures__/database';
+import { db, migrateDatabase } from '@/storage/__fixtures__/database';
+import * as schema from '@/storage/schema';
 
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
+vi.mock('react-native', () => modules['react-native']);
 vi.mock('superhabit-pose', () => modules['superhabit-pose']);
+vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 vi.mock('expo-screen-orientation', () => modules['expo-screen-orientation']);
 vi.mock('expo-constants', () => modules['expo-constants']);
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
+vi.mock('drizzle-orm/expo-sqlite', () => ({}));
 
 const { workoutSession } = await import('./session');
 const { sessionView } = await import('./session-view');
+const { recovery } = await import('./recovery');
 
 beforeAll(migrateDatabase);
-afterEach(reset);
+beforeEach(() => {
+  let frame = 0;
+  vi.stubGlobal('cancelAnimationFrame', () => {});
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    setImmediate(() => callback(performance.now()));
+    return ++frame;
+  });
+});
+afterEach(() => {
+  reset();
+  vi.unstubAllGlobals();
+});
 
-describe('dev pose recorder', () => {
-  it('keeps a trace readable after a long pause between short counting stretches', async () => {
+describe('set traces', () => {
+  it('keeps countdown, waiting, counting and paused stretches in order in a two-set circuit', async () => {
+    vi.useFakeTimers({
+      now: NOW,
+      toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'],
+    });
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
+      input: {
+        ...LOG,
+        challenge: plan(
+          { exercise: 'squat', goal: MAX },
+          { exercise: 'rest', goal: MAX },
+          { exercise: 'squat', goal: MAX },
+        ),
+        record: true,
+      },
     }).start();
-    const pose = body({});
-    for (const timestampMs of [1000, 1066]) native.onResult?.(detection(pose, timestampMs));
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const logged = (line: string) => info.mock.calls.filter(([first]) => first === line).length;
+    const firstId = actor.getSnapshot().context.setId;
+    squat();
     actor.send({ type: 'pause' });
-    native.onResult?.(detection(pose, 15000));
+    actor.send({ type: 'resume' }); // No frames in the pause: only the explicit reset drops readiness.
+    play(body({ thigh: 70, shin: 25 }), body({}));
+    actor.send({ type: 'next' });
+    expect(sessionView(actor.getSnapshot()).stage).toBe('resting');
+    squat(); // Rest belongs to neither trace.
+    actor.send({ type: 'next' });
+    const secondId = actor.getSnapshot().context.setId;
+    const start = frames;
+    play(body({ thigh: 70, shin: 25 }));
+    vi.advanceTimersByTime(1000); // Re-entering countdown must not split its stretch.
+    play(body({ thigh: 70, shin: 25 }));
+    vi.advanceTimersByTime(2000);
+    hold(132, { landmarks: [], worldLandmarks: [] });
+    play(feetOut(body({})));
+    play(body({ thigh: 70, shin: 25 }));
+    squat();
+    actor.send({ type: 'pause' });
+    squat(); // Paused movement is kept but never counted.
     actor.send({ type: 'resume' });
-    for (const timestampMs of [31000, 31066]) native.onResult?.(detection(pose, timestampMs));
+    play(body({ thigh: 70, shin: 25 }), body({})); // Must reacquire the start position.
+    squat();
     actor.send({ type: 'end' });
+    expect(sessionView(actor.getSnapshot())).toMatchObject({
+      stage: 'finished',
+      results: [{ reps: 1 }, { reps: 2 }],
+    });
+    // The set-end transition neither finishes the packing nor writes: both wait for the next paint.
+    expect([logged('[recorder] encode ms'), written.length]).toEqual([0, 0]);
     await flush();
-    expect(written).toHaveLength(1);
-    const trace = decodeTrace(written[0].bytes);
-    expect(trace.frames.map((frame) => frame.t)).toEqual([0, 66, 30000, 30066]);
+    expect([logged('[recorder] encode ms'), logged('[recorder] write ms')]).toEqual([2, 2]);
+    for (const file of written) {
+      const decoded = decodeTrace(file.bytes);
+      expect(replay(EXERCISES.squat, decoded)).toMatchObject(decoded.header.counted);
+    }
+    expect(files).toEqual(
+      new Set([
+        `document/local/traces/pending/${firstId}.sht`,
+        `document/local/traces/pending/${secondId}.sht`,
+      ]),
+    );
+    const trace = decodeTrace(
+      written.find((file) => file.name === `${secondId}.sht.tmp`)?.bytes ?? new Uint8Array(),
+    );
+    expect(trace.header.setId).toBe(secondId);
+    expect(trace.header.counted).toEqual({ reps: 2 });
+    expect(trace.frames).toHaveLength(frames - start);
+    expect(trace.header.stretches?.map((stretch) => stretch.kind)).toEqual([
+      'countdown',
+      'waiting',
+      'counting',
+      'paused',
+      'waiting',
+      'counting',
+    ]);
+    const stretches = trace.header.stretches ?? [];
+    expect(stretches[0].startMs).toBe(0);
+    expect(stretches.at(-1)?.endMs).toBe(trace.frames.at(-1)?.t);
+    expect(
+      stretches.every(
+        (stretch, i) =>
+          stretch.startMs <= stretch.endMs &&
+          (i === 0 || stretch.startMs === stretches[i - 1].endMs),
+      ),
+    ).toBe(true);
+    expect(trace.header.waitingReasons).toEqual(
+      expect.arrayContaining(['counter suspended', 'no body', 'start position']),
+    );
+    expect(trace.header.waitingReasons.some((reason) => reason.startsWith('out of frame:'))).toBe(
+      true,
+    );
+    expect(trace.header.phases).toEqual(expect.arrayContaining(['waiting', 'up', 'down']));
+    actor.send({ type: 'keepVideos', share: false });
+    actor.send({ type: 'save' });
     actor.stop();
+    await flush();
+    expect(files.size).toBe(2); // Done's switch cannot remove replay data.
   });
 
-  it('drops duplicate and decreasing detector timestamps to keep the trace readable', async () => {
+  it('writes the set UUID via a temp file, with native camera, device and per-frame fields', async () => {
     const actor = createActor(workoutSession, {
       input: { ...LOG, challenge: squatTest, record: true },
     }).start();
+    const setId = actor.getSnapshot().context.setId;
     const pose = body({});
-    for (const timestampMs of [1000, 1000, 990, 1066, 1066, 1033, 1132])
-      native.onResult?.(detection(pose, timestampMs));
+    pose.landmarks = pose.landmarks.map((point) => ({ ...point, presence: 0.875 }));
+    // Two seconds at 30 fps; distinct gravity axes, so a swapped or flipped one can't pass.
+    const down = { x: 0.36, y: 0.8, z: -0.48 };
+    for (let i = 0; i <= 60; i++)
+      native.onResult?.({
+        ...detection(pose, 1000 + (i * 1000) / 30),
+        down,
+        frameWidth: 720,
+        frameHeight: 1280,
+        rotation: 270,
+        delegate: 'cpu',
+      });
     actor.send({ type: 'end' });
+    actor.send({ type: 'save' });
+    actor.stop(); // A kept set's write outlives the session.
     await flush();
+    expect(files).toEqual(new Set([`document/local/traces/pending/${setId}.sht`]));
     expect(written).toHaveLength(1);
+    expect(written[0].name).toBe(`${setId}.sht.tmp`);
     const trace = decodeTrace(written[0].bytes);
-    expect(trace.frames.map((frame) => frame.t)).toEqual([0, 66, 132]);
-    actor.stop();
+    expect(trace.header).toMatchObject({
+      setId,
+      exercise: 'squat',
+      counterVersion: COUNTER_VERSIONS.squat,
+      device: { model: 'Pixel 9', os: 'android 17', delegate: 'cpu' },
+      camera: {
+        facing: 'front',
+        fps: 30,
+        width: 720,
+        height: 1280,
+        rotation: 270,
+        mirrored: true,
+        fieldOfView: null,
+      },
+      takes: [],
+      consent: [],
+      labels: {},
+      counted: { reps: 0 },
+    });
+    expect(trace.frames).toHaveLength(61);
+    expect(trace.frames[0]).toMatchObject({
+      t: 0,
+      down: [0.36, 0.8, -0.48],
+      presence: Array(33).fill(0.875),
+      brightness: 120,
+      inferenceMs: 25,
+      phase: 'waiting',
+      waiting: 'start position',
+    });
+    expect(trace.frames[1].t).toBe(33);
+    expect(toPose(trace.frames[0]).down).toEqual(down);
   });
 
-  it('writes a readable single-frame trace', async () => {
+  it('keeps a one-frame set, with no frame rate to measure', async () => {
     const actor = createActor(workoutSession, {
       input: { ...LOG, challenge: squatTest, record: true },
     }).start();
     native.onResult?.(detection(body({}), 1000));
     actor.send({ type: 'end' });
     await flush();
-    expect(written).toHaveLength(1);
     const trace = decodeTrace(written[0].bytes);
     expect(trace.frames).toHaveLength(1);
-    expect(trace.frames[0].t).toBe(0);
+    expect(trace.header.camera?.fps).toBeNull();
     actor.stop();
   });
 
-  it.each(['directory creation', 'file write'])(
-    'warns on failed %s and continues counting and recording the next step',
+  it('does not expose the final name until a complete write can be renamed', async () => {
+    let land = () => {};
+    writeFile.mockImplementationOnce(() => new Promise<void>((resolve) => (land = resolve)));
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, record: true },
+    }).start();
+    const setId = actor.getSnapshot().context.setId;
+    squat();
+    actor.send({ type: 'end' });
+    await flush();
+    expect(files.size).toBe(0);
+    land();
+    await flush();
+    expect(files).toEqual(new Set([`document/local/traces/pending/${setId}.sht`]));
+    actor.stop();
+  });
+
+  it.each(['directory creation', 'file write', 'rename'])(
+    'a failed %s leaves the workout and the next set working',
     async (operation) => {
       const error = new Error(`${operation} failed`);
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -101,306 +262,194 @@ describe('dev pose recorder', () => {
         createDirectory.mockImplementationOnce(() => {
           throw error;
         });
-      else writeFile.mockRejectedValueOnce(error);
+      else if (operation === 'file write') writeFile.mockRejectedValueOnce(error);
+      else
+        renameFile.mockImplementationOnce(() => {
+          throw error;
+        });
       const actor = createActor(workoutSession, {
         input: { ...LOG, challenge, record: true },
       }).start();
       squat();
       await flush();
-      expect(written).toEqual([]);
+      expect([...files].filter((path) => path.endsWith('.sht'))).toEqual([]);
       expect(warn).toHaveBeenCalledExactlyOnceWith('[recorder] could not write', error);
-      expect(sessionView(actor.getSnapshot())).toMatchObject({
-        stage: 'switching',
-        results: [{ exercise: 'squat', reps: 1 }],
-      });
+      expect(sessionView(actor.getSnapshot()).stage).toBe('switching');
       actor.send({ type: 'next' });
-      const started = frames;
+      const nextId = actor.getSnapshot().context.setId;
       pushup();
       await flush();
       expect(sessionView(actor.getSnapshot())).toMatchObject({
         stage: 'finished',
-        reachedEnd: true,
         results: [{ reps: 1 }, { reps: 1 }],
       });
-      expect(written).toHaveLength(1);
-      const trace = decodeTrace(written[0].bytes);
+      expect(files.has(`document/local/traces/pending/${nextId}.sht`)).toBe(true);
+      const trace = decodeTrace(written.at(-1)?.bytes ?? new Uint8Array());
       expect(trace.header.exercise).toBe('pushup');
-      expect(trace.frames.length).toBeLessThanOrEqual(frames - started);
       expect(replay(EXERCISES.pushup, trace).reps).toBe(1);
-      expect(warn).toHaveBeenCalledOnce();
       actor.stop();
     },
   );
 
-  it('writes a replayable trace v2 with the counter’s two reps on End', async () => {
+  it('restart drops the old window and UUID, including its paused frames', async () => {
     const actor = createActor(workoutSession, {
       input: { ...LOG, challenge: squatTest, record: true },
     }).start();
-    squat();
-    squat();
-    actor.send({ type: 'end' });
-    await flush();
-    expect(written).toHaveLength(1);
-    const { name, bytes } = written[0];
-    const trace = decodeTrace(bytes);
-    expect(name).toMatch(/^squat-\d+\.sht$/);
-    expect(trace.header).toMatchObject({
-      exercise: 'squat',
-      setId: name.slice(0, -'.sht'.length),
-      counterVersion: COUNTER_VERSIONS.squat,
-      device: null,
-      camera: null,
-      takes: [],
-      consent: [],
-      counted: { reps: 2 },
-      labels: {},
-    });
-    expect(trace.frames[0].t).toBe(0);
-    expect(trace.frames.every((frame, i) => i === 0 || frame.t > trace.frames[i - 1].t)).toBe(true);
-    expect(trace.frames.every((frame) => frame.landmarks.length === 33)).toBe(true);
-    expect(
-      trace.frames.every((frame) => frame.landmarks.every((point) => point.length === 4)),
-    ).toBe(true);
-    expect(createDirectory).toHaveBeenCalledExactlyOnceWith({
-      intermediates: true,
-      idempotent: true,
-    });
-    expect(replay(EXERCISES.squat, trace).reps).toBe(2);
-    actor.stop();
-  });
-
-  it('drops the previous buffer on restart and starts the new trace at zero', async () => {
-    const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
-    }).start();
-    const before = frames;
+    const oldId = actor.getSnapshot().context.setId;
     squat();
     actor.send({ type: 'pause' });
+    squat();
     actor.send({ type: 'restart' });
+    const setId = actor.getSnapshot().context.setId;
     const restarted = frames;
     squat();
     actor.send({ type: 'end' });
     await flush();
-    expect(written).toHaveLength(1);
+    expect(setId).not.toBe(oldId);
+    expect(files).toEqual(new Set([`document/local/traces/pending/${setId}.sht`]));
     const trace = decodeTrace(written[0].bytes);
     expect(trace.header.counted).toEqual({ reps: 1 });
     expect(trace.frames[0].t).toBe(0);
     expect(trace.frames).toHaveLength(frames - restarted);
-    expect(trace.frames.length).toBeLessThan(frames - before);
+    expect(trace.header.stretches?.map((stretch) => stretch.kind)).toEqual(['waiting', 'counting']);
     expect(replay(EXERCISES.squat, trace).reps).toBe(1);
     actor.stop();
   });
 
-  it('does not create a directory or write files without record enabled', async () => {
-    const actor = createActor(workoutSession, { input: { ...LOG, challenge } }).start();
-    squat(); // Natural completion must also leave the recorder disabled.
-    actor.send({ type: 'next' });
-    pushup();
-    await flush();
-    expect(written).toEqual([]);
-    expect(createDirectory).not.toHaveBeenCalled();
-    actor.stop();
-  });
-
-  it('writes held milliseconds on natural completion of a two-second plank', async () => {
-    const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: plan({ exercise: 'plank', goal: seconds(2) }), record: true },
-    }).start();
-    hold(2400, plank({}));
-    await flush();
-    expect(written).toHaveLength(1);
-    const trace = decodeTrace(written[0].bytes);
-    expect(trace.header.exercise).toBe('plank');
-    expect(trace.header.counted.heldMs).toBeGreaterThanOrEqual(2000);
-    expect(trace.header.counted).toEqual({
-      heldMs: sessionView(actor.getSnapshot()).results[0].heldMs,
-    });
-    expect(replay(EXERCISES.plank, trace).heldMs).toBe(trace.header.counted.heldMs);
-    actor.stop();
-  });
-
-  it('keeps only counting frames across a pause and saves once when ended while paused', async () => {
+  it('a camera flip drops old and in-flight frames and records the new camera', async () => {
     const actor = createActor(workoutSession, {
       input: { ...LOG, challenge: squatTest, record: true },
     }).start();
-    const started = frames;
-    squat();
-    const paused = frames;
-    actor.send({ type: 'pause' });
-    hold(2500, body({ thigh: 70, shin: 25 }));
-    const resumed = frames;
-    actor.send({ type: 'resume' });
-    squat();
-    actor.send({ type: 'pause' });
-    actor.send({ type: 'end' });
-    await flush();
-    expect(written).toHaveLength(1);
-    const trace = decodeTrace(written[0].bytes);
-    expect(trace.frames).toHaveLength(paused - started + frames - resumed);
-    expect(trace.header.counted).toEqual({ reps: 2 });
-    expect(replay(EXERCISES.squat, trace).reps).toBe(2);
-    actor.stop();
-  });
-
-  it('drops frames on a camera flip', async () => {
-    const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
-    }).start();
-    play(body({})); // Before the first attempt a flip is allowed while counting.
+    play(body({}));
     actor.send({ type: 'flipCamera' });
-    squat(); // Old camera frames must never enter the new buffer.
+    squat(); // In-flight results from the old camera.
     actor.send({ type: 'cameraReady' });
     const ready = frames;
     squat();
     actor.send({ type: 'end' });
     await flush();
-    expect(written).toHaveLength(1);
     const trace = decodeTrace(written[0].bytes);
     expect(trace.frames).toHaveLength(frames - ready);
     expect(trace.frames[0].t).toBe(0);
-    expect(trace.header.counted).toEqual({ reps: 1 });
+    expect(trace.header.camera).toMatchObject({ facing: 'back', mirrored: false });
     expect(replay(EXERCISES.squat, trace).reps).toBe(1);
     actor.stop();
   });
 
-  it('keeps successive steps separate and excludes rest and countdown frames', async () => {
-    vi.useFakeTimers({ now: NOW });
-    const actor = createActor(workoutSession, {
-      input: {
-        ...LOG,
-        challenge: plan(
-          { exercise: 'squat', goal: reps(1) },
-          { exercise: 'rest', goal: seconds(30) },
-          { exercise: 'squat', goal: MAX },
-        ),
-        record: true,
-      },
-    }).start();
-    squat();
-    expect(written).toHaveLength(1);
-    expect(sessionView(actor.getSnapshot()).stage).toBe('resting');
-    squat(); // All of these frames belong to rest.
-    vi.advanceTimersByTime(30000);
-    expect(sessionView(actor.getSnapshot()).stage).toBe('countdown');
-    squat(); // All of these frames belong to countdown.
-    vi.advanceTimersByTime(3000);
-    const started = frames;
-    play(body({}));
-    actor.send({ type: 'end' });
-    expect(written).toHaveLength(2);
-    const first = decodeTrace(written[0].bytes);
-    const second = decodeTrace(written[1].bytes);
-    expect(first.header.counted).toEqual({ reps: 1 });
-    expect(replay(EXERCISES.squat, first).reps).toBe(1);
-    expect(second.frames).toHaveLength(frames - started);
-    expect(second.frames[0].t).toBe(0);
-    expect(second.header.counted).toEqual({ reps: 0 });
-    actor.stop();
-  });
-
-  it('writes nothing when a step has no counting frames', async () => {
+  it('keeps a long paused stretch and safely drops duplicate and decreasing timestamps', async () => {
     const actor = createActor(workoutSession, {
       input: { ...LOG, challenge: squatTest, record: true },
     }).start();
+    const pose = body({});
+    for (const t of [1000, 1000, 990, 1066, 1033]) native.onResult?.(detection(pose, t));
+    actor.send({ type: 'pause' });
+    native.onResult?.(detection(pose, 41066));
     actor.send({ type: 'end' });
     await flush();
-    expect(written).toEqual([]);
-    expect(createDirectory).not.toHaveBeenCalled();
+    const trace = decodeTrace(written[0].bytes);
+    expect(trace.frames.map((frame) => frame.t)).toEqual([0, 66, 40066]);
+    expect(trace.frames.map((frame) => frame.phase)).toEqual(['waiting', 'up', 'waiting']);
+    expect(trace.header.stretches?.at(-1)).toEqual({ kind: 'paused', startMs: 66, endMs: 40066 });
     actor.stop();
   });
-});
 
-describe('sharing traces', () => {
-  const where = () => [...files].map((path) => path.split('/').slice(0, 2).join('/'));
-  // One squat set, then End: the Done screen with one trace written.
-  const finished = async () => {
+  it('writes held milliseconds on natural completion', async () => {
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
+      input: { ...LOG, challenge: plan({ exercise: 'plank', goal: seconds(2) }), record: true },
     }).start();
-    squat();
-    actor.send({ type: 'end' });
+    hold(2400, plank({}));
     await flush();
-    return actor;
-  };
+    const trace = decodeTrace(written[0].bytes);
+    expect(trace.header.counted.heldMs).toBeGreaterThanOrEqual(2000);
+    expect(replay(EXERCISES.plank, trace).heldMs).toBe(trace.header.counted.heldMs);
+    actor.stop();
+  });
 
-  // Close and Back both stop the session; the switch's last position decides.
-  it.each([
-    { switches: [], kept: ['document/traces'] },
-    { switches: [false], kept: [] },
-    { switches: [false, true], kept: ['document/traces'] },
-    { switches: [true, false], kept: [] },
-  ])(
-    'after switching $switches, keeps $kept once the session stops',
-    async ({ switches, kept }) => {
-      const actor = await finished();
-      expect(where()).toEqual(['cache/traces']);
-      for (const share of switches) actor.send({ type: 'shareTraces', share });
-      actor.stop();
+  it.each(['Done', 'Done after a failed set insert', 'recovery'])(
+    'Discard from %s leaves no trace files',
+    async (from) => {
+      const actor = createActor(workoutSession, {
+        input: { ...LOG, challenge, record: true },
+      }).start();
+      squat();
       await flush();
-      expect(where()).toEqual(kept);
+      expect(files.size).toBe(1);
+      actor.send({ type: 'next' });
+      let land = () => {};
+      const failedSet = from === 'Done after a failed set insert';
+      if (!failedSet)
+        writeFile.mockImplementationOnce(() => new Promise<void>((resolve) => (land = resolve)));
+      // The session must also delete a trace whose set never made it into SQLite.
+      if (failedSet)
+        db().run(
+          sql`create trigger full before insert on sets begin select raise(abort, 'disk full'); end`,
+        );
+      try {
+        pushup();
+      } finally {
+        if (failedSet) db().run(sql`drop trigger full`);
+      }
+      await flush();
+      if (failedSet) {
+        expect(files.size).toBe(2);
+        expect(db().select().from(schema.sets).all()).toHaveLength(1);
+      }
+      if (from !== 'recovery') {
+        actor.send({ type: 'discard' });
+        expect(actor.getSnapshot().context.discarded).toBe(true);
+      } else {
+        // A failed Done leaves the workout open for launch recovery.
+        db().run(
+          sql`create trigger full before insert on outbox begin select raise(abort, 'disk full'); end`,
+        );
+        try {
+          actor.send({ type: 'save' });
+        } finally {
+          db().run(sql`drop trigger full`);
+        }
+        actor.stop();
+        const prompt = createActor(recovery, { input: { id: LOG.workoutId } }).start();
+        prompt.send({ type: 'discard' });
+        await flush();
+        expect(prompt.getSnapshot().status).toBe('done');
+      }
+      actor.stop();
+      land();
+      await flush();
+      expect(db().select().from(schema.sets).all()).toEqual([]);
+      expect(files).toEqual(new Set());
     },
   );
 
-  it('lets every move finish before deleting the folder when one fails', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    let land = () => {};
-    moveFile
-      .mockRejectedValueOnce(new Error('no space'))
-      .mockImplementationOnce(() => new Promise<void>((resolve) => (land = resolve)));
+  it('sweeps temporary files left by a crash while keeping completed traces', () => {
+    const pending = 'document/local/traces/pending/';
+    files.add(`${pending}crashed.sht.tmp`);
+    files.add(`${pending}kept.sht`);
+    files.add(`${pending}notes.txt`);
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge, record: true },
-    }).start();
-    squat();
-    actor.send({ type: 'next' });
-    pushup();
-    await flush();
-    actor.send({ type: 'shareTraces', share: true });
-    actor.stop();
-    await flush();
-    land();
-    await flush();
-    expect(where()).toEqual(['document/traces']);
-  });
-
-  it('settles a write still landing before keeping or deleting', async () => {
-    let land = () => {};
-    writeFile.mockImplementationOnce(() => new Promise<void>((resolve) => (land = resolve)));
-    const actor = await finished();
-    actor.send({ type: 'shareTraces', share: false });
-    actor.stop();
-    await flush();
-    land();
-    await flush();
-    expect(files.size).toBe(0);
-  });
-
-  it('deletes only the session that was switched off', async () => {
-    const first = await finished();
-    first.send({ type: 'shareTraces', share: false });
-    first.stop();
-    const second = await finished();
-    second.stop();
-    await flush();
-    expect(where()).toEqual(['document/traces']);
-  });
-
-  it('sweeps a folder a killed app left, not one still settling', async () => {
-    files.add('cache/traces/old/squat-1.sht');
-    let land = () => {};
-    writeFile.mockImplementationOnce(() => new Promise<void>((resolve) => (land = resolve)));
-    const first = await finished();
-    first.send({ type: 'shareTraces', share: true });
-    first.stop();
-    const second = createActor(workoutSession, {
       input: { ...LOG, challenge: squatTest, record: true },
     }).start();
-    land();
-    await flush();
-    expect(where()).toEqual(['document/traces']);
-    second.stop();
+    expect(files).toEqual(new Set([`${pending}kept.sht`, `${pending}notes.txt`]));
+    actor.stop();
   });
 
-  it('keeps no trace of a set past the frame cap', async () => {
+  it('writes nothing with recording off or with no frames', async () => {
+    const off = createActor(workoutSession, { input: { ...LOG, challenge } }).start();
+    squat();
+    off.send({ type: 'next' });
+    pushup();
+    off.stop();
+    const empty = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, record: true },
+    }).start();
+    empty.send({ type: 'end' });
+    empty.stop();
+    await flush();
+    expect(files.size).toBe(0);
+    expect(written).toEqual([]);
+  });
+
+  it('keeps no misleading partial trace of a set past the frame cap', async () => {
     const actor = createActor(workoutSession, {
       input: { ...LOG, challenge: squatTest, record: true },
     }).start();

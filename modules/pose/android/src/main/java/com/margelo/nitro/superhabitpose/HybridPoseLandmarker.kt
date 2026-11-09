@@ -81,7 +81,10 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
       gravity = event.values.copyOf(3)
     }
 
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    override fun onAccuracyChanged(
+      sensor: Sensor?,
+      accuracy: Int
+    ) {}
   }
 
   // The fused gravity sensor ignores the phone's own shakes; a still phone's accelerometer reads the same.
@@ -150,11 +153,34 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
     return ByteBufferImageBuilder(buffer, proxy.width, proxy.height, MPImage.IMAGE_FORMAT_RGBA).build()
   }
 
+  /** Mean luma (BT.601), 0..255, of a GRID×GRID grid of pixels: 1024 reads instead of every pixel. */
+  private fun brightness(proxy: ImageProxy): Double {
+    val plane = proxy.planes[0]
+    val buffer = plane.buffer
+    val rowStride = plane.rowStride
+    val pixelStride = plane.pixelStride
+    var sum = 0
+    for (row in 0 until GRID) {
+      val rowStart = (2 * row + 1) * proxy.height / (2 * GRID) * rowStride
+      for (col in 0 until GRID) {
+        val i = rowStart + (2 * col + 1) * proxy.width / (2 * GRID) * pixelStride
+        val r = buffer.get(i).toInt() and 0xFF
+        val g = buffer.get(i + 1).toInt() and 0xFF
+        val b = buffer.get(i + 2).toInt() and 0xFF
+        sum += (77 * r + 150 * g + 29 * b) shr 8
+      }
+    }
+    return sum.toDouble() / (GRID * GRID)
+  }
+
   // Nitro hands each call to the JS thread asynchronously, so inference never waits on JS.
   @Volatile override var onResult: ((result: PoseDetection) -> Unit)? = null
 
   @Synchronized
-  override fun detect(frame: HybridFrameSpec, front: Boolean) {
+  override fun detect(
+    frame: HybridFrameSpec,
+    front: Boolean
+  ) {
     if (closed || failed) return
 
     try {
@@ -171,12 +197,12 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
         landmarker = it
         startGravity()
       } ?: return
+      val brightness = brightness(proxy)
+      var inferenceNs = 0L
       val detected = buildImage(proxy).use { image ->
-        detector.detectForVideo(
-          image,
-          ImageProcessingOptions.builder().setRotationDegrees(proxy.imageInfo.rotationDegrees).build(),
-          ts
-        )
+        val options = ImageProcessingOptions.builder().setRotationDegrees(proxy.imageInfo.rotationDegrees).build()
+        val inferenceStart = System.nanoTime()
+        detector.detectForVideo(image, options, ts).also { inferenceNs = System.nanoTime() - inferenceStart }
       }
       val pose = detected.landmarks().firstOrNull()
       val world = detected.worldLandmarks().firstOrNull()
@@ -186,8 +212,15 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
         x: Float,
         y: Float,
         z: Float,
-        visibility: Optional<Float>
-      ) = PoseLandmark(x.toDouble(), y.toDouble(), z.toDouble(), visibility.orElse(0f).toDouble())
+        visibility: Optional<Float>,
+        presence: Optional<Float>
+      ) = PoseLandmark(
+        x.toDouble(),
+        y.toDouble(),
+        z.toDouble(),
+        visibility.orElse(0f).toDouble(),
+        if (presence.isPresent) presence.get().toDouble() else null
+      )
 
       // MediaPipe returns points in the unrotated buffer; the exercises expect the screen's frame
       // (y down, x right). The preview gets sensor coordinates below and rotates on its own.
@@ -199,12 +232,13 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
       val landmarks = pose
         ?.map {
           val (x, y) = upright(it.x(), it.y(), rotation, 1f)
-          landmark(x, y, it.z(), it.visibility())
+          landmark(x, y, it.z(), it.visibility(), it.presence())
         }?.toTypedArray() ?: emptyArray()
       val worldLandmarks = world
         ?.map {
           val (x, y) = upright(it.x(), it.y(), rotation, 0f)
-          landmark(x, y, it.z(), it.visibility())
+          // The contract keeps presence on image landmarks only.
+          landmark(x, y, it.z(), it.visibility(), Optional.empty())
         }?.toTypedArray() ?: emptyArray()
       // Rotation options affect inference, but MediaPipe projects results back to the raw image.
       // Sensor coordinates let the preview apply its own rotation, mirroring, crop and letterboxing.
@@ -213,6 +247,10 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
           val point = frame.convertFramePointToCameraPoint(Point(it.x().toDouble() * proxy.width, it.y().toDouble() * proxy.height))
           PoseCameraPoint(point.x, point.y)
         }.toTypedArray()
+      val sideways = rotation == 90 || rotation == 270
+      lastBrightness = brightness
+      lastPresence = landmarks.firstOrNull()?.presence
+      inferenceTotalNs += inferenceNs
       logSpeed(System.nanoTime() - started)
       onResult?.invoke(
         PoseDetection(
@@ -220,7 +258,13 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
           landmarks = landmarks,
           worldLandmarks = worldLandmarks,
           down = down(front).also { lastDown = it },
-          cameraLandmarks = cameraLandmarks
+          cameraLandmarks = cameraLandmarks,
+          brightness = brightness,
+          inferenceMs = inferenceNs / 1e6,
+          frameWidth = (if (sideways) proxy.height else proxy.width).toDouble(),
+          frameHeight = (if (sideways) proxy.width else proxy.height).toDouble(),
+          rotation = rotation.toDouble(),
+          delegate = if (delegate == Delegate.GPU) PoseDelegate.GPU else PoseDelegate.CPU
         )
       )
     } catch (e: Exception) {
@@ -272,12 +316,17 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
   }
 
   private var lastDown: PoseVector? = null
+  private var lastBrightness = 0.0
+  private var lastPresence: Double? = null
   private var windowStart = 0L
   private var frames = 0
   private var busyNs = 0L
+  private var inferenceTotalNs = 0L
 
-  // Read with `adb logcat -s PoseLandmarker`: results per second, time per frame (copy + inference),
-  // and down: about (0, 1, 0) whenever the screen is upright, the phone standing or on its long edge.
+  // Read with `adb logcat -s PoseLandmarker`: results per second, time per frame (copy + inference)
+  // and in MediaPipe alone, the last frame's brightness (drops toward 0 with the lens covered), the
+  // nose's presence ("none" without a body or when MediaPipe gives none), and down: about (0, 1, 0)
+  // whenever the screen is upright, the phone standing or on its long edge.
   private fun logSpeed(ns: Long) {
     val now = System.nanoTime()
     if (frames == 0) windowStart = now - ns
@@ -286,9 +335,22 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
     val elapsed = now - windowStart
     if (elapsed < 5_000_000_000L) return
     val d = lastDown?.let { "(%.2f, %.2f, %.2f)".format(it.x, it.y, it.z) } ?: "none"
-    Log.i(TAG, "%.1f fps, %.1f ms/frame (%s), down %s".format(frames * 1e9 / elapsed, busyNs / 1e6 / frames, delegate, d))
+    val p = lastPresence?.let { "%.2f".format(it) } ?: "none"
+    Log.i(
+      TAG,
+      "%.1f fps, %.1f ms/frame (%s), inference %.1f ms, brightness %.0f, presence %s, down %s".format(
+        frames * 1e9 / elapsed,
+        busyNs / 1e6 / frames,
+        delegate,
+        inferenceTotalNs / 1e6 / frames,
+        lastBrightness,
+        p,
+        d
+      )
+    )
     frames = 0
     busyNs = 0L
+    inferenceTotalNs = 0L
   }
 
   private var warned = false
@@ -301,5 +363,6 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
 
   companion object {
     private const val TAG = "PoseLandmarker"
+    private const val GRID = 32
   }
 }

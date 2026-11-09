@@ -1,3 +1,4 @@
+import { modules } from '@/workout/__fixtures__/session';
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { createActor, setup } from 'xstate';
@@ -8,6 +9,8 @@ import type { StepResult } from './results';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
 
+vi.mock('expo-file-system', () => modules['expo-file-system']);
+vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 vi.mock('expo-constants', () => ({ default: { expoConfig: { version: '1.2.3' } } }));
 

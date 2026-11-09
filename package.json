@@ -51,6 +51,7 @@
     "react-native-vision-camera": "5.2.4",
     "react-native-vision-camera-worklets": "5.2.4",
     "react-native-worklets": "0.13.0",
+    "superhabit-gzip-file": "link:./modules/gzip-file",
     "superhabit-pose": "link:./modules/pose",
     "xstate": "5.33.3",
     "zod": "4.6.7"

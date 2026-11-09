@@ -1,0 +1,19 @@
+{
+  "cxxNamespace": ["superhabitgzipfile"],
+  "ios": {
+    "iosModuleName": "SuperhabitGzipFile"
+  },
+  "android": {
+    "androidNamespace": ["superhabitgzipfile"],
+    "androidCxxLibName": "superhabitgzipfile"
+  },
+  "autolinking": {
+    "GzipFile": {
+      "android": {
+        "language": "kotlin",
+        "implementationClassName": "HybridGzipFile"
+      }
+    }
+  },
+  "ignorePaths": ["node_modules"]
+}

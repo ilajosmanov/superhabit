@@ -1,16 +1,13 @@
 import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
-import type { PoseDetection } from 'superhabit-pose';
 import { describe, expect, it } from 'vite-plus/test';
 
-import { body, detection } from '@/exercises/__fixtures__/body';
-import { replay } from '@/exercises/__fixtures__/replay';
-import { toFrame, toPose, type TracePoint } from '@/exercises/body/trace';
-import { squat } from '@/exercises/squat';
-import { decodeTrace, encodeTrace, type RecordedFrame, type TraceInfo } from './trace-file';
-
-const detected = (timestampMs: number, shape = { thigh: 70, shin: 25, lean: 10 }): PoseDetection =>
-  detection(body(shape), timestampMs);
-const replayed = (frames: RecordedFrame[]) => replay(squat, { frames });
+import {
+  decodeTrace,
+  encodeTrace,
+  type RecordedFrame,
+  type TraceInfo,
+  type TracePoint,
+} from './trace-file';
 
 const info: TraceInfo = {
   exercise: 'squat',
@@ -31,8 +28,15 @@ const info: TraceInfo = {
   counted: { reps: 1, noReps: 0 },
   labels: {},
 };
+/** 33 distinct points, each `step` further along x and y from the first. */
+const points = (x: number, y: number, step: number): TracePoint[] =>
+  Array.from({ length: 33 }, (_, j) => [x + j * step, y + j * step, 0.05, 0.9]);
+/** A person in view with gravity straight down; `extra` replaces any field. */
 const recorded = (t: number, extra: Partial<RecordedFrame> = {}): RecordedFrame => ({
-  ...toFrame(detected(t), 0),
+  t,
+  landmarks: points(0.3, 0.2, 0.01),
+  world: points(-0.16, -0.3, 0.01),
+  down: [0, 1, 0],
   phase: null,
   waiting: null,
   inferenceMs: null,
@@ -101,7 +105,7 @@ describe('Trace v2', () => {
     const down = [0, 1, 0] as const;
     const { frames } = roundTrip([recorded(0), recorded(33, { down: undefined }), recorded(66)]);
     expect(frames.map((frame) => frame.down)).toEqual([down, undefined, down]);
-    expect(toPose(frames[1])).not.toHaveProperty('down');
+    expect(frames[1]).not.toHaveProperty('down');
   });
 
   it('keeps frames without a person, between values a whole column apart', () => {
@@ -113,7 +117,6 @@ describe('Trace v2', () => {
     expect(frames.map((frame) => frame.landmarks[0]?.[0])).toEqual([4, -4, undefined, 4]);
     expect(frames[2]).toMatchObject({ landmarks: [], world: [], waiting: 'no body' });
     expect(frames[2]).not.toHaveProperty('down');
-    expect(replayed([frames[2]])).toMatchObject({ phase: 'waiting' });
   });
 
   it('widens a column whose values outgrow its scale instead of clamping them', () => {
@@ -128,23 +131,6 @@ describe('Trace v2', () => {
     ]);
     expect(frames.map((frame) => frame.landmarks[0][0])).toEqual([5.2, -6.1]);
     expect(frames[0].inferenceMs).toBe(900);
-  });
-
-  it('replays a decoded set like the frames it was made from', () => {
-    // Standing, a squat's bottom for 25 frames, standing again: one rep.
-    const frames = Array.from({ length: 75 }, (_, i) =>
-      recorded(
-        i * 66,
-        toFrame(
-          detected(
-            i * 66,
-            i >= 25 && i < 50 ? { thigh: 70, shin: 25, lean: 0 } : { thigh: 0, shin: 0, lean: 0 },
-          ),
-          0,
-        ),
-      ),
-    );
-    expect(replayed(roundTrip(frames).frames)).toMatchObject({ reps: 1, phase: 'up' });
   });
 
   it('drops only the glitched frame when the detector returns NaN', () => {
@@ -220,6 +206,24 @@ describe('Trace v2', () => {
       () => repack(file(), (h) => (h.takes = [{ startMs: 2000, endMs: 1000, videoAnchorMs: 0 }])),
       'takes',
     ],
+    [
+      'a session stretch that ends before it starts',
+      () => repack(file(), (h) => (h.stretches = [{ kind: 'paused', startMs: 2000, endMs: 1000 }])),
+      'stretches',
+    ],
+    [
+      'overlapping session stretches',
+      () =>
+        repack(
+          file(),
+          (h) =>
+            (h.stretches = [
+              { kind: 'countdown', startMs: 0, endMs: 2000 },
+              { kind: 'waiting', startMs: 1000, endMs: 3000 },
+            ]),
+        ),
+      'stretches',
+    ],
     ['a header without a set id', () => repack(file(), (h) => delete h.setId), 'setId'],
     ['a phase the header does not list', () => repack(file(), (h) => (h.phases = [])), 'phase'],
   ];
@@ -242,10 +246,10 @@ describe('Trace v2', () => {
     const frames = Array.from({ length: 1800 }, (_, i): RecordedFrame => {
       const t = Math.round((i * 1000) / 30);
       const s = Math.sin((t / 1000) * Math.PI);
-      const pose = body({ thigh: 35 + 35 * s, shin: 12 + 12 * s, lean: 10 });
-      const world = pose.worldLandmarks.map(({ x, y, z }, j) => [
-        x + j / 100 + noise(0.006),
-        y + noise(0.006),
+      // The lower half of the body's 33 points stays put; the upper half sinks and rises 0.3 m.
+      const world = points(-0.16, -0.5, 0.03).map(([x, y, z], j) => [
+        x + noise(0.006),
+        y + (j < 23 ? 0.3 * Math.abs(s) : 0) + noise(0.006),
         z + noise(0.006),
       ]);
       return {
@@ -265,7 +269,19 @@ describe('Trace v2', () => {
         brightness: 120 + noise(2),
       };
     });
-    const size = encodeTrace(info, frames).length;
-    expect(size).toBeLessThan(600_000);
+    const file = encodeTrace(info, frames);
+    expect(file.length).toBeLessThan(600_000);
+    // Every frame comes back, across the encoder's internal blocks, within half a quantum.
+    const back = decodeTrace(file).frames;
+    expect(back).toHaveLength(frames.length);
+    back.forEach((frame, i) => {
+      expect(frame.t).toBe(frames[i].t);
+      expect(Math.abs(frame.landmarks[11][1] - frames[i].landmarks[11][1])).toBeLessThanOrEqual(
+        0.5 / 8000,
+      );
+      expect(Math.abs(frame.world[11][1] - frames[i].world[11][1])).toBeLessThanOrEqual(
+        0.5 / 10000,
+      );
+    });
   });
 });

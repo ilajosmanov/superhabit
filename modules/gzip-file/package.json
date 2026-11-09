@@ -1,0 +1,17 @@
+{
+  "name": "superhabit-gzip-file",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gzips bytes into a file on a background thread (Nitro).",
+  "license": "UNLICENSED",
+  "main": "src/gzip-file.ts",
+  "types": "src/gzip-file.ts",
+  "exports": {
+    ".": "./src/gzip-file.ts",
+    "./package.json": "./package.json"
+  },
+  "peerDependencies": {
+    "react-native": "*",
+    "react-native-nitro-modules": "*"
+  }
+}

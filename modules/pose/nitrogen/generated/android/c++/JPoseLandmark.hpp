@@ -10,7 +10,7 @@
 #include <fbjni/fbjni.h>
 #include "PoseLandmark.hpp"
 
-
+#include <optional>
 
 namespace margelo::nitro::superhabitpose {
 
@@ -39,11 +39,14 @@ namespace margelo::nitro::superhabitpose {
       double z = this->getFieldValue(fieldZ);
       static const auto fieldVisibility = clazz->getField<double>("visibility");
       double visibility = this->getFieldValue(fieldVisibility);
+      static const auto fieldPresence = clazz->getField<jni::JDouble>("presence");
+      jni::local_ref<jni::JDouble> presence = this->getFieldValue(fieldPresence);
       return PoseLandmark(
         x,
         y,
         z,
-        visibility
+        visibility,
+        presence != nullptr ? std::make_optional(presence->value()) : std::nullopt
       );
     }
 
@@ -53,7 +56,7 @@ namespace margelo::nitro::superhabitpose {
      */
     [[maybe_unused]]
     static jni::local_ref<JPoseLandmark::javaobject> fromCpp(const PoseLandmark& value) {
-      using JSignature = JPoseLandmark(double, double, double, double);
+      using JSignature = JPoseLandmark(double, double, double, double, jni::alias_ref<jni::JDouble>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
@@ -61,7 +64,8 @@ namespace margelo::nitro::superhabitpose {
         value.x,
         value.y,
         value.z,
-        value.visibility
+        value.visibility,
+        value.presence.has_value() ? jni::JDouble::valueOf(value.presence.value()) : nullptr
       );
     }
   };

@@ -31,14 +31,14 @@ export function ChallengeDone({
   view,
   challenge,
   run,
-  onShare,
+  onKeepVideos,
   onClose,
 }: {
   view: SessionView;
   challenge: Challenge;
   run: RunView | null;
-  /** Whether to keep this session's traces for sending; unshared ones are deleted as the session stops. */
-  onShare: (share: boolean) => void;
+  /** Whether to keep this session's videos; joint positions always stay for replay. */
+  onKeepVideos: (share: boolean) => void;
   onClose: () => void;
 }) {
   const { top, bottom, left, right } = useSafeAreaInsets();
@@ -80,15 +80,15 @@ export function ChallengeDone({
             <SessionPlan plan={session} days={challenge.days} day={{ done, next: -1 }} />
           )}
           <SwitchRow
-            label="Keep sets on this phone"
+            label="Keep videos on this phone"
             note={
               view.share
-                ? 'Your joint positions and the videos of your sets stay on this phone, to teach the camera to count better. Nothing is uploaded.'
-                : 'Joint positions and videos of this session are deleted when you close it.'
+                ? 'Videos and joint positions stay on this phone. Nothing is uploaded.'
+                : 'Videos are deleted when you close. Joint positions stay on this phone for replay.'
             }
             value={view.share}
             // Sent on every flip, so leaving by Back keeps the choice too.
-            onChange={onShare}
+            onChange={onKeepVideos}
           />
         </View>
       </ScrollView>

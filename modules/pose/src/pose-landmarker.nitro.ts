@@ -22,6 +22,9 @@ export interface PoseVector {
   z: number;
 }
 
+/** Where MediaPipe ran. A named type because Nitrogen rejects inline unions. */
+export type PoseDelegate = 'gpu' | 'cpu';
+
 export interface PoseDetection {
   timestampMs: number;
   /** Normalized 0..1 coordinates, rotated upright to the screen. Empty when no person. */
@@ -41,8 +44,7 @@ export interface PoseDetection {
   frameHeight: number;
   /** Clockwise degrees the camera buffer was turned to be upright: 0, 90, 180 or 270. */
   rotation: number;
-  /** Where MediaPipe ran. */
-  delegate: 'gpu' | 'cpu';
+  delegate: PoseDelegate;
 }
 
 /** MediaPipe Pose Landmarker (BlazePose GHUM, 33 joints in MediaPipe order). */

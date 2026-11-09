@@ -31,6 +31,24 @@ const NO_EFFECTS = {
   message: 'Use an XState actor for lifecycles; see AGENTS.md.',
 };
 
+/** Exercises are pure rep logic: no framework, feature, UI or storage. */
+const EXERCISES_BANS = [
+  ...FRAMEWORKS,
+  '@/app/**',
+  '@/bootstrap/**',
+  '@/friends/**',
+  '@/challenges/**',
+  '@/workout/**',
+  '@/components/**',
+  '@/theme',
+  '@/storage/**',
+];
+const POSE_TYPES_ONLY = {
+  name: 'superhabit-pose',
+  allowTypeImports: true,
+  message: 'Pose types only: the detector is native.',
+};
+
 /** `files` may import neither `banned` nor `paths`; no file climbs out of its folder with `../`, so bans hold. */
 const layer = (
   files: string[],
@@ -147,26 +165,12 @@ export default defineConfig({
           '@/workout/pose/**',
         ],
       ),
+      layer(['src/exercises/**'], EXERCISES_BANS, [POSE_TYPES_ONLY]),
+      // Test code replays recorded sets, so it reads the trace file format.
       layer(
-        ['src/exercises/**'],
-        [
-          ...FRAMEWORKS,
-          '@/app/**',
-          '@/bootstrap/**',
-          '@/friends/**',
-          '@/challenges/**',
-          '@/workout/**',
-          '@/components/**',
-          '@/theme',
-          '@/storage/**',
-        ],
-        [
-          {
-            name: 'superhabit-pose',
-            allowTypeImports: true,
-            message: 'Pose types only: the detector is native.',
-          },
-        ],
+        ['src/exercises/__fixtures__/**'],
+        [...EXERCISES_BANS, '!@/storage/trace-file'],
+        [POSE_TYPES_ONLY],
       ),
       layer(
         ['src/components/**', 'src/theme.ts'],

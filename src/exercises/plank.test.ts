@@ -4,9 +4,8 @@ import { plank } from './plank';
 import { measurePlank, type PlankSample } from './positions/plank';
 import type { HoldState } from '@/exercises/kinds/hold';
 import type { Pose } from '@/exercises/body/geometry';
-import { toPose } from '@/exercises/body/trace';
 import { plank as pose } from './__fixtures__/plank';
-import { loadTrace, traceFiles } from './__fixtures__/replay';
+import { loadTrace, toPose, traceFiles } from './__fixtures__/replay';
 
 const FRAME = 66;
 const play = (body: Pose | null, from: number, to: number, state = plank.initial): HoldState => {

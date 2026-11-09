@@ -1,3 +1,4 @@
+import { modules } from '@/workout/__fixtures__/session';
 import { sql } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
@@ -10,6 +11,8 @@ import { addDays, today } from '@/workout/day';
 import { logSet, saveWorkout, workoutStart } from '@/workout/log';
 import { defineChallenge, readPlan, reps, type Challenge } from '@/workout/plan';
 
+vi.mock('expo-file-system', () => modules['expo-file-system']);
+vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
 vi.mock('expo-constants', () => ({ default: { expoConfig: { version: '1.0.0' } } }));
