@@ -174,9 +174,11 @@ export const samePlacement = (c: Context) => {
   );
 };
 
-/** This set has an attempt or held time; from then on 'waiting' means lost, not set-up. */
-export const started = (c: Context) =>
-  c.attempts.length > 0 || c[lastExercise(c).exercise].heldMs > 0;
+/** This set has a rep, a failed one or held time; from then on 'waiting' means lost, not set-up. */
+export const started = (c: Context) => {
+  const { reps, noReps, heldMs }: Progress = c[lastExercise(c).exercise];
+  return reps + noReps > 0 || heldMs > 0;
+};
 
 /** The UI orientation of the exercise shown. */
 const lockFor = (c: Context) => orientation(EXERCISES[lastExercise(c).exercise].placement);

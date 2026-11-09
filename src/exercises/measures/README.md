@@ -14,11 +14,10 @@ on that side too. When the position's side can't be measured, the kind tries the
 
 | Measure          | Reads                                                  | Example                                       |
 | ---------------- | ------------------------------------------------------ | --------------------------------------------- |
-| `joint-angle.ts` | the angle at the elbow, knee or hip; 180 = straight    | push-up (elbow), leg raise (hip)              |
+| `joint-angle.ts` | the angle at the elbow, knee, hip or shoulder          | push-up (elbow), jumping jack (shoulder)      |
 | `elevation.ts`   | how far a segment rises over level by gravity, degrees | squat's thighs, sit-up's torso, bridge's hips |
+| `spread.ts`      | the feet apart, forward or sideways, in leg lengths    | lunge's stride, jumping jack's legs           |
 
 `bothSides(measure, gap)` (in `measure.ts`) reads both limbs when both are seen: the higher, or
 nothing when they differ by more than `gap`; with one seen, that one alone. A squat's knees move
 together; one alone is a kick.
-
-Planned, added when its first exercise is rebuilt: the spread of arms and legs (jumping jack).

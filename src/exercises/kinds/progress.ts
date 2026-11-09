@@ -1,6 +1,6 @@
 import type { BodyPart, Pose } from '@/exercises/body/geometry';
 
-export type Kind = 'cycle' | 'sided' | 'hold' | 'sequence';
+export type Kind = 'cycle' | 'hold' | 'sequence';
 /** 'waiting' = start position not seen since starting, pausing or losing tracking; nothing counts. */
 export type Phase = 'waiting' | 'up' | 'down' | 'active';
 

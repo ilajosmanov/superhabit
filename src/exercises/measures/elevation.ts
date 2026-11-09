@@ -1,6 +1,6 @@
 import { SIDE } from 'superhabit-pose/joints';
 
-import { degrees, dot, gravity, length, seen, sub, type Joints } from '@/exercises/body/geometry';
+import { lift, seen, type Joints } from '@/exercises/body/geometry';
 import type { Measure } from './measure';
 
 /**
@@ -28,15 +28,11 @@ export function elevation(segment: Segment): Measure {
     parts,
     range: [-90, 90],
     read: (pose, side) => {
-      const down = gravity(pose);
       const j = SIDE[side];
       const joints: Joints = [j[ends[0]], j[ends[1]], j[ends[2]]];
-      if (!down || !joints.every((i) => seen(pose, i))) return null;
-      const along = sub(pose.worldLandmarks[joints[0]], pose.worldLandmarks[joints[1]]);
-      const value = degrees(
-        Math.asin(Math.min(1, Math.max(-1, (-sign * dot(along, down)) / length(along)))),
-      );
-      return Number.isFinite(value) ? { value, joints } : null;
+      if (!joints.every((i) => seen(pose, i))) return null;
+      const up = lift(pose, pose.worldLandmarks[joints[1]], pose.worldLandmarks[joints[0]]);
+      return up !== null && Number.isFinite(up) ? { value: sign * up, joints } : null;
     },
   };
 }

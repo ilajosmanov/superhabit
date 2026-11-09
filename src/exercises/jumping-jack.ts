@@ -1,99 +1,30 @@
-import { Joint, SIDE } from 'superhabit-pose/joints';
+import { exercise } from './exercise';
+import { cycle } from './kinds/cycle';
+import { jointAngle } from './measures/joint-angle';
+import { bothSides } from './measures/measure';
+import { spread } from './measures/spread';
+import { standingPosition } from './positions/standing';
 
-import { engine, type CycleState } from '@/exercises/kinds/cycle';
-import { fmtMs, type Exercise } from './exercise';
-import { angle, distance, seen, STRAIGHT, type Joints, type Pose } from '@/exercises/body/geometry';
+const overhead = 130;
 
-const ARMS = [SIDE.left, SIDE.right].map(({ hip, shoulder, elbow }): Joints => [
-  hip,
-  shoulder,
-  elbow,
-]);
-const REQUIRED = [...ARMS.flat(), Joint.LEFT_ANKLE, Joint.RIGHT_ANKLE];
-const unit = (value: number) => Math.max(0, Math.min(1, value));
+// shortcut: guessed from body proportions (feet together about 0.25 leg lengths apart, a jack's
+// stance 0.6–0.8) with no jumping jack clips with gravity yet; tune on front-on device sets.
+const jackCycle = cycle(
+  standingPosition,
+  // Both arms rise together: one alone is a wave, not a jack.
+  bothSides(jointAngle('shoulder'), 45, 'lower'),
+  {
+    up: 45,
+    down: overhead,
+    shallow: 90,
+    // Jacks are quick by nature.
+    fastMs: 0,
+    short: 'Arms overhead, feet wide',
+    also: { measure: spread('sideways'), down: 0.5, shallow: 0.35, up: 0.35 },
+  },
+);
 
-// Both signals run 0..1: arms from by the sides to straight overhead, spread from feet at hip
-// width to WIDE hip widths apart. Device sets peak at ankles 1.6–1.9 hip widths; 2.5 was a bar
-// most real jacks never cleared. A 0.7 peak needs ~126° arm abduction and feet 1.7 widths
-// apart; closure allows arms within 45° of the sides and feet within 1.25 widths for pose noise.
-const WIDE = 2;
-const JACK_CLOSED = 0.25;
-const JACK_OPEN = 0.7;
-// The return line sits under JACK_CLOSED so both limbs have closed before clean checks the raw sample;
-// 0.1 on the larger limb was stricter than pose noise allows (3/11 traces), 0.2 keeps the 6/11.
-const RETURN = 0.2;
-const SHALLOW = 0.4;
-// Moving elbows and overlapping ankles can be briefly uncertain; still require every joint
-// inside the image, and reject visibility below 0.3 rather than using extrapolated limbs.
-const MIN_VISIBILITY = 0.3;
-// Labelled internet clips pass 6/11 (cropped feet, inconsistent cycle totals); device sets are the bar.
-
-export type JumpingJackSample = {
-  arms: number;
-  spread: number;
-  signal: number;
-  joints: Joints;
-};
-
-export function measureJumpingJack(pose: Pose): JumpingJackSample | null {
-  if (!REQUIRED.every((i) => seen(pose, i, MIN_VISIBILITY))) return null;
-  const world = pose.worldLandmarks;
-  const abduction = ARMS.map(([h, s, e]) => angle(world[h], world[s], world[e]));
-  const ratio =
-    distance(world[Joint.LEFT_ANKLE], world[Joint.RIGHT_ANKLE]) /
-    distance(world[Joint.LEFT_HIP], world[Joint.RIGHT_HIP]);
-  if (![...abduction, ratio].every(Number.isFinite)) return null;
-  const arms = (abduction[0] + abduction[1]) / 2 / STRAIGHT;
-  const spread = unit((ratio - 1) / (WIDE - 1));
-  // The larger limb: a rep ends only once both have closed, whichever lands last.
-  return { arms, spread, signal: Math.max(arms, spread), joints: ARMS[0] };
-}
-
-type Attempt = { arms: number; spread: number };
-type JumpingJackReport = {
-  counted: boolean;
-  depth: number;
-  downMs: number | null;
-  upMs: number | null;
-  cues: string[];
-};
-export type JumpingJackState = CycleState<Attempt, JumpingJackReport>;
-
-const closed = (m: JumpingJackSample) => m.arms <= JACK_CLOSED && m.spread <= JACK_CLOSED;
-
-const jackCycle = engine<JumpingJackSample, Attempt, JumpingJackReport>({
-  signal: (m) => m.signal,
-  // Unit signals need a larger beta than degree signals; 0.8 follows quick cycles while
-  // letting raw limbs finish closing. This preserves 6/11 traces with the closure check.
-  smoothing: { minCutoff: 2, beta: 0.8 },
-  up: RETURN,
-  down: JACK_OPEN,
-  shallow: SHALLOW,
-  start: closed,
-  // The signal peaks when either limb opens; the turn and an attempt need both.
-  turn: (m) => Math.min(m.arms, m.spread) >= JACK_OPEN,
-  tried: (a) => Math.min(a.arms, a.spread) >= SHALLOW,
-  clean: (_a, m) => closed(m),
-  fresh: { arms: 0, spread: 0 },
-  add: (a, m) => ({ arms: Math.max(a.arms, m.arms), spread: Math.max(a.spread, m.spread) }),
-  report: (a, m, r) => ({
-    ...r,
-    cues: r.counted
-      ? []
-      : [
-          !closed(m)
-            ? 'Bring feet together and arms down'
-            : a.arms < JACK_OPEN
-              ? 'Raise your arms overhead'
-              : a.spread < JACK_OPEN
-                ? 'Jump your feet wider'
-                : 'Raise arms and spread feet together',
-        ],
-  }),
-});
-
-export const jumpingJack: Exercise<JumpingJackState, JumpingJackSample> = {
-  ...jackCycle,
+export const jumpingJack = exercise(jackCycle, {
   name: 'jumping jacks',
   placement: 'front-upright',
   place: 'Prop the phone upright',
@@ -102,12 +33,6 @@ export const jumpingJack: Exercise<JumpingJackState, JumpingJackSample> = {
     'Keep your feet and raised hands in frame',
     'Leave room to jump your feet apart',
   ],
-  hint: 'Start with feet together and arms down. Jump wide with arms overhead, then return.',
-  ready: 'Feet together, arms down',
+  hint: 'Counting starts once you stand tall with your arms down.',
   how: ['Jump wide with arms overhead', 'Jump back to count'],
-  parts: ['head', 'hands', 'hips', 'feet'],
-  gauge: { down: JACK_OPEN, up: RETURN },
-  measure: measureJumpingJack,
-  stats: ({ lastRep: r }) =>
-    r && `${Math.round(r.depth * 100)}% OPEN · ${fmtMs(r.downMs)} out · ${fmtMs(r.upMs)} back`,
-};
+});

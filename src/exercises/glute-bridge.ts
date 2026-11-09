@@ -12,7 +12,7 @@ export const gluteBridge = exercise(
     down: 18,
     shallow: 8,
     fastMs: 1000,
-    deeper: 'Lift your hips higher',
+    short: 'Lift your hips higher',
   }),
   {
     name: 'glute bridges',

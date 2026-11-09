@@ -13,7 +13,7 @@ export const pushup = exercise(
     down,
     shallow: 120,
     fastMs: 600,
-    deeper: 'Go lower',
+    short: 'Go lower',
   }),
   {
     name: 'push-ups',

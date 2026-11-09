@@ -1,16 +1,42 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { sequence, type SequenceConfig } from './sequence';
+import type { Position } from '@/exercises/positions/position';
+import { sequence, type SequenceState } from './sequence';
 
-type Pose = 'stand' | 'crouch' | 'plank' | 'crouch2';
-const counter = (config: Partial<SequenceConfig<string, Pose>> = {}) =>
-  sequence<string, Pose>({
-    pose: (m) => (m === 'stand' || m === 'crouch' || m === 'plank' || m === 'crouch2' ? m : null),
-    order: ['stand', 'crouch', 'plank', 'crouch2'],
-    maxStepMs: 2000,
-    cue: (missed) => `Expected ${missed}`,
-    ...config,
-  });
+const NAMES = ['stand', 'crouch', 'plank', 'crouch2'];
+const position = (name: string): Position<{ joints: [number, number, number] }> => ({
+  ready: `Expected ${name}`,
+  lost: '',
+  parts: [],
+  read: () => null,
+  setup: () => null,
+  form: () => null,
+});
+const detector = sequence(
+  [position('stand'), position('crouch'), position('plank'), position('crouch2')],
+  { maxStepMs: 2000 },
+);
+/**
+ * The detector fed by name: a named position reached, anything else tracked between them, null unseen.
+ * 'slip', or a name ending in '!', reads every position with poor form.
+ */
+const counter = () => ({
+  ...detector,
+  step: (s: SequenceState, name: string | null, nowMs: number) =>
+    detector.step(
+      s,
+      name === null
+        ? null
+        : {
+            at: NAMES.includes(name.replace('!', '')) ? NAMES.indexOf(name.replace('!', '')) : null,
+            joints: [0, 0, 0],
+            form: NAMES.map(() =>
+              name === 'slip' || name.endsWith('!') ? 'Keep your form' : null,
+            ),
+          },
+      nowMs,
+    ),
+});
 
 function player(ex = counter()) {
   let state = ex.initial;
@@ -77,13 +103,13 @@ describe('sequence', () => {
     const ex = counter();
     const first = ex.step(ex.initial, 'stand', 50);
     expect(ex.step(first, 'stand', 50 + offset)).toBe(first);
-    expect(first).toMatchObject({ phase: 'waiting', next: 0, candidate: { pose: 'stand', n: 1 } });
+    expect(first).toMatchObject({ phase: 'waiting', next: 0, candidate: { at: 0, n: 1 } });
 
     const start = ex.step(first, 'stand', 100);
     const crouch = ex.step(start, 'crouch', 150);
     expect(ex.step(crouch, 'crouch', 150 + offset)).toBe(crouch);
     expect(ex.step(crouch, 'plank', 150 + offset)).toBe(crouch);
-    expect(crouch).toMatchObject({ phase: 'up', next: 1, candidate: { pose: 'crouch', n: 1 } });
+    expect(crouch).toMatchObject({ phase: 'up', next: 1, candidate: { at: 1, n: 1 } });
     expect(ex.step(crouch, 'crouch', 200)).toMatchObject({
       phase: 'active',
       next: 2,
@@ -240,6 +266,31 @@ describe('sequence', () => {
       noReps: 1,
       lastRep: { cues: ['Expected plank'] },
     });
+  });
+
+  it('fails the rep when the position reached loses its form for over half a second', () => {
+    const p = player();
+    p.frames('stand');
+    p.frames('crouch');
+    // A short slip on the way to the next pose is forgiven.
+    p.frames('slip', 8);
+    expect(p.frames('plank')).toMatchObject({ phase: 'active', next: 3, noReps: 0 });
+    expect(p.frames('slip', 11)).toMatchObject({ phase: 'active', noReps: 0 });
+    expect(p.frames('slip', 1)).toMatchObject({
+      phase: 'waiting',
+      noReps: 1,
+      lastRep: { counted: false, cues: ['Keep your form'] },
+    });
+  });
+
+  it('starts the slip afresh at each position reached', () => {
+    const p = player();
+    p.frames('stand');
+    p.frames('crouch');
+    p.frames('slip', 7);
+    // Reached while the crouch still slips: the plank's own slip starts later.
+    expect(p.frames('plank!')).toMatchObject({ phase: 'active', next: 3, noReps: 0 });
+    expect(p.frames('slip', 9)).toMatchObject({ phase: 'active', noReps: 0 });
   });
 
   it('accepts the next pose at the exact deadline', () => {

@@ -25,6 +25,18 @@ describe('bothSides', () => {
     expect(knees.read(leftKnee(150), 'left')?.value).toBeCloseTo(180);
   });
 
+  it('reads the less raised of two arms going up, for a rising measure', () => {
+    const pose = body({});
+    // The left arm out level, the right one halfway down.
+    pose.worldLandmarks[Joint.LEFT_ELBOW] = { x: -0.48, y: -0.5, z: 0, visibility: 0.9 };
+    pose.worldLandmarks[Joint.RIGHT_ELBOW] = { x: 0.38, y: -0.3, z: 0, visibility: 0.9 };
+    const one = (side: 'left' | 'right') => jointAngle('shoulder').read(pose, side)?.value ?? NaN;
+    expect(one('right')).toBeLessThan(one('left'));
+    expect(bothSides(jointAngle('shoulder'), 45, 'lower').read(pose, 'left')?.value).toBe(
+      one('right'),
+    );
+  });
+
   it('reads nothing when the knees differ by more than the gap', () => {
     expect(knees.read(leftKnee(140), 'left')).toBeNull();
   });

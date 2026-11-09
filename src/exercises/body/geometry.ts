@@ -49,10 +49,19 @@ export const gravity = ({ down }: Pose): Vec | null =>
     ? down
     : null;
 
+/**
+ * How far `to` rises over `from` by the phone's gravity, −90..90 degrees: 90 straight above, below 0
+ * under it. Null without gravity.
+ */
+export const lift = (pose: Pose, from: Vec, to: Vec) => {
+  const down = gravity(pose);
+  return down ? between(sub(to, from), down) - 90 : null;
+};
+
 /** How far the line `from`→`to` rises from level by the phone's gravity, 0..90 degrees; null without it. */
 export const rise = (pose: Pose, from: Vec, to: Vec) => {
-  const down = gravity(pose);
-  return down ? Math.abs(90 - between(sub(to, from), down)) : null;
+  const up = lift(pose, from, to);
+  return up === null ? null : Math.abs(up);
 };
 
 // Joints outside the frame are extrapolated by the model; don't trust them.
