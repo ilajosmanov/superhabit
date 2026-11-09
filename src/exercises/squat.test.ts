@@ -96,9 +96,16 @@ describe('squat', () => {
   });
 });
 
-// Device clips with gravity, front-on, labelled with the reps in their video. Among them: leg kicks, a
-// bend to the floor, side lunges, half squats, sitting on the sofa and on the floor (none count),
-// and a deep squat held 3.5 s before standing (counts).
+// Device clips with gravity, front-on, and the reps in their video. Among them: leg kicks, a bend to
+// the floor, side lunges, half squats, sitting on the sofa and on the floor (none count), and a deep
+// squat held 3.5 s before standing (counts).
+const REPS = {
+  'squat-1794169405312.sht': 5,
+  'squat-1794169429105.sht': 5,
+  'squat-1794174480008.sht': 5,
+  'squat-1794174540701.sht': 5,
+  'squat-1794174641132.sht': 2,
+};
 const device = traceFiles('device').filter((path) => path.includes('/squat-'));
 // Plank and push-up clips with gravity: knees bend there (kneeling), but no squat is done. A dip while
 // standing at a clip's edge may still read as a failed rep.
@@ -106,7 +113,7 @@ const floor = traceFiles('device').filter((path) => /\/(plank|pushup)-/.test(pat
 describe.skipIf(device.length === 0)('squat on device clips with gravity', () => {
   // Squat and side squat share one counter: testing one tests both.
   it('counts every rep on the video', () => {
-    const rows = scoreReps(squat, device, 0);
+    const rows = scoreReps(squat, REPS);
     expect(
       rows.filter((row) => !row.ok),
       JSON.stringify(rows),

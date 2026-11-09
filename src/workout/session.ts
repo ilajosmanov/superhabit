@@ -169,7 +169,7 @@ function saveTrace(c: Context): RecorderEvent {
   return {
     type: 'save',
     exercise,
-    labels: EXERCISES[exercise].kind === 'hold' ? { holdMs: heldMs } : { reps },
+    counted: EXERCISES[exercise].kind === 'hold' ? { heldMs } : { reps },
   };
 }
 

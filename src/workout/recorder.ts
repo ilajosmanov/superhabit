@@ -2,12 +2,13 @@ import { Directory, File, Paths } from 'expo-file-system';
 import type { PoseDetection } from 'superhabit-pose';
 import { fromCallback } from 'xstate';
 
-import type { ExerciseId } from '@/exercises/registry';
-import { toFrame, type Trace } from '@/exercises/body/trace';
+import { COUNTER_VERSIONS, type ExerciseId } from '@/exercises/registry';
+import { toFrame } from '@/exercises/body/trace';
+import { encodeTrace, type RecordedFrame, type TraceHeader } from '@/exercises/trace-file';
 
 export type RecorderEvent =
   | { type: 'frame'; result: PoseDetection }
-  | { type: 'save'; exercise: ExerciseId; labels: Trace['labels'] }
+  | { type: 'save'; exercise: ExerciseId; counted: TraceHeader['counted'] }
   | { type: 'drop' }
   // The Done screen's "share movement data" switch: whether this session's traces are kept for sending.
   | { type: 'share'; on: boolean };
@@ -15,9 +16,9 @@ export type RecorderEvent =
 /** `on`: record at all; `share`: the session's, until the Done screen's switch says otherwise. */
 type RecorderInput = { on: boolean; share: boolean };
 
-/** Written when a trace is too short to measure its rate: the detector's usual pace. */
+/** The detector's usual pace. */
 const NOMINAL_FPS = 15;
-// shortcut: a set longer than ten minutes leaves no trace (its labels would describe frames it lacks);
+// shortcut: a set longer than ten minutes leaves no trace (its count would describe frames it lacks);
 // stream to disk if longer sets matter.
 const MAX_FRAMES = NOMINAL_FPS * 600;
 
@@ -68,7 +69,7 @@ async function settle(folder: Directory, writes: readonly Promise<void>[], share
   live.delete(folder.name);
 }
 
-/** Buffers one step's counting frames and saves each as a Trace v1 file when `record` is on. */
+/** Buffers one step's counting frames and saves each as a trace v2 (`.sht`) file when `record` is on. */
 export const recorder = fromCallback<RecorderEvent, RecorderInput>(({ input, receive }) => {
   const { on, share } = input;
   if (!on) return;
@@ -79,9 +80,7 @@ export const recorder = fromCallback<RecorderEvent, RecorderInput>(({ input, rec
   const writes: Promise<void>[] = [];
   // The session's `share`, until the Done screen's switch changes it.
   let shared = share;
-  // Each frame as JSON text, made as it comes: one stringify of a whole set at its end (megabytes) held
-  // the JS thread for a third of a second or more, right as the between-sets screen came up.
-  let frames: string[] = [];
+  let frames: RecordedFrame[] = [];
   let lastT = -1;
   let t0: number | null = null;
   const drop = () => {
@@ -99,7 +98,7 @@ export const recorder = fromCallback<RecorderEvent, RecorderInput>(({ input, rec
       t0 ??= event.result.timestampMs;
       const frame = toFrame(event.result, t0);
       if (frames.length < MAX_FRAMES && frame.t > lastT) {
-        frames.push(JSON.stringify(frame));
+        frames.push({ ...frame, phase: null, waiting: null, inferenceMs: null, brightness: null });
         lastT = frame.t;
       }
     } else {
@@ -110,31 +109,31 @@ export const recorder = fromCallback<RecorderEvent, RecorderInput>(({ input, rec
         drop();
         return;
       }
-      const name = `${event.exercise}-${Date.now()}.json`;
-      const trace: Omit<Trace, 'frames'> = {
-        version: 1,
-        source: {
-          dataset: 'superhabit-dev',
-          clip: name,
-          url: '',
-          license: 'private recording, no redistribution',
-        },
-        exercise: event.exercise,
-        labels: event.labels,
-        // Pause gaps can round the average down to zero; Trace v1 requires a positive rate.
-        fps:
-          frames.length < 2
-            ? NOMINAL_FPS
-            : Math.max(1, Math.round((1000 * (frames.length - 1)) / lastT)),
-      };
-      const count = frames.length;
-      const text = `${JSON.stringify(trace).slice(0, -1)},"frames":[${frames.join(',')}]}`;
+      const setId = `${event.exercise}-${Date.now()}`;
+      const name = `${setId}.sht`;
+      const recorded = frames;
       drop();
       writes.push(
         (async () => {
+          // shortcut: encoding blocks the JS thread at the set's end (tens of ms per thousand frames on
+          // a desktop); step 2.4 rebuilds the recorder.
+          const bytes = encodeTrace(
+            {
+              exercise: event.exercise,
+              setId,
+              counterVersion: COUNTER_VERSIONS[event.exercise],
+              device: null,
+              camera: null,
+              takes: [],
+              consent: [],
+              counted: event.counted,
+              labels: {},
+            },
+            recorded,
+          );
           folder.create({ intermediates: true, idempotent: true });
-          await new File(folder, name).write(text);
-          console.info('[recorder] saved', name, count, 'frames', trace.labels);
+          await new File(folder, name).write(bytes);
+          console.info('[recorder] saved', name, recorded.length, 'frames', event.counted);
         })().catch((error) => console.warn('[recorder] could not write', error)),
       );
     }

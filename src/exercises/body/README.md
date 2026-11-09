@@ -6,4 +6,4 @@ Reading the pose dots, shared by positions, measures and kinds. Nothing here kno
 | ------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `geometry.ts` | the `Pose` type (with gravity when the phone gives it), vector maths, joint angles, visibility, better-seen side |
 | `smooth.ts`   | the 1€ filter that steadies a signal, with its state as plain data                                               |
-| `trace.ts`    | a recorded frame's points and `toPose` for replay; the v1 JSON clip parser until 2.2                             |
+| `trace.ts`    | a recorded frame's points, `toFrame` from the detector and `toPose` for replay                                   |

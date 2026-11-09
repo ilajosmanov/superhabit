@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 import type { Pose } from '@/exercises/body/geometry';
 import type { Progress } from '@/exercises/kinds/progress';
-import { parseTrace, toPose, type Trace } from '@/exercises/body/trace';
+import { toPose, type TraceFrame } from '@/exercises/body/trace';
+import { decodeTrace } from '@/exercises/trace-file';
 
 type ReplayExercise<S extends Progress, M> = {
   initial: S;
@@ -13,7 +14,7 @@ type ReplayExercise<S extends Progress, M> = {
   measure(pose: Pose): M | null;
 };
 
-/** List eagerly, parse lazily: missing data skips, present but malformed data fails. */
+/** List eagerly, decode lazily: missing data skips, present but malformed data fails. */
 export function traceFiles(
   exercise: string,
   tracesRoot = fileURLToPath(new URL('./traces/', import.meta.url)),
@@ -21,17 +22,20 @@ export function traceFiles(
   const directory = join(tracesRoot, exercise);
   if (!existsSync(directory)) return [];
   return readdirSync(directory, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.sht'))
     .map((entry) => join(directory, entry.name))
     .sort();
 }
 
-export function loadTrace(path: string): Trace {
-  return parseTrace(JSON.parse(readFileSync(path, 'utf8')));
+export function loadTrace(path: string) {
+  return decodeTrace(readFileSync(path));
 }
 
 /** Detector timestamps drive the real measurement and counter, including tracking loss. */
-export function replay<S extends Progress, M>(ex: ReplayExercise<S, M>, trace: Trace): S {
+export function replay<S extends Progress, M>(
+  ex: ReplayExercise<S, M>,
+  trace: { frames: readonly TraceFrame[] },
+): S {
   return trace.frames.reduce(
     (state, frame) =>
       ex.step(state, frame.landmarks.length === 0 ? null : ex.measure(toPose(frame)), frame.t),
@@ -41,18 +45,20 @@ export function replay<S extends Progress, M>(ex: ReplayExercise<S, M>, trace: T
 
 export type Row = { clip: string; expected: number; got: number; ok: boolean };
 
-/** Compare the counter with labels supplied by the dataset. */
+/**
+ * Compare the counter with each device clip's reps, keyed by file name. A listed clip that is missing
+ * fails: callers skip the suite while the git-ignored clips are absent.
+ */
 export function scoreReps<S extends Progress, M>(
   ex: ReplayExercise<S, M>,
-  files: string[],
-  tolerance: number,
+  reps: Record<string, number>,
 ): Row[] {
-  return files.flatMap((path) => {
-    const trace = loadTrace(path);
-    if (trace.labels.reps === undefined) return [];
-    const expected = trace.labels.reps;
-    const got = replay(ex, trace).reps;
-    return [{ clip: trace.source.clip, expected, got, ok: Math.abs(got - expected) <= tolerance }];
+  const files = traceFiles('device');
+  return Object.entries(reps).map(([clip, expected]) => {
+    const path = files.find((p) => p.endsWith(clip));
+    assert(path, `${clip}: no such device clip`);
+    const got = replay(ex, loadTrace(path)).reps;
+    return { clip, expected, got, ok: got === expected };
   });
 }
 

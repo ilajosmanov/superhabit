@@ -56,17 +56,17 @@ describe('burpee', () => {
 // each span holds one real burpee, and no rep counts outside them.
 const BURPEES: Record<string, [number, number][]> = {
   // Four burpees; then down to a plank and lying flat, sitting up, and crawling onto all fours.
-  'burpee-1794183187017.json': [
+  'burpee-1794183187017.sht': [
     [32.4, 35.2],
     [39.5, 42.1],
     [44, 46.8],
     [49.5, 52.2],
   ],
   // Cheats only: hands down and back up, walking out onto all fours, crouching, sitting down.
-  'burpee-1794183259841.json': [],
+  'burpee-1794183259841.sht': [],
   // Two quick burpees; then hands down and up, folds, and three kicked back into a plank that sank to
   // the floor before standing.
-  'burpee-1794184001925.json': [
+  'burpee-1794184001925.sht': [
     [6.5, 9.2],
     [16.5, 19.2],
   ],

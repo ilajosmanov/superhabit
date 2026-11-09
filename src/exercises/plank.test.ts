@@ -116,25 +116,25 @@ describe('plank', () => {
 // earn the clock; the rest must not. A sag or pike pauses (the hold stays active), kneeling breaks it.
 type Moment = 'plank' | 'sag' | 'pike' | 'kneel' | 'lying';
 const LABELS: Record<string, [Moment, from: number, to: number][]> = {
-  'plank-1794160423565.json': [
+  'plank-1794160423565.sht': [
     ['plank', 7.6, 11.5],
     ['sag', 12.3, 18.9],
   ],
-  'plank-1794160461086.json': [
+  'plank-1794160461086.sht': [
     ['sag', 14, 17.9],
     ['kneel', 18.4, 26.6],
   ],
   // Facing the other way.
-  'plank-1794161278862.json': [
+  'plank-1794161278862.sht': [
     ['plank', 11.7, 16.4],
     ['sag', 17.4, 20.5],
     ['kneel', 23.5, 26.6],
     ['plank', 27.6, 28.9],
   ],
   // On a side, legs straight.
-  'plank-1794161362681.json': [['lying', 16.9, 20.2]],
+  'plank-1794161362681.sht': [['lying', 16.9, 20.2]],
   // Forearm planks too; lying flat, on the forearms and on the hands.
-  'plank-1794161854197.json': [
+  'plank-1794161854197.sht': [
     ['kneel', 11, 12.9],
     ['plank', 13, 17],
     ['sag', 18, 21],
@@ -147,21 +147,21 @@ const LABELS: Record<string, [Moment, from: number, to: number][]> = {
     ['pike', 70, 73.5],
   ],
   // A clean hold, start to end.
-  'plank-1794164326303.json': [['plank', 7.2, 16.4]],
+  'plank-1794164326303.sht': [['plank', 7.2, 16.4]],
   // The far knee down, then the near one.
-  'plank-1794169464742.json': [
+  'plank-1794169464742.sht': [
     ['plank', 8.4, 10.5],
     ['kneel', 11.2, 17.8],
   ],
   // One knee down, a plank, both knees, one knee.
-  'plank-1794169490623.json': [
+  'plank-1794169490623.sht': [
     ['kneel', 4.8, 8.3],
     ['plank', 9, 11.3],
     ['kneel', 12.2, 15],
     ['kneel', 15.4, 17.4],
   ],
   // Hips on the floor on straight arms, then sitting and lying on a side.
-  'plank-1794169524975.json': [
+  'plank-1794169524975.sht': [
     ['lying', 4.5, 9.8],
     ['plank', 10.5, 13.6],
     ['lying', 14.5, 22],

@@ -105,7 +105,7 @@ describe('lunge', () => {
 const LUNGES: Record<string, [number, number][]> = {
   // Eleven lunges. The first two step toward the phone and leave the frame (not counted); the rest
   // step back.
-  'lunge-1794189125875.json': [
+  'lunge-1794189125875.sht': [
     [17.2, 19.7],
     [20.7, 23.2],
     [24.2, 26.7],
@@ -117,7 +117,7 @@ const LUNGES: Record<string, [number, number][]> = {
     [50.5, 53],
   ],
   // Twelve reverse lunges; the first comes before the counter has started (not counted).
-  'lunge-1794189198232.json': [
+  'lunge-1794189198232.sht': [
     [21.9, 24.4],
     [25.4, 27.9],
     [29.4, 31.9],
@@ -132,7 +132,7 @@ const LUNGES: Record<string, [number, number][]> = {
   ],
   // Side-on: four lunges. Then facing the phone, seven stepping toward it: the front knee bends toward
   // the camera and reads 116–129° at the bottom, so only the last counts and four fail as too shallow.
-  'lunge-1794189888569.json': [
+  'lunge-1794189888569.sht': [
     [10.4, 13.4],
     [14.4, 17.4],
     [18.2, 21.2],

@@ -58,7 +58,7 @@ const CLIPS: Record<string, { reps: number; noReps: number }> = {
 const clips = Object.entries(CLIPS).map(([clip, expected]) => ({
   clip,
   expected,
-  path: traceFiles('device').find((p) => p.endsWith(`${clip}.json`)),
+  path: traceFiles('device').find((p) => p.endsWith(`${clip}.sht`)),
 }));
 describe.skipIf(clips.some((c) => !c.path))('situp on device clips with gravity', () => {
   it.each(clips)('$clip', ({ path, expected }) => {

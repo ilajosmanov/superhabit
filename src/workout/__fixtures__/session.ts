@@ -29,12 +29,12 @@ export const native: { close: () => void; onResult?: (result: PoseDetection) => 
 // The fake cache folder: names of the files in it; `stuck` ones fail to delete.
 export const disk = new Set<string>();
 export const stuck = new Set<string>();
-export const written: { name: string; text: string }[] = [];
+export const written: { name: string; bytes: Uint8Array }[] = [];
 export const createDirectory = vi.fn();
 /** Each trace move awaits this first; make it reject or wait to fail or slow a move. */
 export const moveFile = vi.fn(async () => {});
-export const writeFile = vi.fn(async (name: string, text: string) => {
-  written.push({ name, text });
+export const writeFile = vi.fn(async (name: string, bytes: Uint8Array) => {
+  written.push({ name, bytes });
 });
 const cached = (name: string) => ({
   uri: `file:///cache/reps/${name}`,
@@ -99,8 +99,8 @@ class FakeDirectory {
 }
 const traceFile = (folder: string, name: string) => ({
   // Like the real one: a write landing in a folder deleted meanwhile fails.
-  write: async (text: string) => {
-    await writeFile(name, text);
+  write: async (bytes: Uint8Array) => {
+    await writeFile(name, bytes);
     if (!new FakeDirectory(folder).exists) throw new Error(`${folder} is gone`);
     files.add(`${folder}/${name}`);
   },

@@ -16,7 +16,7 @@ One session in front of the camera, and the workout it keeps.
 | `logged-set.ts`          | `readSets(rows)`: stored sets read back for progress                                           |
 | `day.ts`                 | local `YYYY-MM-DD` days: `today`, `addDays` (DST-safe), `dayLabel`, `nextMidnight`             |
 | `camcorder.ts`           | the camera's takes for each set                                                                |
-| `recorder.ts`            | pose traces of each set, kept when you share them                                              |
+| `recorder.ts`            | pose traces of each set (`.sht`), kept when you share them                                     |
 | `speech.ts`, `phrase.ts` | the coach: what is said, and saying it                                                         |
 | `components/`            | the session's screens; `session-screen.tsx` is the page the route composes                     |
 | `pose/`                  | camera → pose detection → skeleton drawing                                                     |

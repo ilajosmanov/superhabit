@@ -85,7 +85,7 @@ describe('jumping jack', () => {
 // holds one real jack, and no rep counts outside them. Between them: an arms-only jack (a failed rep),
 // a knee kick, arms swung level, one arm raised at a time.
 const JACKS: Record<string, [number, number][]> = {
-  'jumping-jack-1794189250861.json': [
+  'jumping-jack-1794189250861.sht': [
     [9.7, 10.7],
     [10.7, 11.7],
     [11.7, 12.7],

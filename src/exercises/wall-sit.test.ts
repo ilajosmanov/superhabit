@@ -47,7 +47,7 @@ type Moment = 'sit' | 'half' | 'stand' | 'sink' | 'lean' | 'crouch' | 'walk';
 const LABELS: Record<string, [Moment, number, number][]> = {
   // Front camera on a diagonal: sits between half standing, standing, sinking to the floor, leaning
   // forward, a high sit with the arms out, and crouching low against the wall.
-  'wall-sit-1794179673917.json': [
+  'wall-sit-1794179673917.sht': [
     ['sit', 6, 9],
     ['half', 10, 13.5],
     ['sit', 14.5, 17.5],
@@ -60,12 +60,12 @@ const LABELS: Record<string, [Moment, number, number][]> = {
     ['crouch', 43.5, 48],
   ],
   // Back camera side-on; the video covers the end only.
-  'wall-sit-1794179812467.json': [
+  'wall-sit-1794179812467.sht': [
     ['sit', 27, 29.5],
     ['walk', 30.5, 33],
   ],
   // Back camera side-on: one long sit, then standing.
-  'wall-sit-1794179873948.json': [
+  'wall-sit-1794179873948.sht': [
     ['sit', 12, 36],
     ['stand', 38.3, 39.3],
   ],

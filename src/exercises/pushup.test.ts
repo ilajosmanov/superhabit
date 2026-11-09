@@ -144,14 +144,18 @@ describe('pushup.step', () => {
   });
 });
 
-// Device clips with gravity. Labels are what the phone counted, except pushup-1794163715160: 7, from
-// its video, where the phone said 0 under a broken hip rule. pushup-1794164288747 counts 5 of 6, as
-// the phone did: two reps behind a table leg read 111–119° and the 4th bottomed at 101°, just above
-// `down`.
+// Device clips with gravity, and what the phone counted, except pushup-1794163715160: 7, from its
+// video, where the phone said 0 under a broken hip rule. pushup-1794164288747 counts 5 of 6, as the
+// phone did: two reps behind a table leg read 111–119° and the 4th bottomed at 101°, just above `down`.
+const REPS = {
+  'pushup-1794163715160.sht': 7,
+  'pushup-1794164288747.sht': 5,
+  'pushup-1794169596587.sht': 5,
+};
 const device = traceFiles('device').filter((path) => path.includes('/pushup-'));
 describe.skipIf(device.length === 0)('pushup on device traces', () => {
   it('counts what the phone counted', () => {
-    const rows = scoreReps(pushup, device, 0);
+    const rows = scoreReps(pushup, REPS);
     expect(
       rows.filter((row) => !row.ok).map((row) => row.clip),
       JSON.stringify(rows),

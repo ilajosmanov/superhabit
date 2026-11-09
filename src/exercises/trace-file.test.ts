@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vite-plus/test';
 
 import { body } from '@/exercises/__fixtures__/body';
 import { replay } from '@/exercises/__fixtures__/replay';
-import { toFrame, toPose, type Trace, type TracePoint } from '@/exercises/body/trace';
+import { toFrame, toPose, type TracePoint } from '@/exercises/body/trace';
 import { squat } from '@/exercises/squat';
 import { decodeTrace, encodeTrace, type RecordedFrame, type TraceInfo } from './trace-file';
 
@@ -16,16 +16,7 @@ const detection = (
   timestampMs,
   cameraLandmarks: [],
 });
-/** Replay reads frames from a v1 trace; only its frames matter here. */
-const replayed = (frames: RecordedFrame[]) =>
-  replay(squat, {
-    version: 1,
-    source: { dataset: 'synthetic', clip: 'squat', url: '', license: 'test fixture' },
-    exercise: 'squat',
-    labels: {},
-    fps: 15,
-    frames,
-  } satisfies Trace);
+const replayed = (frames: RecordedFrame[]) => replay(squat, { frames });
 
 const info: TraceInfo = {
   exercise: 'squat',

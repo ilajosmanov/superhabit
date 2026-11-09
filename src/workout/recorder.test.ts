@@ -2,11 +2,11 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
 
 import { MAX, reps, seconds } from './plan';
-import { EXERCISES } from '@/exercises/registry';
 import { body } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
 import { replay } from '@/exercises/__fixtures__/replay';
-import { parseTrace } from '@/exercises/body/trace';
+import { COUNTER_VERSIONS, EXERCISES } from '@/exercises/registry';
+import { decodeTrace } from '@/exercises/trace-file';
 import {
   challenge,
   createDirectory,
@@ -60,9 +60,8 @@ describe('dev pose recorder', () => {
     actor.send({ type: 'end' });
     await flush();
     expect(written).toHaveLength(1);
-    const trace = parseTrace(JSON.parse(written[0].text));
+    const trace = decodeTrace(written[0].bytes);
     expect(trace.frames.map((frame) => frame.t)).toEqual([0, 66, 30000, 30066]);
-    expect(trace.fps).toBe(1);
     actor.stop();
   });
 
@@ -76,12 +75,12 @@ describe('dev pose recorder', () => {
     actor.send({ type: 'end' });
     await flush();
     expect(written).toHaveLength(1);
-    const trace = parseTrace(JSON.parse(written[0].text));
+    const trace = decodeTrace(written[0].bytes);
     expect(trace.frames.map((frame) => frame.t)).toEqual([0, 66, 132]);
     actor.stop();
   });
 
-  it('writes a readable single-frame trace with the fallback frame rate', async () => {
+  it('writes a readable single-frame trace', async () => {
     const actor = createActor(workoutSession, {
       input: { ...LOG, challenge: squatTest, record: true },
     }).start();
@@ -89,8 +88,7 @@ describe('dev pose recorder', () => {
     actor.send({ type: 'end' });
     await flush();
     expect(written).toHaveLength(1);
-    const trace = parseTrace(JSON.parse(written[0].text));
-    expect(trace.fps).toBe(15);
+    const trace = decodeTrace(written[0].bytes);
     expect(trace.frames).toHaveLength(1);
     expect(trace.frames[0].t).toBe(0);
     actor.stop();
@@ -127,8 +125,8 @@ describe('dev pose recorder', () => {
         results: [{ reps: 1 }, { reps: 1 }],
       });
       expect(written).toHaveLength(1);
-      const trace = parseTrace(JSON.parse(written[0].text));
-      expect(trace.exercise).toBe('pushup');
+      const trace = decodeTrace(written[0].bytes);
+      expect(trace.header.exercise).toBe('pushup');
       expect(trace.frames.length).toBeLessThanOrEqual(frames - started);
       expect(replay(EXERCISES.pushup, trace).reps).toBe(1);
       expect(warn).toHaveBeenCalledOnce();
@@ -136,7 +134,7 @@ describe('dev pose recorder', () => {
     },
   );
 
-  it('writes a replayable Trace v1 with the counter’s two reps on End', async () => {
+  it('writes a replayable trace v2 with the counter’s two reps on End', async () => {
     const actor = createActor(workoutSession, {
       input: { ...LOG, challenge: squatTest, record: true },
     }).start();
@@ -145,20 +143,19 @@ describe('dev pose recorder', () => {
     actor.send({ type: 'end' });
     await flush();
     expect(written).toHaveLength(1);
-    const { name, text } = written[0];
-    const trace = parseTrace(JSON.parse(text));
-    expect(name).toMatch(/^squat-\d+\.json$/);
-    expect(trace).toMatchObject({
-      version: 1,
-      source: {
-        dataset: 'superhabit-dev',
-        clip: name,
-        url: '',
-        license: 'private recording, no redistribution',
-      },
+    const { name, bytes } = written[0];
+    const trace = decodeTrace(bytes);
+    expect(name).toMatch(/^squat-\d+\.sht$/);
+    expect(trace.header).toMatchObject({
       exercise: 'squat',
-      labels: { reps: 2 },
-      fps: 15,
+      setId: name.slice(0, -'.sht'.length),
+      counterVersion: COUNTER_VERSIONS.squat,
+      device: null,
+      camera: null,
+      takes: [],
+      consent: [],
+      counted: { reps: 2 },
+      labels: {},
     });
     expect(trace.frames[0].t).toBe(0);
     expect(trace.frames.every((frame, i) => i === 0 || frame.t > trace.frames[i - 1].t)).toBe(true);
@@ -187,8 +184,8 @@ describe('dev pose recorder', () => {
     actor.send({ type: 'end' });
     await flush();
     expect(written).toHaveLength(1);
-    const trace = parseTrace(JSON.parse(written[0].text));
-    expect(trace.labels).toEqual({ reps: 1 });
+    const trace = decodeTrace(written[0].bytes);
+    expect(trace.header.counted).toEqual({ reps: 1 });
     expect(trace.frames[0].t).toBe(0);
     expect(trace.frames).toHaveLength(frames - restarted);
     expect(trace.frames.length).toBeLessThan(frames - before);
@@ -214,11 +211,13 @@ describe('dev pose recorder', () => {
     hold(2400, plank({}));
     await flush();
     expect(written).toHaveLength(1);
-    const trace = parseTrace(JSON.parse(written[0].text));
-    expect(trace.exercise).toBe('plank');
-    expect(trace.labels.holdMs).toBeGreaterThanOrEqual(2000);
-    expect(trace.labels).toEqual({ holdMs: sessionView(actor.getSnapshot()).results[0].heldMs });
-    expect(replay(EXERCISES.plank, trace).heldMs).toBe(trace.labels.holdMs);
+    const trace = decodeTrace(written[0].bytes);
+    expect(trace.header.exercise).toBe('plank');
+    expect(trace.header.counted.heldMs).toBeGreaterThanOrEqual(2000);
+    expect(trace.header.counted).toEqual({
+      heldMs: sessionView(actor.getSnapshot()).results[0].heldMs,
+    });
+    expect(replay(EXERCISES.plank, trace).heldMs).toBe(trace.header.counted.heldMs);
     actor.stop();
   });
 
@@ -238,9 +237,9 @@ describe('dev pose recorder', () => {
     actor.send({ type: 'end' });
     await flush();
     expect(written).toHaveLength(1);
-    const trace = parseTrace(JSON.parse(written[0].text));
+    const trace = decodeTrace(written[0].bytes);
     expect(trace.frames).toHaveLength(paused - started + frames - resumed);
-    expect(trace.labels).toEqual({ reps: 2 });
+    expect(trace.header.counted).toEqual({ reps: 2 });
     expect(replay(EXERCISES.squat, trace).reps).toBe(2);
     actor.stop();
   });
@@ -258,10 +257,10 @@ describe('dev pose recorder', () => {
     actor.send({ type: 'end' });
     await flush();
     expect(written).toHaveLength(1);
-    const trace = parseTrace(JSON.parse(written[0].text));
+    const trace = decodeTrace(written[0].bytes);
     expect(trace.frames).toHaveLength(frames - ready);
     expect(trace.frames[0].t).toBe(0);
-    expect(trace.labels).toEqual({ reps: 1 });
+    expect(trace.header.counted).toEqual({ reps: 1 });
     expect(replay(EXERCISES.squat, trace).reps).toBe(1);
     actor.stop();
   });
@@ -291,13 +290,13 @@ describe('dev pose recorder', () => {
     play(body({}));
     actor.send({ type: 'end' });
     expect(written).toHaveLength(2);
-    const first = parseTrace(JSON.parse(written[0].text));
-    const second = parseTrace(JSON.parse(written[1].text));
-    expect(first.labels).toEqual({ reps: 1 });
+    const first = decodeTrace(written[0].bytes);
+    const second = decodeTrace(written[1].bytes);
+    expect(first.header.counted).toEqual({ reps: 1 });
     expect(replay(EXERCISES.squat, first).reps).toBe(1);
     expect(second.frames).toHaveLength(frames - started);
     expect(second.frames[0].t).toBe(0);
-    expect(second.labels).toEqual({ reps: 0 });
+    expect(second.header.counted).toEqual({ reps: 0 });
     actor.stop();
   });
 
@@ -388,7 +387,7 @@ describe('sharing traces', () => {
   });
 
   it('sweeps a folder a killed app left, not one still settling', async () => {
-    files.add('cache/traces/old/squat-1.json');
+    files.add('cache/traces/old/squat-1.sht');
     let land = () => {};
     writeFile.mockImplementationOnce(() => new Promise<void>((resolve) => (land = resolve)));
     const first = await finished();
