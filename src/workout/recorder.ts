@@ -3,7 +3,7 @@ import type { PoseDetection } from 'superhabit-pose';
 import { fromCallback } from 'xstate';
 
 import type { ExerciseId } from '@/exercises/registry';
-import { toFrame, type Trace, type TraceFrame } from '@/exercises/body/trace';
+import { toFrame, type Trace } from '@/exercises/body/trace';
 
 export type RecorderEvent =
   | { type: 'frame'; result: PoseDetection }
@@ -79,10 +79,14 @@ export const recorder = fromCallback<RecorderEvent, RecorderInput>(({ input, rec
   const writes: Promise<void>[] = [];
   // The session's `share`, until the Done screen's switch changes it.
   let shared = share;
-  let frames: TraceFrame[] = [];
+  // Each frame as JSON text, made as it comes: one stringify of a whole set at its end (megabytes) held
+  // the JS thread for a third of a second or more, right as the between-sets screen came up.
+  let frames: string[] = [];
+  let lastT = -1;
   let t0: number | null = null;
   const drop = () => {
     frames = [];
+    lastT = -1;
     t0 = null;
   };
 
@@ -94,18 +98,20 @@ export const recorder = fromCallback<RecorderEvent, RecorderInput>(({ input, rec
     } else if (event.type === 'frame') {
       t0 ??= event.result.timestampMs;
       const frame = toFrame(event.result, t0);
-      if (frames.length < MAX_FRAMES && frame.t > (frames.at(-1)?.t ?? -1)) frames.push(frame);
+      if (frames.length < MAX_FRAMES && frame.t > lastT) {
+        frames.push(JSON.stringify(frame));
+        lastT = frame.t;
+      }
     } else {
-      const last = frames.at(-1);
       // At the cap the set ran on unrecorded.
       const full = frames.length >= MAX_FRAMES;
-      if (!last || full) {
+      if (frames.length === 0 || full) {
         if (full) console.info('[recorder] set too long to keep a trace');
         drop();
         return;
       }
       const name = `${event.exercise}-${Date.now()}.json`;
-      const trace: Trace = {
+      const trace: Omit<Trace, 'frames'> = {
         version: 1,
         source: {
           dataset: 'superhabit-dev',
@@ -119,15 +125,16 @@ export const recorder = fromCallback<RecorderEvent, RecorderInput>(({ input, rec
         fps:
           frames.length < 2
             ? NOMINAL_FPS
-            : Math.max(1, Math.round((1000 * (frames.length - 1)) / last.t)),
-        frames,
+            : Math.max(1, Math.round((1000 * (frames.length - 1)) / lastT)),
       };
+      const count = frames.length;
+      const text = `${JSON.stringify(trace).slice(0, -1)},"frames":[${frames.join(',')}]}`;
       drop();
       writes.push(
         (async () => {
           folder.create({ intermediates: true, idempotent: true });
-          await new File(folder, name).write(JSON.stringify(trace));
-          console.info('[recorder] saved', name, trace.frames.length, 'frames', trace.labels);
+          await new File(folder, name).write(text);
+          console.info('[recorder] saved', name, count, 'frames', trace.labels);
         })().catch((error) => console.warn('[recorder] could not write', error)),
       );
     }

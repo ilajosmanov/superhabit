@@ -20,6 +20,7 @@ import { recordTry, useChallenge } from '@/challenges/mine';
 import type { Challenge } from '@/workout/plan';
 import { BetweenSets } from '@/workout/components/between-sets';
 import { LiveView } from '@/workout/components/live-view';
+import { useSlidIn } from '@/workout/components/slid-in';
 import { PrimaryButton } from '@/components/primary-button';
 import { workoutSession } from '@/workout/session';
 import { sessionView } from '@/workout/session-view';
@@ -37,6 +38,7 @@ export default function ChallengeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
   const found = useChallenge(id);
+  const slidIn = useSlidIn();
   if (!found) return <Centered text="No such challenge." />;
   if (Platform.OS !== 'android') return <Centered text="Pose tracking is available on Android." />;
   // Before the session: its clock and orientation lock would run during the prompt.
@@ -54,6 +56,9 @@ export default function ChallengeScreen() {
       </View>
     );
   }
+  // The camera, detector and orientation lock start once the page is in: started mid-slide, they held
+  // one frame of the slide for 150 ms.
+  if (!slidIn) return <View className="flex-1 bg-ground" />;
   // A new id is a new session actor.
   return <AndroidSession key={id} id={id} challenge={found.challenge} />;
 }

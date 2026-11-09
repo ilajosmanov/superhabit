@@ -1,4 +1,5 @@
 import { useIsFocused } from 'expo-router';
+import { useState } from 'react';
 import { Text, View } from 'react-native';
 import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 
@@ -17,6 +18,7 @@ const PULSE = {
 /** A skeleton placeholder with a slow light sweep; `delay` staggers neighbours. */
 function Bone({ className, delay = 0 }: { className: string; delay?: number }) {
   const still = useReducedMotion();
+  const focused = useIsFocused();
   return (
     <View aria-hidden className={`overflow-hidden bg-surface ${className}`}>
       <Animated.View
@@ -32,6 +34,7 @@ function Bone({ className, delay = 0 }: { className: string; delay?: number }) {
           animationDelay: `${delay}ms`,
           animationIterationCount: 'infinite',
           animationTimingFunction: 'ease-in-out',
+          animationPlayState: focused ? 'running' : 'paused',
         }}
       />
     </View>
@@ -108,7 +111,13 @@ function GhostRow({
 /** The leaderboard isn't built yet: a "coming soon" badge, a ghost podium and skeleton rows tease it. */
 export function LeaderboardPreview() {
   const still = useReducedMotion();
+  // Native tabs mount every tab at launch and keep it: the loops below pause while the tab is hidden,
+  // or they redraw every frame behind every other screen.
   const focused = useIsFocused();
+  // A new key each time the tab gains focus remounts the podium, replaying its rise; leaving keeps it.
+  // Set while rendering, React's way to react to a changed value without an effect.
+  const [rise, setRise] = useState({ focused, key: 0 });
+  if (rise.focused !== focused) setRise({ focused, key: rise.key + (focused ? 1 : 0) });
 
   return (
     <>
@@ -125,6 +134,7 @@ export function LeaderboardPreview() {
                 animationDuration: '2.4s',
                 animationIterationCount: 'infinite',
                 animationTimingFunction: 'ease-out',
+                animationPlayState: focused ? 'running' : 'paused',
               }}
             />
           )}
@@ -135,14 +145,15 @@ export function LeaderboardPreview() {
 
       <View>
         <View
-          // Native tabs mount every tab at launch, so remount on focus to replay the rise.
           // Focus lands a few frames after the tab shows: stay hidden until then, or the
           // finished podium flashes before the rise restarts.
-          key={String(focused)}
+          key={rise.key}
           accessible
           accessibilityLabel="Preview of the podium: first, second and third place"
           // Clipped so the steps rise out of the floor line, not up through the rows below.
-          className={`flex-row items-end gap-3 overflow-hidden ${focused ? '' : 'opacity-0'}`}
+          // Opacity by style: swapping classes remounts the view (NativeWind).
+          style={{ opacity: focused ? 1 : 0 }}
+          className="flex-row items-end gap-3 overflow-hidden"
         >
           <Step
             place={2}
