@@ -9,6 +9,7 @@ const generated = [
   'coverage/**',
   'modules/*/android/build/**',
   'modules/*/android/.cxx/**',
+  'src/storage/migrations/**',
 ];
 
 /** Native and UI frameworks pure logic must not touch. */
@@ -88,26 +89,42 @@ export default defineConfig({
       ),
     },
     overrides: [
-      // Layers, each importing only those below it: app (routes) → friends, challenges (the catalog; its views
-      // in components/) → workout (session; its views in components/ and pose/) → exercises (pure rep
-      // logic) → components/ (shared UI), theme, storage/ (files kept on the phone; no UI, no feature rules).
+      // Layers, each importing only those below it: app (routes) → bootstrap (the app's start) → friends,
+      // challenges (the catalog; its views in components/) → workout (session; its views in components/
+      // and pose/) → exercises (pure rep logic) → components/ (shared UI), theme, storage/ (the phone's
+      // database; no UI, no feature rules).
       // An override replaces the rule's options, so each one repeats what still applies to its files.
       layer(['src/app/**'], [], [NO_EFFECTS]),
+      // The app's start: above every feature, below the routes.
+      layer(['src/bootstrap/**'], ['@/app/**']),
       // A feature's components/ and pose/ are its own UI: only routes may compose them with another's.
       layer(
         ['src/friends/**'],
-        ['@/app/**', '@/challenges/components/**', '@/workout/components/**', '@/workout/pose/**'],
+        [
+          '@/app/**',
+          '@/bootstrap/**',
+          '@/challenges/components/**',
+          '@/workout/components/**',
+          '@/workout/pose/**',
+        ],
         [NO_EFFECTS],
       ),
       layer(
         ['src/challenges/components/**'],
-        ['@/app/**', '@/friends/**', '@/workout/components/**', '@/workout/pose/**'],
+        [
+          '@/app/**',
+          '@/bootstrap/**',
+          '@/friends/**',
+          '@/workout/components/**',
+          '@/workout/pose/**',
+        ],
         [NO_EFFECTS],
       ),
       layer(
         ['src/challenges/*.ts'],
         [
           '@/app/**',
+          '@/bootstrap/**',
           '@/friends/**',
           '@/challenges/components/**',
           '@/workout/components/**',
@@ -116,13 +133,14 @@ export default defineConfig({
       ),
       layer(
         ['src/workout/components/**', 'src/workout/pose/**'],
-        ['@/app/**', '@/friends/**', '@/challenges/**'],
+        ['@/app/**', '@/bootstrap/**', '@/friends/**', '@/challenges/**'],
         [NO_EFFECTS],
       ),
       layer(
         ['src/workout/*.ts'],
         [
           '@/app/**',
+          '@/bootstrap/**',
           '@/friends/**',
           '@/challenges/**',
           '@/workout/components/**',
@@ -134,6 +152,7 @@ export default defineConfig({
         [
           ...FRAMEWORKS,
           '@/app/**',
+          '@/bootstrap/**',
           '@/friends/**',
           '@/challenges/**',
           '@/workout/**',
@@ -153,6 +172,7 @@ export default defineConfig({
         ['src/components/**', 'src/theme.ts'],
         [
           '@/app/**',
+          '@/bootstrap/**',
           '@/friends/**',
           '@/challenges/**',
           '@/workout/**',
@@ -166,6 +186,7 @@ export default defineConfig({
         [
           'react-native',
           '@/app/**',
+          '@/bootstrap/**',
           '@/friends/**',
           '@/challenges/**',
           '@/workout/**',

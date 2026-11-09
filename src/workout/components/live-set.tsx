@@ -84,7 +84,9 @@ export function LiveSet(props: PlatterProps) {
   const card = lost ? (
     <LostCard ready={EXERCISES[view.exercise].ready} missing={view.missing} />
   ) : (
-    noRep && gauge && <NoRepCard cue={noRep.cue} depth={noRep.depth} gauge={gauge} />
+    noRep &&
+    noRep.depth !== null &&
+    gauge && <NoRepCard cue={noRep.cue} depth={noRep.depth} gauge={gauge} />
   );
   const height = landscape ? 'h-11' : 'h-12';
 

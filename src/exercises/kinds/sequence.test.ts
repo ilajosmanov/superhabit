@@ -70,13 +70,24 @@ describe('sequence', () => {
       heldMs: 0,
       broken: false,
       next: 1,
-      lastRep: { counted: true, cues: [], depth: null, upMs: null },
+      lastRep: {
+        counted: true,
+        cues: [],
+        depth: null,
+        upMs: null,
+        startMs: 150,
+        bottomMs: null,
+        endMs: 550,
+      },
     });
     expect(p.frames('stand', 20).reps).toBe(1);
     p.frames('crouch');
     p.frames('plank');
     p.frames('crouch2');
-    expect(p.frames('stand').reps).toBe(2);
+    expect(p.frames('stand')).toMatchObject({
+      reps: 2,
+      lastRep: { startMs: 1550, bottomMs: null, endMs: 1950 },
+    });
     expect(ex.initial).toEqual(before);
     expect(ex.live(done)).toEqual({ signal: null, lowest: null });
   });
@@ -131,7 +142,15 @@ describe('sequence', () => {
       noReps: 1,
       next: 0,
       stepAt: null,
-      lastRep: { counted: false, cues: ['Expected plank'], depth: null, upMs: null },
+      lastRep: {
+        counted: false,
+        cues: ['Expected plank'],
+        depth: null,
+        upMs: null,
+        startMs: 50,
+        bottomMs: null,
+        endMs: 2200,
+      },
     });
     expect(p.frames('plank', 50)).toMatchObject({ phase: 'waiting', noReps: 1 });
     expect(p.frames('stand')).toMatchObject({ phase: 'up', noReps: 1, next: 1 });
@@ -149,7 +168,13 @@ describe('sequence', () => {
       phase: 'waiting',
       reps: 0,
       noReps: 1,
-      lastRep: { counted: false, cues: ['Expected crouch'] },
+      lastRep: {
+        counted: false,
+        cues: ['Expected crouch'],
+        startMs: 50,
+        bottomMs: null,
+        endMs: 150,
+      },
     });
     p.frames('crouch2');
     expect(p.frames('stand')).toMatchObject({ phase: 'up', reps: 0, noReps: 1 });
@@ -279,7 +304,13 @@ describe('sequence', () => {
     expect(p.frames('slip', 1)).toMatchObject({
       phase: 'waiting',
       noReps: 1,
-      lastRep: { counted: false, cues: ['Keep your form'] },
+      lastRep: {
+        counted: false,
+        cues: ['Keep your form'],
+        startMs: 50,
+        bottomMs: null,
+        endMs: 1250,
+      },
     });
   });
 

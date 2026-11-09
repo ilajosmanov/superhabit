@@ -10,6 +10,8 @@ export type SequenceSample = { at: number | null; joints: Joints; form: (string 
 export type SequenceState = Progress & {
   next: number;
   stepAt: number | null;
+  /** Last idle start frame, kept across the intermediate positions. */
+  startAt: number | null;
   lastSeenAt?: number;
   candidate: { at: number; n: number } | null;
   /** Since when the position last reached has had poor form. */
@@ -50,6 +52,7 @@ export function sequence<T extends readonly [Measured, Measured, ...Measured[]]>
     lastRep: null,
     next: 0,
     stepAt: null,
+    startAt: null,
     candidate: null,
     slipAt: null,
   };
@@ -61,18 +64,27 @@ export function sequence<T extends readonly [Measured, Measured, ...Measured[]]>
       broken: false,
       next: 0,
       stepAt: null,
+      startAt: null,
       lastSeenAt: undefined,
       candidate: null,
       slipAt: null,
     };
   }
 
-  function fail(s: SequenceState, cue = positions[s.next].ready): SequenceState {
+  function fail(s: SequenceState, nowMs: number, cue = positions[s.next].ready): SequenceState {
     return {
       ...reset(s),
       lastSeenAt: s.lastSeenAt,
       noReps: s.noReps + 1,
-      lastRep: { counted: false, cues: [cue], depth: null, upMs: null },
+      lastRep: {
+        counted: false,
+        cues: [cue],
+        depth: null,
+        upMs: null,
+        startMs: s.startAt,
+        bottomMs: null,
+        endMs: nowMs,
+      },
     };
   }
 
@@ -87,16 +99,16 @@ export function sequence<T extends readonly [Measured, Measured, ...Measured[]]>
 
     const { at } = sample;
     if (s.phase !== 'waiting' && s.stepAt !== null && nowMs - s.stepAt > maxStepMs) {
-      return fail(s);
+      return fail(s, nowMs);
     }
     if (s.phase !== 'waiting') {
       const cue = sample.form[(s.next + count - 1) % count];
       const slipAt = cue ? (s.slipAt ?? nowMs) : null;
-      if (cue && slipAt !== null && nowMs - slipAt > SLIP_MS) return fail(s, cue);
+      if (cue && slipAt !== null && nowMs - slipAt > SLIP_MS) return fail(s, nowMs, cue);
       s = { ...s, slipAt };
     }
     // Holding the start is idle, but returning to it cannot erase an overdue transition.
-    if (s.phase === 'up' && at === 0) s = { ...s, stepAt: nowMs };
+    if (s.phase === 'up' && at === 0) s = { ...s, stepAt: nowMs, startAt: nowMs };
 
     if (at === null) return { ...s, candidate: null };
     const candidate = { at, n: s.candidate?.at === at ? Math.min(s.candidate.n + 1, 2) : 1 };
@@ -104,12 +116,12 @@ export function sequence<T extends readonly [Measured, Measured, ...Measured[]]>
     if (candidate.n < 2) return s;
 
     if (s.phase === 'waiting') {
-      return at === 0 ? { ...s, phase: 'up', next: 1, stepAt: nowMs } : s;
+      return at === 0 ? { ...s, phase: 'up', next: 1, stepAt: nowMs, startAt: nowMs } : s;
     }
 
     const previous = (s.next + count - 1) % count;
     if (at === previous) return s;
-    if (at !== s.next) return fail(s);
+    if (at !== s.next) return fail(s, nowMs);
 
     if (s.next === 0) {
       return {
@@ -117,9 +129,18 @@ export function sequence<T extends readonly [Measured, Measured, ...Measured[]]>
         phase: 'up',
         next: 1,
         stepAt: nowMs,
+        startAt: nowMs,
         slipAt: null,
         reps: s.reps + 1,
-        lastRep: { counted: true, cues: [], depth: null, upMs: null },
+        lastRep: {
+          counted: true,
+          cues: [],
+          depth: null,
+          upMs: null,
+          startMs: s.startAt,
+          bottomMs: null,
+          endMs: nowMs,
+        },
       };
     }
     return { ...s, phase: 'active', next: (s.next + 1) % count, stepAt: nowMs, slipAt: null };

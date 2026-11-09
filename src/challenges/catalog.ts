@@ -1,6 +1,6 @@
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 
-import { capitalise, SUGGESTED } from './challenges';
+import { capitalise } from './challenges';
 import { goalLabel, type Challenge } from '@/workout/plan';
 
 /** One line on a challenge card: the step's goal in its own unit ("×25", "60 s", "MAX"). */
@@ -38,7 +38,3 @@ export function toEntry(id: string, { name, days, session }: Challenge): Catalog
     ...(note.length > 0 && { note: [...new Set(note)].join(' · ') }),
   };
 }
-
-export const CATALOG: readonly CatalogEntry[] = [...SUGGESTED].map(([id, challenge]) =>
-  toEntry(id, challenge),
-);

@@ -31,3 +31,10 @@ Every exercise is a short config on these primitives; the plan is in the "Superh
 doc.
 
 Tests replay recorded clips from `__fixtures__/traces/`, which is git-ignored: see `AGENTS.md`.
+
+`COUNTER_VERSIONS` in `registry.ts` is a hand-bumped semver for every exercise. Bump it when counting
+rules change. Cycle and sequence reports expose `startMs`, `bottomMs` and `endMs` on the detector clock,
+for counted and failed attempts. Cycles reuse their start/extreme tracking; `downMs` and `upMs` remain
+durations. A sequence starts at its last idle start-position frame, spans all intermediate positions,
+and has no bottom or depth. Reset/tracking expiry drops the unfinished attempt. Holds report breaks,
+with null timing fields, and produce no attempts.

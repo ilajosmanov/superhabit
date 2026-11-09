@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 import { EXERCISES, type ExerciseId, type Progress } from '@/exercises/registry';
 
 export type Goal = { type: 'reps'; n: number } | { type: 'seconds'; n: number } | { type: 'max' };
@@ -7,7 +9,14 @@ type RestStep = { exercise: 'rest'; goal: RestGoal };
 export type Step = ExerciseStep | RestStep;
 type Block = { steps: readonly [Step, ...Step[]]; rounds: number };
 export type Session = readonly [Block, ...Block[]];
-export type Challenge = { name: string; days: number; restartOnMiss: boolean; session: Session };
+export type Challenge = {
+  name: string;
+  days: number;
+  restartOnMiss: boolean;
+  /** Every done workout of the day adds up toward the one set's target. */
+  dailyTotal: boolean;
+  session: Session;
+};
 /** Block and round numbers are 1-based. */
 type FlatStep = Step & { block: number; round: number; rounds: number };
 export type FlatSteps = readonly [ExerciseStep & FlatStep, ...FlatStep[]];
@@ -21,6 +30,37 @@ export const goalLabel = (goal: Goal) =>
   goal.type === 'reps' ? `×${goal.n}` : goal.type === 'seconds' ? `${goal.n} s` : 'MAX';
 
 const positiveInteger = (n: number) => Number.isInteger(n) && n >= 1;
+
+const maxGoal = z.strictObject({ type: z.literal('max') });
+const secondsGoal = z.strictObject({ type: z.literal('seconds'), n: z.number().int().positive() });
+const goalSchema = z.union([
+  maxGoal,
+  secondsGoal,
+  z.strictObject({ type: z.literal('reps'), n: z.number().int().positive() }),
+]);
+const exerciseSchema = z.custom<ExerciseId>(
+  (value) => typeof value === 'string' && Object.hasOwn(EXERCISES, value),
+);
+const stepSchema = z.union([
+  z.strictObject({ exercise: exerciseSchema, goal: goalSchema }),
+  z.strictObject({ exercise: z.literal('rest'), goal: z.union([maxGoal, secondsGoal]) }),
+]);
+const blockSchema = z.strictObject({
+  steps: z.tuple([stepSchema], stepSchema),
+  // shortcut: at most 1000 rounds, as in the legacy reader; raise when a real plan needs more.
+  rounds: z.number().int().positive().max(1000),
+});
+const sessionSchema = z.tuple([blockSchema], blockSchema);
+
+/** A stored set's goal; null for one this app can't read. */
+export const readGoal = (json: unknown): Goal | null => goalSchema.safeParse(json).data ?? null;
+
+/** Unknown exercises/shapes and invalid known plans cannot be started by this app. */
+export function readPlan(json: unknown): Session | null {
+  const parsed = sessionSchema.safeParse(json);
+  if (!parsed.success || validate(parsed.data).length > 0) return null;
+  return parsed.data;
+}
 
 function flatten(session: Session): FlatStep[] {
   const steps: FlatStep[] = [];
@@ -88,6 +128,13 @@ export function expand(session: Session): FlatSteps {
 export function defineChallenge(c: Challenge): Challenge {
   const problems = validate(c.session);
   if (!positiveInteger(c.days)) problems.push('days must be an integer >= 1');
+  if (c.dailyTotal) {
+    const sets = flatten(c.session).filter((step) => step.exercise !== 'rest');
+    if (sets.length !== 1) problems.push('daily total needs exactly one exercise set');
+    if (sets.some(({ goal }) => goal.type === 'max')) {
+      problems.push('daily total cannot have a MAX goal');
+    }
+  }
   if (problems.length > 0) throw new Error(problems.join('\n'));
   return c;
 }

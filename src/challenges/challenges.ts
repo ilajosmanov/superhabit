@@ -1,103 +1,12 @@
 import { EXERCISES, orientation, type ExerciseId, type Placement } from '@/exercises/registry';
 
-import {
-  defineChallenge,
-  expand,
-  MAX,
-  reps,
-  seconds,
-  type Challenge,
-  type Goal,
-  type Step,
-} from '@/workout/plan';
+import { defineChallenge, expand, MAX, type Challenge, type Goal } from '@/workout/plan';
 
 /** Which way the phone stands, as mono labels say it. */
 export const phoneWay = (placement: Placement) =>
   orientation(placement) === 'landscape' ? 'SIDEWAYS' : 'UPRIGHT';
 
 export const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
-
-/** One exercise, the same goal every day. */
-const daily = (name: string, days: number, exercise: ExerciseId, goal: Goal): Challenge => ({
-  name,
-  days,
-  restartOnMiss: false,
-  session: [{ steps: [{ exercise, goal }], rounds: 1 }],
-});
-const rest = (n: number) => ({ exercise: 'rest', goal: seconds(n) }) as const;
-/** A ladder rung: n push-ups, n sit-ups, then whatever follows (a rest, except on the last rung). */
-const rung = (n: number, ...then: Step[]): Challenge['session'][number] => ({
-  steps: [{ exercise: 'pushup', goal: reps(n) }, { exercise: 'situp', goal: reps(n) }, ...then],
-  rounds: 1,
-});
-
-// shortcut: testing goals, a minute or two each; the real ones (and the daily basics) are at git tag
-// `real-goals`. Put them back before pilot users get the app.
-/** Ours, joined as-is: circuits only. Route id -> challenge, in catalog order. */
-const suggested: [string, Challenge][] = [
-  // Circuits keep the phone in one spot, or move it once.
-  [
-    'floor-circuit',
-    {
-      name: 'Floor circuit',
-      days: 14,
-      restartOnMiss: false,
-      session: [
-        {
-          steps: [
-            { exercise: 'pushup', goal: reps(3) },
-            { exercise: 'situp', goal: reps(3) },
-            { exercise: 'glute-bridge', goal: reps(3) },
-            { exercise: 'plank', goal: seconds(10) },
-            rest(10),
-          ],
-          rounds: 2,
-        },
-      ],
-    },
-  ],
-  [
-    'standing-circuit',
-    {
-      name: 'Standing circuit',
-      days: 14,
-      restartOnMiss: false,
-      session: [
-        {
-          steps: [
-            { exercise: 'squat', goal: reps(3) },
-            { exercise: 'jumping-jack', goal: reps(5) },
-            rest(10),
-          ],
-          rounds: 2,
-        },
-      ],
-    },
-  ],
-  [
-    'floor-ladder',
-    {
-      name: 'Floor ladder',
-      days: 14,
-      restartOnMiss: false,
-      // Climbs to 2 push-ups and 2 sit-ups and back down.
-      session: [rung(1, rest(10)), rung(2, rest(10)), rung(1)],
-    },
-  ],
-  // Cindy's push-ups and squats without the bar or the clock; the phone moves once, between blocks.
-  [
-    'five-ten-fifteen',
-    {
-      name: '5-10-15',
-      days: 14,
-      restartOnMiss: false,
-      session: [
-        { steps: [{ exercise: 'pushup', goal: reps(3) }, rest(10)], rounds: 2 },
-        { steps: [{ exercise: 'squat', goal: reps(3) }, rest(10)], rounds: 2 },
-      ],
-    },
-  ],
-];
 
 /**
  * The exercises we offer on their own, in tile order: what the surprise card draws from (each once, as
@@ -116,19 +25,15 @@ export const ONE_GO: readonly ExerciseId[] = [
   'burpee',
 ];
 
-/** The catalog, in order. */
-export const SUGGESTED: ReadonlyMap<string, Challenge> = new Map(
-  suggested.map(([id, challenge]) => [id, defineChallenge(challenge)]),
-);
-
-/** Every route id: the suggested challenges, then the one-go sets. */
-export const CHALLENGES: ReadonlyMap<string, Challenge> = new Map([
-  ...SUGGESTED,
-  ...ONE_GO.map((exercise): [string, Challenge] => [
-    exercise,
-    defineChallenge(daily(capitalise(EXERCISES[exercise].name), 1, exercise, MAX)),
-  ]),
-]);
+/** One go at an exercise, as many as you can: what the surprise card and a free log start. */
+export const oneGo = (exercise: ExerciseId) =>
+  defineChallenge({
+    name: capitalise(EXERCISES[exercise].name),
+    days: 1,
+    restartOnMiss: false,
+    dailyTotal: false,
+    session: [{ steps: [{ exercise, goal: MAX }], rounds: 1 }],
+  });
 
 /** A challenge's exercise sets in session order, and how the camera tracks them, as the page says it. */
 export function detail(challenge: Challenge) {

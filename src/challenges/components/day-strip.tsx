@@ -2,7 +2,8 @@ import { useRef } from 'react';
 import { Text, View } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 
-import { addDays, dayLabel, dayWord, type Run } from '@/challenges/days';
+import { dayWord, type Run } from '@/challenges/run-view';
+import { addDays, dayLabel } from '@/workout/day';
 import { tick } from '@/components/tick';
 import { colors } from '@/theme';
 

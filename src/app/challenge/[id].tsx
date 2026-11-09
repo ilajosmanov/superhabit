@@ -1,51 +1,62 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 
-import { SUGGESTED } from '@/challenges/challenges';
 import { ChallengePreview } from '@/challenges/components/challenge-preview';
 import { HoldToStart } from '@/challenges/components/hold-to-start';
 import { JoinedChallenge } from '@/challenges/components/joined-challenge';
 import { LeaveButton } from '@/challenges/components/leave-button';
-import { saveFailed } from '@/challenges/components/save-failed';
-import { doneToday } from '@/challenges/days';
-import { draftOf } from '@/challenges/draft';
-import { join, useChallenge } from '@/challenges/mine';
+import { saveFailed } from '@/components/save-failed';
+import { join } from '@/challenges/library';
+import { useLibrary } from '@/challenges/library-live';
+import { challengePage } from '@/challenges/library-view';
+import { doneToday } from '@/challenges/run-view';
 import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
+import { useToday } from '@/bootstrap/today';
 
 /**
  * A challenge. Not running: the preview teaches it, and a tap joins it from today (again, once a run is
  * over). Running: how each day went, and hold to start today's session; the pencil in the toolbar edits
- * it. The red disc in the footer leaves any challenge you are in.
+ * one you made. The red disc in the footer leaves the run. A plan from a newer app asks for an update.
  */
 export default function ChallengeDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, run } = useLocalSearchParams<{ id: string; run?: string }>();
   const router = useRouter();
-  const found = useChallenge(id);
-  if (!found) return <Screen title="Not found" />;
+  const library = useLibrary();
+  const day = useToday();
+  if (library.loading) return <Screen />;
+  const page = challengePage(library, id, day, run);
+  if (!page) return <Screen title="Not found" />;
 
-  const { challenge, saved, run } = found;
-  const status = `${!saved && SUGGESTED.has(id) ? 'SUGGESTED · ' : ''}${
-    challenge.days === 1 ? 'ONE GO' : `${challenge.days} DAYS · DAY 1 IS TODAY`
-  }`;
-
+  const { challenge, joined, runId } = page;
+  if (!challenge) {
+    return (
+      <Screen title={page.name} footer={runId && <LeaveButton runId={runId} />}>
+        <Text className="-mt-5 font-mono text-xs tracking-widest text-muted">
+          UPDATE THE APP TO DO THIS CHALLENGE
+        </Text>
+      </Screen>
+    );
+  }
   return (
     <Screen
       title={challenge.name}
       footer={
         <View className="flex-row gap-3">
-          {saved && <LeaveButton id={saved.id} />}
+          {joined && <LeaveButton runId={joined.runId} />}
           <View className="flex-1">
-            {run ? (
+            {joined ? (
               <HoldToStart
-                again={doneToday(run)}
-                onStart={() => router.push({ pathname: '/workout/[id]', params: { id } })}
+                again={doneToday(joined.run)}
+                onStart={() =>
+                  router.push({ pathname: '/workout/[id]', params: { id: joined.runId } })
+                }
               />
             ) : (
               <PrimaryButton
-                label={saved ? 'Start again' : 'Join'}
-                onPress={() => join(id, challenge) || saveFailed()}
+                label={page.ranBefore ? 'Start again' : 'Join'}
+                onPress={() => join(id) ?? saveFailed()}
               />
             )}
           </View>
@@ -54,27 +65,29 @@ export default function ChallengeDetailScreen() {
     >
       <Stack.Screen
         options={{
-          headerRight:
-            saved && draftOf(challenge)
-              ? () => (
-                  // A pencil, like the back arrow opposite: a 48dp target. A word in the header
-                  // only took taps on its own letters.
-                  <IconButton
-                    icon="edit"
-                    label="Edit challenge"
-                    onPress={() => router.push({ pathname: '/build', params: { id } })}
-                    style={{ marginRight: -12 }}
-                  />
-                )
-              : undefined,
+          headerRight: page.editable
+            ? () => (
+                // A pencil, like the back arrow opposite: a 48dp target. A word in the header
+                // only took taps on its own letters.
+                <IconButton
+                  icon="edit"
+                  label="Edit challenge"
+                  onPress={() => router.push({ pathname: '/build', params: { id } })}
+                  style={{ marginRight: -12 }}
+                />
+              )
+            : undefined,
         }}
       />
-      {run && saved ? (
+      {joined ? (
         // A new run (a restart, an edit to its days) starts back on today.
-        <JoinedChallenge key={`${run.from}:${run.days}`} saved={saved} run={run} />
+        <JoinedChallenge
+          key={`${joined.run.id}:${joined.run.from}:${joined.run.days}`}
+          joined={joined}
+        />
       ) : (
         <>
-          <Text className="-mt-5 font-mono text-xs tracking-widest text-muted">{status}</Text>
+          <Text className="-mt-5 font-mono text-xs tracking-widest text-muted">{page.status}</Text>
           <ChallengePreview challenge={challenge} />
         </>
       )}

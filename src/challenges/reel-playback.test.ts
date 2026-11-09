@@ -8,6 +8,10 @@ import { reelPlayback } from './reel-playback';
 import type { StepResult } from '@/workout/results';
 
 const set = (takes: string[]): StepResult => ({
+  id: 'set',
+  workoutId: 'workout',
+  planStep: 0,
+  counterVersion: '1.0.0',
   exercise: 'squat',
   round: 1,
   startedAt: 0,

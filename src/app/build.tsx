@@ -1,28 +1,30 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
 
 import { ONE_GO } from '@/challenges/challenges';
 import { Builder } from '@/challenges/components/builder';
-import { saveFailed } from '@/challenges/components/save-failed';
+import { saveFailed } from '@/components/save-failed';
 import { draftOf, newDraft } from '@/challenges/draft';
-import { create, update, useChallenge } from '@/challenges/mine';
+import { create, edit } from '@/challenges/library';
+import { useLibrary } from '@/challenges/library-live';
+import { challengePage } from '@/challenges/library-view';
+import { useToday } from '@/bootstrap/today';
 
 /**
  * The builder: `?exercise=squat` makes a new challenge, which you join from today;
- * `?id=…` edits one you are in, keeping its run.
+ * `?id=…` edits one you made, as a new version your run follows from its next workout.
  */
 export default function BuildScreen() {
   const { exercise, id = '' } = useLocalSearchParams<{ exercise?: string; id?: string }>();
   const router = useRouter();
-  const found = useChallenge(id)?.saved;
-  // The one being edited, as it was when the screen opened: leaving deletes it while the screen closes.
-  const [saved] = useState(found);
+  const library = useLibrary();
+  const day = useToday();
   const fresh = ONE_GO.find((one) => one === exercise);
 
   if (fresh) {
     return (
       <Builder
         initial={newDraft(fresh)}
+        from={day}
         action="Create challenge"
         onSave={(challenge) => {
           const made = create(challenge);
@@ -34,15 +36,17 @@ export default function BuildScreen() {
       />
     );
   }
-  const draft = saved && draftOf(saved.challenge);
-  // A stale link, or a challenge the builder can't show (several steps).
-  if (!saved || !draft) return <Redirect href="/" />;
+  if (library.loading) return null;
+  const page = challengePage(library, id, day);
+  const draft = page?.editable && page.challenge && draftOf(page.challenge);
+  // A stale link, someone else's challenge, or one the builder can't show (several steps).
+  if (!page || !draft) return <Redirect href="/" />;
   return (
     <Builder
       initial={draft}
-      history={saved}
+      from={page.joined?.run.from ?? day}
       action="Save"
-      onSave={(challenge) => (update(saved.id, challenge) ? router.back() : saveFailed())}
+      onSave={(challenge) => (edit(id, challenge) ? router.back() : saveFailed())}
     />
   );
 }

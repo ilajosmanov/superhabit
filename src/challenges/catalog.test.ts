@@ -9,6 +9,7 @@ describe('toEntry', () => {
       name: 'C',
       days: 30,
       restartOnMiss: false,
+      dailyTotal: false,
       session: [
         {
           steps: [
@@ -38,7 +39,13 @@ describe('toEntry', () => {
       rounds: 5,
     } as const;
     expect(
-      toEntry('c', { name: 'C', days: 14, restartOnMiss: false, session: [block, block] }).note,
+      toEntry('c', {
+        name: 'C',
+        days: 14,
+        restartOnMiss: false,
+        dailyTotal: false,
+        session: [block, block],
+      }).note,
     ).toBe('5 ROUNDS · 30S REST');
   });
 
@@ -48,6 +55,7 @@ describe('toEntry', () => {
         name: 'C',
         days: 21,
         restartOnMiss: false,
+        dailyTotal: false,
         session: [{ steps: [{ exercise: 'squat', goal: reps(100) }], rounds: 1 }],
       }).note,
     ).toBeUndefined();

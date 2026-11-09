@@ -5,7 +5,7 @@ import { ExerciseStack, StepsButton } from './exercise-stack';
 import { Icon } from '@/components/icon';
 import { colors } from '@/theme';
 import type { CatalogEntry } from '@/challenges/catalog';
-import { doneToday, type Run } from '@/challenges/days';
+import { doneToday, type Run } from '@/challenges/run-view';
 
 /**
  * One square per day: amber = done, filled from the bottom by the share of a partial try, amber outline =
@@ -100,7 +100,8 @@ export function JoinedCard({
   return (
     // The wrapper clips the ripple to the card's corners.
     <View className="overflow-hidden rounded-3xl border border-edge bg-surface" style={style}>
-      <Link href={{ pathname: '/challenge/[id]', params: { id: entry.id } }} asChild>
+      {/* The run too: several runs of one challenge each open their own. */}
+      <Link href={{ pathname: '/challenge/[id]', params: { id: entry.id, run: run.id } }} asChild>
         {body}
       </Link>
     </View>

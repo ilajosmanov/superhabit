@@ -10,7 +10,10 @@ import { vi } from 'vite-plus/test';
 import type { Pose } from '@/exercises/registry';
 import { body } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
+import { fromCallback } from 'xstate';
+
 import type { VideoOutput } from '@/workout/camcorder';
+import type { LogEvent, LogInput } from '@/workout/log';
 import { defineChallenge, MAX, reps, type Step } from '@/workout/plan';
 
 export const speak = vi.fn();
@@ -164,6 +167,7 @@ export const plan = (...steps: [Step, ...Step[]]) =>
     name: 't',
     days: 1,
     restartOnMiss: false,
+    dailyTotal: false,
     session: [{ steps, rounds: 1 }],
   });
 export const squatTest = plan({ exercise: 'squat', goal: MAX });
@@ -224,6 +228,18 @@ export const video: VideoOutput = {
   },
 };
 // Lets the camcorder's promise chains and the fake's ticks settle.
+/** What the session sent its log, in order; provide `fakeLog` as the session's `log` actor. */
+export const logged: LogEvent[] = [];
+export const fakeLog = fromCallback<LogEvent, LogInput>(({ receive, sendBack }) => {
+  receive((event) => {
+    logged.push(event);
+    if (event.type === 'done') sendBack({ type: 'logSaved' });
+    if (event.type === 'discard') sendBack({ type: 'logDiscarded' });
+  });
+});
+export const loggedSets = () =>
+  logged.flatMap((event) => (event.type === 'set' ? [event.set] : []));
+
 export const flush = async () => {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
 };
@@ -238,4 +254,5 @@ export function reset() {
   written.length = 0;
   files.clear();
   folders.clear();
+  logged.length = 0;
 }

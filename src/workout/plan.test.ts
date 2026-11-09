@@ -233,7 +233,13 @@ describe('done', () => {
 describe('defineChallenge', () => {
   it.each([0, -1, 1.5, Infinity, NaN])('rejects %s days', (days) => {
     expect(() =>
-      defineChallenge({ name: 'Floor circuit', days, restartOnMiss: false, session: floorCircuit }),
+      defineChallenge({
+        name: 'Floor circuit',
+        days,
+        restartOnMiss: false,
+        dailyTotal: false,
+        session: floorCircuit,
+      }),
     ).toThrow('days must be an integer >= 1');
   });
 
@@ -243,6 +249,7 @@ describe('defineChallenge', () => {
         name: 'Invalid',
         days: 0,
         restartOnMiss: false,
+        dailyTotal: false,
         session: [
           {
             steps: [
@@ -270,8 +277,50 @@ describe('defineChallenge', () => {
       name: 'Floor circuit',
       days,
       restartOnMiss: false,
+      dailyTotal: false,
       session: floorCircuit,
     });
     expect(expand(challenge.session)).toHaveLength(8);
+  });
+});
+
+describe('daily total validation', () => {
+  const daily = { name: 'Daily', days: 3, restartOnMiss: false, dailyTotal: true };
+
+  it('allows one finite rep or hold target', () => {
+    expect(
+      defineChallenge({
+        ...daily,
+        session: [{ steps: [{ exercise: 'pushup', goal: reps(500) }], rounds: 1 }],
+      }).dailyTotal,
+    ).toBe(true);
+    expect(
+      defineChallenge({
+        ...daily,
+        session: [{ steps: [{ exercise: 'plank', goal: seconds(60) }], rounds: 1 }],
+      }).dailyTotal,
+    ).toBe(true);
+  });
+
+  it.each(
+    (
+      [
+        floorCircuit,
+        [{ steps: [{ exercise: 'pushup', goal: reps(250) }], rounds: 2 }],
+      ] satisfies Session[]
+    ).map((session) => ({ session })),
+  )('rejects multiple expanded exercise sets', ({ session }) => {
+    expect(() => defineChallenge({ ...daily, session })).toThrow(
+      'daily total needs exactly one exercise set',
+    );
+  });
+
+  it('rejects an open-ended daily total target', () => {
+    expect(() =>
+      defineChallenge({
+        ...daily,
+        session: [{ steps: [{ exercise: 'pushup', goal: MAX }], rounds: 1 }],
+      }),
+    ).toThrow('daily total cannot have a MAX goal');
   });
 });

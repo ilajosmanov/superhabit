@@ -19,11 +19,14 @@ export function RepStrip({
   gauge: Gauge;
   bar?: number;
 }) {
-  if (!attempts.length) return null;
+  const bars = attempts.filter(
+    (attempt): attempt is Attempt & { depth: number } => attempt.depth !== null,
+  );
+  if (!bars.length) return null;
   const step = bar + GAP;
-  const width = attempts.length * step;
+  const width = bars.length * step;
   const line = H - depthAt(gauge.down, gauge) * H;
-  const said = attempts
+  const said = bars
     .map(({ counted, depth }) => `${depthText(depth, gauge)}${counted ? '' : ' no-rep'}`)
     .join(', ');
   return (
@@ -35,9 +38,9 @@ export function RepStrip({
       preserveAspectRatio="none"
       accessible
       accessibilityRole="image"
-      accessibilityLabel={`${attempts.length} attempts, depth: ${said}`}
+      accessibilityLabel={`${bars.length} attempts, depth: ${said}`}
     >
-      {attempts.map(({ counted, depth }, i) => {
+      {bars.map(({ counted, depth }, i) => {
         const h = Math.max(2, depthAt(depth, gauge) * H);
         return (
           <Rect

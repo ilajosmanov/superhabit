@@ -6,6 +6,10 @@ import { setAmounts, shareDone, type StepResult } from './results';
 import { expand, MAX, reps, seconds } from './plan';
 
 const set = (exercise: ExerciseId): StepResult => ({
+  id: 'set',
+  workoutId: 'workout',
+  planStep: 0,
+  counterVersion: '1.0.0',
   exercise,
   round: 1,
   startedAt: 0,

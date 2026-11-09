@@ -4,7 +4,8 @@ import type { Exercise, Measured } from '@/exercises/exercise';
 import { EXERCISES, type Progress } from '@/exercises/registry';
 
 import { NONE } from './framing';
-import { current, lastExercise, samePlacement, started, type workoutSession } from './session';
+import { current, lastExercise, samePlacement, started } from './counting';
+import type { workoutSession } from './session';
 
 const STAGES = ['switching', 'finished', 'resting', 'countdown', 'paused'] as const;
 
@@ -72,6 +73,8 @@ export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>) {
     gauge: EXERCISES[id].gauge,
     /** Finished sets; on 'finished' includes the last (possibly partial) set. */
     results: c.results,
+    /** Anything was counted: a rep, a no-rep or held time. Leaving without Done then asks first. */
+    counted: c.results.some((set) => set.reps + set.noReps > 0 || set.heldMs > 0),
     /** Finished and every file final, so the sets' videos (`results[].takes`) are safe to play. */
     final: c.final,
     /** Keep this session's traces and videos on the phone (the Done screen's switch). */

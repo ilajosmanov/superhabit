@@ -25,6 +25,9 @@ export type CycleConfig<M, A, R extends Rep> = {
     a: A,
     m: M,
     r: {
+      startMs: number | null;
+      bottomMs: number | null;
+      endMs: number;
       counted: boolean;
       depth: number;
       downMs: number | null;
@@ -44,12 +47,12 @@ export type CycleState<A, R extends Rep> = Progress & {
 
 const TRACKING_TIMEOUT_MS = 1000;
 
-/** Down and up durations of an attempt ending on the detector clock. */
+/** Detector-clock boundaries and down/up durations of a completed attempt. */
 function timing(a: Timing, nowMs: number) {
   const downMs =
     a.bottomAt !== undefined && a.startAt !== undefined ? a.bottomAt - a.startAt : null;
   const upMs = a.bottomAt !== undefined ? nowMs - a.bottomAt : null;
-  return { downMs, upMs };
+  return { startMs: a.startAt ?? null, bottomMs: a.bottomAt ?? null, endMs: nowMs, downMs, upMs };
 }
 
 /**
@@ -225,11 +228,12 @@ export function cycle<P extends { side: Side }>(
     clean: (a, s) => a.cue === null && placed(s),
     fresh: { cue: null, also: Infinity },
     add: (a, s) => ({ cue: a.cue ?? p.form(s.at), also: Math.min(a.also, s.also) }),
-    report: (a, s, { counted, depth, downMs, upMs }) => {
+    report: (a, s, r) => {
+      const { counted, downMs, upMs } = r;
       const fast = downMs !== null && upMs !== null && downMs + upMs < o.fastMs;
       const cue = !counted && (p.setup(s.at) ?? a.cue ?? o.short);
       const cues = [cue, fast && 'Slow down'].filter((x): x is string => !!x);
-      return { counted, cues, depth, downMs, upMs };
+      return { ...r, cues };
     },
   });
   const on = (pose: Pose, at: P, side: Side) => {

@@ -3,12 +3,16 @@ import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 import { capitalise } from './challenges';
 import { defineChallenge, MAX, reps, seconds, type Challenge, type Goal } from '@/workout/plan';
 
-/** What the builder edits: one exercise and its daily goal. `name` is null until you type one. */
+/**
+ * What the builder edits: one exercise and its daily goal. `name` is null until you type one. `dailyTotal`
+ * is kept as the challenge had it (the builder doesn't set it); a daily total has no Max.
+ */
 export type Draft = {
   exercise: ExerciseId;
   goal: Goal;
   days: number;
   restartOnMiss: boolean;
+  dailyTotal: boolean;
   name: string | null;
 };
 
@@ -24,13 +28,13 @@ const isHold = (exercise: ExerciseId) => EXERCISES[exercise].kind === 'hold';
 /** The exercise's slider unit. */
 export const unitOf = (exercise: ExerciseId) => (isHold(exercise) ? 'seconds' : 'reps');
 
-/** Set the slider's number in the exercise's own unit; past the range's top it is Max. */
+/** Set the slider's number in the exercise's own unit; past the range's top it is Max (a daily total stops at the top). */
 export const withAmount = (draft: Draft, n: number): Draft => {
   const unit = unitOf(draft.exercise);
-  return {
-    ...draft,
-    goal: n > RANGE[unit].max ? MAX : unit === 'seconds' ? seconds(n) : reps(n),
-  };
+  const { max } = RANGE[unit];
+  if (n > max && !draft.dailyTotal) return { ...draft, goal: MAX };
+  const amount = Math.min(n, max);
+  return { ...draft, goal: unit === 'seconds' ? seconds(amount) : reps(amount) };
 };
 
 /** Set a typed number in the exercise's own unit: any whole number from 1, in or past the slider's range. */
@@ -41,20 +45,26 @@ export const withNumber = (draft: Draft, n: number): Draft => ({
 
 export const newDraft = (exercise: ExerciseId) =>
   withAmount(
-    { exercise, goal: MAX, days: 21, restartOnMiss: false, name: null },
+    { exercise, goal: MAX, days: 21, restartOnMiss: false, dailyTotal: false, name: null },
     isHold(exercise) ? 60 : 20,
   );
 
 // shortcut: the builder edits one exercise only, so a challenge with rounds or several steps has no Edit;
 // teach the builder steps when made challenges need them.
 /** A one-exercise challenge as a draft; null for anything longer, which the builder can't show. */
-export function draftOf({ name, days, restartOnMiss, session }: Challenge): Draft | null {
+export function draftOf({
+  name,
+  days,
+  restartOnMiss,
+  dailyTotal,
+  session,
+}: Challenge): Draft | null {
   const [block, ...more] = session;
   const [step, ...others] = block.steps;
   if (more.length > 0 || others.length > 0 || block.rounds !== 1 || step.exercise === 'rest') {
     return null;
   }
-  return { exercise: step.exercise, goal: step.goal, days, restartOnMiss, name };
+  return { exercise: step.exercise, goal: step.goal, days, restartOnMiss, dailyTotal, name };
 }
 
 /** The name until you type one: the exercise ("Push-ups"); the number stays out so the field holds still. */
@@ -66,5 +76,6 @@ export const toChallenge = (draft: Draft): Challenge =>
     name: draft.name?.trim() || autoName(draft),
     days: draft.days,
     restartOnMiss: draft.restartOnMiss,
+    dailyTotal: draft.dailyTotal,
     session: [{ steps: [{ exercise: draft.exercise, goal: draft.goal }], rounds: 1 }],
   });

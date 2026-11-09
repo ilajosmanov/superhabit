@@ -10,7 +10,7 @@ import { AndroidHaptics, performAndroidHapticsAsync } from 'expo-haptics';
 import { useRef, useState } from 'react';
 import { Text, TextInput, View, type TextInputInstance } from 'react-native';
 
-import { addDays, dayLabel, runOn, today } from '@/challenges/days';
+import { addDays, dayLabel, type Day } from '@/workout/day';
 import {
   autoName,
   DAY_CHOICES,
@@ -21,7 +21,6 @@ import {
   withNumber,
   type Draft,
 } from '@/challenges/draft';
-import type { Saved } from '@/challenges/saved';
 import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
@@ -90,17 +89,17 @@ function AmountSlider({
 /**
  * Name a one-exercise challenge and set its numbers (design 05b): the title is the name field (React
  * Native's: Compose's BasicTextField takes only a family's regular face, not Geist 200), the
- * giant numeral (a field too: type any number) follows the slider, then days and the restart rule. `history` is the run so far of a
- * challenge you are in; a new one starts today.
+ * giant numeral (a field too: type any number) follows the slider, then days and the restart rule. `from` is day 1 of the run: the one you
+ * are in, or today for a new one.
  */
 export function Builder({
   initial,
-  history,
+  from,
   action,
   onSave,
 }: {
   initial: Draft;
-  history?: Pick<Saved, 'startedOn' | 'progress'>;
+  from: Day;
   action: string;
   onSave: (challenge: Challenge) => void;
 }) {
@@ -112,10 +111,6 @@ export function Builder({
   const exercise = EXERCISES[draft.exercise];
   const { goal } = draft;
   const hold = exercise.kind === 'hold';
-  // The run's own day 1 under the rules as set now (later than the join day after a restart); a run that
-  // would be over ends from today.
-  const from =
-    (history && runOn(draft, history.startedOn, history.progress, today())?.from) ?? today();
 
   return (
     <Screen footer={<PrimaryButton label={action} onPress={() => onSave(toChallenge(draft))} />}>

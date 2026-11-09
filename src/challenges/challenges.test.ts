@@ -4,7 +4,7 @@ import { detail, plan } from './challenges';
 import { defineChallenge, MAX, reps, seconds, type Session } from '@/workout/plan';
 
 const challenge = (session: Session) =>
-  defineChallenge({ name: 'Test', days: 1, restartOnMiss: false, session });
+  defineChallenge({ name: 'Test', days: 1, restartOnMiss: false, dailyTotal: false, session });
 
 const circuit = challenge([
   {

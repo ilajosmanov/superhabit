@@ -1,14 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 
-import { createActor } from 'xstate';
+import { createActor, fromCallback } from 'xstate';
 
 import { defineChallenge, MAX, reps, seconds, type Step } from './plan';
 import { EXERCISES } from '@/exercises/registry';
+import type { LogEvent, LogInput } from './log';
 
 import { plank } from '@/exercises/__fixtures__/plank';
 import {
   challenge,
+  fakeLog,
   hold,
+  logged,
   LANDSCAPE,
   lockAsync,
   modules,
@@ -23,6 +26,7 @@ import {
   squatTest,
 } from './__fixtures__/session';
 
+vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
 vi.mock('superhabit-pose', () => modules['superhabit-pose']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
@@ -68,27 +72,48 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     actor.stop();
   });
 
-  it('reports after every set how much of the session is done, so a killed app keeps it', () => {
-    const onSaved = vi.fn();
-    const full = createActor(workoutSession, { input: { challenge, onSaved } }).start();
+  it('logs each set as it finishes, in plan order, and Done once', () => {
+    const actor = createActor(workoutSession.provide({ actors: { log: fakeLog } }), {
+      input: { challenge },
+    }).start();
     squat();
-    // Before the last set: the squat set is already reported.
-    expect(onSaved.mock.calls).toEqual([[0.5, [1, 0]]]);
-    full.send({ type: 'next' });
+    // Before the last set: the squat set is already in the log, so a killed app keeps it.
+    expect(logged.map(({ type }) => type)).toEqual(['set']);
+    actor.send({ type: 'next' });
     pushup();
-    expect(onSaved.mock.calls).toEqual([
-      [0.5, [1, 0]],
-      [1, [1, 1]],
-    ]);
-    full.stop();
+    actor.send({ type: 'save' });
+    actor.send({ type: 'save' });
+    expect(
+      logged.map((event) =>
+        event.type === 'set' ? [event.set.planStep, event.set.exercise] : event.type,
+      ),
+    ).toEqual([[0, 'squat'], [1, 'pushup'], 'done']);
+    actor.stop();
+  });
 
-    onSaved.mockClear();
-    const cut = createActor(workoutSession, { input: { challenge, onSaved } }).start();
-    squat();
-    cut.send({ type: 'end' });
-    // Ending between sets adds no set, so nothing new to report.
-    expect(onSaved.mock.calls).toEqual([[0.5, [1, 0]]]);
-    cut.stop();
+  it('is saved only once the log says so, and a failed Done can be tried again', () => {
+    let full = true;
+    const dones: string[] = [];
+    const flaky = fromCallback<LogEvent, LogInput>(({ receive, sendBack }) => {
+      receive((event) => {
+        if (event.type !== 'done') return;
+        dones.push(full ? 'failed' : 'saved');
+        sendBack({ type: full ? 'logFailed' : 'logSaved' });
+      });
+    });
+    const actor = createActor(workoutSession.provide({ actors: { log: flaky } }), {
+      input: { challenge: squatTest },
+    }).start();
+    actor.send({ type: 'end' });
+    actor.send({ type: 'save' });
+    // Known as soon as Done is sent: the route reads it right after.
+    expect(actor.getSnapshot().context).toMatchObject({ saved: false, unsaved: true });
+    full = false;
+    actor.send({ type: 'save' });
+    actor.send({ type: 'save' });
+    expect(actor.getSnapshot().context).toMatchObject({ saved: true, unsaved: false });
+    expect(dones).toEqual(['failed', 'saved']);
+    actor.stop();
   });
 
   it('announces a seconds goal and a MAX goal when the preceding step ends', () => {
@@ -381,7 +406,10 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     expect(sessionView(actor.getSnapshot())).toMatchObject({
       stage: 'finished',
       reachedEnd: true,
-      results: [{ exercise: 'squat' }, { exercise: 'pushup' }],
+      results: [
+        { exercise: 'squat', planStep: 0 },
+        { exercise: 'pushup', planStep: 2 },
+      ],
     });
     actor.stop();
   });

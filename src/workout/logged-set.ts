@@ -1,0 +1,23 @@
+import { EXERCISES, type ExerciseId } from '@/exercises/registry';
+import type * as schema from '@/storage/schema';
+import { readGoal, type Goal } from './plan';
+
+/** A finished set as it is kept: what it got toward which step of the plan. */
+export type LoggedSet = {
+  workoutId: string;
+  planStep: number;
+  exercise: ExerciseId;
+  goal: Goal;
+  reps: number;
+  heldMs: number;
+};
+
+const known = (id: string): id is ExerciseId => Object.hasOwn(EXERCISES, id);
+
+/** Stored set rows this app can read; a set of an exercise it doesn't know (a newer app's) is left out. */
+export function readSets(rows: readonly (typeof schema.sets.$inferSelect)[]): LoggedSet[] {
+  return rows.flatMap((set) => {
+    const goal = readGoal(set.goal);
+    return known(set.exercise) && goal ? [{ ...set, exercise: set.exercise, goal }] : [];
+  });
+}

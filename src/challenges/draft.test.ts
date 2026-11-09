@@ -32,6 +32,7 @@ it('opens a one-exercise challenge as a draft, open-ended goals included', () =>
     name: 'Sit-ups',
     days: 14,
     restartOnMiss: true,
+    dailyTotal: false,
     session: [{ steps: [{ exercise: 'situp', goal: MAX }], rounds: 1 }],
   } as const;
   expect(draftOf(challenge)).toEqual({
@@ -39,8 +40,18 @@ it('opens a one-exercise challenge as a draft, open-ended goals included', () =>
     goal: MAX,
     days: 14,
     restartOnMiss: true,
+    dailyTotal: false,
     name: 'Sit-ups',
   });
+});
+
+it('keeps a daily total through an edit, and gives it no Max', () => {
+  const daily = toChallenge({ ...newDraft('pushup'), dailyTotal: true, goal: reps(500) });
+  const draft = draftOf(daily);
+  if (!draft) throw new Error('a one-exercise challenge opens as a draft');
+  const renamed = toChallenge({ ...draft, name: 'Five hundred' });
+  expect(renamed).toMatchObject({ dailyTotal: true, name: 'Five hundred' });
+  expect(withAmount(draft, 155).goal).toEqual(reps(150));
 });
 
 const squat = { exercise: 'squat', goal: reps(10) } as const;
@@ -56,5 +67,7 @@ it.each([
   ],
   ['a rest first', [{ steps: [{ exercise: 'rest', goal: seconds(30) }], rounds: 1 }]],
 ] as const)('refuses a challenge with %s', (_, session) => {
-  expect(draftOf({ name: 'x', days: 1, restartOnMiss: false, session })).toBeNull();
+  expect(
+    draftOf({ name: 'x', days: 1, restartOnMiss: false, dailyTotal: false, session }),
+  ).toBeNull();
 });

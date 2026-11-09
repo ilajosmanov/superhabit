@@ -6,16 +6,15 @@ import { HowItCounts } from './how-it-counts';
 import { SessionPlan } from './session-plan';
 import { WatchDay } from './watch-day';
 import { detail, plan } from '@/challenges/challenges';
-import { doneToday, percent, setsOn, type Run } from '@/challenges/days';
-import type { Saved } from '@/challenges/saved';
+import type { Joined } from '@/challenges/library-view';
+import { doneToday, percent } from '@/challenges/run-view';
 import { setShare } from '@/workout/results';
 
 /**
  * A challenge you are in: how today stands, every day of the run to pick from, what the picked day asks
  * for and what each of its sets got, and how each exercise counts.
  */
-export function JoinedChallenge({ saved, run }: { saved: Saved; run: Run }) {
-  const { challenge } = saved;
+export function JoinedChallenge({ joined: { challenge, run, amounts } }: { joined: Joined }) {
   const today = run.day - 1;
   // Today until you pick another day.
   const [picked, setPicked] = useState<number | null>(null);
@@ -23,8 +22,8 @@ export function JoinedChallenge({ saved, run }: { saved: Saved; run: Run }) {
   const session = plan(challenge);
   const { sets } = detail(challenge);
 
-  // Unknown for a day ahead or one with only its share: the rows show the plan alone.
-  const done = setsOn(run, saved.sets, selected, sets.length);
+  // Unknown for a day ahead or a try under another version: the rows show the plan alone.
+  const done = amounts.at(selected);
   const next =
     selected === today && done ? done.findIndex((n, i) => setShare(sets[i].goal, n) < 1) : -1;
 

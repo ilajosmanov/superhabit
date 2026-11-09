@@ -64,8 +64,16 @@ export function hold<P>(p: Position<P>): Detector<HoldState, P> {
     };
   }
 
-  /** A failed attempt for the runner: counted in noReps, its cue said once. */
-  const miss = (cue: string) => ({ counted: false, cues: [cue], depth: null, upMs: null });
+  /** A break report for the runner: counted in noReps, its cue said once; no attempt. */
+  const miss = (cue: string) => ({
+    counted: false,
+    cues: [cue],
+    depth: null,
+    upMs: null,
+    startMs: null,
+    bottomMs: null,
+    endMs: null,
+  });
 
   function step(s: HoldState, sample: P | null, nowMs: number): HoldState {
     if (s.lastAt !== null && nowMs <= s.lastAt) return s;

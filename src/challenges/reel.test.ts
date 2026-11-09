@@ -5,6 +5,10 @@ import { after, pointAt, reelOf } from './reel';
 import type { StepResult } from '@/workout/results';
 
 const set = (seconds: number, takes: string[]): StepResult => ({
+  id: 'set',
+  workoutId: 'workout',
+  planStep: 0,
+  counterVersion: '1.0.0',
   exercise: 'squat',
   round: 1,
   startedAt: 0,

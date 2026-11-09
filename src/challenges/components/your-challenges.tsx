@@ -3,14 +3,15 @@ import { Text, useWindowDimensions, View } from 'react-native';
 import { JoinedCard } from './joined-card';
 import { SurpriseCard } from './surprise-card';
 import { SwipeRow } from './swipe-row';
+import { UnavailableCard } from './unavailable-card';
 import { toEntry } from '@/challenges/catalog';
-import type { Active } from '@/challenges/mine';
+import type { Yours } from '@/challenges/library-view';
 
 /**
  * The challenges you joined, due today first, then the surprise card, in a swipe row where the next
  * card's edge shows. Nothing joined: the surprise card alone.
  */
-export function YourChallenges({ active: joined }: { active: readonly Active[] }) {
+export function YourChallenges({ joined }: { joined: readonly Yours[] }) {
   const { width } = useWindowDimensions();
   // 24px of the next card shows at the right edge.
   const card = width - 48 - 24;
@@ -27,9 +28,18 @@ export function YourChallenges({ active: joined }: { active: readonly Active[] }
         )}
       </View>
       <SwipeRow itemWidth={card}>
-        {joined.map(({ id, challenge, run }) => (
-          <JoinedCard key={id} run={run} entry={toEntry(id, challenge)} style={{ width: card }} />
-        ))}
+        {joined.map((entry) =>
+          entry.challenge ? (
+            <JoinedCard
+              key={entry.runId}
+              run={entry.run}
+              entry={toEntry(entry.challengeId, entry.challenge)}
+              style={{ width: card }}
+            />
+          ) : (
+            <UnavailableCard key={entry.runId} entry={entry} style={{ width: card }} />
+          ),
+        )}
         <SurpriseCard style={{ width: card }} />
       </SwipeRow>
     </View>

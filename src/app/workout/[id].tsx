@@ -1,4 +1,5 @@
 import { shallowEqual, useActorRef, useSelector } from '@xstate/react';
+import { uuid } from 'expo';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useLocalSearchParams, usePreventRemove, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -14,14 +15,19 @@ import {
 import { usePoseOverlay } from '@/workout/pose/overlay';
 import { PoseCamera } from '@/workout/pose/pose-camera';
 import { ChallengeDone } from '@/challenges/components/challenge-done';
-import { saveFailed } from '@/challenges/components/save-failed';
-import { today } from '@/challenges/days';
-import { recordTry, useChallenge } from '@/challenges/mine';
+import { saveFailed } from '@/components/save-failed';
+import { useLibrary } from '@/challenges/library-live';
+import { sessionChallenge, type Library } from '@/challenges/library-view';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { today } from '@/workout/day';
+import { RecoverOpenWorkout } from '@/workout/components/recover-prompt';
+import { useLeftWorkout } from '@/workout/open-workout';
 import type { Challenge } from '@/workout/plan';
 import { BetweenSets } from '@/workout/components/between-sets';
 import { LiveView } from '@/workout/components/live-view';
 import { useSlidIn } from '@/workout/components/slid-in';
 import { PrimaryButton } from '@/components/primary-button';
+import { workoutLog, type LogTarget } from '@/workout/log';
 import { workoutSession } from '@/workout/session';
 import { sessionView } from '@/workout/session-view';
 
@@ -33,13 +39,24 @@ function Centered({ text }: { text: string }) {
   );
 }
 
-// The camera run for a challenge: /workout/pushup-fifty, or /workout/squat for one go.
+// The camera run for one of your runs: /workout/<run id>, or /workout/squat for one go (a free log).
 export default function ChallengeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
-  const found = useChallenge(id);
+  const library = useLibrary();
+  // This page's workout, known before it starts, so a workout an earlier session left open is offered
+  // back (Save or Discard) before this one starts, and this one's own rows never are.
+  const [workoutId] = useState(() => uuid.v4());
+  const left = useLeftWorkout(workoutId);
   const slidIn = useSlidIn();
-  if (!found) return <Centered text="No such challenge." />;
+  if (library.loading || left.loading) return <View className="flex-1 bg-ground" />;
+  if (left.workout) {
+    return (
+      <View className="flex-1 bg-ground">
+        <RecoverOpenWorkout key={left.workout.id} workoutId={left.workout.id} />
+      </View>
+    );
+  }
   if (Platform.OS !== 'android') return <Centered text="Pose tracking is available on Android." />;
   // Before the session: its clock and orientation lock would run during the prompt.
   if (!hasPermission) {
@@ -60,37 +77,83 @@ export default function ChallengeScreen() {
   // one frame of the slide for 150 ms.
   if (!slidIn) return <View className="flex-1 bg-ground" />;
   // A new id is a new session actor.
-  return <AndroidSession key={id} id={id} challenge={found.challenge} />;
+  return <SessionStart key={id} id={id} library={library} workoutId={workoutId} />;
 }
 
-function AndroidSession({ id, challenge }: { id: string; challenge: Challenge }) {
+/**
+ * Decides once, as the session starts, what it runs and on which day: later changes (midnight on a run's
+ * last day, an edit to the challenge) never swap the plan under a running session or close it.
+ */
+function SessionStart({
+  id,
+  library,
+  workoutId,
+}: {
+  id: string;
+  library: Library;
+  workoutId: string;
+}) {
+  const [start] = useState(() => new Date());
+  const [accepted] = useState(() => sessionChallenge(library, id, today(start)));
+  if (!accepted.challenge) return <Centered text="No such challenge." />;
+  return (
+    <AndroidSession
+      id={id}
+      library={library}
+      workoutId={workoutId}
+      start={start}
+      challenge={accepted.challenge}
+      target={accepted.target}
+    />
+  );
+}
+
+/**
+ * `challenge`, `target` and `start` were fixed when the session started. The day word on the Done page
+ * stays live, on the session's own day: a set finished at 00:05 still belongs to yesterday.
+ */
+function AndroidSession({
+  id,
+  library,
+  workoutId,
+  start,
+  challenge,
+  target,
+}: {
+  id: string;
+  library: Library;
+  workoutId: string;
+  start: Date;
+  challenge: Challenge;
+  target: LogTarget;
+}) {
   useKeepAwake();
-  // The day the session started on, not the permission prompt before it: a set finished at 00:05 still
-  // belongs to yesterday, and Done says so.
-  const [day] = useState(today);
-  const found = useChallenge(id, day);
-  const run = found?.run ?? null;
-  const warned = useRef(false);
-  // Any try counts toward the day, by its share; a one-go set is never stored. Saved after every set, so
-  // a killed app keeps the sets done; a failed write is said once, and the next set tries again.
-  const onSaved = (share: number, sets: number[]) => {
-    if (share === 0 || !found?.saved || recordTry(id, day, share, sets)) return;
-    if (!warned.current) saveFailed();
-    warned.current = true;
-  };
   const router = useRouter();
+  // Leaving is allowed: Done went through, or you confirmed Discard.
+  const [leaving, setLeaving] = useState(false);
+  // Back from the Done page, waiting on the Discard dialog: how to carry on leaving.
+  const [asking, setAsking] = useState<(() => void) | null>(null);
   const camera = useRef<CameraRef>(null);
   const { joints, highlight, angle, lowest, onPose } = usePoseOverlay(camera);
   // Video only: no audio, so no microphone permission.
   const video = useVideoOutput({ targetResolution: CommonResolutions.HD_16_9, enableAudio: false });
-  const session = useActorRef(workoutSession, {
-    input: {
-      challenge,
-      video,
-      record: true,
-      onPose,
-      onSaved,
+  // Each finished set is written as it ends; Done keeps the workout, leaving without it discards it.
+  const session = useActorRef(
+    workoutSession.provide({ actors: { log: workoutLog(target, start) } }),
+    {
+      input: {
+        challenge,
+        workoutId,
+        video,
+        record: true,
+        onPose,
+      },
     },
+  );
+  // The run with this session counted in as if it were Done: what the Done page says of the day.
+  const { run } = sessionChallenge(library, id, today(start), {
+    workoutId,
+    versionId: target.versionId,
   });
   const landmarker = useSelector(session, (s) => s.context.landmarker);
   // Only discrete counter changes re-render; per-frame data stays out of React state.
@@ -100,11 +163,24 @@ function AndroidSession({ id, challenge }: { id: string; challenge: Challenge })
   const landscape = width > height;
   // System back pauses counting or countdown; a second back from the pause ends (to Done, results
   // kept). Between sets it does nothing: a stray edge swipe while moving the phone must not end the
-  // day, and the screen's own close button ends it on purpose.
-  usePreventRemove(view.stage !== 'finished', () => {
-    if (view.stage === 'counting' || view.stage === 'countdown') session.send({ type: 'pause' });
-    else if (view.stage === 'paused') session.send({ type: 'end' });
-  });
+  // day, and the screen's own close button ends it on purpose. Back from the Done page asks before
+  // discarding what was counted. Leaving turns prevention off in the same handler, as the hook asks.
+  const allowLeave = usePreventRemove(
+    !leaving && (view.stage !== 'finished' || view.counted),
+    ({ repeat }) => {
+      if (view.stage === 'counting' || view.stage === 'countdown') session.send({ type: 'pause' });
+      else if (view.stage === 'paused') session.send({ type: 'end' });
+      else if (view.stage === 'finished') setAsking(() => repeat);
+    },
+  );
+  // The log answers at once: saved, or not (it keeps the sets and Done can be tapped again).
+  const onDone = () => {
+    session.send({ type: 'save' });
+    if (!session.getSnapshot().context.saved) return saveFailed();
+    setLeaving(true);
+    allowLeave();
+    router.back();
+  };
 
   const send =
     (
@@ -150,7 +226,7 @@ function AndroidSession({ id, challenge }: { id: string; challenge: Challenge })
           challenge={challenge}
           run={run}
           onShare={(share) => session.send({ type: 'shareTraces', share })}
-          onClose={() => router.back()}
+          onClose={onDone}
         />
       ) : view.stage === 'switching' || view.stage === 'resting' ? (
         <BetweenSets
@@ -173,6 +249,22 @@ function AndroidSession({ id, challenge }: { id: string; challenge: Challenge })
           onToggleVoice={send('toggleVoice')}
           onToggleSkeleton={send('toggleSkeleton')}
           onFlipCamera={send('flipCamera')}
+        />
+      )}
+      {asking && (
+        <ConfirmDialog
+          title="Discard this workout?"
+          text="What you counted in it isn't kept."
+          action="Discard"
+          onConfirm={() => {
+            setAsking(null);
+            // The log answers at once; a failed Discard keeps you here, the workout still open.
+            session.send({ type: 'discard' });
+            if (!session.getSnapshot().context.discarded) return saveFailed();
+            setLeaving(true);
+            asking();
+          }}
+          onCancel={() => setAsking(null)}
         />
       )}
     </View>

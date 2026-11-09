@@ -27,6 +27,27 @@ function play(ex: ReturnType<typeof counter>, values: number[], start = ex.initi
 }
 
 describe('engine', () => {
+  it.each([
+    [90, true],
+    [130, false],
+  ])('reports detector timestamps for a completed dip to %i (counted: %s)', (bottom, counted) => {
+    const ex = counter();
+    // One-second frames: two at the top, two at the bottom, two back at the top.
+    // The real filter crosses each threshold on the first frame; confirmation takes the second.
+    const s = [170, 170, bottom, bottom, 170, 170].reduce(
+      (s, value, i) => ex.step(s, value, 10_000 + i * 1000),
+      ex.initial,
+    );
+    expect(s.lastRep).toMatchObject({
+      counted,
+      startMs: 11_000,
+      bottomMs: 13_000,
+      endMs: 15_000,
+      downMs: 2000,
+      upMs: 2000,
+    });
+  });
+
   it('counts a complete falling-signal cycle and leaves the input state untouched', () => {
     const ex = counter();
     const before = structuredClone(ex.initial);

@@ -11,5 +11,7 @@ module.exports = function (api) {
         },
       ],
     ],
+    // Drizzle's generated migrations import their .sql files as strings.
+    plugins: [['inline-import', { extensions: ['.sql'] }]],
   };
 };

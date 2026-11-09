@@ -14,4 +14,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) =>
     ? (base.resolver.resolveRequest ?? context.resolveRequest)(context, moduleName, platform)
     : nativewindResolve(context, moduleName, platform);
 
+// Drizzle's generated migrations import .sql files (inlined as strings by babel-plugin-inline-import).
+config.resolver.sourceExts.push('sql');
+
 module.exports = config;

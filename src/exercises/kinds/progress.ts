@@ -4,8 +4,14 @@ export type Kind = 'cycle' | 'hold' | 'sequence';
 /** 'waiting' = start position not seen since starting, pausing or losing tracking; nothing counts. */
 export type Phase = 'waiting' | 'up' | 'down' | 'active';
 
-/** The last attempt. Exercises extend it with their own metrics. */
+/** The last attempt or hold break report. Exercises extend it with their own metrics. */
 export type Rep = {
+  /** Last raw top/idle frame on the detector clock; null for hold breaks. */
+  startMs: number | null;
+  /** Deepest confirmation frame (lags ~1 frame + smoothing); null for kinds without a bottom. */
+  bottomMs: number | null;
+  /** End confirmation frame (lags ~1 frame + smoothing); null for hold breaks. */
+  endMs: number | null;
   counted: boolean;
   cues: string[];
   /** Extreme of the watched signal over the attempt; null for hold / sequence. */

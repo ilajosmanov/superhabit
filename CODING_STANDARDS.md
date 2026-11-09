@@ -10,6 +10,8 @@ Imports only go down:
 ```
 src/app/            routes: read params, compose a screen, navigate
   ↓
+src/bootstrap/      the app's start: the splash, database, seeding, recovery, and today
+  ↓
 src/friends/        the friends feature (for now, the leaderboard preview)
 src/challenges/     the challenge catalog: definitions, catalog entries, the reel of a session's sets
   components/       UI only challenges uses (catalog tiles, joined cards, the Done page and its reel)
@@ -22,7 +24,7 @@ src/exercises/      pure rep logic: angles, counters, the exercise registry
   ↓
 src/components/     UI shared by every screen (icons, screen shell, buttons)
 src/theme.ts        colour tokens for APIs that take values; classes come from src/global.css
-src/storage/        what is kept on the phone and how: files, safe writes, change notices; no UI
+src/storage/        what is kept on the phone and how: the SQLite tables, migrations, outbox; no UI
 modules/pose/       the native pose detector (a Nitro module)
 ```
 
@@ -32,8 +34,8 @@ modules/pose/       the native pose detector (a Nitro module)
   reads `workout/results.ts`) but not its views; only a route composes two features' UI.
 - **`exercises/` is framework-free:** no React, React Native, Expo, Skia or XState. It takes pose data
   and returns numbers, so plain tests cover it. It may import the pose module's _types_ only.
-- **Storage knows how, a feature knows what.** `storage/` reads and writes and reports a failed write;
-  it holds no feature rules and shows nothing. A feature's model (`challenges/mine.ts`) says what is kept
+- **Storage knows how, a feature knows what.** `storage/` holds the tables and opens the database; it
+  holds no feature rules and shows nothing. A feature's model (`challenges/library.ts`) says what is kept
   and the rules for changing it, and its screens decide how to tell you a write failed.
 - **Workout logic (`src/workout/*.ts`) never imports its own UI** (`components/`, `pose/`). UI reads the
   session through `sessionView`, and the machine never learns how it is drawn.

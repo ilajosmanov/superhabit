@@ -6,7 +6,7 @@ import { OVER_VIDEO } from './reel-player';
 import { SessionLoop } from './session-reel';
 import { numeralLabels, SessionPlan } from './session-plan';
 import { plan } from '@/challenges/challenges';
-import { dayWord, type Run } from '@/challenges/days';
+import { dayWord, type Run } from '@/challenges/run-view';
 import { reelOf, type Clip } from '@/challenges/reel';
 import { mss } from '@/components/duration';
 import { ExerciseFigure } from '@/components/illustrations';
@@ -24,8 +24,8 @@ const HERO = 0.59;
 /**
  * Right after a session, so you can see it all went in: the session's sets play one after another at the
  * top of the screen with what the session counted on them, a few numbers say how the reps went, and a session of several sets lists them
- * as the challenge page does, each filled by what it got. `run` is the challenge's run today (null for a
- * one-go set), whose day this session counted toward.
+ * as the challenge page does, each filled by what it got. `run` is the run this session counts toward,
+ * on its day, with this session counted in before it is saved (null for a one-go set).
  */
 export function ChallengeDone({
   view,
@@ -56,6 +56,7 @@ export function ChallengeDone({
           labels: ['SECONDS', 'HELD'],
         }
       : { n: view.results.reduce((n, set) => n + set.reps, 0), labels: ['CLEAN', 'REPS'] };
+  const share = shareDone(steps, view.results);
   const day = run ? [`DAY ${run.day} OF ${run.days}`, dayWord(run, run.day - 1)] : ['ONE GO'];
 
   return (
@@ -69,7 +70,7 @@ export function ChallengeDone({
           view={view}
           name={challenge.name}
           figure={session.exercises[0]}
-          numeral={{ ...numeral, met: shareDone(steps, view.results) >= 1 }}
+          numeral={{ ...numeral, met: share >= 1 }}
           top={top}
         />
         <View className="gap-7 px-6 pt-5 pb-4">

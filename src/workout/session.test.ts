@@ -7,7 +7,9 @@ import { MAX, reps, seconds } from './plan';
 import { plank } from '@/exercises/__fixtures__/plank';
 import {
   challenge,
+  fakeLog,
   hold,
+  loggedSets,
   modules,
   native,
   NOW,
@@ -19,6 +21,7 @@ import {
   squatTest,
 } from './__fixtures__/session';
 
+vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
 vi.mock('superhabit-pose', () => modules['superhabit-pose']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
@@ -39,11 +42,18 @@ describe('workoutSession starts, stops, writes rows and finishes', () => {
 
   it('writes each row with wall-clock boundaries from its first counting entry', () => {
     vi.useFakeTimers({ now: NOW });
-    const actor = createActor(workoutSession, { input: { challenge } }).start();
+    const actor = createActor(workoutSession.provide({ actors: { log: fakeLog } }), {
+      input: { challenge },
+    }).start();
+    const { workoutId, setId } = actor.getSnapshot().context;
     vi.advanceTimersByTime(5000); // Setup time belongs to this step, before the first detector frame.
     squat();
     const view = () => sessionView(actor.getSnapshot());
-    expect(view().results[0]).toMatchObject({
+    expect(loggedSets()[0]).toMatchObject({
+      id: setId,
+      workoutId,
+      planStep: 0,
+      counterVersion: '1.0.0',
       exercise: 'squat',
       round: 1,
       startedAt: NOW,
@@ -55,32 +65,48 @@ describe('workoutSession starts, stops, writes rows and finishes', () => {
     });
     vi.advanceTimersByTime(2000); // Moving the phone is outside both exercise steps.
     actor.send({ type: 'next' });
+    const nextSetId = actor.getSnapshot().context.setId;
+    expect(nextSetId).not.toBe(setId);
     vi.advanceTimersByTime(3000);
     pushup();
-    expect(view().results[1]).toMatchObject({
+    expect(loggedSets()[1]).toMatchObject({
+      id: nextSetId,
+      workoutId,
+      planStep: 1,
+      counterVersion: '1.0.0',
       exercise: 'pushup',
       startedAt: NOW + 7000,
       endedAt: NOW + 10000,
       heldMs: 0,
     });
+    expect(view().results).toHaveLength(2);
+    actor.send({ type: 'end' });
+    expect(loggedSets()).toHaveLength(2);
     actor.stop();
   });
 
   it('keeps the first counting timestamp across pause and replaces it on restart', () => {
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, { input: { challenge: squatTest } }).start();
+    const { workoutId, setId } = actor.getSnapshot().context;
     vi.advanceTimersByTime(1000);
     squat();
     actor.send({ type: 'pause' });
     vi.advanceTimersByTime(5000);
     actor.send({ type: 'resume' });
     vi.advanceTimersByTime(1000);
-    expect(actor.getSnapshot().context.stepStartedAt).toBe(NOW);
+    expect(actor.getSnapshot().context).toMatchObject({ workoutId, setId, stepStartedAt: NOW });
     actor.send({ type: 'pause' });
     actor.send({ type: 'restart' });
+    const restartedId = actor.getSnapshot().context.setId;
+    expect(restartedId).not.toBe(setId);
     squat();
     actor.send({ type: 'end' });
     expect(sessionView(actor.getSnapshot()).results[0]).toMatchObject({
+      id: restartedId,
+      workoutId,
+      planStep: 0,
+      counterVersion: '1.0.0',
       startedAt: NOW + 7000,
       endedAt: NOW + 7000,
       reps: 1,
@@ -126,15 +152,20 @@ describe('workoutSession starts, stops, writes rows and finishes', () => {
   it('starts a fresh row timestamp when flipping inside counting', () => {
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, { input: { challenge: squatTest } }).start();
+    const { workoutId, setId } = actor.getSnapshot().context;
     vi.advanceTimersByTime(1000);
     actor.send({ type: 'flipCamera' });
+    const flippedId = actor.getSnapshot().context.setId;
+    expect(flippedId).not.toBe(setId);
     vi.advanceTimersByTime(5000);
     actor.send({ type: 'cameraReady' });
     squat();
     actor.send({ type: 'end' });
     expect(sessionView(actor.getSnapshot())).toMatchObject({
       reachedEnd: false,
-      results: [{ startedAt: NOW + 1000, endedAt: NOW + 6000 }],
+      results: [
+        { id: flippedId, workoutId, planStep: 0, startedAt: NOW + 1000, endedAt: NOW + 6000 },
+      ],
     });
     actor.stop();
   });
@@ -195,9 +226,11 @@ describe('workoutSession starts, stops, writes rows and finishes', () => {
       stage: 'finished',
       reachedEnd: true,
     });
+    const workoutId = natural.getSnapshot().context.workoutId;
     natural.stop();
 
     const early = createActor(workoutSession, { input: { challenge } }).start();
+    expect(early.getSnapshot().context.workoutId).not.toBe(workoutId);
     squat();
     early.send({ type: 'end' });
     expect(sessionView(early.getSnapshot())).toMatchObject({
