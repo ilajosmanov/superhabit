@@ -88,12 +88,7 @@ type Props = {
   target: LogTarget;
   start: Date;
   /** The Done page: `onClose` is Done. */
-  done: (page: {
-    view: SessionView;
-    challenge: Challenge;
-    onKeepVideos: (share: boolean) => void;
-    onClose: () => void;
-  }) => ReactNode;
+  done: (page: { view: SessionView; challenge: Challenge; onClose: () => void }) => ReactNode;
   /** Leaves the page, once the workout is saved. */
   onLeave: () => void;
 };
@@ -194,7 +189,6 @@ function Session({
         done({
           view,
           challenge,
-          onKeepVideos: (share) => session.send({ type: 'keepVideos', share }),
           onClose: onDone,
         })
       ) : view.stage === 'switching' || view.stage === 'resting' ? (

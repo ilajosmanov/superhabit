@@ -32,9 +32,10 @@ export type Joined = {
   run: RunView;
   /**
    * What each exercise set got on each day of `progress`, on the try the day shows (a daily total: the
-   * day's sum), against the version that try was done on; nothing done on a day with no try.
+   * day's sum), against the version that try was done on; nothing done on a day with no try. `sets`: the
+   * kept sets the day shows (`DayResult.sets`), whose videos the page plays.
    */
-  amounts: readonly { version: Readable; done: readonly number[] }[];
+  amounts: readonly { version: Readable; done: readonly number[]; sets: readonly LoggedSet[] }[];
 };
 /** A run whose version is from a newer app: shown with "Update the app", never with another version. */
 export type Unavailable = { challengeId: string; runId: string; name: string; challenge: null };
@@ -50,14 +51,15 @@ function readVersion(row: Library['versions'][number]): Readable | null {
 function amountsOn(
   versions: readonly Readable[],
   version: Readable,
-  { shown, total }: DayResult,
+  { shown, total, sets: day }: DayResult,
   sets: readonly LoggedSet[],
 ) {
   // An edit never rescores a try: it reads against the version it was done on.
   const at = versions.find(({ id }) => id === shown?.versionId) ?? version;
-  if (total !== undefined) return { version: at, done: [total] };
+  if (total !== undefined) return { version: at, done: [total], sets: day };
   const steps = expand(at.session);
-  return { version: at, done: setAmounts(steps, workoutResults(steps, shown?.id ?? '', sets)) };
+  const done = setAmounts(steps, workoutResults(steps, shown?.id ?? '', sets));
+  return { version: at, done, sets: day };
 }
 
 /** The library with its stored JSON read once: every version's plan, every set. */

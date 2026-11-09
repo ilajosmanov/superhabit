@@ -31,8 +31,8 @@ export type StepResult = {
   attempts: readonly Attempt[];
   /**
    * The set's video files, in order (a pause starts a new one); none when it wasn't filmed.
-   * shortcut: they live in Paths.cache/reps until the session stops, then move to Paths.document/videos
-   * (or are deleted); a result kept past the session must follow its files there.
+   * Stable URIs in documents/<user>/videos/<setId>-<take>.mp4. Failed files are omitted here, but
+   * keep their indices in the trace header; Discard deletes these alongside the trace.
    */
   takes: readonly string[];
   // shortcut: stats is a formatted string; keep the numbers when results persist.

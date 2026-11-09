@@ -27,8 +27,7 @@ export const native: { close: () => void; onResult?: (result: PoseDetection) => 
   close: vi.fn(),
 };
 
-// The fake cache folder: names of the files in it; `stuck` ones fail to delete.
-export const disk = new Set<string>();
+// Files that fail at the native delete boundary.
 export const stuck = new Set<string>();
 export const written: { name: string; bytes: Uint8Array }[] = [];
 export const createDirectory = vi.fn();
@@ -37,27 +36,9 @@ export const renameFile = vi.fn();
 export const writeFile = vi.fn(async (name: string, bytes: Uint8Array) => {
   written.push({ name, bytes });
 });
-const cached = (name: string) => ({
-  uri: `file:///cache/reps/${name}`,
-  get exists() {
-    return disk.has(name);
-  },
-  delete: () => {
-    if (stuck.has(name)) throw new Error(`cannot delete ${name}`);
-    disk.delete(name);
-  },
-  // Kept videos join the trace folders' `files`.
-  move: (to: { uri: string }) => {
-    if (!disk.delete(name)) throw new Error(`${name} is gone`);
-    files.add(`${to.uri}/${name}`);
-  },
-});
-
-// The fake trace folders: file paths (contents are in `written`), and folders created empty. Camcorder
-// takes use `disk`.
+// All native files: video output and the gzip boundary create them.
 export const files = new Set<string>();
 const folders = new Set<string>();
-const REPS = 'cache/reps';
 const under = (path: string, folder: string) => path.startsWith(`${folder}/`);
 class FakeDirectory {
   readonly uri: string;
@@ -68,19 +49,14 @@ class FakeDirectory {
     return this.uri.split('/').pop() ?? '';
   }
   get exists() {
-    return (
-      this.uri === REPS ||
-      folders.has(this.uri) ||
-      [...files, ...folders].some((path) => under(path, this.uri))
-    );
+    return folders.has(this.uri) || [...files, ...folders].some((path) => under(path, this.uri));
   }
   create(options: unknown) {
     createDirectory(options);
     folders.add(this.uri);
   }
-  /** Camcorder cache files or a pending trace folder's own files. */
+  /** Direct children, like Expo Directory.list(). */
   list() {
-    if (this.uri === REPS) return [...disk].map(cached);
     return [...files]
       .filter((path) => under(path, this.uri) && !path.slice(this.uri.length + 1).includes('/'))
       .map((path) => traceFile(this.uri, path.slice(this.uri.length + 1)));
@@ -93,6 +69,7 @@ const traceFile = (folder: string, name: string) => ({
     return files.has(`${folder}/${name}`);
   },
   delete: () => {
+    if (stuck.has(`${folder}/${name}`)) throw new Error(`cannot delete ${name}`);
     files.delete(`${folder}/${name}`);
   },
   rename: (to: string) => {
@@ -122,7 +99,7 @@ export const modules = {
     Directory: FakeDirectory,
     File: class {
       constructor(dir: FakeDirectory, name: string) {
-        return dir.uri === REPS ? cached(name) : traceFile(dir.uri, name);
+        return traceFile(dir.uri, name);
       }
     },
   },
@@ -181,6 +158,8 @@ export const challenge = plan(
 );
 
 type Take = {
+  filePath: string;
+  duration: number;
   stopped: boolean;
   /** The file is final (finished or failed). */
   final: boolean;
@@ -199,8 +178,18 @@ export const finalizer: { held: (() => void)[] | null } = { held: null };
 export const video: VideoOutput = {
   createRecorder: async ({ filePath = '' }) => {
     let recording = false;
-    const take: Take = { stopped: false, final: false, afterFinal: false, end: () => {} };
+    const take: Take = {
+      filePath,
+      duration: 0,
+      stopped: false,
+      final: false,
+      afterFinal: false,
+      end: () => {},
+    };
     return {
+      get recordedDuration() {
+        return recording ? take.duration : 0;
+      },
       startRecording: (onFinished, onError) => {
         take.afterFinal = takes.every((t) => t.final);
         takes.push(take);
@@ -217,7 +206,7 @@ export const video: VideoOutput = {
         };
         return new Promise((started) =>
           setImmediate(() => {
-            disk.add(filePath.slice(filePath.lastIndexOf('/') + 1));
+            files.add(filePath);
             recording = true;
             started();
           }),
@@ -241,7 +230,7 @@ export const stops = () => takes.map((t) => t.stopped);
 export function reset() {
   vi.useRealTimers();
   takes.length = 0;
-  disk.clear();
+  finalizer.held = null;
   stuck.clear();
   written.length = 0;
   files.clear();

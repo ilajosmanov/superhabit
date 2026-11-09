@@ -6,7 +6,6 @@ import { body } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
 import {
   challenge,
-  disk,
   files,
   finalizer,
   flush,
@@ -59,36 +58,20 @@ describe('workoutSession filming', () => {
     await flush();
     play(plank({ elbow: 95 }), plank({ elbow: 170 }));
     expect(view()).toMatchObject({ stage: 'finished', final: false }); // files not final yet
-    expect(disk.size).toBe(2);
+    expect(files.size).toBe(2);
     await flush();
     expect(view().final).toBe(true);
     const [squatSet, pushupSet] = view().results;
-    const filmed = [...disk].map((name) => `file:///cache/reps/${name}`);
+    const filmed = [...files];
     expect([...squatSet.takes, ...pushupSet.takes]).toEqual(filmed); // one file each, in order
-    expect(disk.size).toBe(2); // the Done screen's switch decides once it closes
-    expect(view().share).toBe(true); // and starts on
+    expect(filmed).toEqual([
+      `document/local/videos/${squatSet.id}-0.mp4`,
+      `document/local/videos/${pushupSet.id}-0.mp4`,
+    ]);
+    actor.send({ type: 'save' });
     actor.stop();
     await flush();
-    expect(disk.size).toBe(0);
-    expect([...files].filter((path) => path.startsWith('document/videos/'))).toHaveLength(2);
-  });
-
-  it('deletes every file when the Done screen switch is off', async () => {
-    const actor = createActor(workoutSession, { input: { ...LOG, challenge, video } }).start();
-    play(body({}));
-    await flush();
-    play(body({ thigh: 70, shin: 25 }), body({}));
-    actor.send({ type: 'next' });
-    play(plank({ elbow: 170 }));
-    await flush();
-    play(plank({ elbow: 95 }), plank({ elbow: 170 }));
-    await flush();
-    actor.send({ type: 'keepVideos', share: false });
-    expect(sessionView(actor.getSnapshot()).share).toBe(false); // the switch shows what it decided
-    actor.stop();
-    await flush();
-    expect(disk.size).toBe(0);
-    expect(files.size).toBe(0);
+    expect(files.size).toBe(2);
   });
 
   it('drops a file that fails after its set ended from that set', async () => {
@@ -110,6 +93,35 @@ describe('workoutSession filming', () => {
     play(plank({ elbow: 95 }), plank({ elbow: 170 }));
     await flush();
     expect(view().results[1].takes).toHaveLength(1);
+    actor.stop();
+    warn.mockRestore();
+  });
+
+  it('tries the remaining videos on Discard when one deletion fails, leaving other sets alone', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, video },
+    }).start();
+    const setId = actor.getSnapshot().context.setId;
+    play(body({}));
+    await flush();
+    actor.send({ type: 'pause' });
+    actor.send({ type: 'resume' });
+    play(body({}));
+    await flush();
+    actor.send({ type: 'end' });
+    await flush();
+    const failed = `document/local/videos/${setId}-0.mp4`;
+    const other = `document/local/videos/${setId}-other-0.mp4`;
+    files.add(other);
+    stuck.add(failed);
+    actor.send({ type: 'discard' });
+    expect(actor.getSnapshot().context.discarded).toBe(true);
+    expect(files).toEqual(new Set([failed, other]));
+    expect(warn).toHaveBeenCalledWith(
+      '[camcorder] could not delete a recording',
+      expect.any(Error),
+    );
     actor.stop();
     warn.mockRestore();
   });
@@ -138,19 +150,6 @@ describe('workoutSession filming', () => {
     actor.stop();
   });
 
-  it('deletes the other old files when one of them cannot be deleted', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    disk.add('old-a.mp4');
-    disk.add('old-b.mp4');
-    stuck.add('old-a.mp4');
-    createActor(workoutSession, { input: { ...LOG, challenge, video } })
-      .start()
-      .stop();
-    expect([...disk]).toEqual(['old-a.mp4']);
-    expect(warn).toHaveBeenCalledOnce();
-    warn.mockRestore();
-  });
-
   it('cuts the take on pause, films again once back in position and keeps both files in the set', async () => {
     const actor = createActor(workoutSession, {
       input: { ...LOG, challenge: squatTest, video },
@@ -170,13 +169,13 @@ describe('workoutSession filming', () => {
     await flush();
     expect(view().recording).toBe(true);
     expect(stops()).toEqual([true, false]);
-    expect(disk.size).toBe(2);
+    expect(files.size).toBe(2);
     actor.send({ type: 'end' });
     expect(view().results[0].takes).toHaveLength(2);
+    actor.send({ type: 'save' });
     actor.stop();
     expect(takes[1].stopped).toBe(true);
     await flush();
-    expect(disk.size).toBe(0);
     expect(files.size).toBe(2);
   });
 
@@ -201,11 +200,12 @@ describe('workoutSession filming', () => {
     }).start();
     play(body({}));
     for (let i = 0; i < 50 && !takes.length; i++) await Promise.resolve(); // starting, no file yet
+    actor.send({ type: 'end' });
+    actor.send({ type: 'save' });
     actor.stop();
-    expect(disk.size).toBe(0);
+    expect(files.size).toBe(0);
     await flush(); // the file appears, is finalized, then kept
     expect(takes).toMatchObject([{ final: true }]);
-    expect(disk.size).toBe(0);
     expect(files.size).toBe(1);
   });
 
@@ -230,7 +230,7 @@ describe('workoutSession filming', () => {
     slow.forEach((final) => final());
     await flush();
     expect(takes.map((t) => t.final)).toEqual([true, false]);
-    expect(disk.size).toBe(1); // the next session's take
+    expect(files.size).toBe(1); // the next session's take
     next.stop();
   });
 
@@ -275,6 +275,7 @@ describe('workoutSession filming', () => {
     // An unbound output: the recorder is created, but its recording never starts.
     const unbound: VideoOutput = {
       createRecorder: async () => ({
+        recordedDuration: 0,
         startRecording: () => {
           starts++;
           return new Promise(() => {});
@@ -318,10 +319,11 @@ describe('workoutSession filming', () => {
     // The start is in flight when the output drops; it resolves only after cleanup ran.
     const late: VideoOutput = {
       createRecorder: async ({ filePath = '' }) => ({
+        recordedDuration: 0,
         startRecording: (onFinished) =>
           new Promise<void>((resolve) => {
             begin = () => {
-              disk.add(filePath.split('/').pop() ?? '');
+              files.add(filePath);
               finish = () => onFinished(filePath);
               resolve();
             };
@@ -340,9 +342,9 @@ describe('workoutSession filming', () => {
     actor.stop();
     await flush();
     begin(); // the recording starts after all, writes its file, and is stopped at once
-    expect(disk.size).toBe(1);
+    expect(files.size).toBe(1);
     await flush();
-    expect(disk.size).toBe(0);
+    expect(files.size).toBe(0);
   });
 
   it('counts as before when the camera cannot record', async () => {

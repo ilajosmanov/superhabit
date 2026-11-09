@@ -14,10 +14,12 @@ The challenge catalog, the challenges and runs kept on the phone, progress rules
 | `challenges.ts`    | one-go exercises, and how a challenge's plan reads                                        |
 | `catalog.ts`       | a challenge as its card shows it                                                          |
 | `draft.ts`         | what the builder edits                                                                    |
+| `reel.ts`          | sets with video as one reel: the session just done (`reelOf`), or a day's (`dayReel`)     |
 
 A run of ours is pinned to the version you joined; a run of yours follows your edits. Finished, missed
-and restarted are worked out from done workouts (`progress.ts`), never stored. Pages and workouts are
-addressed by run id, so several runs of one challenge stay apart. A plan from a newer app (`readPlan`
+and restarted are worked out from done workouts (`progress.ts`), never stored. A day you did plays its
+sets' videos (`watch-day.tsx`): the sets the day shows, their files listed once as the day is picked.
+Pages and workouts are addressed by run id, so several runs of one challenge stay apart. A plan from a newer app (`readPlan`
 is null) can't be joined, and a run on one shows "Update the app", never another version.
 
 Tests that write use real SQL: `library.test.ts` mocks `@/storage/database` with the Node fixture.

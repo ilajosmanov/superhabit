@@ -6,6 +6,7 @@ import { seed } from '@/challenges/library';
 import { migrateDatabase } from '@/storage/database';
 import { today, type Day } from '@/workout/day';
 import { findOpenWorkout, recovery } from '@/workout/recovery';
+import { deleteOrphanVideos } from '@/workout/video-file';
 
 type Context = {
   error: string;
@@ -42,7 +43,10 @@ export const startup = setup<
   actors: {
     migrate: fromPromise(() => migrateDatabase()),
     seed: fromPromise(async () => seed()),
-    check: fromPromise(async () => findOpenWorkout()),
+    check: fromPromise(async () => {
+      deleteOrphanVideos();
+      return findOpenWorkout();
+    }),
     recovery,
     dayClock,
   },

@@ -50,5 +50,7 @@ file back; it throws on anything but a whole, valid file.
   `<setId>-<i>.mp4`, with its video clock anchor in file time), consent, what the counter `counted`,
   hand-checked `labels` kept apart, the phase and waiting-reason lists, the frame count and the columns.
 
+Videos: `documents/<userId()>/videos/<setId>-<i>.mp4`; `video_t_ms = t − videoAnchorMs`.
+
 Optional `stretches: [{ kind, startMs, endMs }]` use file-relative milliseconds and ordered, non-overlapping
 `countdown` / `waiting` / `counting` / `paused` spans; earlier clips omit them.

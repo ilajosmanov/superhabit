@@ -39,6 +39,8 @@ export type DayResult = {
   shown: Workout | null;
   /** A daily total's sum over the day's tries (reps, or seconds held); absent for other challenges. */
   total?: number;
+  /** The sets the day shows: the shown try's, or every set a daily total summed. */
+  sets: readonly LoggedSet[];
 };
 export type RunDay = { day: Day; number: number; from: Day; result: DayResult };
 export type RunState = { state: 'active' | 'finished' | 'left'; day: number; from: Day };
@@ -79,7 +81,7 @@ export function dayResult(input: ProgressInput, day: Day): DayResult {
     .filter((w) => w.runId === input.run.id && w.day === day && w.status === 'done')
     .sort((a, b) => a.startedAt - b.startedAt || a.id.localeCompare(b.id));
   const latest = tries.at(-1);
-  if (!latest) return { done: false, share: 0, shown: null };
+  if (!latest) return { done: false, share: 0, shown: null, sets: [] };
 
   // An edit takes effect at the next workout, never by reinterpreting a saved try with a new plan.
   const version = workoutVersion(input, latest);
@@ -87,6 +89,7 @@ export function dayResult(input: ProgressInput, day: Day): DayResult {
     let amount = 0;
     let done = false;
     let finalShare = 0;
+    const counted: LoggedSet[] = [];
     for (const workout of tries) {
       const steps = expand(workoutVersion(input, workout).session);
       const target = steps[0];
@@ -99,17 +102,23 @@ export function dayResult(input: ProgressInput, day: Day): DayResult {
         )
           continue;
         amount += target.goal.type === 'seconds' ? set.heldMs / 1000 : set.reps;
+        counted.push(set);
       }
       finalShare = setShare(target.goal, amount);
       // A later try under an edited target cannot undo an already completed day.
       done ||= finalShare >= 1;
     }
-    return { done, share: done ? 1 : finalShare, shown: latest, total: amount };
+    return { done, share: done ? 1 : finalShare, shown: latest, total: amount, sets: counted };
   }
 
   const results = tries.map((workout) => ({ workout, share: workoutShare(input, workout) }));
   const shown = results.findLast(({ share }) => share >= 1) ?? results[results.length - 1];
-  return { done: shown.share >= 1, share: shown.share, shown: shown.workout };
+  return {
+    done: shown.share >= 1,
+    share: shown.share,
+    shown: shown.workout,
+    sets: input.sets.filter((set) => set.workoutId === shown.workout.id),
+  };
 }
 
 /**

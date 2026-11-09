@@ -15,6 +15,7 @@ import {
   createDirectory,
   feetOut,
   files,
+  finalizer,
   flush,
   frames,
   hold,
@@ -29,6 +30,8 @@ import {
   reset,
   squat,
   squatTest,
+  takes,
+  video,
   writeFile,
   written,
 } from './__fixtures__/session';
@@ -65,6 +68,136 @@ afterEach(() => {
 });
 
 describe('set traces', () => {
+  it('keeps two paused takes with their filenames, file-time boundaries and median video anchors before MP4 finalization', async () => {
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, record: true, video },
+    }).start();
+    const setId = actor.getSnapshot().context.setId;
+    const frame = (timestampMs: number) => native.onResult?.(detection(body({}), timestampMs));
+    frame(10000);
+    frame(10100); // Roll at file time 100, before native start resolves.
+    frame(10150); // Before rolling: never a clock sample.
+    await flush();
+    for (const [timestampMs, duration] of [
+      [10200, 0], // A new recorder has not written a sample yet.
+      [10300, 0.25],
+      [10400, 0.35],
+      [10500, 0.44],
+      [10600, 0.01], // Outlier: a mean or last-sample anchor would be wrong.
+      [10700, 0.65],
+    ]) {
+      takes[0].duration = duration;
+      frame(timestampMs);
+    }
+    actor.send({ type: 'pause' });
+    frame(11000);
+    actor.send({ type: 'resume' });
+    frame(11100);
+    frame(11200);
+    await flush();
+    for (const [timestampMs, duration] of [
+      [11300, 0],
+      [11400, 0.15],
+      [11500, 0.25],
+      [11600, 0.34],
+      [11700, 0.35],
+    ]) {
+      takes[1].duration = duration;
+      frame(timestampMs);
+    }
+    const pending: (() => void)[] = [];
+    finalizer.held = pending;
+    actor.send({ type: 'end' });
+    await flush();
+    expect(takes.map((take) => take.filePath)).toEqual([
+      `document/local/videos/${setId}-0.mp4`,
+      `document/local/videos/${setId}-1.mp4`,
+    ]);
+    expect(sessionView(actor.getSnapshot())).toMatchObject({
+      final: false,
+      results: [{ takes: takes.map((take) => take.filePath) }],
+    });
+    const trace = decodeTrace(written[0].bytes);
+    expect(trace.header.takes).toEqual([
+      { startMs: 100, endMs: 700, videoAnchorMs: 50 },
+      { startMs: 1200, endMs: 1700, videoAnchorMs: 1255 },
+    ]);
+    expect(trace.frames.at(-1)?.t).toBe(1700);
+    pending.forEach((finish) => finish());
+    finalizer.held = null;
+    actor.send({ type: 'save' });
+    actor.stop();
+    await flush();
+    expect(files).toEqual(
+      new Set([
+        `document/local/traces/pending/${setId}.sht`,
+        `document/local/videos/${setId}-0.mp4`,
+        `document/local/videos/${setId}-1.mp4`,
+      ]),
+    );
+  });
+
+  it.each([false, true])(
+    'keeps null anchors with too few samples or a lost camera (lost: %s)',
+    async (lost) => {
+      const actor = createActor(workoutSession, {
+        input: { ...LOG, challenge: squatTest, record: true, video },
+      }).start();
+      const frame = (timestampMs: number) => native.onResult?.(detection(body({}), timestampMs));
+      frame(10000);
+      frame(10100);
+      await flush();
+      for (let i = 0; i < 10; i++) frame(10200 + i * 100); // Zero duration is never a sample.
+      for (let i = 0; i < (lost ? 3 : 2); i++) {
+        takes[0].duration = 1 + i * 0.1;
+        frame(12000 + i * 100);
+      }
+      if (lost) actor.send({ type: 'videoLost' });
+      actor.send({ type: 'pause' });
+      actor.send({ type: 'resume' });
+      frame(13000);
+      frame(13100);
+      await flush();
+      actor.send({ type: 'end' });
+      await flush();
+      const trace = decodeTrace(written[0].bytes);
+      expect(trace.header.takes).toEqual([
+        { startMs: 100, endMs: lost ? 2200 : 2100, videoAnchorMs: null },
+        { startMs: 3100, endMs: 3100, videoAnchorMs: null },
+      ]);
+      expect(takes).toHaveLength(lost ? 1 : 2);
+      expect(sessionView(actor.getSnapshot())).toMatchObject({ stage: 'finished', final: true });
+      actor.stop();
+    },
+  );
+
+  it('preserves the take index when an encoder fails, leaving only the next take playable', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, record: true, video },
+    }).start();
+    const setId = actor.getSnapshot().context.setId;
+    play(body({}));
+    await flush();
+    takes[0].end(new Error('encoder'));
+    await flush();
+    actor.send({ type: 'pause' });
+    actor.send({ type: 'resume' });
+    play(body({}));
+    await flush();
+    actor.send({ type: 'end' });
+    await flush();
+    expect(decodeTrace(written[0].bytes).header.takes).toHaveLength(2);
+    expect(sessionView(actor.getSnapshot()).results[0].takes).toEqual([
+      `document/local/videos/${setId}-1.mp4`,
+    ]);
+    expect([...files].filter((file) => file.endsWith('.mp4'))).toEqual([
+      `document/local/videos/${setId}-1.mp4`,
+    ]);
+    actor.stop();
+    warn.mockRestore();
+  });
+
   it('keeps countdown, waiting, counting and paused stretches in order in a two-set circuit', async () => {
     vi.useFakeTimers({
       now: NOW,
@@ -157,11 +290,10 @@ describe('set traces', () => {
       true,
     );
     expect(trace.header.phases).toEqual(expect.arrayContaining(['waiting', 'up', 'down']));
-    actor.send({ type: 'keepVideos', share: false });
     actor.send({ type: 'save' });
     actor.stop();
     await flush();
-    expect(files.size).toBe(2); // Done's switch cannot remove replay data.
+    expect(files.size).toBe(2); // Done keeps replay data.
   });
 
   it('writes the set UUID via a temp file, with native camera, device and per-frame fields', async () => {
@@ -293,20 +425,29 @@ describe('set traces', () => {
 
   it('restart drops the old window and UUID, including its paused frames', async () => {
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest, record: true, video },
     }).start();
     const oldId = actor.getSnapshot().context.setId;
+    play(body({}));
+    await flush();
     squat();
     actor.send({ type: 'pause' });
     squat();
     actor.send({ type: 'restart' });
     const setId = actor.getSnapshot().context.setId;
     const restarted = frames;
+    play(body({}));
+    await flush();
     squat();
     actor.send({ type: 'end' });
     await flush();
     expect(setId).not.toBe(oldId);
-    expect(files).toEqual(new Set([`document/local/traces/pending/${setId}.sht`]));
+    expect(files).toEqual(
+      new Set([
+        `document/local/traces/pending/${setId}.sht`,
+        `document/local/videos/${setId}-0.mp4`,
+      ]),
+    );
     const trace = decodeTrace(written[0].bytes);
     expect(trace.header.counted).toEqual({ reps: 1 });
     expect(trace.frames[0].t).toBe(0);
@@ -366,15 +507,21 @@ describe('set traces', () => {
   });
 
   it.each(['Done', 'Done after a failed set insert', 'recovery'])(
-    'Discard from %s leaves no trace files',
+    'Discard from %s leaves no trace or video files, including late writes',
     async (from) => {
       const actor = createActor(workoutSession, {
-        input: { ...LOG, challenge, record: true },
+        input: { ...LOG, challenge, record: true, video },
       }).start();
+      play(body({}));
+      await flush();
       squat();
       await flush();
-      expect(files.size).toBe(1);
+      expect(files.size).toBe(2);
       actor.send({ type: 'next' });
+      play(plank({ elbow: 170 }));
+      await flush();
+      const pending: (() => void)[] = [];
+      finalizer.held = pending;
       let land = () => {};
       const failedSet = from === 'Done after a failed set insert';
       if (!failedSet)
@@ -391,10 +538,23 @@ describe('set traces', () => {
       }
       await flush();
       if (failedSet) {
-        expect(files.size).toBe(2);
+        expect(files.size).toBe(4);
         expect(db().select().from(schema.sets).all()).toHaveLength(1);
       }
       if (from !== 'recovery') {
+        if (from === 'Done') {
+          const before = new Set(files);
+          db().run(
+            sql`create trigger stuck before delete on workouts begin select raise(abort, 'disk I/O error'); end`,
+          );
+          try {
+            actor.send({ type: 'discard' });
+            expect(actor.getSnapshot().context.discarded).toBe(false);
+            expect(files).toEqual(before); // Rows first: the open workout can still be saved.
+          } finally {
+            db().run(sql`drop trigger stuck`);
+          }
+        }
         actor.send({ type: 'discard' });
         expect(actor.getSnapshot().context.discarded).toBe(true);
       } else {
@@ -415,6 +575,8 @@ describe('set traces', () => {
       }
       actor.stop();
       land();
+      pending.forEach((finish) => finish());
+      finalizer.held = null;
       await flush();
       expect(db().select().from(schema.sets).all()).toEqual([]);
       expect(files).toEqual(new Set());

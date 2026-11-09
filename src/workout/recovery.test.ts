@@ -1,11 +1,12 @@
-import { modules } from '@/workout/__fixtures__/session';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+import { files, modules, reset } from '@/workout/__fixtures__/session';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { createActor, fromPromise } from 'xstate';
 
 import { logSet, workoutStart } from './log';
 import { reps } from './plan';
 import { findOpenWorkout, recovery, saveOpenWorkout } from './recovery';
 import type { StepResult } from './results';
+import { deleteOrphanVideos } from './video-file';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
 
@@ -35,12 +36,29 @@ const set = (planStep: number, endedAt: number): StepResult => ({
 });
 
 beforeAll(migrateDatabase);
-beforeEach(() => {
-  db().delete(schema.workouts).run();
-  db().delete(schema.outbox).run();
-});
+afterEach(reset);
 
 describe('a workout left open', () => {
+  it('deletes a killed set video at startup, keeping videos of saved and recoverable sets', () => {
+    const saved = workoutStart('saved', { runId: null, versionId: null });
+    logSet(saved, { ...set(0, 5_000), id: 'saved-set', workoutId: 'saved' });
+    saveOpenWorkout('saved');
+    const open = workoutStart('left', { runId: null, versionId: null });
+    logSet(open, set(0, 9_000));
+    files.add('document/local/videos/saved-set-0.mp4');
+    files.add('document/local/videos/s0-0.mp4');
+    // Native wrote the next set's file, but the process died before the set could be logged.
+    files.add('document/local/videos/killed-set-0.mp4');
+
+    deleteOrphanVideos();
+
+    expect(findOpenWorkout()).toEqual({ id: 'left' });
+    saveOpenWorkout('left');
+    expect(files).toEqual(
+      new Set(['document/local/videos/saved-set-0.mp4', 'document/local/videos/s0-0.mp4']),
+    );
+  });
+
   it('is found, and saved as ended when its last set ended, with one outbox row', () => {
     expect(findOpenWorkout()).toBeNull();
     const start = workoutStart('left', { runId: null, versionId: null }, new Date(1_000));

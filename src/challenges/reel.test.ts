@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { reps } from '@/workout/plan';
-import { after, pointAt, reelOf } from './reel';
+import { set as kept } from '@/challenges/__fixtures__/progress';
+import { expand, reps, seconds } from '@/workout/plan';
+import { after, dayReel, pointAt, reelOf } from './reel';
 import type { StepResult } from '@/workout/results';
 
 const set = (seconds: number, takes: string[]): StepResult => ({
@@ -48,5 +49,33 @@ describe('the reel', () => {
     [1.5, { clip: 1, part: 1, into: 1 }], // a drag past the end stays on the last frame
   ])('finds the spot under %s of the bar, sized by how long each set ran', (x, spot) => {
     expect(pointAt(clips, x)).toEqual(spot);
+  });
+});
+
+describe("a day's reel", () => {
+  // Two rounds of push-ups with a rest between: steps 0, 1 (rest), 2.
+  const steps = expand([
+    {
+      steps: [
+        { exercise: 'pushup', goal: reps(10) },
+        { exercise: 'rest', goal: seconds(30) },
+      ],
+      rounds: 2,
+    },
+  ]);
+
+  it('plays the sets that have files, in the order you did them, each where it sits in the session', () => {
+    const first = kept('w', 10, { id: 'one', planStep: 0, startedAt: 1 });
+    const second = kept('w', 8, { id: 'two', planStep: 2, startedAt: 2 });
+    const unfilmed = kept('x', 5, { id: 'three', planStep: 0, startedAt: 3 });
+    const videos = new Map([
+      ['one', ['one-0']],
+      ['two', ['two-0', 'two-2']],
+    ]);
+
+    expect(dayReel(steps, [unfilmed, second, first], videos)).toEqual([
+      { set: 0, result: { ...first, round: 1 }, takes: ['one-0'] },
+      { set: 1, result: { ...second, round: 2 }, takes: ['two-0', 'two-2'] },
+    ]);
   });
 });

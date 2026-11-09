@@ -50,6 +50,8 @@ describe('dayResult', () => {
       done: true,
       share: 1,
       shown: { id: 'b' },
+      // The page plays every try's sets: they all counted.
+      sets: [{ workoutId: 'a' }, { workoutId: 'b' }],
     });
     expect(dayResult({ ...both, sets: [set('a', 750), set('b', 250)] }, '2026-11-01').share).toBe(
       1,
@@ -110,11 +112,10 @@ describe('dayResult', () => {
   });
 
   it('shows the latest completed try despite a later partial redo', () => {
-    expect(dayResult(circuit, '2026-11-01')).toMatchObject({
-      done: true,
-      share: 1,
-      shown: { id: 'full' },
-    });
+    const day = dayResult(circuit, '2026-11-01');
+    expect(day).toMatchObject({ done: true, share: 1, shown: { id: 'full' } });
+    // Its sets alone: the page plays the try it shows.
+    expect(new Set(day.sets.map(({ workoutId }) => workoutId))).toEqual(new Set(['full']));
   });
 
   it('matches repeated exercises by planStep, including rest gaps', () => {
@@ -156,7 +157,7 @@ describe('dayResult', () => {
     });
     expect(
       dayResult({ ...data, workouts: [workout('open', 30, { status: 'open' })] }, '2026-11-01'),
-    ).toEqual({ done: false, share: 0, shown: null });
+    ).toEqual({ done: false, share: 0, shown: null, sets: [] });
   });
 
   it('counts a saved MAX hold with a positive fraction of a second', () => {

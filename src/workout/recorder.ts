@@ -11,13 +11,15 @@ import {
 } from '@/storage/trace-file';
 
 import { sweepTraceTemps, writeTrace } from './recorder-file';
+import type { TakeEvent } from './camcorder';
 
 type Stretch = NonNullable<TraceHeader['stretches']>[number];
 type Window = { setId: string; exercise: ExerciseId; camera: 'front' | 'back' };
 export type RecorderEvent =
   | ({ type: 'stage'; kind: Stretch['kind'] } & Window)
   | { type: 'frame'; result: PoseDetection; phase: string; waiting: string | null }
-  | { type: 'save'; counted: TraceHeader['counted'] };
+  | { type: 'save'; counted: TraceHeader['counted'] }
+  | TakeEvent;
 
 // shortcut: a window past 9000 frames leaves no trace (its count would describe frames it lacks);
 // stream to disk if sets longer than 5 min at 30 fps matter.
@@ -54,6 +56,8 @@ export const recorder = fromCallback<RecorderEvent, { on: boolean }>(({ input, r
   let window: Window | null = null;
   let trace = traceBuilder();
   let stretches: Stretch[] = [];
+  let takes: TraceHeader['takes'] = [];
+  let taking = false;
   let camera: TraceHeader['camera'] = null;
   let delegate: PoseDetection['delegate'] | undefined;
   let lastT = -1;
@@ -64,6 +68,8 @@ export const recorder = fromCallback<RecorderEvent, { on: boolean }>(({ input, r
     window = null;
     trace = traceBuilder();
     stretches = [];
+    takes = [];
+    taking = false;
     camera = null;
     delegate = undefined;
     lastT = -1;
@@ -87,6 +93,17 @@ export const recorder = fromCallback<RecorderEvent, { on: boolean }>(({ input, r
       if (window?.setId !== event.setId) drop();
       window = event;
       mark(event.kind);
+    } else if (event.type === 'takeStart') {
+      if (window?.setId !== event.setId) return;
+      const t = Math.max(0, lastT);
+      takes.push({ startMs: t, endMs: t, videoAnchorMs: null });
+      taking = true;
+    } else if (event.type === 'takeEnd') {
+      if (window?.setId !== event.setId) return;
+      const take = takes.at(-1);
+      if (take && t0 !== null && event.anchorPoseMs !== null)
+        take.videoAnchorMs = event.anchorPoseMs - t0;
+      taking = false;
     } else if (event.type === 'frame') {
       if (!window || lost) return;
       const { result, phase, waiting } = event;
@@ -110,6 +127,8 @@ export const recorder = fromCallback<RecorderEvent, { on: boolean }>(({ input, r
         return;
       }
       lastT = t;
+      const take = takes.at(-1);
+      if (taking && take) take.endMs = t;
       delegate ??= result.delegate;
       camera ??= {
         facing: window.camera,
@@ -145,7 +164,7 @@ export const recorder = fromCallback<RecorderEvent, { on: boolean }>(({ input, r
               fps: Math.round(((trace.frames - 1) * 1000) / lastT) || null,
             },
             stretches,
-            takes: [],
+            takes,
             consent: [],
             counted: event.counted,
             labels: {},

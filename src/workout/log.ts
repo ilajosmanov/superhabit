@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import { fromCallback } from 'xstate';
 
 import { deleteTraces } from './recorder-file';
+import { deleteVideos } from './video-file';
 import { today } from './day';
 import type { StepResult } from './results';
 import { db } from '@/storage/database';
@@ -86,11 +87,17 @@ export function discardWorkout(workoutId: string, unwritten: readonly StepResult
     .delete(workouts)
     .where(and(eq(workouts.id, workoutId), eq(workouts.status, 'open')))
     .run();
-  // After the rows: a workout still offered for Save must keep its traces.
+  // After the rows: a workout still offered for Save must keep its recordings.
+  const ids = [...rows, ...unwritten].map((set) => set.id);
   try {
-    deleteTraces([...rows, ...unwritten].map((set) => set.id));
+    deleteTraces(ids);
   } catch (error) {
     console.warn('[log] could not delete discarded traces', error);
+  }
+  try {
+    deleteVideos(ids);
+  } catch (error) {
+    console.warn('[log] could not delete discarded videos', error);
   }
 }
 

@@ -11,7 +11,6 @@ import { reelOf, type Clip } from '@/challenges/reel';
 import { mss } from '@/components/duration';
 import { ExerciseFigure } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
-import { SwitchRow } from '@/components/switch-row';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 import { colors } from '@/theme';
 import { expand, type Challenge } from '@/workout/plan';
@@ -31,14 +30,11 @@ export function ChallengeDone({
   view,
   challenge,
   run,
-  onKeepVideos,
   onClose,
 }: {
   view: SessionView;
   challenge: Challenge;
   run: RunView | null;
-  /** Whether to keep this session's videos; joint positions always stay for replay. */
-  onKeepVideos: (share: boolean) => void;
   onClose: () => void;
 }) {
   const { top, bottom, left, right } = useSafeAreaInsets();
@@ -79,17 +75,6 @@ export function ChallengeDone({
           {!session.single && (
             <SessionPlan plan={session} days={challenge.days} day={{ done, next: -1 }} />
           )}
-          <SwitchRow
-            label="Keep videos on this phone"
-            note={
-              view.share
-                ? 'Videos and joint positions stay on this phone. Nothing is uploaded.'
-                : 'Videos are deleted when you close. Joint positions stay on this phone for replay.'
-            }
-            value={view.share}
-            // Sent on every flip, so leaving by Back keeps the choice too.
-            onChange={onKeepVideos}
-          />
         </View>
       </ScrollView>
 

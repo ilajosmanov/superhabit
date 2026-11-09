@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
-import type { VideoPlayerEvents, VideoSource } from 'expo-video';
+import type { VideoPlayerEvents, VideoPlayerStatus, VideoSource } from 'expo-video';
 
 import { reps } from '@/workout/plan';
 import { reelOf } from './reel';
@@ -30,6 +30,8 @@ const clips = reelOf([set(['a']), set(['b', 'c'])]);
 
 /** A player holding a file, reporting as the real one would. Every file is 10 s long once loaded. */
 function fake(file: string) {
+  // Typed wide: the fake moves through every status.
+  const status: { status: VideoPlayerStatus } = { status: 'loading' };
   const on: Partial<VideoPlayerEvents> = {};
   const player = {
     file,
@@ -38,6 +40,7 @@ function fake(file: string) {
     playing: false,
     duration: 0,
     currentTime: 0,
+    ...status,
     play: () => void (player.playing = true),
     pause: () => void (player.playing = false),
     seekBy: (seconds: number) => void (player.currentTime += seconds),
@@ -46,6 +49,7 @@ function fake(file: string) {
       Object.assign(player, {
         loads: player.loads + 1,
         file: typeof source === 'string' ? source : '',
+        status: 'loading',
         duration: 0,
         currentTime: 0,
       });
@@ -57,6 +61,7 @@ function fake(file: string) {
     },
     listening: () => Object.keys(on),
     load: () => {
+      player.status = 'readyToPlay';
       player.duration = 10;
       on.sourceLoad?.({
         duration: 10,
@@ -74,15 +79,20 @@ function fake(file: string) {
         bufferedPosition: 10,
       }),
     end: () => on.playToEnd?.(),
-    fail: () => on.statusChange?.({ status: 'error' }),
+    fail: () => {
+      player.status = 'error';
+      on.statusChange?.({ status: 'error' });
+    },
   };
   return player;
 }
 
-function reel() {
+function reel(missing: readonly string[] = []) {
   // As the screen makes them: the first holding the start, playing; the second the file after it.
   const players = [fake('a'), fake('b')] as const;
   players[0].play();
+  // Files deleted since the reel was listed fail as the players are made, before the reel listens.
+  for (const player of players) if (missing.includes(player.file)) player.status = 'error';
   const onProgress = vi.fn<(along: number, glide: boolean) => void>();
   const actor = createActor(reelPlayback, {
     input: { clips, players, start: { clip: 0, part: 0 }, onProgress },
@@ -155,28 +165,36 @@ describe('the reel playback', () => {
     expect(players[1].currentTime).toBe(0);
   });
 
-  it('skips a file that fails to load and plays on', () => {
-    const { players, actor, on, spot } = reel();
+  it('passes over a missing file, the one it opens on included', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    actor.send({ type: 'go', to: { clip: 1, part: 0 }, along: 0.5 });
-    players[1].fail(); // the waiting player's file
-    expect(on()).toBe('b (c)');
-    players[0].fail();
-    expect(on()).toBe('(a) c');
-    expect(spot()).toEqual({ clip: 1, part: 1 });
-    players[1].load();
-    actor.send({ type: 'go', to: { clip: 1, part: 1 }, along: 0.5 }); // not waiting on the failed load
-    expect(players[1].currentTime).toBe(5);
+    const { on, spot } = reel(['a']);
+    expect(on()).toBe('(c) b');
+    expect(spot()).toEqual({ clip: 1, part: 0 });
   });
 
-  it('skips once when every file fails, rather than round and round', () => {
-    const { players, actor, on } = reel();
+  it('passes over a missing waiting file when the one on screen ends', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    actor.send({ type: 'go', to: { clip: 1, part: 0 }, along: 0.5 }); // a jump: b, then c after it
-    players[0].fail();
-    players[1].fail();
-    players[0].fail();
-    expect(on()).toBe('(a) c');
+    const { players, actor, on, spot } = reel();
+    actor.send({ type: 'go', to: { clip: 1, part: 0 }, along: 0.5 });
+    players[1].fail(); // the waiting player's file: c
+    expect(on()).toBe('b (c)');
+    players[0].load();
+    players[0].end();
+    expect(on()).toBe('a (b)');
+    expect(spot()).toEqual({ clip: 0, part: 0 });
+    players[0].load();
+    actor.send({ type: 'go', to: { clip: 0, part: 0 }, along: 0.5 }); // not waiting on the failed load
+    expect(players[0].currentTime).toBe(5);
+  });
+
+  it('stops once it has passed over every file, rather than round and round', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { players, actor } = reel(['a', 'b']);
+    // Every other file fails as it loads.
+    for (let i = 0; i < 10; i++) players[actor.getSnapshot().context.front].fail();
+    expect(players.some(({ playing }) => playing)).toBe(false);
+    // Each of the three files tried about once, not ten times.
+    expect(players[0].loads + players[1].loads).toBeLessThanOrEqual(4);
   });
 
   it('stops listening to the players when it stops', () => {

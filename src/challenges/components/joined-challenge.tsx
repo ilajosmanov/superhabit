@@ -8,6 +8,7 @@ import { WatchDay } from './watch-day';
 import { detail, plan } from '@/challenges/challenges';
 import type { Joined } from '@/challenges/library-view';
 import { doneToday, percent } from '@/challenges/run-view';
+import { expand } from '@/workout/plan';
 import { setShare } from '@/workout/results';
 
 /**
@@ -47,11 +48,15 @@ export function JoinedChallenge({ joined: { challenge, run, amounts } }: { joine
 
       <SessionPlan plan={session} days={shown.days} day={done && { done, next }} />
 
-      {done && (
+      {day && (
         <WatchDay
+          // Its videos are listed as it mounts: again for another day, or once a new try is saved.
+          key={day.sets.map(({ id }) => id).join()}
           label={selected === today ? 'WATCH TODAY' : `WATCH DAY ${selected + 1}`}
           sets={sets}
-          done={done}
+          done={day.done}
+          steps={expand(shown.session)}
+          kept={day.sets}
         />
       )}
 

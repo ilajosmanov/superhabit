@@ -1,7 +1,14 @@
+import type { LoggedSet } from '@/workout/logged-set';
+import type { FlatSteps } from '@/workout/plan';
 import type { StepResult } from '@/workout/results';
 
-/** A filmed set: where it sits among the session's results (`set`) and its files, in order. */
-export type Clip = { set: number; result: StepResult; takes: readonly string[] };
+/** What the reel shows of a set: a session's result, or a kept set with its round. */
+type Played = Pick<
+  StepResult,
+  'exercise' | 'round' | 'goal' | 'reps' | 'heldMs' | 'startedAt' | 'endedAt'
+>;
+/** A filmed set: where it sits among the session's exercise sets (`set`) and its files, in order. */
+export type Clip = { set: number; result: Played; takes: readonly string[] };
 /** A spot on the reel: a clip and one of its files. */
 export type Spot = { clip: number; part: number };
 
@@ -10,6 +17,25 @@ export const reelOf = (results: readonly StepResult[]): Clip[] =>
   results.flatMap((result, set) =>
     result.takes.length ? [{ set, result, takes: result.takes }] : [],
   );
+
+/**
+ * A day on the challenge page as one video: its kept sets (`sets`, of the plan `steps`) that have files in
+ * `videos` (set id → files in order), in the order you did them. A daily total's tries are all its one set.
+ */
+export const dayReel = (
+  steps: FlatSteps,
+  sets: readonly LoggedSet[],
+  videos: ReadonlyMap<string, readonly string[]>,
+): Clip[] =>
+  [...sets]
+    .sort((a, b) => a.startedAt - b.startedAt)
+    .flatMap((result) => {
+      const takes = videos.get(result.id) ?? [];
+      const step = steps[result.planStep];
+      if (!takes.length || step?.exercise !== result.exercise) return [];
+      const set = steps.slice(0, result.planStep).filter((s) => s.exercise !== 'rest').length;
+      return [{ set, result: { ...result, round: step.round }, takes }];
+    });
 
 /** How long a set ran, its segment's width on the bar; never 0, so every set stays visible. */
 export const weight = ({ result }: Clip) => Math.max(1, result.endedAt - result.startedAt);

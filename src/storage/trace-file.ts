@@ -104,6 +104,8 @@ const headerSchema = z.strictObject({
   /**
    * Filmed stretches, in the file's time, in order and not overlapping. Take i (its index here) is
    * filmed to `<setId>-<i>.mp4`; its video time is `t − videoAnchorMs`, null when the anchor is unknown.
+   * Every attempted take keeps its index even if its file failed or is missing. Boundaries span the
+   * trace frames from roll through cut; the anchor uses only frames after native recording started.
    */
   takes: z
     .array(z.strictObject({ startMs: ms, endMs: ms, videoAnchorMs: z.number().nullable() }))

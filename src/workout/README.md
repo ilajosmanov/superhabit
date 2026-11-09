@@ -16,6 +16,7 @@ One session in front of the camera, and the workout it keeps.
 | `logged-set.ts`          | `readSets(rows)`: stored sets read back for progress                                               |
 | `day.ts`                 | local `YYYY-MM-DD` days: `today`, `addDays` (DST-safe), `dayLabel`, `nextMidnight`                 |
 | `camcorder.ts`           | the camera's takes for each set                                                                    |
+| `video-file.ts`          | stable video paths, a set's videos in take order (`videosOf`), Discard, also of pending files      |
 | `recorder.ts`            | each set's trace, packed frame by frame; stretches, pauses, restart or camera flip, frame rate     |
 | `recorder-file.ts`       | after paint: finish the trace, native gzip into a temp file, rename; logs encode/write ms; discard |
 | `speech.ts`, `phrase.ts` | the coach: what is said, and saying it                                                             |
@@ -40,5 +41,6 @@ Recording (`record: true`) keeps each finished set at
 `documents/<userId()>/traces/pending/<setId>.sht`. Each frame is packed as it arrives; at set end the
 packed trace is finished on the JS thread, then `superhabit-gzip-file` gzips it into `<setId>.sht.tmp`
 off the JS thread before the rename. The phone logs `[recorder] encode ms` (JS) and `write ms` (native).
-The Done switch controls videos only. Discard deletes the workout's traces, including pending writes;
-starting a recorder sweeps temporary files left by a crash.
+Videos: `documents/<userId()>/videos/<setId>-<take>.mp4` (720p, silent); index per roll, kept on failure.
+Anchor: median of `pose timestampMs − 1000 × recordedDuration`, ≥3 positive samples, closed at cut, in file time.
+Discard deletes videos like traces; startup deletes videos without set rows. No 30-day prune yet.

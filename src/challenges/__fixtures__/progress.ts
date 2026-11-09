@@ -35,11 +35,14 @@ export const workout = (
   ...changes,
 });
 export const set = (workoutId: string, n: number, changes: Partial<LoggedSet> = {}): LoggedSet => ({
+  id: `${workoutId}:${changes.planStep ?? 0}`,
   workoutId,
   planStep: 0,
   exercise: 'pushup',
   goal: reps(500),
   reps: n,
   heldMs: 0,
+  startedAt: 0,
+  endedAt: 0,
   ...changes,
 });

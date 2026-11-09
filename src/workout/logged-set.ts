@@ -4,12 +4,16 @@ import { readGoal, type Goal } from './plan';
 
 /** A finished set as it is kept: what it got toward which step of the plan. */
 export type LoggedSet = {
+  id: string;
   workoutId: string;
   planStep: number;
   exercise: ExerciseId;
   goal: Goal;
   reps: number;
   heldMs: number;
+  /** Wall-clock ms. */
+  startedAt: number;
+  endedAt: number;
 };
 
 const known = (id: string): id is ExerciseId => Object.hasOwn(EXERCISES, id);

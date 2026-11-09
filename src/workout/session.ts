@@ -39,7 +39,6 @@ type Events =
   | { type: 'flipCamera' }
   | { type: 'cameraReady' } // the camera's preview streams again (after a flip)
   | { type: 'videoLost' } // the camera dropped the video output: nothing more can be filmed
-  | { type: 'keepVideos'; share: boolean } // finished: the video retention switch; traces follow the workout
   | { type: 'save' } // finished: Done; the workout is kept once the log says so
   | { type: 'discard' } // finished: leave without keeping the workout
   | { type: 'logSaved' } // the log saved the workout
@@ -103,8 +102,6 @@ type Context = Counting & {
   take: string | null;
   /** Results are safe to read: every file is final (failed ones dropped from their set). */
   final: boolean;
-  /** Keep this session's videos on the phone when it stops; traces follow the workout. */
-  share: boolean;
   /** The log saved the workout (Done went through). */
   saved: boolean;
   /** The log threw the workout away (Discard went through). */
@@ -251,6 +248,7 @@ const session = setup<
       const { result } = event;
       const { update, live, flash, say, phase, waiting } = countFrame(c, result);
       if (c.record) enqueue.sendTo('recorder', { type: 'frame', result, phase, waiting });
+      enqueue.sendTo('camcorder', { type: 'frame', timestampMs: result.timestampMs });
       c.onPose?.(result, live);
       enqueue.assign(update);
       if (flash) {
@@ -266,6 +264,7 @@ const session = setup<
       const { exercise } = lastExercise(context);
       const { reps, noReps, heldMs } = context[exercise];
       console.info('[session]', exercise, 'set done', { reps, noReps, heldMs });
+      enqueue.sendTo('camcorder', { type: 'logged', setId: context.setId });
       enqueue.sendTo('recorder', saveTrace(context));
       const set = finishSet(context, {
         ...lastExercise(context),
@@ -343,9 +342,6 @@ export const workoutSession = session.createMachine({
     results: [],
     take: null,
     final: false,
-    // shortcut: on by default while we collect test sets, and nothing is uploaded yet; once a backend
-    // uploads what is kept, start it off again: sharing is your choice, never a default.
-    share: true,
     saved: false,
     discarded: false,
   }),
@@ -360,7 +356,10 @@ export const workoutSession = session.createMachine({
     {
       src: 'camcorder',
       id: 'camcorder',
-      input: ({ context }) => ({ video: context.video, share: context.share }),
+      input: ({ context, self }) => ({
+        video: context.video,
+        onTake: (event) => self.getSnapshot().children.recorder?.send(event),
+      }),
     },
     {
       src: 'recorder',
@@ -447,7 +446,7 @@ export const workoutSession = session.createMachine({
           ],
         },
         filming: {
-          entry: sendTo('camcorder', { type: 'roll' }),
+          entry: sendTo('camcorder', ({ context }) => ({ type: 'roll', setId: context.setId })),
           exit: [sendTo('camcorder', { type: 'cut' }), assign({ take: null })],
           on: {
             rolling: {
@@ -601,12 +600,6 @@ export const workoutSession = session.createMachine({
         assign({ final: ({ context }) => context.video === undefined }),
       ],
       on: {
-        keepVideos: {
-          actions: [
-            assign({ share: ({ event }) => event.share }),
-            sendTo('camcorder', ({ event }) => ({ type: 'share', on: event.share })),
-          ],
-        },
         save: { guard: ({ context }) => !context.saved, actions: sendTo('log', { type: 'done' }) },
         discard: {
           guard: ({ context }) => !context.saved && !context.discarded,
