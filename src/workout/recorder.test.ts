@@ -2,7 +2,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
 
 import { MAX, reps, seconds } from './plan';
-import { body } from '@/exercises/__fixtures__/body';
+import { body, detection } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
 import { replay } from '@/exercises/__fixtures__/replay';
 import { COUNTER_VERSIONS, EXERCISES } from '@/exercises/registry';
@@ -50,13 +50,11 @@ describe('dev pose recorder', () => {
       input: { ...LOG, challenge: squatTest, record: true },
     }).start();
     const pose = body({});
-    for (const timestampMs of [1000, 1066])
-      native.onResult?.({ ...pose, timestampMs, cameraLandmarks: [] });
+    for (const timestampMs of [1000, 1066]) native.onResult?.(detection(pose, timestampMs));
     actor.send({ type: 'pause' });
-    native.onResult?.({ ...pose, timestampMs: 15000, cameraLandmarks: [] });
+    native.onResult?.(detection(pose, 15000));
     actor.send({ type: 'resume' });
-    for (const timestampMs of [31000, 31066])
-      native.onResult?.({ ...pose, timestampMs, cameraLandmarks: [] });
+    for (const timestampMs of [31000, 31066]) native.onResult?.(detection(pose, timestampMs));
     actor.send({ type: 'end' });
     await flush();
     expect(written).toHaveLength(1);
@@ -71,7 +69,7 @@ describe('dev pose recorder', () => {
     }).start();
     const pose = body({});
     for (const timestampMs of [1000, 1000, 990, 1066, 1066, 1033, 1132])
-      native.onResult?.({ ...pose, timestampMs, cameraLandmarks: [] });
+      native.onResult?.(detection(pose, timestampMs));
     actor.send({ type: 'end' });
     await flush();
     expect(written).toHaveLength(1);
@@ -84,7 +82,7 @@ describe('dev pose recorder', () => {
     const actor = createActor(workoutSession, {
       input: { ...LOG, challenge: squatTest, record: true },
     }).start();
-    native.onResult?.({ ...body({}), timestampMs: 1000, cameraLandmarks: [] });
+    native.onResult?.(detection(body({}), 1000));
     actor.send({ type: 'end' });
     await flush();
     expect(written).toHaveLength(1);
@@ -407,8 +405,7 @@ describe('sharing traces', () => {
       input: { ...LOG, challenge: squatTest, record: true },
     }).start();
     const pose = body({});
-    for (let i = 0; i <= 9000; i++)
-      native.onResult?.({ ...pose, timestampMs: 1000 + i * 66, cameraLandmarks: [] });
+    for (let i = 0; i <= 9000; i++) native.onResult?.(detection(pose, 1000 + i * 66));
     actor.send({ type: 'end' });
     await flush();
     expect(written).toEqual([]);

@@ -9,7 +9,7 @@ import { Joint } from 'superhabit-pose/joints';
 import { vi } from 'vite-plus/test';
 
 import type { Pose } from '@/exercises/registry';
-import { body } from '@/exercises/__fixtures__/body';
+import { body, detection } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
 
 import { db } from '@/storage/__fixtures__/database';
@@ -146,11 +146,7 @@ export let frames = 0;
 // Holds a pose `ms` at detector speed, continuing the clock across calls.
 export const hold = (ms: number, pose: Pose) => {
   for (const end = clock + ms; clock <= end; clock += 66, frames++)
-    native.onResult?.({
-      timestampMs: clock,
-      ...pose,
-      cameraLandmarks: [],
-    });
+    native.onResult?.(detection(pose, clock));
 };
 // Holds each pose 1.5 s.
 export const play = (...poses: Pose[]) => poses.forEach((pose) => hold(1500, pose));

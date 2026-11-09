@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
 
-import { body } from '@/exercises/__fixtures__/body';
+import { body, detection } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
 import { MAX } from './plan';
 import { clock, hold, LOG, modules, native, plan, reset, squatTest } from './__fixtures__/session';
@@ -25,7 +25,7 @@ it('keeps the times of both counted and shallow cycle attempts in the finished s
   const bottom = body({ thigh: 70, shin: 25 });
   const shallow = body({ thigh: 25, shin: 20 });
   [top, top, bottom, bottom, top, top, shallow, shallow, top, top].forEach((pose, i) =>
-    native.onResult?.({ ...pose, cameraLandmarks: [], timestampMs: 10_000 + i * 1000 }),
+    native.onResult?.(detection(pose, 10_000 + i * 1000)),
   );
   actor.send({ type: 'end' });
   expect(actor.getSnapshot().context.results[0]).toMatchObject({

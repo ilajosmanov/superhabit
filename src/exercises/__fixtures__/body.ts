@@ -1,5 +1,5 @@
 // Synthetic MediaPipe poses for tests.
-import type { PoseLandmark } from 'superhabit-pose';
+import type { PoseDetection, PoseLandmark } from 'superhabit-pose';
 import { SIDE } from 'superhabit-pose/joints';
 
 import type { Pose } from '@/exercises/body/geometry';
@@ -50,3 +50,16 @@ export const onBack = (shape: Body, hands: 'head' | 'floor' = 'head'): Pose => {
   }
   return { ...pose, down: { x: 0, y: 0, z: 1 } };
 };
+
+/** `pose` as the detector reports it at `timestampMs`, with plausible camera and timing fields. */
+export const detection = (pose: Pose, timestampMs: number): PoseDetection => ({
+  ...pose,
+  timestampMs,
+  cameraLandmarks: [],
+  brightness: 120,
+  inferenceMs: 25,
+  frameWidth: 480,
+  frameHeight: 640,
+  rotation: 90,
+  delegate: 'gpu',
+});

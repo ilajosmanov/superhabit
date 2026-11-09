@@ -7,6 +7,8 @@ export interface PoseLandmark {
   z: number;
   /** 0..1, how likely the joint is visible (not occluded / in frame). */
   visibility: number;
+  /** 0..1, how likely the joint is inside the frame; image landmarks only, absent when MediaPipe gives none. */
+  presence?: number;
 }
 
 export interface PoseCameraPoint {
@@ -30,6 +32,17 @@ export interface PoseDetection {
   down?: PoseVector;
   /** Opaque sensor coordinates for CameraRef.convertCameraPointToViewPoint(), not normalized. */
   cameraLandmarks: PoseCameraPoint[];
+  /** Mean luma of the analysed frame, 0..255. */
+  brightness: number;
+  /** Time spent in MediaPipe for this frame, ms. */
+  inferenceMs: number;
+  /** The analysed frame in pixels, upright (after `rotation`). */
+  frameWidth: number;
+  frameHeight: number;
+  /** Clockwise degrees the camera buffer was turned to be upright: 0, 90, 180 or 270. */
+  rotation: number;
+  /** Where MediaPipe ran. */
+  delegate: 'gpu' | 'cpu';
 }
 
 /** MediaPipe Pose Landmarker (BlazePose GHUM, 33 joints in MediaPipe order). */

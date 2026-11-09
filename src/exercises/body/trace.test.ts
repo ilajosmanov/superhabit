@@ -1,21 +1,17 @@
 import type { PoseDetection } from 'superhabit-pose';
 import { describe, expect, it } from 'vite-plus/test';
 
-import { body } from '@/exercises/__fixtures__/body';
+import { body, detection } from '@/exercises/__fixtures__/body';
 import { replay, traceFiles } from '@/exercises/__fixtures__/replay';
 import { squat } from '@/exercises/squat';
 import { toFrame, toPose, type TraceFrame } from './trace';
 
 const pose = body({ thigh: 70, shin: 25, lean: 10 });
-const detection = (timestampMs: number): PoseDetection => ({
-  ...pose,
-  timestampMs,
-  cameraLandmarks: [],
-});
+const detected = (timestampMs: number): PoseDetection => detection(pose, timestampMs);
 
 describe('trace frames', () => {
   it('stores time relative to clip start and gives back the detector pose', () => {
-    const frames = [toFrame(detection(1000), 1000), toFrame(detection(1066), 1000)];
+    const frames = [toFrame(detected(1000), 1000), toFrame(detected(1066), 1000)];
     expect(frames.map((frame) => frame.t)).toEqual([0, 66]);
     for (const frame of frames) expect(toPose(frame)).toEqual(pose);
   });
@@ -23,7 +19,7 @@ describe('trace frames', () => {
   it('keeps gravity when the phone gave it', () => {
     // Distinct components, so a swapped or flipped axis can't round-trip unnoticed.
     const down = { x: 0.36, y: 0.8, z: -0.48 };
-    expect(toPose(toFrame({ ...detection(1000), down }, 1000))).toEqual({ ...pose, down });
+    expect(toPose(toFrame({ ...detected(1000), down }, 1000))).toEqual({ ...pose, down });
   });
 
   it('replays empty detections as tracking loss, leaving a fresh counter waiting', () => {
@@ -39,7 +35,7 @@ describe('trace frames', () => {
     frames: Array.from({ length: 75 }, (_, i) =>
       toFrame(
         {
-          ...detection(i * 66),
+          ...detected(i * 66),
           ...body(i >= 25 && i < 50 ? { thigh: 70, shin: 25 } : {}),
         },
         0,

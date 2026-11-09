@@ -2,20 +2,14 @@ import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import type { PoseDetection } from 'superhabit-pose';
 import { describe, expect, it } from 'vite-plus/test';
 
-import { body } from '@/exercises/__fixtures__/body';
+import { body, detection } from '@/exercises/__fixtures__/body';
 import { replay } from '@/exercises/__fixtures__/replay';
 import { toFrame, toPose, type TracePoint } from '@/exercises/body/trace';
 import { squat } from '@/exercises/squat';
 import { decodeTrace, encodeTrace, type RecordedFrame, type TraceInfo } from './trace-file';
 
-const detection = (
-  timestampMs: number,
-  shape = { thigh: 70, shin: 25, lean: 10 },
-): PoseDetection => ({
-  ...body(shape),
-  timestampMs,
-  cameraLandmarks: [],
-});
+const detected = (timestampMs: number, shape = { thigh: 70, shin: 25, lean: 10 }): PoseDetection =>
+  detection(body(shape), timestampMs);
 const replayed = (frames: RecordedFrame[]) => replay(squat, { frames });
 
 const info: TraceInfo = {
@@ -38,7 +32,7 @@ const info: TraceInfo = {
   labels: {},
 };
 const recorded = (t: number, extra: Partial<RecordedFrame> = {}): RecordedFrame => ({
-  ...toFrame(detection(t), 0),
+  ...toFrame(detected(t), 0),
   phase: null,
   waiting: null,
   inferenceMs: null,
@@ -142,7 +136,7 @@ describe('Trace v2', () => {
       recorded(
         i * 66,
         toFrame(
-          detection(
+          detected(
             i * 66,
             i >= 25 && i < 50 ? { thigh: 70, shin: 25, lean: 0 } : { thigh: 0, shin: 0, lean: 0 },
           ),
