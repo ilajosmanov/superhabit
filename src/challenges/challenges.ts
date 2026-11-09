@@ -113,6 +113,7 @@ export const ONE_GO: readonly ExerciseId[] = [
   'jumping-jack',
   'leg-raise',
   'wall-sit',
+  'burpee',
 ];
 
 /** The catalog, in order. */

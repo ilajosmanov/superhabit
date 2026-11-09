@@ -107,6 +107,10 @@ const EXERCISE = {
     pose: { head: [5, 23], body: 'M8 24L17 24M17 24L22 9M3 26h26' },
     rep: { head: [5, 23], body: 'M8 24L17 24M17 24L28 24.6M3 26h26' },
   },
+  burpee: {
+    pose: { head: [16.5, 5], body: 'M16.5 8L17 26M16.4 9.5L16.8 14L17 18M3 26h26' },
+    rep: { head: [26, 12], body: 'M23 15L5 22M21 15.8L21.3 20.4L21.6 25M3 26h26' },
+  },
 } satisfies Record<string, { pose: Pose; rep?: Pose }>;
 type ExerciseKey = keyof typeof EXERCISE;
 

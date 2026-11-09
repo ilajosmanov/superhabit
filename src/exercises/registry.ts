@@ -1,3 +1,4 @@
+import { burpee } from './burpee';
 import type { Exercise } from './exercise';
 import { gluteBridge } from './glute-bridge';
 import { jumpingJack } from './jumping-jack';
@@ -30,6 +31,7 @@ const LIST = {
   'wall-sit': wallSit,
   'side-plank': sidePlank,
   'leg-raise': legRaise,
+  burpee,
 };
 type List = typeof LIST;
 export type ExerciseId = keyof List;
@@ -53,4 +55,5 @@ export const initialCounters: Counters = {
   'wall-sit': wallSit.initial,
   'side-plank': sidePlank.initial,
   'leg-raise': legRaise.initial,
+  burpee: burpee.initial,
 };

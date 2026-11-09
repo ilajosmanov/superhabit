@@ -272,6 +272,20 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
     actor.stop();
   });
 
+  it('keeps a burpee set started when the pose is lost after a rep', () => {
+    const actor = createActor(workoutSession, {
+      input: { challenge: plan({ exercise: 'burpee', goal: MAX }) },
+    }).start();
+    const view = () => sessionView(actor.getSnapshot());
+    const standing = plank({ standing: true });
+    play(standing, plank({}), standing);
+    hold(1500, { ...standing, down: undefined }); // no gravity: nothing reads
+    play(standing);
+    expect(view()).toMatchObject({ phase: 'up', started: true, reps: 1 });
+    expect(spoken()).toEqual(['Go', '1']);
+    actor.stop();
+  });
+
   it('toggles the skeleton and flips the camera only before the first attempt', () => {
     const actor = createActor(workoutSession, { input: { challenge } }).start();
     const view = () => sessionView(actor.getSnapshot());

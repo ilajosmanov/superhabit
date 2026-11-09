@@ -9,6 +9,7 @@ An exercise is built from primitives, each in its own folder:
 plank   = exercise(hold(plankPosition), labels)
 push-up = exercise(cycle(plankPosition, jointAngle('elbow'), thresholds), labels)
 squat   = exercise(cycle(standingPosition, bothSides(jointAngle('knee'), 35), thresholds), labels)
+burpee  = exercise(sequence([standingPosition, plankPosition], { maxStepMs }), labels)
 ```
 
 Labels are the name, the phone spot and its setup copy, and the hint. The kind works out the rest
