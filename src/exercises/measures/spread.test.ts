@@ -18,13 +18,13 @@ describe('spread', () => {
     expect(sideways.read(stride, 'left')?.value).toBeCloseTo(0.2 / 0.9);
   });
 
-  it('ignores how far one foot sits above the other', () => {
-    const lifted = body({});
-    lifted.worldLandmarks[Joint.RIGHT_ANKLE] = {
-      ...lifted.worldLandmarks[Joint.RIGHT_ANKLE],
-      y: 0.4,
-    };
-    expect(sideways.read(lifted, 'left')?.value).toBeCloseTo(0.2 / 0.9);
+  it('reads a foot held up as not apart: a knee lift is no stride', () => {
+    const lifted = structuredClone(stride);
+    lifted.worldLandmarks[Joint.RIGHT_ANKLE].y = 0.5;
+    expect(forward.read(lifted, 'left')?.value).toBe(0);
+    // A heel lifting a little, as a lunge's back foot does, still counts.
+    lifted.worldLandmarks[Joint.RIGHT_ANKLE].y = 0.8;
+    expect(forward.read(lifted, 'left')?.value).toBeCloseTo(0.7 / 0.9);
   });
 
   it('reads nothing without gravity or with the other foot hidden', () => {

@@ -1,8 +1,8 @@
-import { assert, describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
 import { body } from './__fixtures__/body';
-import { repsInSpans, traceFiles } from './__fixtures__/replay';
+import { clipSuite } from './__fixtures__/replay';
 import type { Pose } from '@/exercises/body/geometry';
 import { jumpingJack } from './jumping-jack';
 
@@ -98,13 +98,4 @@ const JACKS: Record<string, [number, number][]> = {
     [33.7, 34.7],
   ],
 };
-const clips = Object.keys(JACKS).map((clip) => traceFiles('device').find((p) => p.endsWith(clip)));
-describe.skipIf(clips.some((path) => !path))('jumping jack on device clips with gravity', () => {
-  it.each(Object.entries(JACKS))('%s: counts each real one once', (clip, spans) => {
-    const path = clips.find((p) => p?.endsWith(clip));
-    assert(path);
-    const { reps, inside } = repsInSpans(jumpingJack, path, spans);
-    expect(inside, JSON.stringify(reps)).toEqual(spans.map(() => 1));
-    expect(reps, JSON.stringify(reps)).toHaveLength(spans.length);
-  });
-});
+clipSuite('jumping jack', jumpingJack, JACKS);

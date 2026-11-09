@@ -37,5 +37,5 @@ export const lunge = exercise(lungeCycle, {
     'Facing it, step back',
   ],
   hint: 'Counting starts once you stand tall. Either leg forward counts.',
-  how: [`Step forward until your knees reach ${down}°`, 'Push back up to standing'],
+  how: [`Step back or forward until your front knee reaches ${down}°`, 'Push back up to standing'],
 });

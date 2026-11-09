@@ -1,10 +1,10 @@
-import { assert, describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
 import { lunge } from './lunge';
 import type { Pose, Side } from '@/exercises/body/geometry';
 import { body } from './__fixtures__/body';
-import { repsInSpans, traceFiles } from './__fixtures__/replay';
+import { clipSuite } from './__fixtures__/replay';
 
 const LEGS = {
   left: [Joint.LEFT_HIP, Joint.LEFT_KNEE, Joint.LEFT_ANKLE],
@@ -13,16 +13,17 @@ const LEGS = {
 const standing = body({ side: true });
 
 /** Side-on: one leg forward with its thigh `thigh`° from vertical, the other back, both knees bent. */
-function split(front: Side, thigh: number, back: Pose, lean = 0): Pose {
+function split(front: Side, thigh: number, back: Pose, lean = 0, shin = 10): Pose {
   const result = body({ side: true, lean });
-  const forward = body({ side: true, thigh, shin: 10 });
+  const forward = body({ side: true, thigh, shin });
   for (const side of ['left', 'right'] as const)
     for (const i of LEGS[side])
       result.worldLandmarks[i] = (side === front ? forward : back).worldLandmarks[i];
   return result;
 }
-// Front knee 90°, back knee 90° (the back thigh behind, its shin up behind it).
-const deep = (front: Side) => split(front, 80, body({ side: true, thigh: -20, shin: 110 }));
+// Front knee 90°, back knee 105°: the back knee under the hip, its shin back along the floor.
+const back = body({ side: true, thigh: -10, shin: 85 });
+const deep = (front: Side) => split(front, 80, back);
 // Both knees at 125°.
 const half = (front: Side) => split(front, 45, body({ side: true, thigh: -10, shin: 65 }));
 
@@ -62,7 +63,7 @@ describe('lunge', () => {
   it.each([Joint.LEFT_SHOULDER, Joint.RIGHT_SHOULDER])(
     'fails a lunge leaning forward with the cue to keep upright, shoulder %i hidden',
     (hidden) => {
-      const leaning = split('left', 80, body({ side: true, thigh: -20, shin: 110 }), 30);
+      const leaning = split('left', 80, back, 30);
       leaning.landmarks[hidden] = { ...leaning.landmarks[hidden], visibility: 0 };
       expect(play([standing, 1000], [leaning, 1000], [standing, 1000])).toMatchObject({
         reps: 0,
@@ -72,11 +73,28 @@ describe('lunge', () => {
     },
   );
 
+  it('fails a lunge whose shoulders are both out of view: an upright torso must be seen', () => {
+    const unseen = deep('left');
+    for (const i of [Joint.LEFT_SHOULDER, Joint.RIGHT_SHOULDER])
+      unseen.landmarks[i] = { ...unseen.landmarks[i], visibility: 0 };
+    expect(play([standing, 1000], [unseen, 1000], [standing, 1000])).toMatchObject({
+      reps: 0,
+      noReps: 1,
+      lastRep: { cues: ['Keep your torso upright'] },
+    });
+  });
+
   it.each([
     // Side-on, feet together, both knees bent.
     ['a squat', body({ side: true, thigh: 80, shin: 10 })],
     // One knee up, the standing leg straight.
     ['a knee lift', split('left', 90, standing)],
+    // The knee up at 100°, its foot a stride ahead in the air; the standing knee soft at 146°, within
+    // the gap.
+    [
+      'a knee lift with the foot forward',
+      split('left', 90, body({ side: true, thigh: 17, shin: 17 }), 0, -10),
+    ],
   ])('never counts %s', (_, pose) => {
     expect(play([standing, 1000], [pose, 1000], [standing, 1000]).reps).toBe(0);
   });
@@ -122,13 +140,4 @@ const LUNGES: Record<string, [number, number][]> = {
     [57.4, 60.4],
   ],
 };
-const clips = Object.keys(LUNGES).map((clip) => traceFiles('device').find((p) => p.endsWith(clip)));
-describe.skipIf(clips.some((path) => !path))('lunge on device clips with gravity', () => {
-  it.each(Object.entries(LUNGES))('%s: counts each real one once', (clip, spans) => {
-    const path = clips.find((p) => p?.endsWith(clip));
-    assert(path);
-    const { reps, inside } = repsInSpans(lunge, path, spans);
-    expect(inside, JSON.stringify(reps)).toEqual(spans.map(() => 1));
-    expect(reps, JSON.stringify(reps)).toHaveLength(spans.length);
-  });
-});
+clipSuite('lunge', lunge, LUNGES);

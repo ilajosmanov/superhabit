@@ -4,12 +4,16 @@ import { distance, dot, gravity, length, reject, seen, sub } from '@/exercises/b
 import type { Measure } from './measure';
 
 const FAR_VISIBILITY = 0.1;
+// shortcut: a guess (a lunge's back heel lifts a little, a knee lift raises the foot a third of a leg);
+// check it on device clips of knee lifts.
+const LIFTED = 0.25;
 
 /**
  * How far apart the feet are across the phone's gravity, in leg lengths (thigh plus shin on the side
  * read, so a bent knee doesn't shrink the unit): 0 together. `forward` along the way the hips face, a
  * lunge's stride; `sideways` along the hips, a jumping jack's legs. Either way a squat's stance is in
- * one and not the other. Null without gravity.
+ * one and not the other. A foot held up isn't apart: feet at heights more than `LIFTED` apart read 0,
+ * so a knee lift is no stride. Null without gravity.
  */
 export function spread(way: 'forward' | 'sideways'): Measure {
   return {
@@ -28,7 +32,8 @@ export function spread(way: 'forward' | 'sideways'): Measure {
       const apart =
         way === 'sideways' ? Math.abs(dot(feet, hips)) / length(hips) : length(reject(feet, hips));
       const leg = distance(w[near.hip], w[near.knee]) + distance(w[near.knee], w[near.ankle]);
-      const value = apart / leg;
+      const value =
+        Math.abs(dot(sub(w[far.ankle], w[near.ankle]), down)) > LIFTED * leg ? 0 : apart / leg;
       return Number.isFinite(value) ? { value, joints: [near.ankle, near.hip, far.ankle] } : null;
     },
   };

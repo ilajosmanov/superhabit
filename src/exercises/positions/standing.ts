@@ -60,5 +60,6 @@ export const standingPosition: Position<StandingSample> = {
 /** Standing with the torso kept upright through the movement: a lunge. A squat leans forward by design. */
 export const uprightPosition: Position<StandingSample> = {
   ...standingPosition,
-  form: (m) => (m.torso !== null && m.torso < TORSO_MIN ? 'Keep your torso upright' : null),
+  // Unseen shoulders can't show an upright torso either.
+  form: (m) => (m.torso === null || m.torso < TORSO_MIN ? 'Keep your torso upright' : null),
 };

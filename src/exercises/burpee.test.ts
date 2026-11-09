@@ -1,8 +1,8 @@
-import { assert, describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it } from 'vite-plus/test';
 
 import { body } from './__fixtures__/body';
 import { plank } from './__fixtures__/plank';
-import { repsInSpans, traceFiles } from './__fixtures__/replay';
+import { clipSuite } from './__fixtures__/replay';
 import type { Pose } from '@/exercises/body/geometry';
 import type { SequenceState } from '@/exercises/kinds/sequence';
 import { burpee } from './burpee';
@@ -71,15 +71,4 @@ const BURPEES: Record<string, [number, number][]> = {
     [16.5, 19.2],
   ],
 };
-const clips = Object.keys(BURPEES).map((clip) =>
-  traceFiles('device').find((p) => p.endsWith(clip)),
-);
-describe.skipIf(clips.some((path) => !path))('burpee on device clips with gravity', () => {
-  it.each(Object.entries(BURPEES))('%s: counts each real burpee once', (clip, spans) => {
-    const path = clips.find((p) => p?.endsWith(clip));
-    assert(path);
-    const { reps, inside } = repsInSpans(burpee, path, spans);
-    expect(inside, JSON.stringify(reps)).toEqual(spans.map(() => 1));
-    expect(reps, JSON.stringify(reps)).toHaveLength(spans.length);
-  });
-});
+clipSuite('burpee', burpee, BURPEES);

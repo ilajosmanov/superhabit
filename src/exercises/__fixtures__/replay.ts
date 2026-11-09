@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { assert, describe, expect, it } from 'vite-plus/test';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -56,29 +57,37 @@ export function scoreReps<S extends Progress, M>(
 }
 
 /** When each rep counted, in seconds of the trace. */
-export function repTimes<S extends Progress, M>(ex: ReplayExercise<S, M>, path: string): number[] {
+function repTimes<S extends Progress, M>(ex: ReplayExercise<S, M>, path: string): number[] {
   let state = ex.initial;
   return loadTrace(path).frames.flatMap((frame) => {
-    const next = ex.step(
-      state,
-      frame.landmarks.length === 0 ? null : ex.measure(toPose(frame)),
-      frame.t,
-    );
+    const pose = frame.landmarks.length === 0 ? null : ex.measure(toPose(frame));
+    const next = ex.step(state, pose, frame.t);
     const counted = next.reps > state.reps;
     state = next;
     return counted ? [frame.t / 1000] : [];
   });
 }
 
-/** Reps counted inside each labelled span of a trace, and all rep times for the failure message. */
-export function repsInSpans<S extends Progress, M>(
+/**
+ * Device clips labelled from their video, by file name, in trace seconds: each span holds one real
+ * rep, and no rep counts outside them. Skips while the git-ignored clips are missing.
+ */
+export function clipSuite<S extends Progress, M>(
+  title: string,
   ex: ReplayExercise<S, M>,
-  path: string,
-  spans: readonly (readonly [number, number])[],
+  labels: Record<string, readonly (readonly [number, number])[]>,
 ) {
-  const reps = repTimes(ex, path);
-  return {
-    reps,
-    inside: spans.map(([from, to]) => reps.filter((t) => t >= from && t <= to).length),
-  };
+  const clips = Object.keys(labels).map((clip) =>
+    traceFiles('device').find((path) => path.endsWith(clip)),
+  );
+  describe.skipIf(clips.some((path) => !path))(`${title} on device clips with gravity`, () => {
+    it.each(Object.entries(labels))('%s: counts each real one once', (clip, spans) => {
+      const path = clips.find((p) => p?.endsWith(clip));
+      assert(path);
+      const reps = repTimes(ex, path);
+      const inside = spans.map(([from, to]) => reps.filter((t) => t >= from && t <= to).length);
+      expect(inside, JSON.stringify(reps)).toEqual(spans.map(() => 1));
+      expect(reps, JSON.stringify(reps)).toHaveLength(spans.length);
+    });
+  });
 }
