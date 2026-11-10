@@ -1,4 +1,13 @@
-import { Canvas, Path, Skia, select, type SkPoint } from '@shopify/react-native-skia';
+import {
+  Canvas,
+  PaintStyle,
+  Picture,
+  Skia,
+  StrokeCap,
+  type SkCanvas,
+  type SkPaint,
+  type SkPoint,
+} from '@shopify/react-native-skia';
 import type { RefObject } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
@@ -37,18 +46,57 @@ export function toViewJoints(preview: CameraRef | null, result: PoseDetection): 
   }
 }
 
-function segments(segs: readonly Segment[]) {
+// Bones and dots are drawn as one rounded rect or circle each: Skia's GPU backend draws those shapes
+// directly, while one path of many strokes or circles is painted on the CPU and uploaded as a texture
+// every frame, which kept the UI thread busy enough to freeze the overlay.
+
+function paint(color: string, opacity: number, stroke?: number): SkPaint {
   'worklet';
-  const builder = Skia.PathBuilder.Make();
-  for (const [p, q] of segs) builder.moveTo(p.x, p.y).lineTo(q.x, q.y);
-  return builder.detach();
+  const p = Skia.Paint();
+  p.setAntiAlias(true);
+  p.setColor(Skia.Color(color));
+  p.setAlphaf(opacity);
+  if (stroke !== undefined) {
+    p.setStyle(PaintStyle.Stroke);
+    p.setStrokeWidth(stroke);
+    p.setStrokeCap(StrokeCap.Round);
+  }
+  return p;
 }
 
-function circles(dots: readonly Dot[]) {
+/**
+ * Each bone as a round-capped bar: a rotated rounded rect. A dimmed set is drawn opaque into a layer
+ * that is faded as a whole, so bones that overlap don't add up brighter.
+ */
+function bones(
+  canvas: SkCanvas,
+  segs: readonly Segment[],
+  width: number,
+  color: string,
+  opacity = 1,
+) {
   'worklet';
-  const builder = Skia.PathBuilder.Make();
-  for (const { x, y, r } of dots) builder.addCircle(x, y, r);
-  return builder.detach();
+  if (segs.length === 0) return;
+  const half = width / 2;
+  const p = paint(color, 1);
+  if (opacity < 1) canvas.saveLayer(paint(color, opacity));
+  for (const [a, b] of segs) {
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    canvas.save();
+    canvas.translate(a.x, a.y);
+    canvas.rotate((Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI, 0, 0);
+    const rect = { x: -half, y: -half, width: length + width, height: width };
+    canvas.drawRRect({ rect, rx: half, ry: half }, p);
+    canvas.restore();
+  }
+  if (opacity < 1) canvas.restore();
+}
+
+/** All fills first, then all outlines, so a later dot never covers an earlier dot's ring. */
+function dots(canvas: SkCanvas, all: readonly Dot[], fill: SkPaint, outline: SkPaint) {
+  'worklet';
+  for (const { x, y, r } of all) canvas.drawCircle(x, y, r, fill);
+  for (const { x, y, r } of all) canvas.drawCircle(x, y, r, outline);
 }
 
 /** A camera filling its parent, feeding every frame to the landmarker, with the skeleton drawn over it. */
@@ -117,34 +165,27 @@ export function PoseCamera({
     },
   });
 
-  // One UI-thread pass per pose builds every layer; `select` hands each Path its own key.
-  const paths = useDerivedValue(() => {
+  // One UI-thread pass per pose records the whole skeleton as a picture.
+  const picture = useDerivedValue(() => {
     const shape = skeleton(joints.get(), highlight.get());
-    const arc = Skia.PathBuilder.Make();
-    if (shape.arc) {
+    const idle = tone === 'idle';
+    const dot = idle ? colors.subtle : colors.accent;
+    const recorder = Skia.PictureRecorder();
+    const canvas = recorder.beginRecording();
+    bones(canvas, shape.far, 3, colors.chalk, idle ? 0.3 : 0.45);
+    bones(canvas, shape.near, 3, colors.chalk, idle ? 0.5 : 1);
+    const limb = tone === 'noRep' ? colors.warn : colors.chalk;
+    bones(canvas, shape.limb, idle ? 3 : 4, limb, idle ? 0.5 : 1);
+    if (tone === 'live' && shape.arc) {
       const { x, y, r, start, sweep } = shape.arc;
-      arc.addArc(Skia.XYWHRect(x - r, y - r, r * 2, r * 2), start, sweep);
+      const oval = Skia.XYWHRect(x - r, y - r, r * 2, r * 2);
+      canvas.drawArc(oval, start, sweep, false, paint(colors.accent, 1, 2.5));
     }
-    return {
-      near: segments(shape.near),
-      far: segments(shape.far),
-      limb: segments(shape.limb),
-      arc: arc.detach(),
-      dots: circles(shape.dots),
-      limbDots: circles(shape.limbDots),
-    };
+    const outline = paint(colors.ground, 1, 2.5);
+    dots(canvas, shape.dots, paint(dot, 1), outline);
+    dots(canvas, shape.limbDots, paint(tone === 'noRep' ? colors.warn : dot, 1), outline);
+    return recorder.finishRecordingAsPicture();
   });
-
-  const idle = tone === 'idle';
-  const dot = idle ? colors.subtle : colors.accent;
-  const limbDot = tone === 'noRep' ? colors.warn : dot;
-  const bone = {
-    style: 'stroke',
-    strokeCap: 'round',
-    strokeJoin: 'round',
-    strokeWidth: 3,
-  } as const;
-  const outline = { style: 'stroke', strokeWidth: 2.5, color: colors.ground } as const;
 
   return (
     <View style={StyleSheet.absoluteFill}>
@@ -168,32 +209,7 @@ export function PoseCamera({
       />
       {showSkeleton && (
         <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Path
-            path={select(paths, 'far')}
-            {...bone}
-            color={colors.chalk}
-            opacity={idle ? 0.3 : 0.45}
-          />
-          <Path
-            path={select(paths, 'near')}
-            {...bone}
-            color={colors.chalk}
-            opacity={idle ? 0.5 : 1}
-          />
-          <Path
-            path={select(paths, 'limb')}
-            {...bone}
-            color={tone === 'noRep' ? colors.warn : colors.chalk}
-            opacity={idle ? 0.5 : 1}
-            strokeWidth={idle ? 3 : 4}
-          />
-          {tone === 'live' && (
-            <Path path={select(paths, 'arc')} {...bone} color={colors.accent} strokeWidth={2.5} />
-          )}
-          <Path path={select(paths, 'dots')} color={dot} />
-          <Path path={select(paths, 'dots')} {...outline} />
-          <Path path={select(paths, 'limbDots')} color={limbDot} />
-          <Path path={select(paths, 'limbDots')} {...outline} />
+          <Picture picture={picture} />
         </Canvas>
       )}
     </View>
