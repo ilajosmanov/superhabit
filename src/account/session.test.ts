@@ -1,7 +1,7 @@
 import { createActor, toPromise } from 'xstate';
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
-import { checkSession } from './session';
+import { checkSession, signOut } from './session';
 import { keepAccount } from './store';
 import { account } from '@/storage/account';
 import { migrateDatabase } from '@/storage/__fixtures__/database';
@@ -9,7 +9,14 @@ import { migrateDatabase } from '@/storage/__fixtures__/database';
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 vi.mock('expo-file-system', () => ({ Paths: { document: 'documents' }, Directory: class {} }));
 const getSession = vi.fn();
-vi.mock('./auth-client', () => ({ authClient: { getSession: () => getSession() } }));
+const serverSignOut = vi.fn();
+vi.mock('./auth-client', () => ({
+  authClient: { getSession: () => getSession(), signOut: () => serverSignOut() },
+}));
+const googleSignOut = vi.fn();
+vi.mock('react-native-nitro-google-signin', () => ({
+  GoogleOneTapSignIn: { signOut: () => googleSignOut() },
+}));
 
 const check = () => toPromise(createActor(checkSession).start());
 const ann = { id: 'ann', name: 'Ann Lee', image: null };
@@ -52,5 +59,13 @@ describe('the session check at launch', () => {
     });
     expect(await check()).toBe('ok');
     expect(account()).toMatchObject({ name: 'Ann Lee-Smith', image: 'https://photo/ann' });
+  });
+
+  it('signs you out on this phone at once, offline too, keeping your data for when you sign in again', async () => {
+    serverSignOut.mockRejectedValue(new Error('fetch failed: Unable to resolve host'));
+    googleSignOut.mockRejectedValue(new Error('no network'));
+    await toPromise(createActor(signOut).start());
+    expect(account()).toMatchObject({ id: 'ann', signedOut: true });
+    expect(serverSignOut).toHaveBeenCalled();
   });
 });

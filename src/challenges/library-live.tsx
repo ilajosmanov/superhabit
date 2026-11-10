@@ -42,7 +42,7 @@ export function LibraryProvider({
   const [kept] = accounts.data;
   if (!kept) return null;
   const library = {
-    you: readAccount(kept.value).id,
+    account: readAccount(kept.value),
     challenges: challenges.data,
     versions: versions.data,
     runs: runs.data,

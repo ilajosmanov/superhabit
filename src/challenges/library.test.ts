@@ -18,7 +18,7 @@ vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
 vi.mock('expo-constants', () => ({ default: { expoConfig: { version: '1.0.0' } } }));
 
 const library = (): Library => ({
-  you: 'local',
+  account: { id: 'local', name: 'You', image: null },
   challenges: db().select().from(schema.challenges).all(),
   versions: db().select().from(schema.challengeVersions).all(),
   runs: db().select().from(schema.runs).all(),

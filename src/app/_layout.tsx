@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SignInScreen } from '@/account/components/sign-in-screen';
 import { startup } from '@/bootstrap/startup';
 import { LeftOpen } from '@/bootstrap/left-open';
+import { SignOut } from '@/bootstrap/sign-out';
 import { Today } from '@/bootstrap/today';
 import { LibraryProvider } from '@/challenges/library-live';
 import { PrimaryButton } from '@/components/primary-button';
@@ -49,24 +50,26 @@ export default function RootLayout() {
           their own headers. A pushed page slides fully over the one below: Android's default
           cross-fades the two, which ghosts one page through the other. */}
       {(state.matches('reading') || state.matches('recovering') || state.matches('ready')) && (
-        <LeftOpen value={state.context.open?.id ?? null}>
-          <Today value={state.context.today}>
-            <LibraryProvider onRead={(error) => send({ type: 'dataReady', error })}>
-              <DrizzleStudio />
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: colors.ground },
-                  animation: 'ios_from_right',
-                }}
-              >
-                <Stack.Screen name="challenge/[id]" options={pushed} />
-                <Stack.Screen name="create" options={pushed} />
-                <Stack.Screen name="build" options={pushed} />
-              </Stack>
-            </LibraryProvider>
-          </Today>
-        </LeftOpen>
+        <SignOut value={() => send({ type: 'signOut' })}>
+          <LeftOpen value={state.context.open?.id ?? null}>
+            <Today value={state.context.today}>
+              <LibraryProvider onRead={(error) => send({ type: 'dataReady', error })}>
+                <DrizzleStudio />
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: colors.ground },
+                    animation: 'ios_from_right',
+                  }}
+                >
+                  <Stack.Screen name="challenge/[id]" options={pushed} />
+                  <Stack.Screen name="create" options={pushed} />
+                  <Stack.Screen name="build" options={pushed} />
+                </Stack>
+              </LibraryProvider>
+            </Today>
+          </LeftOpen>
+        </SignOut>
       )}
       {/* After a failure the error stays up, its button off while Retry runs. */}
       {state.context.error !== '' && !state.matches('ready') && !recovery ? (

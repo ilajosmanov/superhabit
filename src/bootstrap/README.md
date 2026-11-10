@@ -7,6 +7,7 @@ The app's start, above every feature and below the routes.
 | `startup.ts`   | the machine the root layout runs: migrate, sign in (once), seed, offer back a workout left open, keep today, write freezes of days that are over, check the session |
 | `day.ts`       | `dayClock`, the actor that tells the day at midnight, when the app returns, and within a minute of a time zone change                                               |
 | `left-open.ts` | `useLeftOpen()`: the workout startup found open; a page linked at launch waits for its Save or Discard                                                              |
+| `sign-out.ts`  | `useSignOut()`: Me's Sign out, sent to the startup machine                                                                                                          |
 | `today.ts`     | `useToday()`: the day for screens (never `today()` while rendering)                                                                                                 |
 
 `startup.ts` only orders the steps; each lives with its owner: opening and migrating the database in

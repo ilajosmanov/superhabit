@@ -2,7 +2,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { assign, enqueueActions, fromPromise, setup, type PromiseActorLogic } from 'xstate';
 
 import { dayClock, type DayEvent } from './day';
-import { checkSession } from '@/account/session';
+import { checkSession, signOut } from '@/account/session';
 import { dropPreAccountFiles } from '@/account/store';
 import { signIn } from '@/account/sign-in';
 import { seed } from '@/challenges/library';
@@ -27,7 +27,8 @@ type Context = {
  * Gets the phone ready before any screen reads it: opens the database, brings its tables up to date, has
  * you signed in (once; the account is kept, so later launches go on offline), adds our challenges, and
  * offers back a workout left open. Once ready it checks the session with the server (`checkSession`); one
- * the server ended is asked for again at the next launch, never mid-use, where it would drop a workout. The splash stays up until there is something
+ * the server ended is asked for again at the next launch, never mid-use, where it would drop a workout.
+ * Sign out (on Me) goes back to signing in. The splash stays up until there is something
  * to show; `error` stays set while a Retry runs. Each step lives with its owner; this only orders them.
  * It also keeps today for the screens (`dayClock`), from launch on, and once ready writes the freezes of
  * days that are over, at launch and at each new day.
@@ -35,16 +36,18 @@ type Context = {
  *   migrating --> identifying --> seeding --> checking --> reading --> ready
  *       ^    \           \--> signingIn --^                   \--> recovering (Save / Discard) --> ready
  *       |     \--------------\----------\----------\--> failed (shows the error) --retry
+ *   ready --signOut--> signingOut --> signingIn
  */
 // Positional generics (no type assertions allowed): context, events, actors, children, actions.
 export const startup = setup<
   Context,
-  { type: 'retry' } | { type: 'dataReady'; error?: string } | DayEvent,
+  { type: 'retry' } | { type: 'dataReady'; error?: string } | { type: 'signOut' } | DayEvent,
   {
     migrate: PromiseActorLogic<void>;
     identify: PromiseActorLogic<boolean>;
     signIn: typeof signIn;
     session: typeof checkSession;
+    signOut: typeof signOut;
     seed: PromiseActorLogic<void>;
     check: PromiseActorLogic<{ id: string } | null>;
     recovery: typeof recovery;
@@ -62,6 +65,7 @@ export const startup = setup<
     }),
     signIn,
     session: checkSession,
+    signOut,
     seed: fromPromise(async () => seed()),
     check: fromPromise(async () => {
       deleteOrphanVideos();
@@ -161,7 +165,22 @@ export const startup = setup<
           actions: ({ event }) => console.warn('[account] session check failed', event.error),
         },
       },
-      on: { day: { actions: [assign({ today: ({ event }) => event.day }), 'keepFreezes'] } },
+      on: {
+        day: { actions: [assign({ today: ({ event }) => event.day }), 'keepFreezes'] },
+        signOut: 'signingOut',
+      },
+    },
+    // Me's Sign out: the screens go, the sign-in screen comes.
+    signingOut: {
+      invoke: {
+        src: 'signOut',
+        onDone: 'signingIn',
+        // The account row couldn't be written: you stay signed in.
+        onError: {
+          target: 'ready',
+          actions: ({ event }) => console.warn('[account] sign-out failed', event.error),
+        },
+      },
     },
     failed: { entry: 'hideSplash', on: { retry: 'migrating' } },
   },

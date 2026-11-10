@@ -13,7 +13,7 @@ vi.mock('@/storage/database', () => ({}));
 vi.mock('@/storage/account', () => ({ account: () => ({ id: 'me', name: 'Me', image: null }) }));
 vi.mock('@/account/session', async () => {
   const { fromPromise: promise } = await import('xstate');
-  return { checkSession: promise(async () => 'unknown') };
+  return { checkSession: promise(async () => 'unknown'), signOut: promise(async () => {}) };
 });
 vi.mock('@/account/auth-client', () => ({}));
 vi.mock('react-native-nitro-google-signin', () => ({}));
@@ -184,6 +184,20 @@ describe('startup', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(actor.getSnapshot().status).toBe('active');
     expect(actor.getSnapshot().matches('ready')).toBe(true);
+    actor.stop();
+  });
+
+  it('goes back to sign-in when you sign out on Me', async () => {
+    const actor = createActor(
+      startup.provide({
+        actors: { migrate: fine, seed: fine, check: nothingOpen, signOut: fine },
+      }),
+    ).start();
+    await waitFor(actor, (s) => s.matches('reading'));
+    actor.send({ type: 'dataReady' });
+    actor.send({ type: 'signOut' });
+    await waitFor(actor, (s) => s.matches('signingIn'));
+    expect(actor.getSnapshot().children.signIn).toBeDefined();
     actor.stop();
   });
 });

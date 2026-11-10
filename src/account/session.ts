@@ -1,3 +1,4 @@
+import { GoogleOneTapSignIn } from 'react-native-nitro-google-signin';
 import { fromPromise } from 'xstate';
 
 import { authClient } from './auth-client';
@@ -23,4 +24,16 @@ export const checkSession = fromPromise(async (): Promise<'ok' | 'gone' | 'unkno
   if (id !== account()?.id) return 'unknown';
   keepAccount({ id, name, image: image ?? null });
   return 'ok';
+});
+
+/**
+ * You signed out on Me. The account is marked signed out at once, its data kept: the same account signing in
+ * finds it again, another replaces it. The server and Google are told if they can be reached; nothing waits.
+ */
+// shortcut: offline, the server's session lives on until it expires; send the sign-out with sync (piece 5).
+export const signOut = fromPromise(async () => {
+  markSignedOut();
+  const tell = (what: string) => (error: unknown) => console.warn(`[account] ${what}`, error);
+  void authClient.signOut().catch(tell('server sign-out failed'));
+  void GoogleOneTapSignIn.signOut().catch(tell('Google sign-out failed'));
 });
