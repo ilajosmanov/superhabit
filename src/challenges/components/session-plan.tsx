@@ -62,8 +62,8 @@ export function SessionPlan({
           <View key={i}>
             {rows[0]?.move && <Move row={rows[0]} />}
             {(label !== '' || here) && (
-              <View className="flex-row justify-between pb-2.5">
-                <Text className="font-mono text-xs tracking-widest text-muted">{label}</Text>
+              <View className="flex-row justify-between gap-4 pb-2.5">
+                <Text className="flex-1 font-mono text-xs tracking-widest text-muted">{label}</Text>
                 {here && rounds > 1 && (
                   <Text className="font-mono text-xs tracking-widest text-accent">
                     {`ROUND ${Math.floor(next / rows.length) + 1} OF ${rounds}`}

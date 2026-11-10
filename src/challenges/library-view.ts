@@ -246,10 +246,16 @@ export type LogRow = {
   sets: readonly LoggedSet[];
 };
 
-/** `day`'s saved workouts, oldest first, each with what it got and the plan its reel plays by. */
+/**
+ * `day`'s saved workouts that counted a rep or hold (as `aliveDays` counts them), oldest first, each with
+ * what it got and the plan its reel plays by.
+ */
 export function dayLog(library: Library, day: Day, today: Day): LogRow[] {
+  const counted = new Set(
+    library.sets.filter(({ reps, heldMs }) => reps > 0 || heldMs > 0).map((set) => set.workoutId),
+  );
   const shown = library.workouts
-    .filter((workout) => workout.day === day && workout.status === 'done')
+    .filter((w) => w.day === day && w.status === 'done' && counted.has(w.id))
     .sort((a, b) => a.startedAt - b.startedAt);
   if (shown.length === 0) return [];
   // Read only what the rows need: their own sets, and every set of their runs for the runs' calendars.

@@ -138,7 +138,6 @@ it("lists a day's saved workouts oldest first, with their names, run days and th
   expect(rows.map(({ workoutId }) => workoutId)).toEqual([
     'plank',
     'pushups',
-    'nothing',
     'gave-up',
     'short',
     'newer',
@@ -155,11 +154,10 @@ it("lists a day's saved workouts oldest first, with their names, run days and th
     reps: 8,
     runDay: { number: 2, of: 3 },
   });
-  expect(rows[2]).toMatchObject({ name: 'Squats', reps: 0, held: false });
-  // A run you left still says its day.
-  expect(rows[3]).toMatchObject({ runDay: { number: 2, of: 3 } });
+  // 'nothing' counted no rep, so the day doesn't list it. A run you left still says its day.
+  expect(rows[2]).toMatchObject({ runDay: { number: 2, of: 3 } });
   // A try before a restart is numbered on its own stretch.
-  expect(rows[4]).toMatchObject({ name: 'Strict', runDay: { number: 1, of: 3 } });
+  expect(rows[3]).toMatchObject({ name: 'Strict', runDay: { number: 1, of: 3 } });
   // A version this app can't read: named, but no run day and no plan to play it by.
-  expect(rows[5]).toMatchObject({ name: 'Newer', runDay: null, steps: null });
+  expect(rows[4]).toMatchObject({ name: 'Newer', runDay: null, steps: null });
 });
