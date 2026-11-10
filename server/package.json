@@ -1,0 +1,24 @@
+{
+  "name": "superhabit-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "wrangler types && tsc --noEmit"
+  },
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "1.7.20",
+    "@better-auth/expo": "1.7.20",
+    "better-auth": "1.7.20",
+    "drizzle-orm": "1.0.0-rc.5",
+    "hono": "4.13.17"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "auth": "1.7.20",
+    "drizzle-kit": "1.0.0-rc.5",
+    "typescript": "~6.0.3",
+    "wrangler": "4.160.0"
+  }
+}

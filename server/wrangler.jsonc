@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "superhabit",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  // Better Auth needs AsyncLocalStorage.
+  "compatibility_flags": ["nodejs_compat"],
+  // Secrets, set with `wrangler secret put`: BETTER_AUTH_SECRET, GOOGLE_CLIENT_SECRET.
+  "vars": {
+    "BETTER_AUTH_URL": "https://superhabit.cloudflare-putt001.workers.dev",
+    // The Web client in Google Cloud: the audience of the ID tokens Google's sign-in gives the phone.
+    "GOOGLE_CLIENT_ID": "408762936395-b66qcgf9a751gcv04p1jiorrier10amd.apps.googleusercontent.com",
+  },
+  // Sign-in and session calls per caller (IP): 30 a minute.
+  "ratelimits": [
+    { "name": "AUTH_LIMIT", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } },
+  ],
+  // The daily purge of deleted accounts.
+  "triggers": { "crons": ["0 4 * * *"] },
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "superhabit",
+      // Created with --location enam: eastern North America, near both the US and the UK.
+      "database_id": "d685360b-811c-4fbb-a26e-f3ba0277db58",
+    },
+  ],
+}

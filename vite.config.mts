@@ -10,6 +10,8 @@ const generated = [
   'modules/*/android/build/**',
   'modules/*/android/.cxx/**',
   'src/storage/migrations/**',
+  'server/worker-configuration.d.ts',
+  'server/.wrangler/**',
 ];
 
 /** Native and UI frameworks pure logic must not touch. */
@@ -49,6 +51,21 @@ const POSE_TYPES_ONLY = {
   allowTypeImports: true,
   message: 'Pose types only: the detector is native.',
 };
+
+/** Server layers (`server/src`): `files` may not import the `banned` modules. Relative imports, no alias. */
+const serverLayer = (
+  files: string[],
+  banned: string[],
+  message: string,
+): { files: string[]; rules: Record<string, ['error', unknown]> } => ({
+  files,
+  rules: {
+    'no-restricted-imports': [
+      'error',
+      { patterns: [{ group: banned, message, allowTypeImports: true }] },
+    ],
+  },
+});
 
 /** `files` may import neither `banned` nor `paths`; no file climbs out of its folder with `../`, so bans hold. */
 const layer = (
@@ -238,6 +255,23 @@ export default defineConfig({
         ],
         [NO_EFFECTS],
       ),
+      // The server, feature by feature: routes.ts (HTTP: input, status codes) → store.ts (rules and queries)
+      // → db/ (tables and the connection). Types may cross.
+      serverLayer(
+        ['server/src/**/routes.ts'],
+        ['drizzle-orm', 'drizzle-orm/*', '**/db/schema', '**/db/auth-schema'],
+        'Queries live in store.ts.',
+      ),
+      serverLayer(
+        ['server/src/**/store.ts'],
+        ['hono', 'hono/*', '**/routes'],
+        'HTTP stays in routes.ts.',
+      ),
+      serverLayer(
+        ['server/src/db/**'],
+        ['hono', 'hono/*', '**/routes', '**/store', '**/auth/*'],
+        'db/ is the bottom layer.',
+      ),
     ],
   },
   fmt: {
@@ -248,7 +282,7 @@ export default defineConfig({
     environment: 'node',
     // A zone east of UTC with summer time, so local-day and DST bugs fail here as they would on a phone.
     env: { TZ: 'Europe/Tallinn' },
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'server/src/**/*.test.ts'],
     clearMocks: true,
     restoreMocks: true,
   },

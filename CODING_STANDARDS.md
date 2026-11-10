@@ -53,6 +53,26 @@ modules/pose/       the native pose detector (a Nitro module)
 - **No import cycles, type-only ones included.** A cycle means a contract sits in the wrong file: move
   the shared types down into their own module (as `workout/plan/results.ts` holds the result types the session and its screens share).
 
+## The server (`server/`)
+
+The Cloudflare Worker is a separate package with the same idea: a folder per feature, imports only going
+down. Lint enforces it (`serverLayer` in `vite.config.mts`).
+
+```
+server/src/index.ts        the Worker: mounts each feature's routes, runs the Cron
+  ↓
+<feature>/routes.ts        HTTP only: reads and checks the request, picks the status, calls stores
+  ↓
+<feature>/store.ts         the feature's rules and queries; no Hono
+  ↓
+db/                        tables (schema.ts, Better Auth's auth-schema.ts) and the connection (db.ts)
+```
+
+- A route may call another feature's store (`GET /me` reads consents); a store never imports a route.
+- `auth/` holds Better Auth's setup and the `signedIn` middleware every signed-in route uses.
+- Tests sit beside each feature (`consents/consents.test.ts`) and drive the whole Worker through
+  `__fixtures__/worker.ts`: a real local D1 and Google tokens signed with a test key.
+
 ## Where a new file goes
 
 Ask who uses it, not what it is:

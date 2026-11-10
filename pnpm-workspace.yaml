@@ -9,3 +9,27 @@ allowBuilds:
   '@tailwindcss/oxide': true
   # drizzle-kit brings esbuild in; its install script only verifies the platform binary pnpm installs anyway.
   esbuild: false
+  # wrangler brings workerd in; same: its script only checks the platform binary pnpm installs.
+  workerd: false
+
+packages:
+  - server
+minimumReleaseAgeExclude:
+  - '@cloudflare/workerd-darwin-64@1.20261110.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20261110.1'
+  - '@cloudflare/workerd-linux-64@1.20261110.1'
+  - '@cloudflare/workerd-linux-arm64@1.20261110.1'
+  - '@cloudflare/workerd-windows-64@1.20261110.1'
+  - miniflare@5.20261110.0-beta
+  - workerd@1.20261110.1
+  - wrangler@4.160.0
+  - '@better-auth/core@1.7.20'
+  - '@better-auth/drizzle-adapter@1.7.20'
+  - '@better-auth/expo@1.7.20'
+  - '@better-auth/kysely-adapter@1.7.20'
+  - '@better-auth/memory-adapter@1.7.20'
+  - '@better-auth/mongo-adapter@1.7.20'
+  - '@better-auth/prisma-adapter@1.7.20'
+  - '@better-auth/telemetry@1.7.20'
+  - auth@1.7.20
+  - better-auth@1.7.20
