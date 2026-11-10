@@ -5,12 +5,18 @@ UI owned by workout. Routes compose these screens with other features; workout l
 | File                                                   | Holds                                                                 |
 | ------------------------------------------------------ | --------------------------------------------------------------------- |
 | `session-screen.tsx`, `slid-in.ts`                     | session gates, camera and screen composition after navigation settles |
+| `camera-permission.tsx`                                | asking for the camera, or sending you to Settings once denied         |
 | `recover-prompt.tsx`                                   | Save / Discard prompts for a workout left open                        |
-| `live-view.tsx`, `between-sets.tsx`                    | camera overlays during and between sets                               |
+| `live-view.tsx`, `between-sets.tsx`                    | camera overlays during a set and while the phone moves                |
+| `countdown.tsx`, `rest-view.tsx`                       | the countdown and the rest, read from 2–3 m away                      |
+| `time-left.tsx`, `goal-line.tsx`                       | time left as a draining amber line; a goal in far-reading type        |
 | `set-platter.tsx`, `platter-header.tsx`                | platter composition, props and header                                 |
 | `live-set.tsx`, `paused-set.tsx`, `position-check.tsx` | each platter state                                                    |
 | `phone-setup.tsx`, `controls.tsx`                      | phone placement and shared workout controls                           |
 | `rep-count.tsx`, `rep-strip.tsx`                       | counts and attempt history                                            |
 | `depth-gauge.tsx`, `depth.ts`                          | the gauge and its pure depth calculations                             |
+
+Screens you see mid-workout have two reading distances: the far layer (the clock, the exercise and its
+goal) is big enough to read from the start position; instructions and buttons are for leaning in.
 
 `depth.test.ts` checks the gauge calculations; native components need their own test setup.

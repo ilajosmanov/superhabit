@@ -130,7 +130,7 @@ export default defineConfig({
       // friends,
       // challenges (the catalog; its views in components/), streak → workout (session; its views in components/
       // and pose/) → exercises (pure rep logic) → components/ (shared UI), theme, storage/ (the phone's
-      // database; no UI, no feature rules).
+      // database; no UI, no feature rules) → lib/ (small focused libraries: text, durations).
       // An override replaces the rule's options, so each one repeats what still applies to its files.
       layer(['src/app/**'], [], [NO_EFFECTS]),
       // The app's start: above every feature, below the routes.
@@ -268,6 +268,24 @@ export default defineConfig({
           '@/storage/**',
         ],
         [NO_EFFECTS],
+      ),
+      // Small focused libraries under every layer: plain TypeScript that imports nothing of ours.
+      layer(
+        ['src/lib/**'],
+        [
+          ...FRAMEWORKS,
+          '@/app/**',
+          '@/bootstrap/**',
+          '@/account/**',
+          '@/friends/**',
+          '@/challenges/**',
+          '@/streak/**',
+          '@/workout/**',
+          '@/exercises/**',
+          '@/components/**',
+          '@/theme',
+          '@/storage/**',
+        ],
       ),
       layer(
         ['src/storage/**'],

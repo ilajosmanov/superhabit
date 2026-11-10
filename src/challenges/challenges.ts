@@ -1,12 +1,11 @@
 import { EXERCISES, orientation, type ExerciseId, type Placement } from '@/exercises/registry';
+import { capitalise } from '@/lib/text';
 
 import { defineChallenge, expand, MAX, type Challenge, type Goal } from '@/workout/plan/plan';
 
 /** Which way the phone stands, as mono labels say it. */
 export const phoneWay = (placement: Placement) =>
   orientation(placement) === 'landscape' ? 'SIDEWAYS' : 'UPRIGHT';
-
-export const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /**
  * The exercises we offer on their own, in tile order: what the surprise card draws from (each once, as

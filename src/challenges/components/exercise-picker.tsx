@@ -1,9 +1,10 @@
 import { Link } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
-import { capitalise, ONE_GO, phoneWay } from '@/challenges/challenges';
+import { ONE_GO, phoneWay } from '@/challenges/challenges';
 import { ExerciseFigure } from '@/components/illustrations';
 import { EXERCISES } from '@/exercises/registry';
+import { capitalise } from '@/lib/text';
 import { colors } from '@/theme';
 
 /** One row per exercise the camera counts, hairline-divided like Today; a row opens the builder. */

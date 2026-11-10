@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { AndroidSymbol } from 'expo-symbols';
 
-import { mss } from '@/components/duration';
+import { mss } from '@/lib/duration';
 import { Icon } from '@/components/icon';
 import { IconButton } from '@/components/icon-button';
 import { colors } from '@/theme';
@@ -144,5 +144,32 @@ export function SecondaryButton({
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+/**
+ * The session as a segment per set: sets before `at` amber (done), `at` chalk (this one or the next),
+ * the rest dim, under a mono label: "NEXT · 2 OF 3".
+ */
+export function SetLine({ at, sets, label }: { at: number; sets: number; label: string }) {
+  return (
+    <View accessible accessibilityLabel={`${label}, set ${at + 1} of ${sets}`} className="gap-2">
+      <Text
+        numberOfLines={1}
+        maxFontSizeMultiplier={1.3}
+        className="font-mono text-xs font-medium tracking-widest text-muted"
+      >
+        {label.toUpperCase()} · {at + 1} OF {sets}
+      </Text>
+      {/* The segments get the row to themselves, up to 28 px each: fifteen sets on a 256 px card are 13. */}
+      <View className="flex-row gap-1">
+        {Array.from({ length: sets }, (_, i) => (
+          <View
+            key={i}
+            className={`h-1.5 max-w-7 flex-1 rounded-full ${i < at ? 'bg-accent' : i === at ? 'bg-chalk' : 'bg-chalk/20'}`}
+          />
+        ))}
+      </View>
+    </View>
   );
 }

@@ -3,10 +3,10 @@ import { useState } from 'react';
 import { Text, useWindowDimensions, View } from 'react-native';
 
 import { SwipeRow } from './swipe-row';
-import { capitalise } from '@/challenges/challenges';
 import { IconButton } from '@/components/icon-button';
 import { ExerciseFigure, ExerciseMotion, moves } from '@/components/illustrations';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
+import { capitalise } from '@/lib/text';
 import { colors } from '@/theme';
 
 const CARD = 256;

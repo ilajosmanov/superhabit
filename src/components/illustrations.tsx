@@ -7,7 +7,7 @@ import {
   type SkPath,
 } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { repAt } from './rep-loop';
 import { colors } from '@/theme';
@@ -70,6 +70,56 @@ const SAD =
   'M15 11.5v1M18 12v1M21 11.5v1';
 /** Someone hunched over their knees under a rain cloud: a day with no sets. */
 export const SadFigure = (p: FigureProps) => <Figure d={SAD} {...p} />;
+
+/**
+ * The session's set-up, drawn wide (358 × 230): a phone leaning on the wall, its camera's view reaching
+ * someone squatting. `off`: the camera is dark (no view, the lens struck through, everything dimmed).
+ */
+export function CameraScene({ width, off = false }: { width: number; off?: boolean }) {
+  const ink = off ? colors.faint : colors.chalk;
+  return (
+    <Svg width={width} height={(width * 230) / 358} viewBox="0 0 358 230" pointerEvents="none">
+      {!off && (
+        <>
+          <Path d="M28 70 321 149 28 210Z" fill={colors.accent} fillOpacity={0.07} />
+          <Path
+            d="M321 149 28 70M321 149 28 210"
+            stroke={colors.accent}
+            strokeOpacity={0.55}
+            strokeWidth={1.5}
+            strokeDasharray="3 6"
+            strokeLinecap="round"
+          />
+        </>
+      )}
+      <Path d="M10 210H348M330 30V210" stroke={colors.line} strokeWidth={2} strokeLinecap="round" />
+      <Rect
+        x={-10}
+        y={-74}
+        width={20}
+        height={74}
+        rx={5}
+        transform="translate(298 209) rotate(25)"
+        fill={colors.surface}
+        stroke={ink}
+        strokeWidth={2}
+      />
+      <Circle cx={321} cy={149} r={3.5} fill={off ? colors.faint : colors.accent} />
+      {off && (
+        <Path d="M300 128 342 170" stroke={colors.warn} strokeWidth={2} strokeLinecap="round" />
+      )}
+      <Path
+        d={`${ring(16, 6, HEAD)}M15 9L12 17L21 18L20 26M14 11.5L24 12`}
+        transform="translate(40 101) scale(4.2)"
+        fill="none"
+        stroke={ink}
+        strokeWidth={0.48}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
 /** A stick figure: the head's centre and the body's lines (limbs, floor, wall). */
 type Pose = { head: readonly [number, number]; body: string };

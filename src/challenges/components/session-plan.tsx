@@ -1,10 +1,11 @@
 import { Text, View } from 'react-native';
 
 import { Numeral } from './numeral';
-import { capitalise, type PlanRow, type plan } from '@/challenges/challenges';
+import { type PlanRow, type plan } from '@/challenges/challenges';
 import { Icon } from '@/components/icon';
 import { ExerciseFigure } from '@/components/illustrations';
 import { EXERCISES, orientation } from '@/exercises/registry';
+import { capitalise } from '@/lib/text';
 import { colors } from '@/theme';
 import type { Goal } from '@/workout/plan/plan';
 import { setShare } from '@/workout/plan/results';

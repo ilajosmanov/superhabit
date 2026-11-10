@@ -8,7 +8,7 @@ import { numeralLabels, SessionPlan } from './session-plan';
 import { plan } from '@/challenges/challenges';
 import { dayWord, type RunView } from '@/challenges/run-view';
 import { reelOf, type Clip } from '@/challenges/reel';
-import { mss } from '@/components/duration';
+import { mss } from '@/lib/duration';
 import { ExerciseFigure } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';

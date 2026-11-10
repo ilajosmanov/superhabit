@@ -1,10 +1,13 @@
 import { Text, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
+import { ExerciseFigure } from '@/components/illustrations';
 import { EXERCISES, type BodyPart } from '@/exercises/registry';
+import { capitalise } from '@/lib/text';
 import { colors } from '@/theme';
 
 import { Chip } from './controls';
+import { GoalLine, spokenGoal } from './goal-line';
 import { Header, type PlatterProps } from './platter-header';
 
 export const PART_LABEL: Record<BodyPart, string> = {
@@ -29,13 +32,26 @@ export function PositionCheck(props: PlatterProps) {
           onPress={onToggleSkeleton}
         />
       </Header>
-      <Text
+      {/* Board 09 v2: which exercise, and how much, readable from the start position. Two lines: "100
+          jumping jacks" on one is wider than the landscape platter. */}
+      <View
+        accessible
         accessibilityRole="header"
-        className="font-sans text-4xl font-light leading-tight tracking-tight text-chalk"
+        accessibilityLabel={`${capitalise(view.name)}, ${spokenGoal(view.goal, view.exercise)}. ${ready}`}
+        className="gap-1"
       >
-        {ready}
-      </Text>
-      <View className="mt-1.5 gap-2.5">
+        <View className="flex-row items-end gap-3">
+          <ExerciseFigure exercise={view.exercise} size={56} weight={1.6} />
+          <GoalLine goal={view.goal} exercise={view.exercise} size="md" />
+        </View>
+        <Text
+          maxFontSizeMultiplier={1}
+          className="font-sans text-3xl font-light tracking-tight text-chalk"
+        >
+          {capitalise(view.name)}
+        </Text>
+      </View>
+      <View className="gap-2">
         {parts.map((part) => {
           const out = view.missing.includes(part);
           return (

@@ -32,6 +32,8 @@ src/exercises/      pure rep logic: angles, counters, the exercise registry
 src/components/     UI shared by every screen (icons, screen shell, buttons)
 src/theme.ts        colour tokens for APIs that take values; classes come from src/global.css
 src/storage/        what is kept on the phone and how: the SQLite tables, migrations, outbox; no UI
+  ↓
+src/lib/            small focused libraries (FSD's shared/lib): text.ts, duration.ts; plain TypeScript
 modules/pose/       the native pose detector (a Nitro module)
 ```
 
@@ -41,6 +43,8 @@ modules/pose/       the native pose detector (a Nitro module)
   reads `workout/plan/results.ts`) but not its views; only a route composes two features' UI.
 - **`exercises/` is framework-free:** no React, React Native, Expo, Skia or XState. It takes pose data
   and returns numbers, so plain tests cover it. It may import the pose module's _types_ only.
+- **`lib/` is the floor:** every layer may use it, it imports nothing of ours and no framework. One focus
+  per file, named for it (`text.ts`, not `utils.ts`); its README lists what each holds.
 - **Storage knows how, a feature knows what.** `storage/` holds the tables and opens the database; it
   holds no feature rules and shows nothing. A feature's model (`challenges/library.ts`) says what is kept
   and the rules for changing it, and its screens decide how to tell you a write failed.
@@ -80,8 +84,8 @@ db/                        tables (schema.ts, Better Auth's auth-schema.ts) and 
 Ask who uses it, not what it is:
 
 1. Only one feature uses it → inside that feature (`src/workout/…`), even if it looks generic.
-2. Two features use it, and it has no business logic → `src/components/` (UI) or next to its closest
-   shared neighbour.
+2. Two features use it, and it has no business logic → `src/components/` (UI), `src/lib/` (plain
+   TypeScript with one focus: text, durations) or next to its closest shared neighbour.
 3. It decides something about exercises (an angle, a threshold, a rep) → `src/exercises/`.
 4. It is a route → `src/app/`, kept thin: anything with logic moves into the feature.
 

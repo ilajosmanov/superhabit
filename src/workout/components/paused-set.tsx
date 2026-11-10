@@ -1,8 +1,8 @@
 import { Text, View } from 'react-native';
 
 import { SecondaryButton } from './controls';
-import { mss } from '@/components/duration';
 import { Icon } from '@/components/icon';
+import { mss } from '@/lib/duration';
 import { PrimaryButton } from '@/components/primary-button';
 import { TextButton } from '@/components/text-button';
 import { colors } from '@/theme';

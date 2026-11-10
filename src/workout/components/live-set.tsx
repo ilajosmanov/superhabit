@@ -11,14 +11,50 @@ import { Header, type PlatterProps } from './platter-header';
 import { PART_LABEL } from './position-check';
 import { RepCount } from './rep-count';
 
-function Segments({ reps, target }: { reps: number; target: number }) {
+/**
+ * A segment per rep up to `most`, one filled bar past that (a 120-rep strip would be all gaps). `showTarget`
+ * writes the goal at its end, for a count drawn without its "/target".
+ */
+function Segments({
+  reps,
+  target,
+  most,
+  showTarget,
+}: {
+  reps: number;
+  target: number;
+  most: number;
+  showTarget: boolean;
+}) {
   // Open-ended sets have nothing to fill.
   if (!Number.isFinite(target)) return null;
   return (
-    <View className="flex-row gap-1">
-      {Array.from({ length: target }, (_, i) => (
-        <View key={i} className={`h-2 flex-1 rounded ${i < reps ? 'bg-accent' : 'bg-chalk/14'}`} />
-      ))}
+    <View className="flex-row items-center gap-2">
+      {target <= most ? (
+        <View className="flex-1 flex-row gap-1">
+          {Array.from({ length: target }, (_, i) => (
+            <View
+              key={i}
+              className={`h-2 flex-1 rounded ${i < reps ? 'bg-accent' : 'bg-chalk/14'}`}
+            />
+          ))}
+        </View>
+      ) : (
+        <View className="h-2 flex-1 overflow-hidden rounded bg-chalk/14">
+          <View
+            className="h-2 rounded bg-accent"
+            style={{ width: `${Math.min(100, (reps / target) * 100)}%` }}
+          />
+        </View>
+      )}
+      {showTarget && (
+        <Text
+          maxFontSizeMultiplier={1.3}
+          className="font-mono text-xs font-medium tracking-widest text-muted"
+        >
+          OF {target}
+        </Text>
+      )}
     </View>
   );
 }
@@ -61,15 +97,32 @@ export function LiveSet(props: PlatterProps) {
   const { reps, target, heldS, goalS, unit, call, flash, gauge } = view;
   const lost = view.phase === 'waiting';
   const noRep = call && !call.counted ? call : null;
+  const amount = unit === 'seconds' ? heldS : reps;
+  const goal = unit === 'seconds' ? goalS : target;
+  // The landscape platter has 216 px, 152 beside the depth gauge: three digits step down to 96 ("100/100"
+  // at 128 is ~260), and beside the gauge the "/target" moves to the end of the segments ("20/20" at 128
+  // is ~207).
+  const wide = Math.max(amount, Number.isFinite(goal) ? goal : 0) >= 100;
+  const bare = landscape && gauge !== null && !lost;
   const count = (
     <RepCount
-      reps={unit === 'seconds' ? heldS : reps}
-      target={unit === 'seconds' ? goalS : target}
+      reps={amount}
+      target={goal}
       unit={unit}
+      size={landscape && wide ? 'md' : 'lg'}
+      bare={bare}
       flash={flash === 'rep'}
     />
   );
-  const segments = unit === 'reps' && <Segments reps={reps} target={target} />;
+  // Segments stay readable (≥ 6 px) up to 15 in the narrow landscape column, 10 when "OF n" shares it, 30 in portrait.
+  const segments = unit === 'reps' && (
+    <Segments
+      reps={reps}
+      target={target}
+      most={landscape ? (bare ? 10 : 15) : 30}
+      showTarget={bare}
+    />
+  );
   const endLabel = unit === 'seconds' ? `End set · ${heldS}s` : 'End set';
   const depth = !lost && gauge && (
     <DepthGauge

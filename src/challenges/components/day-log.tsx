@@ -5,7 +5,7 @@ import { ExerciseStack } from './exercise-stack';
 import { SessionViewer } from './session-viewer';
 import type { LogRow } from '@/challenges/library-view';
 import { dayReel, type Clip } from '@/challenges/reel';
-import { mss } from '@/components/duration';
+import { mss } from '@/lib/duration';
 import { Icon } from '@/components/icon';
 import { SadFigure } from '@/components/illustrations';
 import { RollingLines } from '@/components/rolling-lines';

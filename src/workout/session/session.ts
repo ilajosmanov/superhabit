@@ -123,7 +123,7 @@ const CAPTION_MS = 3000;
 const REP_FLASH_MS = 600;
 const NO_REP_FLASH_MS = 1000;
 /** Seconds of "get ready" before a set that keeps the phone where it is. */
-const COUNTDOWN_S = 3;
+export const COUNTDOWN_S = 3;
 const NOT_LIVE: Live = { angle: null, lowest: null, joints: null };
 
 /** What a new or restarted set starts from. */

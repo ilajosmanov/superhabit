@@ -1,6 +1,6 @@
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
+import { capitalise } from '@/lib/text';
 
-import { capitalise } from './challenges';
 import {
   defineChallenge,
   MAX,

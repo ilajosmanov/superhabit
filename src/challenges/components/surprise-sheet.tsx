@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { Sheet } from './sheet';
-import { capitalise, ONE_GO } from '@/challenges/challenges';
+import { ONE_GO } from '@/challenges/challenges';
 import { ExerciseFigure } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
+import { capitalise } from '@/lib/text';
 
 /**
  * What the surprise card picked, before the camera opens: the exercise, what counts, where the phone

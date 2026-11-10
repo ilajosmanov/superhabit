@@ -1,10 +1,11 @@
 import { toEntry, type CatalogEntry } from './catalog';
-import { capitalise, ONE_GO, oneGo } from './challenges';
+import { ONE_GO, oneGo } from './challenges';
 import { draftOf } from './draft';
 import { counting, runCalendar, versionOf, type DayResult, type Version } from './progress';
 import { doneToday, type RunView } from './run-view';
 import { OURS, SUGGESTED_CHALLENGES } from './suggested';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
+import { capitalise } from '@/lib/text';
 import type { Account } from '@/storage/account';
 import type * as schema from '@/storage/schema';
 import type { Day } from '@/workout/plan/day';

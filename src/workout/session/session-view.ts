@@ -30,12 +30,16 @@ export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>) {
     /** The current set's exercise; in switching and finished, the set just done. */
     exercise: id,
     name: EXERCISES[id].name,
+    /** The current set's goal; in switching, resting and finished, the set just done's. */
+    goal,
     /** Infinity = open-ended. */
     target: goal.type === 'reps' ? goal.n : Infinity,
     unit,
     heldS: Math.floor(tally.heldMs / 1000),
     goalS: goal.type === 'seconds' ? goal.n : Infinity,
     countdown: stage === 'countdown' ? c.countdown : null,
+    /** A timed rest's length in seconds; null outside one, and for an open-ended rest. */
+    restS: stage === 'resting' && rest.type === 'seconds' ? rest.n : null,
     /** Seconds left of a timed rest; null outside one, and for an open-ended rest. */
     restLeftS:
       stage === 'resting' && rest.type === 'seconds' ? Math.max(0, rest.n - c.stepS) : null,
@@ -50,6 +54,8 @@ export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>) {
     sets: c.steps.filter((step) => step.exercise !== 'rest').length,
     /** The set after this one (stable references, for shallowEqual). */
     next,
+    /** The next set's exercise, for its figure. */
+    nextExercise: after?.exercise ?? null,
     nextGoal: after?.goal ?? null,
     /** Whole seconds; ticks while counting, switching or resting. */
     elapsedS: c.elapsedS,

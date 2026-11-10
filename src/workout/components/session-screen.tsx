@@ -13,11 +13,12 @@ import {
 } from 'react-native-vision-camera';
 
 import { BetweenSets } from './between-sets';
+import { CameraPermission } from './camera-permission';
 import { LiveView } from './live-view';
 import { RecoverOpenWorkout } from './recover-prompt';
+import { RestView } from './rest-view';
 import { useSlidIn } from './slid-in';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { PrimaryButton } from '@/components/primary-button';
 import { saveFailed } from '@/components/save-failed';
 import type { LogTarget } from '@/workout/store';
 import type { Challenge } from '@/workout/plan/plan';
@@ -66,16 +67,11 @@ export function SessionGate({
   // Before the session: its clock and orientation lock would run during the prompt.
   if (!hasPermission) {
     return (
-      <View className="flex-1 items-center justify-center gap-4 bg-ground p-6">
-        <Text className="text-center font-sans text-chalk">
-          Camera access is needed to count reps.
-        </Text>
-        {/* Once denied for good (Android's 'denied'), only Settings can grant it. */}
-        <PrimaryButton
-          onPress={() => void (canRequestPermission ? requestPermission() : Linking.openSettings())}
-          label={canRequestPermission ? 'Allow camera' : 'Open settings'}
-        />
-      </View>
+      // Once denied for good (Android's 'denied'), only Settings can grant it.
+      <CameraPermission
+        canAsk={canRequestPermission}
+        onAsk={() => void (canRequestPermission ? requestPermission() : Linking.openSettings())}
+      />
     );
   }
   // The camera, detector and orientation lock start once the page is in: started mid-slide, they held
@@ -198,7 +194,9 @@ function Session({
           challenge,
           onClose: onDone,
         })
-      ) : view.stage === 'switching' || view.stage === 'resting' ? (
+      ) : view.stage === 'resting' ? (
+        <RestView view={view} landscape={landscape} onContinue={send('next')} onEnd={send('end')} />
+      ) : view.stage === 'switching' ? (
         <BetweenSets
           view={view}
           landscape={landscape}

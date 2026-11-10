@@ -3,11 +3,12 @@ import { Pressable, Text, View } from 'react-native';
 
 import { SessionViewer } from './session-viewer';
 import { SwipeRow } from './swipe-row';
-import { capitalise, type detail } from '@/challenges/challenges';
+import { type detail } from '@/challenges/challenges';
 import { dayReel, type Spot } from '@/challenges/reel';
 import { IconButton } from '@/components/icon-button';
 import { ExerciseFigure } from '@/components/illustrations';
 import { EXERCISES } from '@/exercises/registry';
+import { capitalise } from '@/lib/text';
 import { colors } from '@/theme';
 import type { LoggedSet } from '@/workout/plan/logged-set';
 import type { FlatSteps } from '@/workout/plan/plan';

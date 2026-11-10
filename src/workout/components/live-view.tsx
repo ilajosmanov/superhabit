@@ -1,15 +1,20 @@
 import { Text, View } from 'react-native';
 
 import { Caption, Clock, CloseButton, Frame, MuteButton } from './controls';
+import { Countdown } from './countdown';
 import type { PlatterProps } from './platter-header';
 import { SetPlatter } from './set-platter';
 
 /**
  * Boards 09–13 over the full-bleed camera: the free camera area (✕ and clock, the coach's caption,
- * "Paused") and the set platter, side by side in landscape, stacked in portrait.
+ * "Paused") and the set platter, side by side in landscape, stacked in portrait. The countdown before a
+ * set (board 18b) takes the whole screen instead.
  */
 export function LiveView(props: PlatterProps) {
   const { view, landscape, onPause, onToggleVoice } = props;
+  const { countdown } = view;
+  if (countdown !== null)
+    return <Countdown view={{ ...view, countdown }} landscape={landscape} onPause={onPause} />;
   const paused = view.stage === 'paused';
   // While counting ✕ only pauses: ending is one more tap on the paused platter, so a stray tap loses nothing.
   const close = <CloseButton onPress={onPause} label="Pause. Pauses first; then resume or end" />;
@@ -40,16 +45,16 @@ export function LiveView(props: PlatterProps) {
               <MuteButton muted={view.muted} onPress={onToggleVoice} />
             </View>
           )}
-          {(paused || view.countdown !== null) && (
+          {paused && (
             <View className="items-center gap-2.5">
               <Text
                 accessibilityRole="header"
                 className="font-sans text-6xl font-extralight leading-none tracking-tight text-chalk"
               >
-                {paused ? 'Paused' : view.countdown}
+                Paused
               </Text>
               <Text className="font-mono text-xs font-medium tracking-widest text-soft">
-                {paused ? 'NOT COUNTING' : 'GET READY'}
+                NOT COUNTING
               </Text>
             </View>
           )}
