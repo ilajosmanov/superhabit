@@ -1,4 +1,4 @@
-import { defineChallenge, reps, seconds, type Challenge, type Step } from '@/workout/plan';
+import { defineChallenge, reps, seconds, type Challenge, type Step } from '@/workout/plan/plan';
 
 const rest = (n: number) => ({ exercise: 'rest', goal: seconds(n) }) as const;
 /** A ladder rung: n push-ups, n sit-ups, then whatever follows (a rest, except on the last rung). */

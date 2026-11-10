@@ -1,6 +1,6 @@
 import type { BodyPart } from '@/exercises/registry';
 
-import { framePhrase } from './phrase';
+import { framePhrase } from '@/workout/coach/phrase';
 
 /** How long a differing out-of-frame reading must hold before it commits. */
 const STABLE_MS = 1000;

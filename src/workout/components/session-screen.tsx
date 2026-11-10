@@ -19,13 +19,13 @@ import { useSlidIn } from './slid-in';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { PrimaryButton } from '@/components/primary-button';
 import { saveFailed } from '@/components/save-failed';
-import type { LogTarget } from '@/workout/log';
-import type { Challenge } from '@/workout/plan';
+import type { LogTarget } from '@/workout/store';
+import type { Challenge } from '@/workout/plan/plan';
 import { usePoseOverlay } from '@/workout/pose/overlay';
 import { PoseCamera } from '@/workout/pose/pose-camera';
 import { useLeftWorkout } from '@/workout/recovery';
-import { workoutSession } from '@/workout/session';
-import { sessionView, type SessionView } from '@/workout/session-view';
+import { workoutSession } from '@/workout/session/session';
+import { sessionView, type SessionView } from '@/workout/session/session-view';
 
 function Centered({ text }: { text: string }) {
   return (

@@ -10,7 +10,7 @@ import { AndroidHaptics, performAndroidHapticsAsync } from 'expo-haptics';
 import { useRef, useState } from 'react';
 import { Text, TextInput, View, type TextInputInstance } from 'react-native';
 
-import { addDays, dayLabel, type Day } from '@/workout/day';
+import { addDays, dayLabel, type Day } from '@/workout/plan/day';
 import {
   autoName,
   DAY_CHOICES,
@@ -27,7 +27,7 @@ import { Screen } from '@/components/screen';
 import { SwitchRow } from '@/components/switch-row';
 import { EXERCISES } from '@/exercises/registry';
 import { colors } from '@/theme';
-import type { Challenge, Goal } from '@/workout/plan';
+import type { Challenge, Goal } from '@/workout/plan/plan';
 
 const label = 'font-mono text-xs tracking-widest text-muted';
 const FONT = { fontFamily: 'Geist', fontWeight: '500', fontSize: 15 } as const;

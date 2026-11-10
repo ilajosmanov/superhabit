@@ -6,8 +6,13 @@ import { userId } from '@/storage/account';
 import { db, type Transaction } from '@/storage/database';
 import { enqueue } from '@/storage/outbox';
 import { challenges, challengeVersions, runs } from '@/storage/schema';
-import { today } from '@/workout/day';
-import { readPlan, type Challenge } from '@/workout/plan';
+import { today } from '@/workout/plan/day';
+import { readPlan, type Challenge } from '@/workout/plan/plan';
+
+/** Whole tables for the library's live subscriptions. */
+export const challengeRows = () => db().query.challenges.findMany();
+export const versionRows = () => db().query.challengeVersions.findMany();
+export const runRows = () => db().query.runs.findMany();
 
 /** A challenge's content as a version row; versions are only ever added. */
 const versionRow = (challengeId: string, id: string, number: number, challenge: Challenge) => ({

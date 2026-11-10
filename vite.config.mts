@@ -155,7 +155,13 @@ export default defineConfig({
         [NO_EFFECTS],
       ),
       layer(
-        ['src/workout/*.ts'],
+        [
+          'src/workout/*.ts',
+          'src/workout/plan/**',
+          'src/workout/session/**',
+          'src/workout/capture/**',
+          'src/workout/coach/**',
+        ],
         [
           '@/app/**',
           '@/bootstrap/**',

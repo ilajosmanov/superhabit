@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 
 import { counting, dayResult, type ProgressInput } from './progress';
-import { MAX, reps, seconds } from '@/workout/plan';
+import { MAX, reps, seconds } from '@/workout/plan/plan';
 
 import { input, set, workout } from './__fixtures__/progress';
 

@@ -1,10 +1,10 @@
 import { files, modules } from '@/workout/__fixtures__/session';
 import { afterEach, expect, it, vi } from 'vite-plus/test';
 
-import { videoFile, videosOf } from './video-file';
+import { videoFile } from './camcorder';
+import { videosOf } from '@/storage/set-files';
 
 vi.mock('expo-file-system', () => modules['expo-file-system']);
-vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 
 afterEach(() => files.clear());
 

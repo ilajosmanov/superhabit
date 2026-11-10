@@ -17,7 +17,11 @@ src/challenges/     the challenge catalog: definitions, catalog entries, your li
                     kept on the phone), run progress, the reel of a session's sets
   components/       UI only challenges uses (catalog tiles, joined cards, the Done page and its reel)
   ↓
-src/workout/        the workout feature: plan model, session machine, results, camcorder, coaching
+src/workout/        the workout feature: store, log actor and recovery
+  plan/             plan model, result contracts and local days
+  session/          session machine, counting, framing and orientation
+  capture/          trace recorder, camcorder and their in-flight writes
+  coach/            phrases and speech
   components/       UI only workout uses (platters, gauge, controls)
   pose/             camera → pose detection → skeleton drawing
   ↓
@@ -32,18 +36,21 @@ modules/pose/       the native pose detector (a Nitro module)
 - **A layer never imports one above it.** `workout/` knows nothing about the catalog, `exercises/` knows
   nothing about workouts, and `components/` knows nothing about any feature.
 - **A feature's `components/` and `pose/` are its own UI.** Another feature may use its logic (challenges
-  reads `workout/results.ts`) but not its views; only a route composes two features' UI.
+  reads `workout/plan/results.ts`) but not its views; only a route composes two features' UI.
 - **`exercises/` is framework-free:** no React, React Native, Expo, Skia or XState. It takes pose data
   and returns numbers, so plain tests cover it. It may import the pose module's _types_ only.
 - **Storage knows how, a feature knows what.** `storage/` holds the tables and opens the database; it
   holds no feature rules and shows nothing. A feature's model (`challenges/library.ts`) says what is kept
   and the rules for changing it, and its screens decide how to tell you a write failed.
-- **Workout logic (`src/workout/*.ts`) never imports its own UI** (`components/`, `pose/`). UI reads the
-  session through `sessionView`, and the machine never learns how it is drawn.
+- **Each feature has exactly one store file for its tables:** `challenges/library.ts` and
+  `workout/store.ts` own their features' database access.
+- **Workout logic (`src/workout/*.ts`, `plan/`, `session/`, `capture/`, `coach/`) never imports its own UI**
+  (`components/`, `pose/`). UI reads the session through `sessionView`, and the machine never learns how
+  it is drawn.
 - **No `../` imports.** Within a folder use `./name`; across folders use `@/…`. That keeps the layer
   bans above from being dodged with a relative path.
 - **No import cycles, type-only ones included.** A cycle means a contract sits in the wrong file: move
-  the shared types down into their own module (as `workout/results.ts` holds the result types the session and its screens share).
+  the shared types down into their own module (as `workout/plan/results.ts` holds the result types the session and its screens share).
 
 ## Where a new file goes
 
@@ -74,7 +81,7 @@ Use what the platform already ships before drawing or building our own:
 
 ## Naming
 
-- Name a file by its content: `exercises/registry.ts`, `workout/results.ts`. No `index.ts` barrels, and
+- Name a file by its content: `exercises/registry.ts`, `workout/plan/results.ts`. No `index.ts` barrels, and
   no `utils`, `helpers`, `types` or `common` files or folders: they tell a reader nothing and fill up
   with unrelated code.
 - kebab-case file names; `.tsx` only when the file renders.
@@ -113,7 +120,7 @@ is guarded. Signs of one:
   fix) and watch it go red. If it stays green, it is tautological.
 
 Fake only the boundaries we don't own (native modules, the file system, the camera), keep them dumb, and
-let the real logic run between them. `session.test.ts` does this: it fakes the landmarker, speech, file
+let the real logic run between them. `workout/session/session.test.ts` does this: it fakes the landmarker, speech, file
 system and video output, and runs the real machine, counters and camcorder.
 
 ## Shortcuts

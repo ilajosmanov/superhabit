@@ -8,8 +8,8 @@ import { WatchDay } from './watch-day';
 import { detail, plan } from '@/challenges/challenges';
 import type { Joined } from '@/challenges/library-view';
 import { doneToday, percent } from '@/challenges/run-view';
-import { expand } from '@/workout/plan';
-import { setShare } from '@/workout/results';
+import { expand } from '@/workout/plan/plan';
+import { setShare } from '@/workout/plan/results';
 
 /**
  * A challenge you are in: how today stands, every day of the run to pick from, what the picked day asks

@@ -3,7 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { sql } from 'drizzle-orm';
 import { createActor } from 'xstate';
 
-import { defineChallenge, MAX, reps, seconds, type Step } from './plan';
+import { defineChallenge, MAX, reps, seconds, type Step } from '@/workout/plan/plan';
 import { EXERCISES } from '@/exercises/registry';
 
 import { plank } from '@/exercises/__fixtures__/plank';
@@ -23,7 +23,7 @@ import {
   spoken,
   squat,
   squatTest,
-} from './__fixtures__/session';
+} from '@/workout/__fixtures__/session';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
 

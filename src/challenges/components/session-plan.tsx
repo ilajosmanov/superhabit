@@ -6,8 +6,8 @@ import { Icon } from '@/components/icon';
 import { ExerciseFigure } from '@/components/illustrations';
 import { EXERCISES, orientation } from '@/exercises/registry';
 import { colors } from '@/theme';
-import type { Goal } from '@/workout/plan';
-import { setShare } from '@/workout/results';
+import type { Goal } from '@/workout/plan/plan';
+import { setShare } from '@/workout/plan/results';
 
 const hold = (row: PlanRow) => EXERCISES[row.exercise].kind === 'hold';
 const amount = (goal: Goal) => (goal.type === 'max' ? 'Max' : String(goal.n));

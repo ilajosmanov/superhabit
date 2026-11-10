@@ -1,7 +1,7 @@
-import { addDays, type Day } from '@/workout/day';
-import type { LoggedSet } from '@/workout/logged-set';
-import { expand, type Session } from '@/workout/plan';
-import { setShare, shareDone, workoutResults } from '@/workout/results';
+import { addDays, type Day } from '@/workout/plan/day';
+import type { LoggedSet } from '@/workout/plan/logged-set';
+import { expand, type Session } from '@/workout/plan/plan';
+import { setShare, shareDone, workoutResults } from '@/workout/plan/results';
 
 export type Workout = {
   id: string;

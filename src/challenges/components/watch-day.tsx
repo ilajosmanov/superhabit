@@ -9,9 +9,9 @@ import { IconButton } from '@/components/icon-button';
 import { ExerciseFigure } from '@/components/illustrations';
 import { EXERCISES } from '@/exercises/registry';
 import { colors } from '@/theme';
-import type { LoggedSet } from '@/workout/logged-set';
-import type { FlatSteps } from '@/workout/plan';
-import { videosOf } from '@/workout/video-file';
+import type { LoggedSet } from '@/workout/plan/logged-set';
+import type { FlatSteps } from '@/workout/plan/plan';
+import { videosOf } from '@/storage/set-files';
 
 const CARD = 152;
 

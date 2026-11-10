@@ -1,15 +1,7 @@
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { fromPromise, setup } from 'xstate';
 
-import { discardWorkout, saveWorkout } from './log';
-import { db } from '@/storage/database';
-
-/** The open workout: at most one is open at a time. */
-const openWorkout = () =>
-  db().query.workouts.findFirst({ where: { status: 'open' }, columns: { id: true } });
-
-/** The workout a session left open (the app closed before Done), or null. */
-export const findOpenWorkout = () => openWorkout().sync() ?? null;
+import { discardWorkout, openWorkout, saveOpenWorkout } from './store';
 
 /**
  * A workout an earlier session left open, kept current (Save or Discard clears it); `own`, the workout
@@ -18,21 +10,6 @@ export const findOpenWorkout = () => openWorkout().sync() ?? null;
 export function useLeftWorkout(own: string) {
   const { data, updatedAt } = useLiveQuery(openWorkout());
   return { loading: !updatedAt, workout: data && data.id !== own ? data : null };
-}
-
-/**
- * Saves a workout left open, ended when its last set ended (not now: the app was closed since). The last
- * set is the furthest in the plan, not the latest clock time: the phone's clock can go back mid-workout.
- */
-export function saveOpenWorkout(id: string) {
-  const workout = db()
-    .query.workouts.findFirst({
-      where: { id },
-      with: { sets: { columns: { endedAt: true }, orderBy: { planStep: 'desc' }, limit: 1 } },
-    })
-    .sync();
-  if (!workout) return;
-  saveWorkout(id, workout.sets[0]?.endedAt ?? workout.startedAt);
 }
 
 const save = fromPromise<void, string>(async ({ input }) => saveOpenWorkout(input));

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Text, View } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
 
-import type { SessionView } from '@/workout/session-view';
+import type { SessionView } from '@/workout/session/session-view';
 
 import { Chip } from './controls';
 

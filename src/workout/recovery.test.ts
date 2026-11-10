@@ -2,11 +2,16 @@ import { files, modules, reset } from '@/workout/__fixtures__/session';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { createActor, fromPromise } from 'xstate';
 
-import { logSet, workoutStart } from './log';
-import { reps } from './plan';
-import { findOpenWorkout, recovery, saveOpenWorkout } from './recovery';
-import type { StepResult } from './results';
-import { deleteOrphanVideos } from './video-file';
+import {
+  deleteOrphanVideos,
+  findOpenWorkout,
+  logSet,
+  saveOpenWorkout,
+  workoutStart,
+} from './store';
+import { reps } from '@/workout/plan/plan';
+import { recovery } from './recovery';
+import type { StepResult } from '@/workout/plan/results';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
 

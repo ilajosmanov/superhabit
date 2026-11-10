@@ -1,6 +1,6 @@
 import type { ProgressInput, Workout } from '@/challenges/progress';
-import type { LoggedSet } from '@/workout/logged-set';
-import { reps } from '@/workout/plan';
+import type { LoggedSet } from '@/workout/plan/logged-set';
+import { reps } from '@/workout/plan/plan';
 
 export const input: ProgressInput = {
   run: {

@@ -3,8 +3,17 @@ import { createActor } from 'xstate';
 
 import { body, detection } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
-import { MAX } from './plan';
-import { clock, hold, LOG, modules, native, plan, reset, squatTest } from './__fixtures__/session';
+import { MAX } from '@/workout/plan/plan';
+import {
+  clock,
+  hold,
+  LOG,
+  modules,
+  native,
+  plan,
+  reset,
+  squatTest,
+} from '@/workout/__fixtures__/session';
 import { migrateDatabase } from '@/storage/__fixtures__/database';
 
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));

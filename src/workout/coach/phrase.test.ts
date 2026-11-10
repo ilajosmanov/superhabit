@@ -1,6 +1,6 @@
 import { expect, test } from 'vite-plus/test';
 import { endPhrase, framePhrase, repPhrase, setPhrase, startPhrase } from './phrase';
-import { MAX, reps, seconds } from './plan';
+import { MAX, reps, seconds } from '@/workout/plan/plan';
 
 const at = (reps: number, noReps = 0) => ({ reps, noReps });
 

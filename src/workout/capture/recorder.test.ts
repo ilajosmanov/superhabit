@@ -3,7 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { createActor } from 'xstate';
 import { sql } from 'drizzle-orm';
 
-import { MAX, seconds } from './plan';
+import { MAX, seconds } from '@/workout/plan/plan';
 import { body, detection } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
 import { replay, toPose } from '@/exercises/__fixtures__/replay';
@@ -34,7 +34,7 @@ import {
   video,
   writeFile,
   written,
-} from './__fixtures__/session';
+} from '@/workout/__fixtures__/session';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
 
@@ -49,9 +49,9 @@ vi.mock('expo-constants', () => modules['expo-constants']);
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 vi.mock('drizzle-orm/expo-sqlite', () => ({}));
 
-const { workoutSession } = await import('./session');
-const { sessionView } = await import('./session-view');
-const { recovery } = await import('./recovery');
+const { workoutSession } = await import('@/workout/session/session');
+const { sessionView } = await import('@/workout/session/session-view');
+const { recovery } = await import('@/workout/recovery');
 
 beforeAll(migrateDatabase);
 beforeEach(() => {

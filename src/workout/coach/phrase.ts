@@ -1,6 +1,6 @@
 import type { BodyPart, Phase } from '@/exercises/registry';
 
-import type { Goal } from './plan';
+import type { Goal } from '@/workout/plan/plan';
 
 /** Every this many counted reps the count gets a "keep going". */
 const ENCOURAGE_EVERY = 5;

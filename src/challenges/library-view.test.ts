@@ -1,7 +1,7 @@
 import { expect, it } from 'vite-plus/test';
 
 import { sessionChallenge, type Library } from './library-view';
-import { reps } from '@/workout/plan';
+import { reps } from '@/workout/plan/plan';
 
 const version = (id: string, name: string, days: number) => ({
   id,

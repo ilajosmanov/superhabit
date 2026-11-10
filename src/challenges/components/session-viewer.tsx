@@ -22,7 +22,7 @@ import { tick } from '@/components/tick';
 import { EXERCISES } from '@/exercises/registry';
 import { colors } from '@/theme';
 import { pointAt, weight, type Clip, type Spot } from '@/challenges/reel';
-import { setShare } from '@/workout/results';
+import { setShare } from '@/workout/plan/results';
 
 /**
  * Full screen, like stories: the sets back to back from `start`, which set is on and what it got, and the

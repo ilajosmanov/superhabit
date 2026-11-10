@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { sessionChallenge, type Library } from './library-view';
-import { today } from '@/workout/day';
+import { today } from '@/workout/plan/day';
 
 /**
  * What a workout on `id` (a run, or an exercise for one go) runs, decided once as it starts: later

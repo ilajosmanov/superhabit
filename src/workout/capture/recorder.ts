@@ -10,7 +10,7 @@ import {
   type TracePoint,
 } from '@/storage/trace-file';
 
-import { sweepTraceTemps, writeTrace } from './recorder-file';
+import { sweepTraceWrites, writeTrace } from './recorder-file';
 import type { TakeEvent } from './camcorder';
 
 type Stretch = NonNullable<TraceHeader['stretches']>[number];
@@ -52,7 +52,7 @@ function toFrame(
  */
 export const recorder = fromCallback<RecorderEvent, { on: boolean }>(({ input, receive }) => {
   if (!input.on) return;
-  sweepTraceTemps();
+  sweepTraceWrites();
   let window: Window | null = null;
   let trace = traceBuilder();
   let stretches: Stretch[] = [];

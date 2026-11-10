@@ -12,18 +12,19 @@ import {
   type Counting,
   type Live,
 } from './counting';
-import { endPhrase } from './phrase';
-import { speech } from './speech';
-import { recorder, type RecorderEvent } from './recorder';
+import { endPhrase } from '@/workout/coach/phrase';
+import { speech } from '@/workout/coach/speech';
+import { recorder, type RecorderEvent } from '@/workout/capture/recorder';
 import { orientationLock } from './orientation-lock';
 import { NONE } from './framing';
 
 import { EXERCISES, initialCounters, orientation } from '@/exercises/registry';
 
-import { finishSet, type StepResult } from './results';
-import { camcorder, type VideoOutput } from './camcorder';
-import { workoutLog, type LogTarget } from './log';
-import { done, expand, type Challenge } from './plan';
+import { finishSet, type StepResult } from '@/workout/plan/results';
+import { camcorder, type VideoOutput } from '@/workout/capture/camcorder';
+import { workoutLog } from '@/workout/log';
+import type { LogTarget } from '@/workout/store';
+import { done, expand, type Challenge } from '@/workout/plan/plan';
 
 type Events =
   | { type: 'ready'; landmarker: PoseLandmarker }

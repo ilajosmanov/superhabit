@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 
 import { detail, plan } from './challenges';
-import { defineChallenge, MAX, reps, seconds, type Session } from '@/workout/plan';
+import { defineChallenge, MAX, reps, seconds, type Session } from '@/workout/plan/plan';
 
 const challenge = (session: Session) =>
   defineChallenge({ name: 'Test', days: 1, restartOnMiss: false, dailyTotal: false, session });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 
 import { toEntry } from './catalog';
-import { MAX, reps, seconds } from '@/workout/plan';
+import { MAX, reps, seconds } from '@/workout/plan/plan';
 
 describe('toEntry', () => {
   it('lists each exercise step once and folds rounds and rest into the note', () => {

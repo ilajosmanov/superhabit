@@ -1,9 +1,9 @@
 import type { PoseDetection } from 'superhabit-pose';
 
 import { settle, type Framing } from './framing';
-import { repPhrase, startPhrase } from './phrase';
-import { done, type FlatSteps } from './plan';
-import { statsOf, type Attempt } from './results';
+import { repPhrase, startPhrase } from '@/workout/coach/phrase';
+import { done, type FlatSteps } from '@/workout/plan/plan';
+import { statsOf, type Attempt } from '@/workout/plan/results';
 import {
   EXERCISES,
   outOfFrame,

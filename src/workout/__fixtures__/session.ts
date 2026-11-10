@@ -15,8 +15,8 @@ import { plank } from '@/exercises/__fixtures__/plank';
 
 import { db } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
-import type { VideoOutput } from '@/workout/camcorder';
-import { defineChallenge, MAX, reps, type Step } from '@/workout/plan';
+import type { VideoOutput } from '@/workout/capture/camcorder';
+import { defineChallenge, MAX, reps, type Step } from '@/workout/plan/plan';
 
 export const speak = vi.fn();
 export const lockAsync = vi.fn(async () => {});

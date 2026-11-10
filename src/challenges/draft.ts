@@ -1,7 +1,14 @@
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 
 import { capitalise } from './challenges';
-import { defineChallenge, MAX, reps, seconds, type Challenge, type Goal } from '@/workout/plan';
+import {
+  defineChallenge,
+  MAX,
+  reps,
+  seconds,
+  type Challenge,
+  type Goal,
+} from '@/workout/plan/plan';
 
 /**
  * What the builder edits: one exercise and its daily goal. `name` is null until you type one. `dailyTotal`

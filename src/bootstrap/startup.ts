@@ -4,9 +4,9 @@ import { assign, fromPromise, setup, type PromiseActorLogic } from 'xstate';
 import { dayClock, type DayEvent } from './day';
 import { seed } from '@/challenges/library';
 import { migrateDatabase } from '@/storage/database';
-import { today, type Day } from '@/workout/day';
-import { findOpenWorkout, recovery } from '@/workout/recovery';
-import { deleteOrphanVideos } from '@/workout/video-file';
+import { today, type Day } from '@/workout/plan/day';
+import { recovery } from '@/workout/recovery';
+import { deleteOrphanVideos, findOpenWorkout } from '@/workout/store';
 
 type Context = {
   error: string;

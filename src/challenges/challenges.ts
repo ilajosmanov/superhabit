@@ -1,6 +1,6 @@
 import { EXERCISES, orientation, type ExerciseId, type Placement } from '@/exercises/registry';
 
-import { defineChallenge, expand, MAX, type Challenge, type Goal } from '@/workout/plan';
+import { defineChallenge, expand, MAX, type Challenge, type Goal } from '@/workout/plan/plan';
 
 /** Which way the phone stands, as mono labels say it. */
 export const phoneWay = (placement: Placement) =>

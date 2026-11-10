@@ -1,7 +1,7 @@
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 
 import { capitalise } from './challenges';
-import { goalLabel, type Challenge } from '@/workout/plan';
+import { goalLabel, type Challenge } from '@/workout/plan/plan';
 
 /** One line on a challenge card: the step's goal in its own unit ("×25", "60 s", "MAX"). */
 export type CatalogStep = { exercise: ExerciseId; name: string; goal: string };

@@ -1,6 +1,42 @@
 import { fromCallback } from 'xstate';
 
-import { videoFile } from './video-file';
+import { removeVideo, reserveVideo } from '@/storage/set-files';
+
+const jobs = new Map<string, Set<{ discarded: boolean }>>();
+
+/** Tracks even a pending native start: Discard must also delete a file that appears later. */
+export function videoFile(setId: string, index: number) {
+  const reservation = reserveVideo(setId, index);
+  const { file } = reservation;
+  const job = { discarded: false };
+  const pending = jobs.get(setId) ?? new Set();
+  jobs.set(setId, pending);
+  pending.add(job);
+  let done = false;
+  return {
+    file,
+    get discarded() {
+      return job.discarded;
+    },
+    discard() {
+      job.discarded = true;
+      removeVideo(file);
+    },
+    finish(ok: boolean) {
+      if (done) return;
+      done = true;
+      if (!ok || job.discarded) removeVideo(file);
+      reservation.release();
+      pending.delete(job);
+      if (pending.size === 0) jobs.delete(setId);
+    },
+  };
+}
+
+/** Marks pending native work before the store deletes a discarded set's files. */
+export function discardVideoWrites(setIds: readonly string[]) {
+  for (const setId of setIds) for (const job of jobs.get(setId) ?? []) job.discarded = true;
+}
 
 /**
  * The part of VisionCamera's CameraVideoOutput (`useVideoOutput()`) the session uses; a CameraVideoOutput

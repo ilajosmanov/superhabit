@@ -3,9 +3,10 @@ import { sql } from 'drizzle-orm';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { createActor, setup } from 'xstate';
 
-import { discardWorkout, logSet, saveWorkout, workoutLog, workoutStart } from './log';
-import { reps } from './plan';
-import type { StepResult } from './results';
+import { workoutLog } from './log';
+import { discardWorkout, logSet, saveWorkout, workoutStart } from './store';
+import { reps } from '@/workout/plan/plan';
+import type { StepResult } from '@/workout/plan/results';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
 

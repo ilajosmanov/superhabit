@@ -13,9 +13,9 @@ import { ExerciseFigure } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 import { colors } from '@/theme';
-import { expand, type Challenge } from '@/workout/plan';
-import { setAmounts, shareDone } from '@/workout/results';
-import type { SessionView } from '@/workout/session-view';
+import { expand, type Challenge } from '@/workout/plan/plan';
+import { setAmounts, shareDone } from '@/workout/plan/results';
+import type { SessionView } from '@/workout/session/session-view';
 
 /** How much of the screen the video takes. */
 const HERO = 0.59;

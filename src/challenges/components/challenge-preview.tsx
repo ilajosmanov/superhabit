@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { detail, plan } from '@/challenges/challenges';
 import { HowItCounts } from './how-it-counts';
 import { SessionPlan } from './session-plan';
-import type { Challenge } from '@/workout/plan';
+import type { Challenge } from '@/workout/plan/plan';
 
 /**
  * A challenge before you are in it, the page teaching: what a day asks for, where the phone goes, and

@@ -2,7 +2,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 
 import { createActor } from 'xstate';
 
-import { MAX, reps, seconds } from './plan';
+import { MAX, reps, seconds } from '@/workout/plan/plan';
 
 import { plank } from '@/exercises/__fixtures__/plank';
 import {
@@ -19,7 +19,7 @@ import {
   spoken,
   squat,
   squatTest,
-} from './__fixtures__/session';
+} from '@/workout/__fixtures__/session';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
 

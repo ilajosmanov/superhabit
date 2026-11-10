@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 
 import { dayWord, type RunView } from '@/challenges/run-view';
-import { addDays, dayLabel } from '@/workout/day';
+import { addDays, dayLabel } from '@/workout/plan/day';
 import { tick } from '@/components/tick';
 import { colors } from '@/theme';
 

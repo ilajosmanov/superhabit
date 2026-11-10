@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
 
-import type { VideoOutput } from './camcorder';
+import type { VideoOutput } from '@/workout/capture/camcorder';
 import { body } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
 import {
@@ -19,7 +19,7 @@ import {
   stuck,
   takes,
   video,
-} from './__fixtures__/session';
+} from '@/workout/__fixtures__/session';
 import { migrateDatabase } from '@/storage/__fixtures__/database';
 
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));

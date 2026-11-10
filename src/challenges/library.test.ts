@@ -7,9 +7,9 @@ import { challengePage, yourRuns, type Library } from './library-view';
 import { SUGGESTED_CHALLENGES } from './suggested';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
-import { addDays, today } from '@/workout/day';
-import { logSet, saveWorkout, workoutStart } from '@/workout/log';
-import { defineChallenge, readPlan, reps, type Challenge } from '@/workout/plan';
+import { addDays, today } from '@/workout/plan/day';
+import { logSet, saveWorkout, workoutStart } from '@/workout/store';
+import { defineChallenge, readPlan, reps, type Challenge } from '@/workout/plan/plan';
 
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);

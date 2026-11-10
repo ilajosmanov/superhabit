@@ -6,11 +6,11 @@ import { doneToday, type RunView } from './run-view';
 import { OURS, SUGGESTED_CHALLENGES } from './suggested';
 import { userId } from '@/storage/account';
 import type * as schema from '@/storage/schema';
-import type { Day } from '@/workout/day';
-import type { LogTarget } from '@/workout/log';
-import { readSets, type LoggedSet } from '@/workout/logged-set';
-import { expand, readPlan } from '@/workout/plan';
-import { setAmounts, workoutResults } from '@/workout/results';
+import type { Day } from '@/workout/plan/day';
+import { readSets, type LoggedSet } from '@/workout/plan/logged-set';
+import type { LogTarget } from '@/workout/store';
+import { expand, readPlan } from '@/workout/plan/plan';
+import { setAmounts, workoutResults } from '@/workout/plan/results';
 
 /** The library's tables, whole, as the screens read them. */
 export type Library = {

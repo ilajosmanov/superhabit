@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vite-plus/test';
 
 import { set as kept } from '@/challenges/__fixtures__/progress';
-import { expand, reps, seconds } from '@/workout/plan';
+import { expand, reps, seconds } from '@/workout/plan/plan';
 import { after, dayReel, pointAt, reelOf } from './reel';
-import type { StepResult } from '@/workout/results';
+import type { StepResult } from '@/workout/plan/results';
 
 const set = (seconds: number, takes: string[]): StepResult => ({
   id: 'set',

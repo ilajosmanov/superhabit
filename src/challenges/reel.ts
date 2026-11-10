@@ -1,6 +1,6 @@
-import type { LoggedSet } from '@/workout/logged-set';
-import type { FlatSteps } from '@/workout/plan';
-import type { StepResult } from '@/workout/results';
+import type { LoggedSet } from '@/workout/plan/logged-set';
+import type { FlatSteps } from '@/workout/plan/plan';
+import type { StepResult } from '@/workout/plan/results';
 
 /** What the reel shows of a set: a session's result, or a kept set with its round. */
 type Played = Pick<
