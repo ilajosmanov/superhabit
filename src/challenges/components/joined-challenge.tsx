@@ -15,10 +15,17 @@ import { setShare } from '@/workout/plan/results';
  * A challenge you are in: how today stands, every day of the run to pick from, what the picked day asks
  * for and what each of its sets got, and how each exercise counts.
  */
-export function JoinedChallenge({ joined: { challenge, run, amounts } }: { joined: Joined }) {
+export function JoinedChallenge({
+  joined: { challenge, run, amounts },
+  initialDay = null,
+}: {
+  joined: Joined;
+  /** The day index to open on; null (today) by default. */
+  initialDay?: number | null;
+}) {
   const today = run.day - 1;
   // Today until you pick another day.
-  const [picked, setPicked] = useState<number | null>(null);
+  const [picked, setPicked] = useState(initialDay);
   const selected = picked ?? today;
   // A day ahead shows the plan alone; a day with a try, the version that try was done on.
   const day = amounts.at(selected);

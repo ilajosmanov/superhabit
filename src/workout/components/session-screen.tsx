@@ -23,7 +23,6 @@ import type { LogTarget } from '@/workout/store';
 import type { Challenge } from '@/workout/plan/plan';
 import { usePoseOverlay } from '@/workout/pose/overlay';
 import { PoseCamera } from '@/workout/pose/pose-camera';
-import { useLeftWorkout } from '@/workout/recovery';
 import { workoutSession } from '@/workout/session/session';
 import { sessionView, type SessionView } from '@/workout/session/session-view';
 
@@ -38,24 +37,28 @@ function Centered({ text }: { text: string }) {
 /**
  * What is settled before a workout starts: a workout an earlier session left open is offered back (Save
  * or Discard), the camera is allowed, and the page has slid in. `children` gets this workout's id, known
- * before it starts, so its own open workout is never offered back. `loading`: the page's own data.
+ * before it starts, so its own open workout is never offered back. `waiting`: another prompt (startup's)
+ * is deciding a workout left open; nothing starts until it has.
  */
 export function SessionGate({
-  loading,
+  openWorkout,
+  waiting = false,
   children,
 }: {
-  loading: boolean;
+  openWorkout: { id: string } | null;
+  waiting?: boolean;
   children: (workoutId: string) => ReactNode;
 }) {
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
   const [workoutId] = useState(() => uuid.v4());
-  const left = useLeftWorkout(workoutId);
+  const left = openWorkout?.id !== workoutId ? openWorkout : null;
   const slidIn = useSlidIn();
-  if (loading || left.loading) return <View className="flex-1 bg-ground" />;
-  if (left.workout) {
+  // After useSlidIn, so the slide is still caught while it waits.
+  if (waiting) return <View className="flex-1 bg-ground" />;
+  if (left) {
     return (
       <View className="flex-1 bg-ground">
-        <RecoverOpenWorkout key={left.workout.id} workoutId={left.workout.id} />
+        <RecoverOpenWorkout key={left.id} workoutId={left.id} />
       </View>
     );
   }

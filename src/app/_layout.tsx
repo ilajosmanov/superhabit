@@ -5,10 +5,13 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
+import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { startup } from '@/bootstrap/startup';
+import { LeftOpen } from '@/bootstrap/left-open';
 import { Today } from '@/bootstrap/today';
+import { LibraryProvider } from '@/challenges/library-live';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { db } from '@/storage/database';
@@ -36,41 +39,51 @@ export default function RootLayout() {
   return (
     // Gesture handler's gestures (the day strip's drag) only run under this root.
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.ground }}>
-      {/* After a failure the error stays up, its button off while Retry runs. */}
-      {state.context.error !== '' && !state.matches('ready') && !recovery ? (
-        <Screen
-          title="Couldn't open your data"
-          intro={state.context.error}
-          footer={
-            <PrimaryButton
-              label={state.matches('failed') ? 'Retry' : 'Trying again…'}
-              disabled={!state.matches('failed')}
-              onPress={() => send({ type: 'retry' })}
-            />
-          }
-        />
-      ) : null}
       {/* A workout left open is offered back before anything else shows. */}
       {recovery && <RecoverPrompt recovery={recovery} />}
-      {/* No screen renders before the database is ready. Native stack and system back. Screens draw
+      {/* No screen renders before the database is ready and read. Native stack and system back. Screens draw
           their own headers. A pushed page slides fully over the one below: Android's default
           cross-fades the two, which ghosts one page through the other. */}
-      {state.matches('ready') && (
-        <Today value={state.context.today}>
-          <DrizzleStudio />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.ground },
-              animation: 'ios_from_right',
-            }}
-          >
-            <Stack.Screen name="challenge/[id]" options={pushed} />
-            <Stack.Screen name="create" options={pushed} />
-            <Stack.Screen name="build" options={pushed} />
-          </Stack>
-        </Today>
+      {(state.matches('reading') || state.matches('recovering') || state.matches('ready')) && (
+        <LeftOpen
+          value={{ id: state.context.open?.id ?? null, deciding: state.matches('recovering') }}
+        >
+          <Today value={state.context.today}>
+            <LibraryProvider onRead={(error) => send({ type: 'dataReady', error })}>
+              <DrizzleStudio />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: colors.ground },
+                  animation: 'ios_from_right',
+                }}
+              >
+                <Stack.Screen name="challenge/[id]" options={pushed} />
+                <Stack.Screen name="create" options={pushed} />
+                <Stack.Screen name="build" options={pushed} />
+              </Stack>
+            </LibraryProvider>
+          </Today>
+        </LeftOpen>
       )}
+      {/* After a failure the error stays up, its button off while Retry runs. */}
+      {state.context.error !== '' && !state.matches('ready') && !recovery ? (
+        // Over the screens a Retry mounts again while they read.
+        <View style={StyleSheet.absoluteFill}>
+          <Screen
+            title="Couldn't open your data"
+            intro={state.context.error}
+            footer={
+              <PrimaryButton
+                label={state.matches('failed') ? 'Retry' : 'Trying again…'}
+                disabled={!state.matches('failed')}
+                onPress={() => send({ type: 'retry' })}
+              />
+            }
+          />
+        </View>
+      ) : null}
+
       <StatusBar style="light" />
     </GestureHandlerRootView>
   );

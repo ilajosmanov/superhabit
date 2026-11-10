@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gt, or } from 'drizzle-orm';
 import Constants from 'expo-constants';
 
 import { db } from '@/storage/database';
@@ -127,6 +127,17 @@ export function saveOpenWorkout(id: string) {
 /** Whole tables for live readers; each subscription follows its own table's changes. */
 export const workoutRows = () => db().query.workouts.findMany();
 export const setRows = () => db().query.sets.findMany();
+
+/**
+ * The days you trained: days of done workouts with a counted rep or hold. A live reader follows workouts
+ * only, which is enough: sets are written while their workout is open, and it changes when it is done.
+ */
+export const aliveDays = () =>
+  db()
+    .selectDistinct({ day: workouts.day })
+    .from(workouts)
+    .innerJoin(sets, eq(sets.workoutId, workouts.id))
+    .where(and(eq(workouts.status, 'done'), or(gt(sets.reps, 0), gt(sets.heldMs, 0))));
 
 /** At startup only, before any session runs; open workouts' sets must keep their videos for Save. */
 export function deleteOrphanVideos() {

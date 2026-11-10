@@ -9,7 +9,7 @@ import { saveFailed } from '@/components/save-failed';
 import { join } from '@/challenges/library';
 import { useLibrary } from '@/challenges/library-live';
 import { challengePage } from '@/challenges/library-view';
-import { doneToday } from '@/challenges/run-view';
+import { doneToday, linkedDay } from '@/challenges/run-view';
 import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
@@ -21,11 +21,15 @@ import { useToday } from '@/bootstrap/today';
  * one you made. The red disc in the footer leaves the run. A plan from a newer app asks for an update.
  */
 export default function ChallengeDetailScreen() {
-  const { id, run } = useLocalSearchParams<{ id: string; run?: string }>();
+  // `day`: a date to open on (Home's list), else today.
+  const {
+    id,
+    run,
+    day: linked,
+  } = useLocalSearchParams<{ id: string; run?: string; day?: string }>();
   const router = useRouter();
   const library = useLibrary();
   const day = useToday();
-  if (library.loading) return <Screen />;
   const page = challengePage(library, id, day, run);
   if (!page) return <Screen title="Not found" />;
 
@@ -89,6 +93,7 @@ export default function ChallengeDetailScreen() {
         <JoinedChallenge
           key={`${joined.run.id}:${joined.run.from}:${joined.run.days}`}
           joined={joined}
+          initialDay={linkedDay(joined.run, linked)}
         />
       ) : (
         <>

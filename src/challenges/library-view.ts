@@ -1,15 +1,16 @@
 import { toEntry, type CatalogEntry } from './catalog';
-import { ONE_GO, oneGo } from './challenges';
+import { capitalise, ONE_GO, oneGo } from './challenges';
 import { draftOf } from './draft';
 import { counting, runCalendar, versionOf, type DayResult, type Version } from './progress';
 import { doneToday, type RunView } from './run-view';
 import { OURS, SUGGESTED_CHALLENGES } from './suggested';
+import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 import { userId } from '@/storage/account';
 import type * as schema from '@/storage/schema';
 import type { Day } from '@/workout/plan/day';
 import { readSets, type LoggedSet } from '@/workout/plan/logged-set';
 import type { LogTarget } from '@/workout/store';
-import { expand, readPlan } from '@/workout/plan/plan';
+import { expand, readPlan, type FlatSteps } from '@/workout/plan/plan';
 import { setAmounts, workoutResults } from '@/workout/plan/results';
 
 /** The library's tables, whole, as the screens read them. */
@@ -70,6 +71,33 @@ const read = (library: Library) => ({
 });
 type Read = ReturnType<typeof read>;
 
+/**
+ * A run's challenge, the version it follows (`wanted`, else its own; null when this app can't read it)
+ * and what its calendar reads: every readable version, and its tries under them (a try under a version
+ * this app can't read is left out: its plan can't be scored).
+ */
+function runInput(
+  { library, ...stored }: Read,
+  run: Library['runs'][number],
+  wanted?: string | null,
+) {
+  const challenge = library.challenges.find(({ id }) => id === run.challengeId);
+  if (!challenge) return null;
+  const rows = stored.versions.filter(({ row }) => row.challengeId === challenge.id);
+  const found = rows.find(({ row }) => row.id === (wanted ?? versionOf(run, challenge)));
+  const versions = rows.flatMap((v) => v.version ?? []);
+  const workouts = library.workouts.filter(
+    (w) => w.runId === run.id && versions.some(({ id }) => id === w.versionId),
+  );
+  return {
+    challenge,
+    found,
+    version: found?.version ?? null,
+    versions,
+    input: { run, versions, workouts, sets: stored.sets },
+  };
+}
+
 /** A session under way: its open workout, and the version it started on. */
 export type During = { workoutId: string; versionId: string | null };
 
@@ -85,24 +113,18 @@ function yours(
   today: Day,
   during?: During,
 ): Yours | null {
-  const challenge = library.challenges.find(({ id }) => id === run.challengeId);
-  if (!challenge) return null;
-  const rows = stored.versions.filter(({ row }) => row.challengeId === challenge.id);
-  const wanted = during?.versionId ?? versionOf(run, challenge);
-  const found = rows.find(({ row }) => row.id === wanted);
-  const version = found?.version;
+  const at = runInput({ library, ...stored }, run, during?.versionId);
+  if (!at) return null;
+  const { challenge, found, version, versions, input } = at;
   if (!version) {
     const name = found?.row.name ?? '';
     return run.endedOn ? null : { challengeId: challenge.id, runId: run.id, name, challenge: null };
   }
-  const versions = rows.flatMap((v) => v.version ?? []);
-  // Tries under a version this app can't read are left out: their plan can't be scored.
-  const workouts = library.workouts.filter(
-    (w) => w.runId === run.id && versions.some(({ id }) => id === w.versionId),
-  );
   const { sets } = stored;
-  const input = { run, version, versions, workouts, sets };
-  const { days, state } = runCalendar(during ? counting(input, during.workoutId) : input, today);
+  const { days, state } = runCalendar(
+    during ? counting({ ...input, version }, during.workoutId) : { ...input, version },
+    today,
+  );
   if (state.state !== 'active') return null;
   const stretch = days.filter(({ from }) => from === state.from);
   return {
@@ -200,4 +222,100 @@ export function sessionChallenge(library: Library, id: string, day: Day, during?
     run: joined?.run ?? null,
     target: { runId: id, versionId: joined?.challenge.id ?? null },
   };
+}
+
+/** A saved workout as Home lists it under its day. */
+export type LogRow = {
+  workoutId: string;
+  /** The challenge's name on the version the try was done on, or the exercise of one go. */
+  name: string;
+  exercises: readonly ExerciseId[];
+  startedAt: number;
+  /** The phone's offset from UTC when it started, so its time reads as it was where you were. */
+  tzOffsetMin: number;
+  /** One go at an exercise (a free log), not a challenge's try. */
+  free: boolean;
+  /** Which day of its run it was; null for one go, or a version this app can't read. */
+  runDay: { number: number; of: number } | null;
+  reps: number;
+  heldMs: number;
+  /** Holds only: what it got is time, not reps. */
+  held: boolean;
+  /** The run whose page opens on this day: still going, and the day is in its current stretch. */
+  link: { challengeId: string; runId: string } | null;
+  /** Its plan's steps, which the reel needs; null for a version this app can't read. */
+  steps: FlatSteps | null;
+  sets: readonly LoggedSet[];
+};
+
+/** `day`'s saved workouts, oldest first, each with what it got and where a tap leads. */
+export function dayLog(library: Library, day: Day, today: Day): LogRow[] {
+  const shown = library.workouts
+    .filter((workout) => workout.day === day && workout.status === 'done')
+    .sort((a, b) => a.startedAt - b.startedAt);
+  if (shown.length === 0) return [];
+  // Read only what the rows need: their own sets, and every set of their runs for the runs' calendars.
+  const runIds = new Set(shown.flatMap(({ runId }) => runId ?? []));
+  const needed = new Set(
+    library.workouts
+      .filter((w) => shown.includes(w) || (w.runId !== null && runIds.has(w.runId)))
+      .map(({ id }) => id),
+  );
+  const stored = read({
+    ...library,
+    sets: library.sets.filter((set) => needed.has(set.workoutId)),
+  });
+  // One calendar per run, numbered as the run's page numbers it: on the run's version, restarts included.
+  const calendars = new Map<string, ReturnType<typeof runCalendar> | null>();
+  const calendarOf = (run: Library['runs'][number]) => {
+    if (!calendars.has(run.id)) {
+      const at = runInput(stored, run);
+      calendars.set(
+        run.id,
+        at?.version ? runCalendar({ ...at.input, version: at.version }, today) : null,
+      );
+    }
+    return calendars.get(run.id) ?? null;
+  };
+  return shown.map((workout) => {
+    const sets = stored.sets
+      .filter((set) => set.workoutId === workout.id)
+      .sort((a, b) => a.startedAt - b.startedAt);
+    const exercises = [...new Set(sets.map((set) => set.exercise))];
+    const base = {
+      workoutId: workout.id,
+      exercises,
+      startedAt: workout.startedAt,
+      tzOffsetMin: workout.tzOffsetMin,
+      reps: sets.reduce((sum, set) => sum + set.reps, 0),
+      heldMs: sets.reduce((sum, set) => sum + set.heldMs, 0),
+      held: exercises.length > 0 && exercises.every((id) => EXERCISES[id].kind === 'hold'),
+      sets,
+    };
+    const run = library.runs.find(({ id }) => id === workout.runId);
+    if (!run) {
+      const exercise = exercises.at(0);
+      return {
+        ...base,
+        name: exercise ? capitalise(EXERCISES[exercise].name) : '',
+        free: true,
+        runDay: null,
+        link: null,
+        steps: exercise ? expand(oneGo(exercise).session) : null,
+      };
+    }
+    const tried = stored.versions.find(({ row }) => row.id === workout.versionId);
+    const calendar = calendarOf(run);
+    const number = calendar?.days.find((d) => d.day === day)?.number;
+    // As `yours`: a run still going on a version this app reads, and a day of its current stretch.
+    const going = calendar?.state.state === 'active' && day >= calendar.state.from;
+    return {
+      ...base,
+      name: tried?.row.name ?? '',
+      free: false,
+      runDay: number && tried?.version ? { number, of: tried.version.days } : null,
+      link: going ? { challengeId: run.challengeId, runId: run.id } : null,
+      steps: tried?.version ? expand(tried.version.session) : null,
+    };
+  });
 }

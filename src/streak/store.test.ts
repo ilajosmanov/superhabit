@@ -1,0 +1,86 @@
+import { modules } from '@/workout/__fixtures__/session';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+
+import { keepFreezes } from './store';
+import { db, migrateDatabase } from '@/storage/__fixtures__/database';
+import * as schema from '@/storage/schema';
+import { reps } from '@/workout/plan/plan';
+import { logSet, saveWorkout, workoutStart } from '@/workout/store';
+
+vi.mock('expo-file-system', () => modules['expo-file-system']);
+vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
+vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
+vi.mock('expo-constants', () => ({ default: { expoConfig: { version: '1.2.3' } } }));
+
+/** A workout at noon on `day` with one set; saved with Done unless `open`. */
+function train(day: string, { counted = 10, open = false } = {}) {
+  vi.useFakeTimers({ now: new Date(`${day}T12:00:00`) });
+  const workout = workoutStart(`w-${day}`, { runId: null, versionId: null });
+  logSet(workout, {
+    id: `s-${day}`,
+    workoutId: workout.id,
+    planStep: 0,
+    counterVersion: '1.0.0',
+    exercise: 'pushup',
+    round: 1,
+    startedAt: 1,
+    endedAt: 2,
+    goal: reps(10),
+    reps: counted,
+    noReps: 0,
+    heldMs: 0,
+    attempts: [],
+    takes: [],
+    stats: null,
+  });
+  if (!open) saveWorkout(workout.id);
+  vi.useRealTimers();
+}
+const events = () => db().select({ id: schema.streakEvents.id }).from(schema.streakEvents).all();
+const queued = () =>
+  db()
+    .select({ entityId: schema.outbox.entityId })
+    .from(schema.outbox)
+    .all()
+    .filter(({ entityId }) => !entityId.startsWith('w-'));
+
+beforeAll(migrateDatabase);
+beforeEach(() => {
+  db().delete(schema.workouts).run();
+  db().delete(schema.streakEvents).run();
+  db().delete(schema.outbox).run();
+});
+
+describe('keepFreezes', () => {
+  it('writes the freeze earned and the one spent once the days are over, each queued once', () => {
+    for (let day = 1; day <= 7; day += 1) train(`2026-11-0${day}`);
+
+    keepFreezes('2026-11-09');
+    keepFreezes('2026-11-09');
+
+    const written = ['earned:2026-11-07', 'used:2026-11-08'];
+    expect(events().map(({ id }) => id)).toEqual(written);
+    expect(queued().map(({ entityId }) => entityId)).toEqual(written);
+  });
+
+  it("waits while yesterday's workout is still open, so a set finished after midnight keeps the day", () => {
+    for (let day = 1; day <= 7; day += 1) train(`2026-11-0${day}`);
+    train('2026-11-08', { open: true });
+
+    keepFreezes('2026-11-09');
+    saveWorkout('w-2026-11-08');
+    keepFreezes('2026-11-09');
+
+    expect(events().map(({ id }) => id)).toEqual(['earned:2026-11-07']);
+  });
+
+  it('counts only days with a counted rep', () => {
+    for (let day = 1; day <= 6; day += 1) train(`2026-11-0${day}`);
+    // Done with nothing counted is not the 7th day.
+    train('2026-11-07', { counted: 0 });
+
+    keepFreezes('2026-11-10');
+
+    expect(events()).toEqual([]);
+  });
+});

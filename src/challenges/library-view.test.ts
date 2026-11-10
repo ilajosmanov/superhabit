@@ -1,6 +1,6 @@
 import { expect, it } from 'vite-plus/test';
 
-import { sessionChallenge, type Library } from './library-view';
+import { dayLog, sessionChallenge, type Library } from './library-view';
 import { reps } from '@/workout/plan/plan';
 
 const version = (id: string, name: string, days: number) => ({
@@ -43,4 +43,125 @@ it('keeps the Done page on the version the session started on when the challenge
     days: 1,
   });
   expect(sessionChallenge(library, 'r', '2026-11-09').run).toMatchObject({ day: 1, days: 2 });
+});
+
+it("lists a day's saved workouts oldest first, with their names, run days and where a tap leads", () => {
+  const run = (id: string, ended: boolean) => ({
+    id,
+    challengeId: 'c',
+    pinnedVersionId: null,
+    groupChallengeId: null,
+    startedOn: '2026-11-08',
+    endedOn: ended ? '2026-11-09' : null,
+    endReason: ended ? ('left' as const) : null,
+  });
+  const workout = (
+    id: string,
+    runId: string | null,
+    day: string,
+    startedAt: number,
+    done = true,
+  ) => ({
+    id,
+    runId,
+    versionId: runId && 'v1',
+    day,
+    status: done ? ('done' as const) : ('open' as const),
+    startedAt,
+    endedAt: done ? startedAt + 1 : null,
+    tzOffsetMin: 60,
+    tz: 'Europe/Prague',
+    appVersion: '1',
+  });
+  const set = (workoutId: string, exercise: string, reps: number, heldMs = 0) => ({
+    id: `${workoutId}-s`,
+    workoutId,
+    planStep: 0,
+    exercise,
+    goal: { type: 'max' },
+    reps,
+    noReps: 0,
+    heldMs,
+    startedAt: 0,
+    endedAt: 1,
+    counterVersion: '1',
+    attempts: [],
+    metrics: null,
+  });
+  const library: Library = {
+    challenges: [
+      { id: 'c', owner: 'local', visibility: 'private', currentVersionId: 'v1', retiredAt: null },
+      { id: 'c2', owner: 'local', visibility: 'private', currentVersionId: 'v2', retiredAt: null },
+      { id: 'c3', owner: 'local', visibility: 'private', currentVersionId: 'v3', retiredAt: null },
+    ],
+    versions: [
+      version('v1', 'Floor', 3),
+      // Starts over after a missed day; and one from a newer app (an exercise this one doesn't know).
+      { ...version('v2', 'Strict', 3), challengeId: 'c2', restartOnMiss: true },
+      {
+        ...version('v3', 'Newer', 3),
+        challengeId: 'c3',
+        plan: [{ steps: [{ exercise: 'muscle-up', goal: reps(5) }], rounds: 1 }],
+      },
+    ],
+    runs: [
+      run('going', false),
+      run('left', true),
+      { ...run('strict', false), challengeId: 'c2', startedOn: '2026-11-09' },
+      { ...run('newer', false), challengeId: 'c3' },
+    ],
+    workouts: [
+      workout('pushups', 'going', '2026-11-09', 2000),
+      workout('plank', null, '2026-11-09', 1000),
+      workout('nothing', null, '2026-11-09', 3000),
+      workout('gave-up', 'left', '2026-11-09', 4000),
+      workout('open', null, '2026-11-09', 5000, false),
+      workout('before', null, '2026-11-08', 500),
+      // 4 of 10 on its day 1: missed, so the run starts over today and that day is out of its stretch.
+      { ...workout('short', 'strict', '2026-11-09', 6000), versionId: 'v2' },
+      { ...workout('newer', 'newer', '2026-11-09', 7000), versionId: 'v3' },
+    ],
+    sets: [
+      set('pushups', 'pushup', 8),
+      set('plank', 'plank', 0, 65_000),
+      set('nothing', 'squat', 0),
+      set('gave-up', 'pushup', 4),
+      set('open', 'squat', 5),
+      set('before', 'squat', 9),
+      set('short', 'pushup', 4),
+      set('newer', 'pushup', 3),
+    ],
+  };
+
+  const rows = dayLog(library, '2026-11-09', '2026-11-10');
+
+  expect(rows.map(({ workoutId }) => workoutId)).toEqual([
+    'plank',
+    'pushups',
+    'nothing',
+    'gave-up',
+    'short',
+    'newer',
+  ]);
+  expect(rows[0]).toMatchObject({
+    name: 'Plank',
+    free: true,
+    held: true,
+    heldMs: 65_000,
+    link: null,
+  });
+  expect(rows[1]).toMatchObject({
+    name: 'Floor',
+    free: false,
+    reps: 8,
+    runDay: { number: 2, of: 3 },
+    link: { challengeId: 'c', runId: 'going' },
+  });
+  expect(rows[2]).toMatchObject({ name: 'Squats', reps: 0, held: false });
+  // A run you left still says its day, but its page no longer shows it: the row plays instead.
+  expect(rows[3]).toMatchObject({ runDay: { number: 2, of: 3 }, link: null });
+  // A try before a restart: the run is going, but its page only shows the new stretch.
+  expect(rows[4]).toMatchObject({ name: 'Strict', runDay: { number: 1, of: 3 }, link: null });
+  // A version this app can't read: named, but no run day, no plan to play it by, no page.
+  expect(rows[5]).toMatchObject({ name: 'Newer', runDay: null, steps: null, link: null });
 });

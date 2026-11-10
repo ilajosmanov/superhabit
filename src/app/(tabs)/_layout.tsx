@@ -13,8 +13,8 @@ const tap = () =>
     : Haptics.selectionAsync());
 
 const items: { name: string; icon: MaterialIcon['md']; label: string }[] = [
-  { name: 'today', icon: 'schedule', label: 'Today' },
-  { name: 'index', icon: 'flag', label: 'Challenges' },
+  { name: 'index', icon: 'home', label: 'Home' },
+  { name: 'challenges', icon: 'flag', label: 'Challenges' },
   { name: 'friends', icon: 'group', label: 'Friends' },
   { name: 'me', icon: 'person', label: 'Me' },
 ];

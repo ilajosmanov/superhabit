@@ -16,6 +16,7 @@ src/friends/        the friends feature (for now, the leaderboard preview)
 src/challenges/     the challenge catalog: definitions, catalog entries, your library (challenges and runs
                     kept on the phone), run progress, the reel of a session's sets
   components/       UI only challenges uses (catalog tiles, joined cards, the Done page and its reel)
+src/streak/         your streak: its rules, the freeze events kept, and the Today grid in components/
   ↓
 src/workout/        the workout feature: store, log actor and recovery
   plan/             plan model, result contracts and local days
@@ -42,7 +43,7 @@ modules/pose/       the native pose detector (a Nitro module)
 - **Storage knows how, a feature knows what.** `storage/` holds the tables and opens the database; it
   holds no feature rules and shows nothing. A feature's model (`challenges/library.ts`) says what is kept
   and the rules for changing it, and its screens decide how to tell you a write failed.
-- **Each feature has exactly one store file for its tables:** `challenges/library.ts` and
+- **Each feature has exactly one store file for its tables:** `challenges/library.ts`, `streak/store.ts` and
   `workout/store.ts` own their features' database access.
 - **Workout logic (`src/workout/*.ts`, `plan/`, `session/`, `capture/`, `coach/`) never imports its own UI**
   (`components/`, `pose/`). UI reads the session through `sessionView`, and the machine never learns how
@@ -95,6 +96,14 @@ Use what the platform already ships before drawing or building our own:
 - per-frame data (pose points, angles) → Reanimated shared values drawn by Skia;
 - what a screen shows → derived from the machine snapshot (`sessionView`), not copied into React state;
 - local UI state (a modal is open) → React state in that component.
+
+## Reading data on screens
+
+Every live read belongs in one shared provider mounted once in the root layout. Screens and pushed
+pages read its complete snapshot synchronously: no fetching on mount or data loading states. Add a new
+table or view to the provider, never a per-screen query; derive streaks and challenge pages from the
+snapshot with pure functions. Keep the splash up until the first reads finish. Per-page reads caused a
+measured ~40 ms push-animation stall; exposing empty snapshots also made cold-start content pop in.
 
 ## Tests
 

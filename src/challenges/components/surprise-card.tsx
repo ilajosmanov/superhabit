@@ -1,12 +1,10 @@
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import { Pressable, Text, View, type ViewStyle } from 'react-native';
 
 import { ExerciseStack } from './exercise-stack';
-import { SurpriseSheet } from './surprise-sheet';
+import { useSurprise } from './surprise-sheet';
 import { capitalise, ONE_GO } from '@/challenges/challenges';
 import { DieFigure } from '@/components/illustrations';
-import { EXERCISES, type ExerciseId } from '@/exercises/registry';
+import { EXERCISES } from '@/exercises/registry';
 import { colors, lit } from '@/theme';
 
 const EVERY = ONE_GO.map((id) => ({
@@ -20,10 +18,7 @@ const EVERY = ONE_GO.map((id) => ({
  * `style` sets the width inside the swipe row.
  */
 export function SurpriseCard({ style }: { style?: ViewStyle }) {
-  const router = useRouter();
-  const [open, setOpen] = useState(false);
-  // Kept after closing, so the sheet still shows it while it slides away.
-  const [picked, setPicked] = useState<ExerciseId>(ONE_GO[0]);
+  const surprise = useSurprise();
   return (
     // The wrapper clips the ripple to the card's corners.
     <View
@@ -39,10 +34,7 @@ export function SurpriseCard({ style }: { style?: ViewStyle }) {
         accessibilityRole="button"
         accessibilityLabel="Surprise me: a random exercise, once"
         android_ripple={{ color: colors.line }}
-        onPress={() => {
-          setPicked(ONE_GO[Math.floor(Math.random() * ONE_GO.length)]);
-          setOpen(true);
-        }}
+        onPress={surprise.pick}
         // grow, not flex-1: alone the card sizes to its content; in the row it stretches to the tallest card.
         className="grow gap-5 p-5"
       >
@@ -68,15 +60,7 @@ export function SurpriseCard({ style }: { style?: ViewStyle }) {
           </View>
         </View>
       </Pressable>
-      <SurpriseSheet
-        open={open}
-        exercise={picked}
-        onDismiss={() => setOpen(false)}
-        onStart={() => {
-          setOpen(false);
-          router.push({ pathname: '/workout/[id]', params: { id: picked } });
-        }}
-      />
+      {surprise.sheet}
     </View>
   );
 }

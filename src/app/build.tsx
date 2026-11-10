@@ -36,7 +36,6 @@ export default function BuildScreen() {
       />
     );
   }
-  if (library.loading) return null;
   const page = challengePage(library, id, day);
   const draft = page?.editable && page.challenge && draftOf(page.challenge);
   // A stale link, someone else's challenge, or one the builder can't show (several steps).

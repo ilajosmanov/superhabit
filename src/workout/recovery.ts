@@ -1,16 +1,6 @@
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { fromPromise, setup } from 'xstate';
 
-import { discardWorkout, openWorkout, saveOpenWorkout } from './store';
-
-/**
- * A workout an earlier session left open, kept current (Save or Discard clears it); `own`, the workout
- * about to start here, never counts. A new workout can't start while one is left: only one is open.
- */
-export function useLeftWorkout(own: string) {
-  const { data, updatedAt } = useLiveQuery(openWorkout());
-  return { loading: !updatedAt, workout: data && data.id !== own ? data : null };
-}
+import { discardWorkout, saveOpenWorkout } from './store';
 
 const save = fromPromise<void, string>(async ({ input }) => saveOpenWorkout(input));
 const discard = fromPromise<void, string>(async ({ input }) => discardWorkout(input));

@@ -9,17 +9,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  */
 export function Screen({
   label,
+  action,
   title,
   intro,
   footer,
   children,
 }: {
   label?: string;
+  /** A control at the end of the label row: the tab's own quick action. */
+  action?: ReactNode;
   /** Omitted when the screen draws its own heading. */
   title?: string;
   /** One paragraph under the title. */
   intro?: string;
-  /** Pinned under the scroll, above the system bar: the screen's one action. */
+  /** Pinned under the scroll, 16px above the system bar (a tab screen's tab bar already clears it). */
   footer?: ReactNode;
   children?: ReactNode;
 }) {
@@ -28,8 +31,9 @@ export function Screen({
     <View className="flex-1 bg-ground">
       {label && (
         <View className="px-6" style={{ paddingTop: top + 20 }}>
-          <View className="h-11 justify-center border-b border-line">
+          <View className="h-11 flex-row items-center justify-between border-b border-line">
             <Text className="font-mono text-xs tracking-widest text-muted">{label}</Text>
+            {action}
           </View>
         </View>
       )}
@@ -57,7 +61,7 @@ export function Screen({
       </ScrollView>
 
       {footer && (
-        <View className="px-6 pt-4" style={{ paddingBottom: bottom + 16 }}>
+        <View className="px-6 pt-4" style={{ paddingBottom: (label ? 0 : bottom) + 16 }}>
           {footer}
         </View>
       )}

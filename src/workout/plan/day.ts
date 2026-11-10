@@ -12,6 +12,8 @@ export const today = (now = new Date()): Day =>
   `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
 export const addDays = (day: Day, n: number) => dayAt(dayNumber(day) + n);
+/** Calendar days from `from` to `to`: 1 for the next day, negative for one before. */
+export const daysBetween = (from: Day, to: Day) => dayNumber(to) - dayNumber(from);
 
 const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];

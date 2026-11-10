@@ -38,6 +38,7 @@ const EXERCISES_BANS = [
   '@/bootstrap/**',
   '@/friends/**',
   '@/challenges/**',
+  '@/streak/**',
   '@/workout/**',
   '@/components/**',
   '@/theme',
@@ -108,7 +109,7 @@ export default defineConfig({
     },
     overrides: [
       // Layers, each importing only those below it: app (routes) → bootstrap (the app's start) → friends,
-      // challenges (the catalog; its views in components/) → workout (session; its views in components/
+      // challenges (the catalog; its views in components/), streak → workout (session; its views in components/
       // and pose/) → exercises (pure rep logic) → components/ (shared UI), theme, storage/ (the phone's
       // database; no UI, no feature rules).
       // An override replaces the rule's options, so each one repeats what still applies to its files.
@@ -122,6 +123,7 @@ export default defineConfig({
           '@/app/**',
           '@/bootstrap/**',
           '@/challenges/components/**',
+          '@/streak/components/**',
           '@/workout/components/**',
           '@/workout/pose/**',
         ],
@@ -133,13 +135,27 @@ export default defineConfig({
           '@/app/**',
           '@/bootstrap/**',
           '@/friends/**',
+          '@/streak/components/**',
           '@/workout/components/**',
           '@/workout/pose/**',
         ],
         [NO_EFFECTS],
       ),
       layer(
-        ['src/challenges/*.ts'],
+        ['src/challenges/*.{ts,tsx}'],
+        [
+          '@/app/**',
+          '@/bootstrap/**',
+          '@/friends/**',
+          '@/challenges/components/**',
+          '@/streak/components/**',
+          '@/workout/components/**',
+          '@/workout/pose/**',
+        ],
+      ),
+      // The streak: rules and freeze events in *.ts, the Today grid in components/.
+      layer(
+        ['src/streak/components/**'],
         [
           '@/app/**',
           '@/bootstrap/**',
@@ -148,10 +164,23 @@ export default defineConfig({
           '@/workout/components/**',
           '@/workout/pose/**',
         ],
+        [NO_EFFECTS],
+      ),
+      layer(
+        ['src/streak/*.ts'],
+        [
+          '@/app/**',
+          '@/bootstrap/**',
+          '@/friends/**',
+          '@/challenges/components/**',
+          '@/streak/components/**',
+          '@/workout/components/**',
+          '@/workout/pose/**',
+        ],
       ),
       layer(
         ['src/workout/components/**', 'src/workout/pose/**'],
-        ['@/app/**', '@/bootstrap/**', '@/friends/**', '@/challenges/**'],
+        ['@/app/**', '@/bootstrap/**', '@/friends/**', '@/challenges/**', '@/streak/**'],
         [NO_EFFECTS],
       ),
       layer(
@@ -167,6 +196,7 @@ export default defineConfig({
           '@/bootstrap/**',
           '@/friends/**',
           '@/challenges/**',
+          '@/streak/**',
           '@/workout/components/**',
           '@/workout/pose/**',
         ],
@@ -185,6 +215,7 @@ export default defineConfig({
           '@/bootstrap/**',
           '@/friends/**',
           '@/challenges/**',
+          '@/streak/**',
           '@/workout/**',
           '@/exercises/**',
           '@/storage/**',
@@ -199,6 +230,7 @@ export default defineConfig({
           '@/bootstrap/**',
           '@/friends/**',
           '@/challenges/**',
+          '@/streak/**',
           '@/workout/**',
           '@/exercises/**',
           '@/components/**',
