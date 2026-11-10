@@ -12,7 +12,12 @@ const squatCycle = cycle(
   // Real reps bend both knees within 20° of each other; a bigger gap is a kick or a mis-tracked leg.
   bothSides(jointAngle('knee'), 35),
   {
-    up: 160,
+    // A relaxed stance reads 151–159° (smoothed p10 ~155° front-on, S25); at 160 the count waited
+    // seconds for a straighter stance. The hips (`also`) still keep a bend or kneel from counting.
+    // shortcut: one top for everyone, so people who stand straight lose ~10° of lockout strictness.
+    // Try an adaptive top: measure the stance while waiting, use min(160, stance − a few °) with a
+    // floor (~145°); test it once we have squat sets from more people.
+    up: 150,
     down,
     shallow: 140,
     fastMs: 800,

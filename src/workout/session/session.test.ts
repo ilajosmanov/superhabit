@@ -3,6 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
 
 import { MAX, reps, seconds } from '@/workout/plan/plan';
+import { COUNTER_VERSIONS } from '@/exercises/registry';
 
 import { plank } from '@/exercises/__fixtures__/plank';
 import {
@@ -60,7 +61,7 @@ describe('workoutSession starts, stops, writes rows and finishes', () => {
       id: setId,
       workoutId,
       planStep: 0,
-      counterVersion: '1.0.0',
+      counterVersion: COUNTER_VERSIONS.squat,
       exercise: 'squat',
       startedAt: NOW,
       endedAt: NOW + 5000,
@@ -79,7 +80,7 @@ describe('workoutSession starts, stops, writes rows and finishes', () => {
       id: nextSetId,
       workoutId,
       planStep: 1,
-      counterVersion: '1.0.0',
+      counterVersion: COUNTER_VERSIONS.pushup,
       exercise: 'pushup',
       startedAt: NOW + 7000,
       endedAt: NOW + 10000,
@@ -112,7 +113,7 @@ describe('workoutSession starts, stops, writes rows and finishes', () => {
       id: restartedId,
       workoutId,
       planStep: 0,
-      counterVersion: '1.0.0',
+      counterVersion: COUNTER_VERSIONS.squat,
       startedAt: NOW + 7000,
       endedAt: NOW + 7000,
       reps: 1,

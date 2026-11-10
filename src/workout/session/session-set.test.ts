@@ -165,7 +165,7 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
     const view = () => sessionView(actor.getSnapshot());
-    expect(view()).toMatchObject({ call: null, flash: null, gauge: { down: 100, up: 160 } });
+    expect(view()).toMatchObject({ call: null, flash: null, gauge: EXERCISES.squat.gauge });
     squat();
     expect(view()).toMatchObject({
       flash: 'rep',

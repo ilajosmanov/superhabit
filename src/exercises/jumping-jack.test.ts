@@ -55,6 +55,11 @@ describe('jumping jack', () => {
     });
   });
 
+  it('starts from a ready stance with the feet apart', () => {
+    // Feet 0.4 leg lengths apart, wider than a landing.
+    expect(play(pose(0, 0.18), pose(180, 0.3), pose())).toMatchObject({ reps: 1, noReps: 0 });
+  });
+
   it('fails a jack with the arms short of overhead', () => {
     expect(play(pose(), pose(100, 0.3), pose())).toMatchObject({
       reps: 0,

@@ -7,8 +7,9 @@ import { standingPosition } from './positions/standing';
 
 const overhead = 130;
 
-// shortcut: guessed from body proportions (feet together about 0.25 leg lengths apart, a jack's
-// stance 0.6–0.8) with no jumping jack clips with gravity yet; tune on front-on device sets.
+// Front-on S25 sets (one person): landings read 0.08–0.20 leg lengths, jumps out peak 0.57–0.90, and
+// the ready stance before the first jack 0.28–0.48, so the feet gate a rep's end, not the start.
+// shortcut: one person's sets; recheck `down: 0.5` against the 0.57 low peak with more people.
 const jackCycle = cycle(
   standingPosition,
   // Both arms rise together: one alone is a wave, not a jack.

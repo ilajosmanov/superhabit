@@ -37,14 +37,14 @@ type List = typeof LIST;
 export type ExerciseId = keyof List;
 /** Hand-bump when an exercise's counting rules change. */
 export const COUNTER_VERSIONS = {
-  squat: '1.0.0',
+  squat: '1.1.0',
   pushup: '1.0.0',
   plank: '1.0.0',
   situp: '1.0.0',
   'glute-bridge': '1.0.0',
-  'jumping-jack': '1.0.0',
+  'jumping-jack': '1.1.0',
   lunge: '1.0.0',
-  'side-squat': '1.0.0',
+  'side-squat': '1.1.0',
   'wall-sit': '1.0.0',
   'side-plank': '1.0.0',
   'leg-raise': '1.0.0',

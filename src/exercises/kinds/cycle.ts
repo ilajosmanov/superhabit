@@ -219,7 +219,9 @@ export function cycle<P extends { side: Side }>(
     up: o.up,
     down: o.down,
     shallow: o.shallow,
-    start: (s) => good(s) && home(s),
+    // `also.up` ends a rep but doesn't gate the start: people wait with their feet apart (a jack's
+    // ready stance reads 0.36–0.48 leg lengths on device, its landings 0.08–0.20).
+    start: good,
     // The bottom counts only with good form; setup is not judged mid-movement.
     turn: (s) => p.form(s.at) === null && past(s.also, 'down'),
     // A shallow dip is a failed rep only while still in the position.

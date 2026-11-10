@@ -31,6 +31,11 @@ describe('squat', () => {
     });
   });
 
+  it('counts a rep from a relaxed stance, knees at 155°', () => {
+    const relaxed = body({ thigh: 12, shin: 13 });
+    expect(play([relaxed, bottom, relaxed])).toMatchObject({ reps: 1, noReps: 0 });
+  });
+
   it('counts a rushed rep, with a cue to slow down', () => {
     let s = squat.initial;
     const spans: [Pose, number, number][] = [
