@@ -2,7 +2,11 @@ import * as SplashScreen from 'expo-splash-screen';
 import { assign, enqueueActions, fromPromise, setup, type PromiseActorLogic } from 'xstate';
 
 import { dayClock, type DayEvent } from './day';
+import { checkSession } from '@/account/session';
+import { dropPreAccountFiles } from '@/account/store';
+import { signIn } from '@/account/sign-in';
 import { seed } from '@/challenges/library';
+import { account } from '@/storage/account';
 import { migrateDatabase } from '@/storage/database';
 import { keepFreezes } from '@/streak/store';
 import { today, type Day } from '@/workout/plan/day';
@@ -20,15 +24,17 @@ type Context = {
 };
 
 /**
- * Gets the phone ready before any screen reads it: opens the database, brings its tables up to date,
- * adds our challenges, and offers back a workout left open. The splash stays up until there is something
+ * Gets the phone ready before any screen reads it: opens the database, brings its tables up to date, has
+ * you signed in (once; the account is kept, so later launches go on offline), adds our challenges, and
+ * offers back a workout left open. Once ready it checks the session with the server (`checkSession`); one
+ * the server ended is asked for again at the next launch, never mid-use, where it would drop a workout. The splash stays up until there is something
  * to show; `error` stays set while a Retry runs. Each step lives with its owner; this only orders them.
  * It also keeps today for the screens (`dayClock`), from launch on, and once ready writes the freezes of
  * days that are over, at launch and at each new day.
  *
- *   migrating --> seeding --> checking --> reading --> ready
- *       ^    \--------\----------\--> failed (shows the error) --retry
- *                                           \--> recovering (Save / Discard) --> ready
+ *   migrating --> identifying --> seeding --> checking --> reading --> ready
+ *       ^    \           \--> signingIn --^                   \--> recovering (Save / Discard) --> ready
+ *       |     \--------------\----------\----------\--> failed (shows the error) --retry
  */
 // Positional generics (no type assertions allowed): context, events, actors, children, actions.
 export const startup = setup<
@@ -36,19 +42,35 @@ export const startup = setup<
   { type: 'retry' } | { type: 'dataReady'; error?: string } | DayEvent,
   {
     migrate: PromiseActorLogic<void>;
+    identify: PromiseActorLogic<boolean>;
+    signIn: typeof signIn;
+    session: typeof checkSession;
     seed: PromiseActorLogic<void>;
     check: PromiseActorLogic<{ id: string } | null>;
     recovery: typeof recovery;
     dayClock: typeof dayClock;
   },
-  { recovery: 'recovery' },
+  { recovery: 'recovery'; signIn: 'signIn' },
   { hideSplash: undefined; fail: undefined; keepFreezes: undefined }
 >({
   actors: {
     migrate: fromPromise(() => migrateDatabase()),
+    // Signed in: an account is kept and the server hasn't ended its session.
+    identify: fromPromise(async () => {
+      const kept = account();
+      return kept !== null && !kept.signedOut;
+    }),
+    signIn,
+    session: checkSession,
     seed: fromPromise(async () => seed()),
     check: fromPromise(async () => {
       deleteOrphanVideos();
+      try {
+        dropPreAccountFiles();
+      } catch (error) {
+        // Nothing depends on it: the next launch tries again.
+        console.warn('[account] could not delete the files from before accounts', error);
+      }
       return findOpenWorkout();
     }),
     recovery,
@@ -77,7 +99,27 @@ export const startup = setup<
   initial: 'migrating',
   states: {
     migrating: {
-      invoke: { src: 'migrate', onDone: 'seeding', onError: { target: 'failed', actions: 'fail' } },
+      invoke: {
+        src: 'migrate',
+        onDone: 'identifying',
+        onError: { target: 'failed', actions: 'fail' },
+      },
+    },
+    identifying: {
+      invoke: {
+        src: 'identify',
+        onDone: [
+          { guard: ({ event }) => event.output, target: 'seeding' },
+          { target: 'signingIn' },
+        ],
+        onError: { target: 'failed', actions: 'fail' },
+      },
+    },
+    // The root shows the sign-in screen over nothing else; the account is kept when it's done.
+    signingIn: {
+      // A Retry that got here leaves no error over the screen.
+      entry: ['hideSplash', assign({ error: '' })],
+      invoke: { src: 'signIn', id: 'signIn', onDone: 'seeding' },
     },
     seeding: {
       invoke: { src: 'seed', onDone: 'checking', onError: { target: 'failed', actions: 'fail' } },
@@ -112,6 +154,13 @@ export const startup = setup<
     },
     ready: {
       entry: ['hideSplash', 'keepFreezes'],
+      // Nothing the check meets may take the app down: offline, it just didn't happen.
+      invoke: {
+        src: 'session',
+        onError: {
+          actions: ({ event }) => console.warn('[account] session check failed', event.error),
+        },
+      },
       on: { day: { actions: [assign({ today: ({ event }) => event.day }), 'keepFreezes'] } },
     },
     failed: { entry: 'hideSplash', on: { retry: 'migrating' } },

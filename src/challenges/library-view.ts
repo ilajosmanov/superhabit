@@ -5,7 +5,6 @@ import { counting, runCalendar, versionOf, type DayResult, type Version } from '
 import { doneToday, type RunView } from './run-view';
 import { OURS, SUGGESTED_CHALLENGES } from './suggested';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
-import { userId } from '@/storage/account';
 import type * as schema from '@/storage/schema';
 import type { Day } from '@/workout/plan/day';
 import { readSets, type LoggedSet } from '@/workout/plan/logged-set';
@@ -15,6 +14,8 @@ import { setAmounts, workoutResults } from '@/workout/plan/results';
 
 /** The library's tables, whole, as the screens read them. */
 export type Library = {
+  /** The signed-in account's id: what you own. */
+  you: string;
   challenges: readonly (typeof schema.challenges.$inferSelect)[];
   versions: readonly (typeof schema.challengeVersions.$inferSelect)[];
   runs: readonly (typeof schema.runs.$inferSelect)[];
@@ -199,7 +200,7 @@ export function challengePage(library: Library, id: string, today: Day, runId?: 
     runId: mine?.runId ?? null,
     joined: mine?.challenge ? mine : null,
     ranBefore: runs.length > 0,
-    editable: row.owner === userId() && challenge !== null && draftOf(challenge) !== null,
+    editable: row.owner === library.you && challenge !== null && draftOf(challenge) !== null,
     /** The line under the title before you join. */
     status: `${row.owner === OURS ? 'SUGGESTED · ' : ''}${length}`,
   };

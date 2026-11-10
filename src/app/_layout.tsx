@@ -8,6 +8,7 @@ import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
 import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { SignInScreen } from '@/account/components/sign-in-screen';
 import { startup } from '@/bootstrap/startup';
 import { LeftOpen } from '@/bootstrap/left-open';
 import { Today } from '@/bootstrap/today';
@@ -36,9 +37,12 @@ const pushed = {
 export default function RootLayout() {
   const [state, send] = useMachine(startup);
   const recovery = state.children.recovery;
+  const signIn = state.children.signIn;
   return (
     // Gesture handler's gestures (the day strip's drag) only run under this root.
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.ground }}>
+      {/* First launch, or the server ended the session: sign in before anything else. */}
+      {signIn && <SignInScreen signIn={signIn} />}
       {/* A workout left open is offered back before anything else shows. */}
       {recovery && <RecoverPrompt recovery={recovery} />}
       {/* No screen renders before the database is ready and read. Native stack and system back. Screens draw

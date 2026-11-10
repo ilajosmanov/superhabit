@@ -6,6 +6,9 @@ import { videosOf } from '@/storage/set-files';
 
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 
+// Signed in as `local`; no database here.
+vi.mock('@/storage/account', () => ({ userId: () => 'local' }));
+
 afterEach(() => files.clear());
 
 const dir = 'document/local/videos';

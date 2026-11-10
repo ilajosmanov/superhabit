@@ -3,11 +3,21 @@ import { describe, expect, it, vi } from 'vite-plus/test';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { startup } from './startup';
+import { signIn as signInMachine } from '@/account/sign-in';
 import { recovery } from '@/workout/recovery';
 
 vi.mock('@/challenges/library', () => ({}));
 vi.mock('@/streak/store', () => ({ keepFreezes: () => {} }));
 vi.mock('@/storage/database', () => ({}));
+// Signed in before, and the server can't be reached: the usual launch.
+vi.mock('@/storage/account', () => ({ account: () => ({ id: 'me', name: 'Me', image: null }) }));
+vi.mock('@/account/session', async () => {
+  const { fromPromise: promise } = await import('xstate');
+  return { checkSession: promise(async () => 'unknown') };
+});
+vi.mock('@/account/auth-client', () => ({}));
+vi.mock('react-native-nitro-google-signin', () => ({}));
+vi.mock('expo-network', () => ({}));
 vi.mock('drizzle-orm/expo-sqlite', () => ({}));
 vi.mock('expo-file-system', () => ({}));
 vi.mock('superhabit-gzip-file', () => ({}));
@@ -120,6 +130,60 @@ describe('startup', () => {
     await waitFor(actor, (s) => s.matches('ready'));
     expect(discarded).toEqual(['left']);
     expect(SplashScreen.hide).toHaveBeenCalledTimes(1);
+    actor.stop();
+  });
+
+  it('shows sign-in on the first launch, and starts the app once you signed in', async () => {
+    let seeded = false;
+    const seed = fromPromise(async () => {
+      seeded = true;
+    });
+    // Google and the server say yes.
+    const signIn = signInMachine.provide({
+      actors: { signingIn: fromPromise(async (): Promise<'signedIn' | 'cancelled'> => 'signedIn') },
+    });
+    const actor = createActor(
+      startup.provide({
+        actors: {
+          migrate: fine,
+          seed,
+          check: nothingOpen,
+          identify: fromPromise(async () => false),
+          signIn,
+        },
+      }),
+    ).start();
+
+    const asking = await waitFor(actor, (s) => s.matches('signingIn'));
+    expect(SplashScreen.hide).toHaveBeenCalledTimes(1);
+    expect(seeded).toBe(false);
+    asking.children.signIn?.send({ type: 'press' });
+
+    await waitFor(actor, (s) => s.matches('reading'));
+    expect(seeded).toBe(true);
+    actor.send({ type: 'dataReady' });
+    expect(actor.getSnapshot().matches('ready')).toBe(true);
+    actor.stop();
+  });
+
+  it('stays up when the session check fails, as it does offline', async () => {
+    const actor = createActor(
+      startup.provide({
+        actors: {
+          migrate: fine,
+          seed: fine,
+          check: nothingOpen,
+          session: fromPromise(async (): Promise<'ok' | 'gone' | 'unknown'> => {
+            throw new Error('fetch failed: Unable to resolve host');
+          }),
+        },
+      }),
+    ).start();
+    await waitFor(actor, (s) => s.matches('reading'));
+    actor.send({ type: 'dataReady' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(actor.getSnapshot().status).toBe('active');
+    expect(actor.getSnapshot().matches('ready')).toBe(true);
     actor.stop();
   });
 });

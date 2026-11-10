@@ -1,0 +1,21 @@
+import { expoClient } from '@better-auth/expo/client';
+import { createAuthClient } from 'better-auth/client';
+import * as SecureStore from 'expo-secure-store';
+
+import { SERVER_URL } from './server';
+
+/** Better Auth's client: it keeps the session cookie in secure storage and sends it with each call. */
+export const authClient = createAuthClient({
+  baseURL: SERVER_URL,
+  // React Native's HTTP client never times out: a stalled network would keep "Signing in…" up for good.
+  fetchOptions: { timeout: 20_000 },
+  plugins: [
+    expoClient({
+      scheme: 'superhabit',
+      storagePrefix: 'superhabit',
+      storage: SecureStore,
+      // The session's data lives in the database (storage/account.ts); only the cookie goes to the store.
+      disableCache: true,
+    }),
+  ],
+});

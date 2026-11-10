@@ -10,8 +10,9 @@ Imports only go down:
 ```
 src/app/            routes: read params, compose a screen, navigate
   ↓
-src/bootstrap/      the app's start: the splash, database, seeding, recovery, and today
+src/bootstrap/      the app's start: the splash, database, sign-in, seeding, recovery, and today
   ↓
+src/account/        signing in with Google and the session with our server; the sign-in screen in components/
 src/friends/        the friends feature (for now, the leaderboard preview)
 src/challenges/     the challenge catalog: definitions, catalog entries, your library (challenges and runs
                     kept on the phone), run progress, the reel of a session's sets
@@ -43,8 +44,9 @@ modules/pose/       the native pose detector (a Nitro module)
 - **Storage knows how, a feature knows what.** `storage/` holds the tables and opens the database; it
   holds no feature rules and shows nothing. A feature's model (`challenges/library.ts`) says what is kept
   and the rules for changing it, and its screens decide how to tell you a write failed.
-- **Each feature has exactly one store file for its tables:** `challenges/library.ts`, `streak/store.ts` and
-  `workout/store.ts` own their features' database access.
+- **Each feature has exactly one store file for its tables:** `challenges/library.ts`, `streak/store.ts`,
+  `workout/store.ts` and `account/store.ts` own their features' database access. The kept account's row
+  itself is read in `storage/account.ts`, because file paths below every feature need `userId()`.
 - **Workout logic (`src/workout/*.ts`, `plan/`, `session/`, `capture/`, `coach/`) never imports its own UI**
   (`components/`, `pose/`). UI reads the session through `sessionView`, and the machine never learns how
   it is drawn.

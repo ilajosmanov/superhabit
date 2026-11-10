@@ -1,0 +1,33 @@
+import { Directory, Paths } from 'expo-file-system';
+
+import { account, writeAccount, type Account } from '@/storage/account';
+import { clearDatabase } from '@/storage/clear';
+import { db } from '@/storage/database';
+
+/**
+ * Keeps the account that just signed in. The database holds one account's data: another account's (or what
+ * was kept before accounts existed) is cleared first, in the same transaction. Files stay in their account's
+ * folder, named by its id, for when it signs in again.
+ */
+export function keepAccount(next: Account) {
+  const before = account();
+  db().transaction((tx) => {
+    // shortcut: unsent outbox rows go too; drain or refuse first once sync (piece 5) sends them.
+    if (before?.id !== next.id) clearDatabase(tx);
+    writeAccount(tx, { id: next.id, name: next.name, image: next.image });
+  });
+}
+
+/** The server ended the session: sign in again. The account stays, so its data does too. */
+export function markSignedOut() {
+  const kept = account();
+  if (!kept) return;
+  db().transaction((tx) => writeAccount(tx, { ...kept, signedOut: true }));
+}
+
+// shortcut: only phones from before accounts have it; remove after the first release.
+/** Deletes the files kept before accounts existed (`documents/local`); tried at each launch until gone. */
+export function dropPreAccountFiles() {
+  const local = new Directory(Paths.document, 'local');
+  if (local.exists) local.delete();
+}

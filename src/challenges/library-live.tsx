@@ -4,6 +4,7 @@ import { View } from 'react-native';
 
 import type { Library } from './library-view';
 import { challengeRows, runRows, versionRows } from './library';
+import { accountRows, readAccount } from '@/storage/account';
 import { setRows, workoutRows } from '@/workout/store';
 
 const Shared = createContext<Library | null>(null);
@@ -30,13 +31,18 @@ export function LibraryProvider({
     useLiveQuery(runRows()),
     useLiveQuery(workoutRows()),
     useLiveQuery(setRows()),
+    useLiveQuery(accountRows()),
   ] as const;
-  const [challenges, versions, runs, workouts, sets] = queries;
+  const [challenges, versions, runs, workouts, sets, accounts] = queries;
   // A first read that failed goes to startup's error and Retry; a later one keeps the last tables.
   const failed = queries.find(({ error, updatedAt }) => error && !updatedAt);
   if (failed) return <View className="flex-1" onLayout={() => onRead(String(failed.error))} />;
   if (queries.some(({ updatedAt }) => !updatedAt)) return null;
+  // Startup signed you in before mounting this, so the row is there.
+  const [kept] = accounts.data;
+  if (!kept) return null;
   const library = {
+    you: readAccount(kept.value).id,
     challenges: challenges.data,
     versions: versions.data,
     runs: runs.data,

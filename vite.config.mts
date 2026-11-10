@@ -38,6 +38,7 @@ const EXERCISES_BANS = [
   ...FRAMEWORKS,
   '@/app/**',
   '@/bootstrap/**',
+  '@/account/**',
   '@/friends/**',
   '@/challenges/**',
   '@/streak/**',
@@ -125,7 +126,8 @@ export default defineConfig({
       ),
     },
     overrides: [
-      // Layers, each importing only those below it: app (routes) → bootstrap (the app's start) → friends,
+      // Layers, each importing only those below it: app (routes) → bootstrap (the app's start) → account,
+      // friends,
       // challenges (the catalog; its views in components/), streak → workout (session; its views in components/
       // and pose/) → exercises (pure rep logic) → components/ (shared UI), theme, storage/ (the phone's
       // database; no UI, no feature rules).
@@ -139,6 +141,7 @@ export default defineConfig({
         [
           '@/app/**',
           '@/bootstrap/**',
+          '@/account/components/**',
           '@/challenges/components/**',
           '@/streak/components/**',
           '@/workout/components/**',
@@ -151,6 +154,7 @@ export default defineConfig({
         [
           '@/app/**',
           '@/bootstrap/**',
+          '@/account/components/**',
           '@/friends/**',
           '@/streak/components/**',
           '@/workout/components/**',
@@ -163,6 +167,7 @@ export default defineConfig({
         [
           '@/app/**',
           '@/bootstrap/**',
+          '@/account/components/**',
           '@/friends/**',
           '@/challenges/components/**',
           '@/streak/components/**',
@@ -170,12 +175,27 @@ export default defineConfig({
           '@/workout/pose/**',
         ],
       ),
+      // Your account: sign-in and the session in *.ts, the sign-in screen in components/. Only bootstrap and
+      // routes are above it.
+      layer(
+        ['src/account/**'],
+        [
+          '@/app/**',
+          '@/bootstrap/**',
+          '@/friends/**',
+          '@/challenges/**',
+          '@/streak/**',
+          '@/workout/**',
+        ],
+        [NO_EFFECTS],
+      ),
       // The streak: rules and freeze events in *.ts, Home's grid in components/.
       layer(
         ['src/streak/components/**'],
         [
           '@/app/**',
           '@/bootstrap/**',
+          '@/account/components/**',
           '@/friends/**',
           '@/challenges/components/**',
           '@/workout/components/**',
@@ -188,6 +208,7 @@ export default defineConfig({
         [
           '@/app/**',
           '@/bootstrap/**',
+          '@/account/components/**',
           '@/friends/**',
           '@/challenges/components/**',
           '@/streak/components/**',
@@ -197,7 +218,14 @@ export default defineConfig({
       ),
       layer(
         ['src/workout/components/**', 'src/workout/pose/**'],
-        ['@/app/**', '@/bootstrap/**', '@/friends/**', '@/challenges/**', '@/streak/**'],
+        [
+          '@/app/**',
+          '@/bootstrap/**',
+          '@/account/**',
+          '@/friends/**',
+          '@/challenges/**',
+          '@/streak/**',
+        ],
         [NO_EFFECTS],
       ),
       layer(
@@ -211,6 +239,7 @@ export default defineConfig({
         [
           '@/app/**',
           '@/bootstrap/**',
+          '@/account/**',
           '@/friends/**',
           '@/challenges/**',
           '@/streak/**',
@@ -230,6 +259,7 @@ export default defineConfig({
         [
           '@/app/**',
           '@/bootstrap/**',
+          '@/account/**',
           '@/friends/**',
           '@/challenges/**',
           '@/streak/**',
@@ -245,6 +275,7 @@ export default defineConfig({
           'react-native',
           '@/app/**',
           '@/bootstrap/**',
+          '@/account/**',
           '@/friends/**',
           '@/challenges/**',
           '@/streak/**',
