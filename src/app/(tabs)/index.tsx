@@ -66,7 +66,6 @@ export default function HomeScreen() {
       <DayLog
         // A new day starts with nothing playing.
         key={shown}
-        day={shown}
         label={dayWords(shown, kind, today)}
         rows={rows}
         empty={

@@ -1,4 +1,4 @@
-import { addDays, daysBetween, type Day } from '@/workout/plan/day';
+import type { Day } from '@/workout/plan/day';
 
 /**
  * A run on `today` as screens show it: `from` is its day 1 (later than the join day after a restart),
@@ -29,15 +29,4 @@ export function dayWord(run: RunView, i: number) {
   if (share >= 1) return 'DONE';
   if (share > 0) return percent(share);
   return ahead === 0 ? 'NOT YET' : 'MISSED';
-}
-
-/**
- * The day of `run` a link names by date (`YYYY-MM-DD`), as an index: null for today, a date outside the
- * run's current stretch, or anything that isn't a date.
- */
-export function linkedDay(run: RunView, date: string | undefined): number | null {
-  // The round trip turns away a date that isn't one (2026-02-30 would read as March 2).
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || addDays(date, 0) !== date) return null;
-  const i = daysBetween(run.from, date);
-  return i >= 0 && i < run.day - 1 ? i : null;
 }

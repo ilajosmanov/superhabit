@@ -45,7 +45,7 @@ it('keeps the Done page on the version the session started on when the challenge
   expect(sessionChallenge(library, 'r', '2026-11-09').run).toMatchObject({ day: 1, days: 2 });
 });
 
-it("lists a day's saved workouts oldest first, with their names, run days and where a tap leads", () => {
+it("lists a day's saved workouts oldest first, with their names, run days and the plans their reels play by", () => {
   const run = (id: string, ended: boolean) => ({
     id,
     challengeId: 'c',
@@ -148,20 +148,18 @@ it("lists a day's saved workouts oldest first, with their names, run days and wh
     free: true,
     held: true,
     heldMs: 65_000,
-    link: null,
   });
   expect(rows[1]).toMatchObject({
     name: 'Floor',
     free: false,
     reps: 8,
     runDay: { number: 2, of: 3 },
-    link: { challengeId: 'c', runId: 'going' },
   });
   expect(rows[2]).toMatchObject({ name: 'Squats', reps: 0, held: false });
-  // A run you left still says its day, but its page no longer shows it: the row plays instead.
-  expect(rows[3]).toMatchObject({ runDay: { number: 2, of: 3 }, link: null });
-  // A try before a restart: the run is going, but its page only shows the new stretch.
-  expect(rows[4]).toMatchObject({ name: 'Strict', runDay: { number: 1, of: 3 }, link: null });
-  // A version this app can't read: named, but no run day, no plan to play it by, no page.
-  expect(rows[5]).toMatchObject({ name: 'Newer', runDay: null, steps: null, link: null });
+  // A run you left still says its day.
+  expect(rows[3]).toMatchObject({ runDay: { number: 2, of: 3 } });
+  // A try before a restart is numbered on its own stretch.
+  expect(rows[4]).toMatchObject({ name: 'Strict', runDay: { number: 1, of: 3 } });
+  // A version this app can't read: named, but no run day and no plan to play it by.
+  expect(rows[5]).toMatchObject({ name: 'Newer', runDay: null, steps: null });
 });

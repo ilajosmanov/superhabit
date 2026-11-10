@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -13,7 +12,7 @@ import { RollingLines } from '@/components/rolling-lines';
 import { EXERCISES } from '@/exercises/registry';
 import { videosOf } from '@/storage/set-files';
 import { colors } from '@/theme';
-import { pad, type Day } from '@/workout/plan/day';
+import { pad } from '@/workout/plan/day';
 
 /** "07:42": the time it started where you were then, whatever the phone's zone is now. */
 function clock({ startedAt, tzOffsetMin }: LogRow) {
@@ -22,22 +21,19 @@ function clock({ startedAt, tzOffsetMin }: LogRow) {
 }
 
 /**
- * The workouts saved on `day`, a row each, oldest first; `empty` when there are none. A row of the run you
- * are in opens its page on that day; any other row that counted something plays its sets full screen.
+ * The workouts saved on a day, a row each, oldest first; `empty` when there are none. A row that counted
+ * something plays its own sets full screen, a challenge's try too: its page shows only the try that counts.
  */
 export function DayLog({
-  day,
   label,
   rows,
   empty,
 }: {
-  day: Day;
   label: string;
   rows: readonly LogRow[];
   /** Said when there are no rows; several take turns. */
   empty: string | readonly string[];
 }) {
-  const router = useRouter();
   const [watching, setWatching] = useState<{ clips: Clip[]; sets: number } | null>(null);
   return (
     <View className="gap-3">
@@ -56,9 +52,9 @@ export function DayLog({
       )}
       <View className="gap-2.5">
         {rows.map((row) => {
-          const { link, steps } = row;
+          const { steps } = row;
           // Sets that got nothing were never filmed.
-          const plays = !link && steps !== null && (row.reps > 0 || row.heldMs > 0);
+          const plays = steps !== null && (row.reps > 0 || row.heldMs > 0);
           // Its files are listed on the tap, never while a page slides: a set's last file may still have
           // been writing when the workout was saved.
           // shortcut: a row whose files are gone (cleared storage) shows play and does nothing.
@@ -69,16 +65,7 @@ export function DayLog({
             const sets = steps.filter((step) => step.exercise !== 'rest').length;
             if (clips.length > 0) setWatching({ clips, sets });
           };
-          const onPress = link
-            ? () =>
-                router.push({
-                  pathname: '/challenge/[id]',
-                  params: { id: link.challengeId, run: link.runId, day },
-                })
-            : plays
-              ? play
-              : undefined;
-          return <Row key={row.workoutId} row={row} plays={plays} onPress={onPress} />;
+          return <Row key={row.workoutId} row={row} onPress={plays ? play : undefined} />;
         })}
       </View>
       {watching && (
@@ -94,16 +81,16 @@ export function DayLog({
 }
 
 /** Outlined like a catalog card: the exercises, the name, when and which day, and what it got. */
-function Row({ row, plays, onPress }: { row: LogRow; plays: boolean; onPress?: () => void }) {
+function Row({ row, onPress }: { row: LogRow; onPress?: () => void }) {
   const note = `${clock(row)}${row.free ? ' · ONE GO' : row.runDay ? ` · DAY ${row.runDay.number} OF ${row.runDay.of}` : ''}`;
   const amount = row.held ? mss(Math.floor(row.heldMs / 1000)) : String(row.reps);
   const unit = row.held ? 'HELD' : 'REPS';
   return (
     <View className="overflow-hidden rounded-2xl border border-line">
       <Pressable
-        accessibilityRole={onPress && (plays ? 'button' : 'link')}
+        accessibilityRole={onPress && 'button'}
         accessibilityLabel={`${row.name}, ${note.toLowerCase()}, ${amount} ${unit.toLowerCase()}`}
-        accessibilityHint={plays ? 'Plays its sets' : onPress && 'Opens this day of the challenge'}
+        accessibilityHint={onPress && 'Plays its sets'}
         disabled={!onPress}
         onPress={onPress}
         android_ripple={{ color: colors.surface }}
@@ -117,7 +104,7 @@ function Row({ row, plays, onPress }: { row: LogRow; plays: boolean; onPress?: (
             {row.name}
           </Text>
           <View className="flex-row items-center gap-1.5">
-            {plays && <Icon name="play_arrow" size={14} color={colors.muted} />}
+            {onPress && <Icon name="play_arrow" size={14} color={colors.muted} />}
             <Text className="font-mono text-xs tracking-wide text-muted">{note}</Text>
           </View>
         </View>

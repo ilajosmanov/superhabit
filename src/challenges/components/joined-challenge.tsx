@@ -15,17 +15,10 @@ import { setShare } from '@/workout/plan/results';
  * A challenge you are in: how today stands, every day of the run to pick from, what the picked day asks
  * for and what each of its sets got, and how each exercise counts.
  */
-export function JoinedChallenge({
-  joined: { challenge, run, amounts },
-  initialDay = null,
-}: {
-  joined: Joined;
-  /** The day index to open on; null (today) by default. */
-  initialDay?: number | null;
-}) {
+export function JoinedChallenge({ joined: { challenge, run, amounts } }: { joined: Joined }) {
   const today = run.day - 1;
   // Today until you pick another day.
-  const [picked, setPicked] = useState(initialDay);
+  const [picked, setPicked] = useState<number | null>(null);
   const selected = picked ?? today;
   // A day ahead shows the plan alone; a day with a try, the version that try was done on.
   const day = amounts.at(selected);
@@ -59,7 +52,8 @@ export function JoinedChallenge({
         <WatchDay
           // Its videos are listed as it mounts: again for another day, or once a new try is saved.
           key={day.sets.map(({ id }) => id).join()}
-          label={selected === today ? 'WATCH TODAY' : `WATCH DAY ${selected + 1}`}
+          // The day shows one try (the latest that met the goal, else the latest); a daily total, all.
+          label={`${selected === today ? 'TODAY' : `DAY ${selected + 1}`} · ${shown.dailyTotal ? 'EVERY TRY' : 'THE TRY THAT COUNTS'}`}
           sets={sets}
           done={day.done}
           steps={expand(shown.session)}

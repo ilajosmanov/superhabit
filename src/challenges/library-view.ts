@@ -241,14 +241,12 @@ export type LogRow = {
   heldMs: number;
   /** Holds only: what it got is time, not reps. */
   held: boolean;
-  /** The run whose page opens on this day: still going, and the day is in its current stretch. */
-  link: { challengeId: string; runId: string } | null;
   /** Its plan's steps, which the reel needs; null for a version this app can't read. */
   steps: FlatSteps | null;
   sets: readonly LoggedSet[];
 };
 
-/** `day`'s saved workouts, oldest first, each with what it got and where a tap leads. */
+/** `day`'s saved workouts, oldest first, each with what it got and the plan its reel plays by. */
 export function dayLog(library: Library, day: Day, today: Day): LogRow[] {
   const shown = library.workouts
     .filter((workout) => workout.day === day && workout.status === 'done')
@@ -300,21 +298,17 @@ export function dayLog(library: Library, day: Day, today: Day): LogRow[] {
         name: exercise ? capitalise(EXERCISES[exercise].name) : '',
         free: true,
         runDay: null,
-        link: null,
         steps: exercise ? expand(oneGo(exercise).session) : null,
       };
     }
     const tried = stored.versions.find(({ row }) => row.id === workout.versionId);
     const calendar = calendarOf(run);
     const number = calendar?.days.find((d) => d.day === day)?.number;
-    // As `yours`: a run still going on a version this app reads, and a day of its current stretch.
-    const going = calendar?.state.state === 'active' && day >= calendar.state.from;
     return {
       ...base,
       name: tried?.row.name ?? '',
       free: false,
       runDay: number && tried?.version ? { number, of: tried.version.days } : null,
-      link: going ? { challengeId: run.challengeId, runId: run.id } : null,
       steps: tried?.version ? expand(tried.version.session) : null,
     };
   });
