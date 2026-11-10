@@ -19,8 +19,9 @@ The startup machine (`bootstrap/startup.ts`) opens the database and applies the 
 failure shows Retry instead of crashing; `db()` throws if anything reads before that.
 
 Writes are synchronous `db.transaction(...)` calls with no `await` inside. Each feature's store builds
-its queries; screens subscribe with
-`useLiveQuery` (from `drizzle-orm/expo-sqlite`), which re-runs when the query's main table changes.
+its queries. Screens never subscribe themselves: one `LibraryProvider` (`challenges/library-live.tsx`)
+keeps every table live with `useLiveQuery` and shares the snapshot (see "Reading data on screens" in
+CODING_STANDARDS.md).
 
 Tests that need real SQL mock `@/storage/database` with `__fixtures__/database.ts`: Node's own SQLite in
 memory, migrated from the same files.

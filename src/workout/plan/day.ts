@@ -6,7 +6,8 @@ const dayNumber = (day: Day) =>
   Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10))) / DAY_MS;
 const dayAt = (n: number): Day => new Date(n * DAY_MS).toISOString().slice(0, 10);
 
-const pad = (n: number) => String(n).padStart(2, '0');
+/** Two digits: 7 → "07". */
+export const pad = (n: number) => String(n).padStart(2, '0');
 /** The phone's calendar day, not UTC's: a 00:30 workout counts for the day it is where you are. */
 export const today = (now = new Date()): Day =>
   `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;

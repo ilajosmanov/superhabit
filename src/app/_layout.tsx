@@ -45,9 +45,7 @@ export default function RootLayout() {
           their own headers. A pushed page slides fully over the one below: Android's default
           cross-fades the two, which ghosts one page through the other. */}
       {(state.matches('reading') || state.matches('recovering') || state.matches('ready')) && (
-        <LeftOpen
-          value={{ id: state.context.open?.id ?? null, deciding: state.matches('recovering') }}
-        >
+        <LeftOpen value={state.context.open?.id ?? null}>
           <Today value={state.context.today}>
             <LibraryProvider onRead={(error) => send({ type: 'dataReady', error })}>
               <DrizzleStudio />

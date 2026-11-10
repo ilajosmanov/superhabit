@@ -153,7 +153,7 @@ export default defineConfig({
           '@/workout/pose/**',
         ],
       ),
-      // The streak: rules and freeze events in *.ts, the Today grid in components/.
+      // The streak: rules and freeze events in *.ts, Home's grid in components/.
       layer(
         ['src/streak/components/**'],
         [

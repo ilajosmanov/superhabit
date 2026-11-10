@@ -32,9 +32,6 @@ export function IconButton({
   diameter,
   style,
 }: {
-  icon?: AndroidSymbol;
-  /** Drawn instead of a symbol. */
-  figure?: ReactElement;
   label: string;
   onPress: () => void;
   checked?: boolean;
@@ -43,10 +40,17 @@ export function IconButton({
   fill?: string;
   diameter?: number;
   style?: ViewStyle;
-}) {
+} & (
+  | { icon: AndroidSymbol; figure?: undefined }
+  | {
+      icon?: undefined;
+      /** Drawn instead of a symbol. */
+      figure: ReactElement;
+    }
+)) {
   const content = (
     <RNHostView matchContents>
-      {figure ?? (icon ? <Icon name={icon} size={size} color={color} /> : <></>)}
+      {figure ?? (icon && <Icon name={icon} size={size} color={color} />)}
     </RNHostView>
   );
   const modifiers = [

@@ -16,7 +16,7 @@ src/friends/        the friends feature (for now, the leaderboard preview)
 src/challenges/     the challenge catalog: definitions, catalog entries, your library (challenges and runs
                     kept on the phone), run progress, the reel of a session's sets
   components/       UI only challenges uses (catalog tiles, joined cards, the Done page and its reel)
-src/streak/         your streak: its rules, the freeze events kept, and the Today grid in components/
+src/streak/         your streak: its rules, the freeze events kept, and Home's grid in components/
   ↓
 src/workout/        the workout feature: store, log actor and recovery
   plan/             plan model, result contracts and local days

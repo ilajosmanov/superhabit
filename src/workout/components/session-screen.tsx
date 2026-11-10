@@ -37,8 +37,8 @@ function Centered({ text }: { text: string }) {
 /**
  * What is settled before a workout starts: a workout an earlier session left open is offered back (Save
  * or Discard), the camera is allowed, and the page has slid in. `children` gets this workout's id, known
- * before it starts, so its own open workout is never offered back. `waiting`: another prompt (startup's)
- * is deciding a workout left open; nothing starts until it has.
+ * before it starts, so its own open workout is never offered back. `waiting`: the shared tables still show
+ * the workout startup's prompt is offering back; nothing starts until it is saved or discarded.
  */
 export function SessionGate({
   openWorkout,

@@ -111,10 +111,19 @@ function Grid({
           accessible
           accessibilityRole="adjustable"
           accessibilityLabel="Last 13 weeks of your streak, a square per day"
-          accessibilityValue={{ text: dayWords(picked, kind(picked), today) }}
-          accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-          onAccessibilityAction={({ nativeEvent }) => {
-            const day = addDays(picked, nativeEvent.actionName === 'increment' ? 1 : -1);
+          // The legend is hidden from TalkBack, so the value says a trained day too.
+          accessibilityValue={{
+            text: `${dayWords(picked, kind(picked), today)}${kind(picked) === 'alive' ? ' · DONE' : ''}`,
+          }}
+          // A double tap with no click action becomes a tap in the grid's middle, picking a day by chance.
+          accessibilityActions={[
+            { name: 'increment' },
+            { name: 'decrement' },
+            { name: 'activate' },
+          ]}
+          onAccessibilityAction={({ nativeEvent: { actionName } }) => {
+            if (actionName === 'activate') return;
+            const day = addDays(picked, actionName === 'increment' ? 1 : -1);
             if (day >= columns[0][0] && day <= today) pick(day);
           }}
           onLayout={({ nativeEvent: { layout } }) => {

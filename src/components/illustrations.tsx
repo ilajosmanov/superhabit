@@ -20,7 +20,8 @@ type FigureProps = {
 };
 
 /**
- * Our own pictures, drawn as 1.5px lines on a 32 grid: an exercise's figure and the surprise die. Icons
+ * Our own pictures, drawn as 1.5px lines on a 32 grid: an exercise's figure, the surprise die and the empty
+ * day. Icons
  * are Material Symbols (`Icon`); only what no icon set has is drawn here.
  * SVG, not Skia: a Skia canvas is its own GPU surface and blinks when a tab re-attaches.
  */
@@ -60,6 +61,15 @@ const DIE =
     .join('');
 /** A die seen from its corner: one pip on top, two left, three right. */
 export const DieFigure = (p: FigureProps) => <Figure d={DIE} {...p} />;
+
+const SAD =
+  ring(18, 17.6, 2.6) +
+  // Back, legs, the arm round the knees, floor; then the cloud and its rain.
+  'M10.5 25.5Q8.5 17.5 15 16.2M10.5 25.5L22 20L23 26M14.6 17L16.5 21.6L22.3 21.9M5 26h22' +
+  'M12.5 9.5h11a2.3 2.3 0 0 0 0-4.6a3 3 0 0 0-5.6-1.4a2.5 2.5 0 0 0-4.2 1.9a2.1 2.1 0 0 0-1.2 4.1Z' +
+  'M15 11.5v1M18 12v1M21 11.5v1';
+/** Someone hunched over their knees under a rain cloud: a day with no sets. */
+export const SadFigure = (p: FigureProps) => <Figure d={SAD} {...p} />;
 
 /** A stick figure: the head's centre and the body's lines (limbs, floor, wall). */
 type Pose = { head: readonly [number, number]; body: string };

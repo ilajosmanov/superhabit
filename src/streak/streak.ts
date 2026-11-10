@@ -27,6 +27,20 @@ export type Streak = {
 };
 
 /**
+ * The days you trained (alive days): days of done workouts with a counted rep or hold. Open and discarded
+ * workouts don't count, nor does a Done with nothing counted. The grid and the freezes written both use it.
+ */
+export function aliveDays(
+  workouts: readonly { id: string; day: Day; status: string }[],
+  sets: readonly { workoutId: string; reps: number; heldMs: number }[],
+): Day[] {
+  const counted = new Set(
+    sets.filter(({ reps, heldMs }) => reps > 0 || heldMs > 0).map(({ workoutId }) => workoutId),
+  );
+  return workouts.filter((w) => w.status === 'done' && counted.has(w.id)).map((w) => w.day);
+}
+
+/**
  * Your streak from the days you trained (alive days) and today. Computed in full every time: freeze
  * events are only its record, so a day another phone later makes alive is simply alive, its freeze kept.
  */

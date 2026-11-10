@@ -18,8 +18,6 @@ import * as schema from '@/storage/schema';
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
-// The live query is the screens' (useLeftWorkout); Node has no expo-sqlite.
-vi.mock('drizzle-orm/expo-sqlite', () => ({}));
 vi.mock('expo-constants', () => ({ default: { expoConfig: { version: '1.0.0' } } }));
 
 const set = (planStep: number, endedAt: number): StepResult => ({

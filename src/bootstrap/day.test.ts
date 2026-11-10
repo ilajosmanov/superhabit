@@ -88,3 +88,15 @@ it('reads the real day when the midnight timer fires late, and arms for the next
   expect(days).toEqual(['2026-11-09', '2026-11-10', '2026-11-11']);
   actor.stop();
 });
+
+it('tells a new day within a minute when the date jumps with the app in front (a time zone change)', () => {
+  vi.useFakeTimers({ now: new Date(2026, 10, 9, 21) });
+  const { days, actor } = listen();
+  vi.advanceTimersByTime(10 * 60_000);
+  expect(days).toEqual(['2026-11-09']);
+  // Flown east: the phone's clock now reads 01:10 on the 10th, hours before the old zone's midnight.
+  vi.setSystemTime(new Date(2026, 10, 10, 1, 10));
+  vi.advanceTimersByTime(60_000);
+  expect(days).toEqual(['2026-11-09', '2026-11-10']);
+  actor.stop();
+});

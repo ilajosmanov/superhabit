@@ -11,11 +11,12 @@ import { SessionGate, SessionScreen } from '@/workout/components/session-screen'
 export default function WorkoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const library = useLibrary();
-  // Opened by a link at launch: startup's prompt already offers back the workout it found open.
-  const handled = useLeftOpen();
-  const left = library.workouts.find(({ id, status }) => status === 'open' && id !== handled.id);
+  const launchLeft = useLeftOpen();
+  const left = library.workouts.find(({ status }) => status === 'open') ?? null;
+  // Opened by a link at launch: startup's prompt offers this one back; wait for its Save or Discard.
+  const waiting = left !== null && left.id === launchLeft;
   return (
-    <SessionGate openWorkout={left ?? null} waiting={handled.deciding}>
+    <SessionGate openWorkout={left} waiting={waiting}>
       {/* A new id is a new session. */}
       {(workoutId) => <Session key={id} id={id} library={library} workoutId={workoutId} />}
     </SessionGate>

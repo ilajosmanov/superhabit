@@ -8,8 +8,9 @@ import { setRows, workoutRows } from '@/workout/store';
 
 const Shared = createContext<Library | null>(null);
 
-// shortcut: whole tables, read again on every change to one; fine for a phone's worth of challenges and
-// workouts. Filter by day or run once history makes them long.
+// shortcut: whole tables, read again on every change to one, and once per changed row (SQLite's update
+// hook fires per row, so a Discard re-reads `sets` once per set); fine for a phone's worth of challenges
+// and workouts. Filter by day or run, and read a table once per burst, once history makes them long.
 /**
  * The library's tables, read once for the whole app and kept current, so a page pushed later has them on
  * its first frame instead of sliding in empty while it reads. Each query is one table, because a live

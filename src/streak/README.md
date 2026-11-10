@@ -16,5 +16,6 @@ nothing reads them back, so a day another phone later makes alive is simply aliv
 launch and at each new day (`bootstrap/startup.ts`), never for today, and not while a workout is open,
 because one started before midnight may still make yesterday alive.
 
-Alive days come from `workout/store.ts`, which owns the workout tables. Tests: `streak.test.ts` works the
+Alive days are `aliveDays` in `streak.ts`, over the shared snapshot on Home and over the rows
+`workout/store.ts` reads (`workoutRows`, `setRows`) in `keepFreezes`. Tests: `streak.test.ts` works the
 rules by hand; `store.test.ts` writes real workouts to Node SQLite.

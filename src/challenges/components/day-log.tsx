@@ -8,12 +8,13 @@ import type { LogRow } from '@/challenges/library-view';
 import { dayReel, type Clip } from '@/challenges/reel';
 import { mss } from '@/components/duration';
 import { Icon } from '@/components/icon';
+import { SadFigure } from '@/components/illustrations';
+import { RollingLines } from '@/components/rolling-lines';
 import { EXERCISES } from '@/exercises/registry';
 import { videosOf } from '@/storage/set-files';
 import { colors } from '@/theme';
-import type { Day } from '@/workout/plan/day';
+import { pad, type Day } from '@/workout/plan/day';
 
-const pad = (n: number) => String(n).padStart(2, '0');
 /** "07:42": the time it started where you were then, whatever the phone's zone is now. */
 function clock({ startedAt, tzOffsetMin }: LogRow) {
   const at = new Date(startedAt + tzOffsetMin * 60_000);
@@ -33,7 +34,8 @@ export function DayLog({
   day: Day;
   label: string;
   rows: readonly LogRow[];
-  empty: string;
+  /** Said when there are no rows; several take turns. */
+  empty: string | readonly string[];
 }) {
   const router = useRouter();
   const [watching, setWatching] = useState<{ clips: Clip[]; sets: number } | null>(null);
@@ -41,7 +43,16 @@ export function DayLog({
     <View className="gap-3">
       <Text className="font-mono text-xs tracking-widest text-muted">{label}</Text>
       {rows.length === 0 && (
-        <Text className="font-sans text-base leading-normal text-soft">{empty}</Text>
+        <View className="items-center gap-3 py-6">
+          <SadFigure size={88} weight={1} color={colors.muted} />
+          {typeof empty === 'string' ? (
+            <Text className="text-center font-sans text-base leading-normal text-soft">
+              {empty}
+            </Text>
+          ) : (
+            <RollingLines lines={empty} />
+          )}
+        </View>
       )}
       <View className="gap-2.5">
         {rows.map((row) => {
