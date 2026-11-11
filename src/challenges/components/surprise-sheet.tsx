@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { Sheet } from './sheet';
-import { ONE_GO } from '@/challenges/challenges';
+import { isHold } from '@/challenges/hold';
+import { ONE_GO } from '@/challenges/one-go';
 import { ExerciseFigure } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
@@ -13,7 +14,7 @@ import { capitalise } from '@/lib/text';
  * What the surprise card picked, before the camera opens: the exercise, what counts, where the phone
  * goes, and Start.
  */
-export function SurpriseSheet({
+function SurpriseSheet({
   open,
   exercise: id,
   onDismiss,
@@ -43,7 +44,7 @@ export function SurpriseSheet({
       </View>
 
       <Text className="font-sans text-base leading-normal text-soft">
-        {exercise.kind === 'hold'
+        {isHold(id)
           ? 'One hold, as long as you can. The camera times it.'
           : 'One set, as many clean reps as you can. The camera counts them.'}{' '}
         Just this once: nothing to keep up tomorrow.
@@ -82,6 +83,8 @@ export function useSurprise() {
         exercise={picked}
         onDismiss={() => setOpen(false)}
         onStart={() => {
+          // A second tap while the sheet slides away would open a second camera.
+          if (!open) return;
           setOpen(false);
           router.push({ pathname: '/workout/[id]', params: { id: picked } });
         }}

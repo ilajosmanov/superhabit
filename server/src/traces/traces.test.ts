@@ -3,35 +3,16 @@ import { describe, expect, it } from 'vite-plus/test';
 import { open } from '../db/db';
 import { dropTraces } from './store';
 import { done, push } from '../__fixtures__/outbox';
-import { ann, bob, call, consent, env, midnightCron, idOf, signIn } from '../__fixtures__/worker';
-import { encodeTrace, type TraceInfo } from '../../../src/storage/trace-file';
+import { trace } from '../__fixtures__/trace';
+import {
+  call,
+  consent,
+  env,
+  midnightCron,
+  passedBeforeLimit,
+  someone,
+} from '../__fixtures__/worker';
 
-// Real `.sht` files, from the phone's own encoder.
-const trace = (setId: string, consents = ['traces@1']) => {
-  const info: TraceInfo = {
-    exercise: 'squat',
-    setId,
-    counterVersion: '1.0.0',
-    device: { model: 'Pixel 9', os: 'Android 17' },
-    camera: null,
-    takes: [],
-    consent: consents,
-    counted: { reps: 1 },
-    labels: {},
-  };
-  return encodeTrace(info, [
-    {
-      t: 0,
-      landmarks: Array.from({ length: 33 }, (_, j) => [0.3 + j / 100, 0.5, 0, 0.9] as const),
-      world: Array.from({ length: 33 }, (_, j) => [j / 100, 0, 0, 0.9] as const),
-      down: [0, 1, 0],
-      phase: null,
-      waiting: null,
-      inferenceMs: null,
-      brightness: null,
-    },
-  ]);
-};
 const upload = (cookie: string, setId: string, file: Uint8Array, bindings = env) =>
   call(`/traces/${setId}`, { method: 'PUT', headers: { cookie }, body: file }, bindings);
 const share = (cookie: string, granted: boolean) =>
@@ -44,8 +25,7 @@ const cron = () => midnightCron();
 
 describe('traces: the phone shares a set', () => {
   it('keeps a shared set once, and refuses what sharing never covered', async () => {
-    const phone = await signIn(ann);
-    const you = await idOf(phone);
+    const { cookie: phone, id: you } = await someone();
     await push(phone, [done('w1', null, ['s1', 's2'])]);
 
     // Not before sharing is on, even for a file recorded while it was.
@@ -65,15 +45,14 @@ describe('traces: the phone shares a set', () => {
     expect((await upload(phone, 's3', trace('s3'))).status).toBe(409);
 
     // Bob can't put a file on Ann's set.
-    const bobs = await signIn(bob);
+    const { cookie: bobs } = await someone();
     await share(bobs, true);
     expect((await upload(bobs, 's2', trace('s2'))).status).toBe(409);
     expect(await stored(you)).toEqual([`traces/${you}/s1.sht`]);
   });
 
   it('keeps nothing when sharing stops while a file goes up, even if it is given again', async () => {
-    const phone = await signIn(ann);
-    const you = await idOf(phone);
+    const { cookie: phone, id: you } = await someone();
     await share(phone, true);
     await push(phone, [done('w4', null, ['s7'])]);
     for (const again of [false, true]) {
@@ -107,8 +86,7 @@ describe('traces: the phone shares a set', () => {
 
   it('a file that lands after a deletion read its row still has a row to find it by', async () => {
     // The daily sweep chose this account before it shared again, and reaches it mid-upload.
-    const phone = await signIn(ann);
-    const you = await idOf(phone);
+    const { cookie: phone, id: you } = await someone();
     await share(phone, true);
     await push(phone, [done('w7', null, ['s10'])]);
     let land = () => {};
@@ -157,8 +135,7 @@ describe('traces: the phone shares a set', () => {
   });
 
   it('a file that lands after its account was deleted goes with it', async () => {
-    const phone = await signIn(bob);
-    const you = await idOf(phone);
+    const { cookie: phone, id: you } = await someone();
     await share(phone, true);
     await push(phone, [done('w6', null, ['s9'])]);
     let land = () => {};
@@ -187,8 +164,7 @@ describe('traces: the phone shares a set', () => {
   });
 
   it('finishes a deletion that failed: the daily sweep, or before sharing is given again', async () => {
-    const phone = await signIn(ann);
-    const you = await idOf(phone);
+    const { cookie: phone, id: you } = await someone();
     await share(phone, true);
     await push(phone, [done('w5', null, ['s8'])]);
     await upload(phone, 's8', trace('s8'));
@@ -219,13 +195,11 @@ describe('traces: the phone shares a set', () => {
   });
 
   it('deletes what was shared when sharing stops, and when the account is deleted', async () => {
-    const phone = await signIn(ann);
-    const you = await idOf(phone);
+    const { cookie: phone, id: you } = await someone();
     await share(phone, true);
     await push(phone, [done('w2', null, ['s4', 's5'])]);
     await upload(phone, 's4', trace('s4'));
-    const bobs = await signIn(bob);
-    const bob1 = await idOf(bobs);
+    const { cookie: bobs, id: bob1 } = await someone();
     await share(bobs, true);
     await push(bobs, [done('w3', null, ['s6'])]);
     await upload(bobs, 's6', trace('s6'));
@@ -241,5 +215,13 @@ describe('traces: the phone shares a set', () => {
     await cron();
     expect(await stored(bob1)).toEqual([]);
     expect(await rows(bob1)).toEqual([]);
+  });
+
+  it('takes 60 uploads a minute from one account', async () => {
+    const { cookie: phone } = await someone();
+    const send = async () => (await upload(phone, 's1', trace('s1'))).status;
+    const passed = await passedBeforeLimit(send, 60);
+    expect(passed).toBeGreaterThanOrEqual(60);
+    expect(passed).toBeLessThanOrEqual(120);
   });
 });

@@ -8,9 +8,9 @@ import { useLibrary } from '@/challenges/library-live';
 import { dayLog } from '@/challenges/library-view';
 import { Screen } from '@/components/screen';
 import { StreakPanel } from '@/streak/components/streak-panel';
-import { dayWords, weeks } from '@/streak/streak';
+import { dayWords, weeks } from '@/streak/components/streak-grid';
 import { useStreak } from '@/streak/streak-live';
-import type { Day } from '@/workout/plan/day';
+import type { Day } from '@/lib/day';
 
 // Today can still change, so an empty today gets nudges, in turn; a day that is over says what happened.
 const NUDGES = [
@@ -49,13 +49,7 @@ export default function HomeScreen() {
           : undefined
       }
       // A random set is always a tap away, the first time too.
-      action={
-        <SurpriseButton
-          onPress={random}
-          // The 48dp target overhangs the row; the symbol lines up with the hairline's end.
-          style={{ marginRight: -12 }}
-        />
-      }
+      action={<SurpriseButton onPress={random} edge />}
     >
       <StreakPanel
         streak={streak}
@@ -64,8 +58,8 @@ export default function HomeScreen() {
         onPick={(day) => setPicked(day === today ? null : day)}
       />
       <DayLog
-        // A new day starts with nothing playing.
-        key={shown}
+        // A new day starts with nothing playing; its videos are listed again for another day or a new save.
+        key={`${shown}:${rows.map(({ workoutId }) => workoutId).join()}`}
         label={dayWords(shown, kind, today)}
         rows={rows}
         empty={

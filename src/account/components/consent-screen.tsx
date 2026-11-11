@@ -1,12 +1,14 @@
 import { useSelector } from '@xstate/react';
 import type { AndroidSymbol } from 'expo-symbols';
-import { ScrollView, Text, View } from 'react-native';
+import { Linking, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, G, Path, Text as SvgText } from 'react-native-svg';
 import type { ActorRefFrom } from 'xstate';
 
+import { FAILURE_TEXT } from '@/account/call';
 import type { consent } from '@/account/consent';
+import { SERVER_URL } from '@/account/server';
 import { Icon } from '@/components/icon';
 import { PrimaryButton } from '@/components/primary-button';
 import { TextButton } from '@/components/text-button';
@@ -27,12 +29,21 @@ export const SHARING_FACTS = [
   {
     icon: 'toggle_off',
     title: 'Yours to stop',
-    text: "Turn it off in your profile, and what you've shared is deleted.",
+    text: "Turn it off in your profile. What you've shared is deleted as soon as this phone is online.",
   },
 ] as const satisfies readonly { icon: AndroidSymbol; title: string; text: string }[];
 
-/** Right after the first sign-in (board 22b, with 22a's drawing): share your traces? What goes, what stays, how to stop. */
-export function ConsentScreen({ consent: actor }: { consent: ActorRefFrom<typeof consent> }) {
+/**
+ * Right after the first sign-in (board 22b, with 22a's drawing): share your traces? What goes, what stays,
+ * how to stop. `onSignIn` hands over to sign-in once a Yes found the session gone.
+ */
+export function ConsentScreen({
+  consent: actor,
+  onSignIn,
+}: {
+  consent: ActorRefFrom<typeof consent>;
+  onSignIn: () => void;
+}) {
   const { top, bottom } = useSafeAreaInsets();
   const asking = useSelector(actor, (s) => s.matches('asking') || s.matches('saving'));
   const busy = useSelector(actor, (s) => s.matches('saving') || s.matches('failing'));
@@ -91,23 +102,39 @@ export function ConsentScreen({ consent: actor }: { consent: ActorRefFrom<typeof
             <Text className="font-sans text-base text-chalk">
               {error === 'offline'
                 ? 'No internet. Try again, or choose later in your profile.'
-                : "Couldn't save it. Try again."}
+                : error === 'signedOut'
+                  ? FAILURE_TEXT.signedOut
+                  : "Couldn't save it. Try again."}
             </Text>
           </View>
         )}
-        <PrimaryButton
-          label={busy ? 'Saving…' : 'Count me in'}
+        {/* Signed out, Yes can't reach the server until you sign in again; Not now still works. */}
+        {error === 'signedOut' ? (
+          <PrimaryButton label="Sign in again" onPress={onSignIn} />
+        ) : (
+          <PrimaryButton
+            label={busy ? 'Saving…' : 'Count me in'}
+            disabled={busy}
+            onPress={() => actor.send({ type: 'agree' })}
+          />
+        )}
+        <TextButton
+          wide
+          label="Not now"
           disabled={busy}
-          onPress={() => actor.send({ type: 'agree' })}
+          onPress={() => actor.send({ type: 'notNow' })}
         />
-        <TextButton wide label="Not now" onPress={() => actor.send({ type: 'notNow' })} />
         <Text className="text-center font-sans text-sm text-muted">
           Change your mind anytime in your profile.
         </Text>
+        <TextButton wide label="Privacy policy" color={colors.muted} onPress={openPrivacyPolicy} />
       </View>
     </Animated.View>
   );
 }
+
+/** Opens our privacy policy in the browser: here and on Profile. */
+export const openPrivacyPolicy = () => void Linking.openURL(`${SERVER_URL}/privacy`);
 
 function Point({
   icon,

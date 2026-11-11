@@ -5,7 +5,7 @@ import { ExerciseStack, StepsButton } from './exercise-stack';
 import { Icon } from '@/components/icon';
 import { colors } from '@/theme';
 import type { CatalogEntry } from '@/challenges/catalog';
-import { doneToday, type RunView } from '@/challenges/run-view';
+import { doneToday, percent, type RunView } from '@/challenges/run-view';
 
 /**
  * One square per day: amber = done, filled from the bottom by the share of a partial try, amber outline =
@@ -50,11 +50,7 @@ export function JoinedCard({
 }) {
   const done = doneToday(run);
   const share = run.progress[run.day - 1];
-  const status = done
-    ? 'DONE TODAY'
-    : share > 0
-      ? `${Math.round(share * 100)}% TODAY`
-      : 'DUE TODAY';
+  const status = done ? 'DONE TODAY' : share > 0 ? `TODAY ${percent(share)}` : 'DUE TODAY';
   const body = (
     <Pressable
       accessibilityRole="link"
@@ -82,7 +78,10 @@ export function JoinedCard({
           <DayGrid run={run} />
         </View>
         <View className="items-end gap-1">
-          <Text className="font-sans text-8xl font-extralight leading-none tracking-tighter text-chalk">
+          <Text
+            maxFontSizeMultiplier={1}
+            className="font-sans text-8xl font-extralight leading-none tracking-tighter text-chalk"
+          >
             {run.day}
           </Text>
           <Text className="font-mono text-xs tracking-widest text-muted">OF {run.days}</Text>

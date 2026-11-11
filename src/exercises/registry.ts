@@ -11,7 +11,7 @@ import { situp } from './situp';
 import { sideSquat, squat } from './squat';
 import { wallSit } from './wall-sit';
 
-// The exercise input: one frame's joints. Other folders import these from here, not from geometry.
+// Shared exercise contracts for consumers of the registry.
 export type { BodyPart, Pose } from '@/exercises/body/geometry';
 export type { Kind, Phase, Progress } from '@/exercises/kinds/progress';
 export type { Placement } from './exercise';

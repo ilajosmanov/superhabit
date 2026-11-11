@@ -1,32 +1,36 @@
 import { toEntry, type CatalogEntry } from './catalog';
-import { ONE_GO, oneGo } from './challenges';
+import { ONE_GO, oneGo } from './one-go';
 import { draftOf } from './draft';
+import { isHold } from './hold';
 import { counting, runCalendar, versionOf, type DayResult, type Version } from './progress';
 import { doneToday, type RunView } from './run-view';
 import { OURS, SUGGESTED_CHALLENGES } from './suggested';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
 import type { Account } from '@/storage/account';
+import type { Sharing } from '@/storage/consent';
 import type * as schema from '@/storage/schema';
-import type { Day } from '@/workout/plan/day';
+import type { Day } from '@/lib/day';
 import { readSets, type LoggedSet } from '@/workout/plan/logged-set';
 import type { LogTarget } from '@/workout/store';
 import { expand, readPlan, type FlatSteps } from '@/workout/plan/plan';
-import { setAmounts, workoutResults } from '@/workout/plan/results';
+import { countedWorkouts, setAmounts, workoutResults } from '@/workout/plan/results';
 
-/** The library's tables, whole, as the screens read them. */
+/** The library's rows as the screens read them. */
 export type Library = {
   /** Who is signed in: what you own, and your name and photo. */
   account: Account;
+  /** Your answer to sharing traces, as kept here; whether it is in force is the account's rule (`shares`). */
+  sharing: Sharing | null;
   challenges: readonly (typeof schema.challenges.$inferSelect)[];
   versions: readonly (typeof schema.challengeVersions.$inferSelect)[];
   runs: readonly (typeof schema.runs.$inferSelect)[];
   workouts: readonly (typeof schema.workouts.$inferSelect)[];
-  sets: readonly (typeof schema.sets.$inferSelect)[];
+  sets: readonly Omit<typeof schema.sets.$inferSelect, 'attempts' | 'metrics' | 'counterVersion'>[];
 };
 
 /** A version this app can run; it is also the `Challenge` the plan, cards and session take. */
-export type Readable = Version & { name: string };
+type Readable = Version & { name: string };
 
 export type Joined = {
   challengeId: string;
@@ -146,7 +150,7 @@ function yours(
 }
 
 /** A run by id, while it is still going; `during` as in `yours`. */
-export function runById(library: Library, runId: string, today: Day, during?: During) {
+function runById(library: Library, runId: string, today: Day, during?: During) {
   const run = library.runs.find(({ id }) => id === runId);
   return run ? yours(read(library), run, today, during) : null;
 }
@@ -166,9 +170,13 @@ const current = (library: Library, challenge: Library['challenges'][number]) => 
   return row ? readVersion(row) : null;
 };
 
-/** Ours you aren't running, in catalog order. */
+/**
+ * Ours you aren't running, in catalog order, then the ones you made that you aren't running: once you leave
+ * or finish your own, this is where it stays.
+ */
 export function catalog(library: Library, running: readonly Yours[]): CatalogEntry[] {
-  return SUGGESTED_CHALLENGES.flatMap(({ id }) => {
+  const made = library.challenges.filter(({ owner }) => owner === library.account.id);
+  return [...SUGGESTED_CHALLENGES, ...made].flatMap(({ id }) => {
     const row = library.challenges.find((c) => c.id === id);
     const version = row && !row.retiredAt && current(library, row);
     const busy = running.some(({ challengeId }) => challengeId === id);
@@ -250,15 +258,12 @@ export type LogRow = {
 };
 
 /**
- * `day`'s saved workouts that counted a rep or hold (as `aliveDays` counts them), oldest first, each with
+ * `day`'s saved workouts that counted a rep or hold, oldest first, each with
  * what it got and the plan its reel plays by.
  */
 export function dayLog(library: Library, day: Day, today: Day): LogRow[] {
-  const counted = new Set(
-    library.sets.filter(({ reps, heldMs }) => reps > 0 || heldMs > 0).map((set) => set.workoutId),
-  );
-  const shown = library.workouts
-    .filter((w) => w.day === day && w.status === 'done' && counted.has(w.id))
+  const shown = countedWorkouts(library.workouts, library.sets)
+    .filter((w) => w.day === day)
     .sort((a, b) => a.startedAt - b.startedAt);
   if (shown.length === 0) return [];
   // Read only what the rows need: their own sets, and every set of their runs for the runs' calendars.
@@ -296,7 +301,7 @@ export function dayLog(library: Library, day: Day, today: Day): LogRow[] {
       tzOffsetMin: workout.tzOffsetMin,
       reps: sets.reduce((sum, set) => sum + set.reps, 0),
       heldMs: sets.reduce((sum, set) => sum + set.heldMs, 0),
-      held: exercises.length > 0 && exercises.every((id) => EXERCISES[id].kind === 'hold'),
+      held: exercises.length > 0 && exercises.every(isHold),
       sets,
     };
     const run = library.runs.find(({ id }) => id === workout.runId);

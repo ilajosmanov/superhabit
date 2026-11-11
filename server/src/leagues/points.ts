@@ -28,7 +28,10 @@ const STREAK_BONUS = 0.05;
 /** The longest streak that still adds: 11 days. */
 export const STREAK_CAP = 11;
 
-const goal = z.object({ type: z.enum(['reps', 'seconds', 'max']), n: z.number().optional() });
+const goal = z.object({
+  type: z.enum(['reps', 'seconds', 'max']),
+  n: z.number().nonnegative().optional(),
+});
 
 export type ScoredSet = {
   day: string;
@@ -40,8 +43,9 @@ export type ScoredSet = {
 
 /** A set's points: its work up to its goal (a Max goal has no cap), weighted by the exercise. */
 export function setPoints({ exercise, goal: raw, reps, heldMs }: Omit<ScoredSet, 'day'>) {
+  // Own keys only: `constructor` is no exercise.
+  if (!Object.hasOwn(EFFORT, exercise)) return 0;
   const effort = EFFORT[exercise];
-  if (!effort) return 0;
   const parsed = goal.safeParse(raw);
   const cap = (type: 'reps' | 'seconds') =>
     parsed.success && parsed.data.type === type ? (parsed.data.n ?? Infinity) : Infinity;
@@ -56,11 +60,20 @@ export function setPoints({ exercise, goal: raw, reps, heldMs }: Omit<ScoredSet,
  * streak (trained, or saved by a freeze), from `STREAK_CAP` days before the week's first.
  */
 export function weekPoints(scored: readonly ScoredSet[], kept: ReadonlySet<string>) {
-  const total = scored.reduce(
-    (sum, set) => sum + setPoints(set) * (1 + STREAK_BONUS * (streakOn(set.day, kept) - 1)),
-    0,
-  );
+  const total = scored.reduce((sum, set) => sum + bonused(set, kept), 0);
   return Math.round(total);
+}
+
+/**
+ * A set's points with its streak bonus. A row an older server kept that can't be scored (a day that isn't
+ * one) counts 0, so it never breaks its board or the week's close for everyone else.
+ */
+function bonused(set: ScoredSet, kept: ReadonlySet<string>) {
+  try {
+    return setPoints(set) * (1 + STREAK_BONUS * (streakOn(set.day, kept) - 1));
+  } catch {
+    return 0;
+  }
 }
 
 /** Days in a row up to `day` that keep the streak, `day` counted though not in `kept`; at most `STREAK_CAP`. */

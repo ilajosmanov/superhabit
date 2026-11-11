@@ -46,6 +46,10 @@ vi.mock('superhabit-pose', () => modules['superhabit-pose']);
 vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
+vi.mock('expo-keep-awake', () => ({
+  activateKeepAwakeAsync: async () => {},
+  deactivateKeepAwake: async () => {},
+}));
 vi.mock('expo-screen-orientation', () => modules['expo-screen-orientation']);
 vi.mock('expo-constants', () => modules['expo-constants']);
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
@@ -72,7 +76,7 @@ afterEach(() => {
 describe('set traces', () => {
   it('keeps two paused takes with their filenames, file-time boundaries and median video anchors before MP4 finalization', async () => {
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true, video },
+      input: { ...LOG, challenge: squatTest, video },
     }).start();
     const setId = actor.getSnapshot().context.setId;
     const frame = (timestampMs: number) => native.onResult?.(detection(body({}), timestampMs));
@@ -141,7 +145,7 @@ describe('set traces', () => {
 
   it("lands a set's trace in its account's folder, though you sign out while it's written", async () => {
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest },
     }).start();
     const setId = actor.getSnapshot().context.setId;
     play(body({}));
@@ -168,7 +172,7 @@ describe('set traces', () => {
       database().transaction((tx) => writeSharing(tx, { traces, policyVersion: '1' }));
     share(true);
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest },
     }).start();
     const setId = actor.getSnapshot().context.setId;
     try {
@@ -188,7 +192,7 @@ describe('set traces', () => {
     'keeps null anchors with too few samples or a lost camera (lost: %s)',
     async (lost) => {
       const actor = createActor(workoutSession, {
-        input: { ...LOG, challenge: squatTest, record: true, video },
+        input: { ...LOG, challenge: squatTest, video },
       }).start();
       const frame = (timestampMs: number) => native.onResult?.(detection(body({}), timestampMs));
       frame(10000);
@@ -221,7 +225,7 @@ describe('set traces', () => {
   it('preserves the take index when an encoder fails, leaving only the next take playable', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true, video },
+      input: { ...LOG, challenge: squatTest, video },
     }).start();
     const setId = actor.getSnapshot().context.setId;
     play(body({}));
@@ -258,11 +262,8 @@ describe('set traces', () => {
           { exercise: 'rest', goal: MAX },
           { exercise: 'squat', goal: MAX },
         ),
-        record: true,
       },
     }).start();
-    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
-    const logged = (line: string) => info.mock.calls.filter(([first]) => first === line).length;
     const firstId = actor.getSnapshot().context.setId;
     squat();
     actor.send({ type: 'pause' });
@@ -293,9 +294,9 @@ describe('set traces', () => {
       results: [{ reps: 1 }, { reps: 2 }],
     });
     // The set-end transition neither finishes the packing nor writes: both wait for the next paint.
-    expect([logged('[recorder] encode ms'), written.length]).toEqual([0, 0]);
+    expect(written).toHaveLength(0);
     await flush();
-    expect([logged('[recorder] encode ms'), logged('[recorder] write ms')]).toEqual([2, 2]);
+    expect(written).toHaveLength(2);
     for (const file of written) {
       const decoded = decodeTrace(file.bytes);
       expect(replay(EXERCISES.squat, decoded)).toMatchObject(decoded.header.counted);
@@ -345,7 +346,7 @@ describe('set traces', () => {
 
   it('writes the set UUID via a temp file, with native camera, device and per-frame fields', async () => {
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest },
     }).start();
     const setId = actor.getSnapshot().context.setId;
     const pose = body({});
@@ -404,7 +405,7 @@ describe('set traces', () => {
 
   it('keeps a one-frame set, with no frame rate to measure', async () => {
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest },
     }).start();
     native.onResult?.(detection(body({}), 1000));
     actor.send({ type: 'end' });
@@ -419,7 +420,7 @@ describe('set traces', () => {
     let land = () => {};
     writeFile.mockImplementationOnce(() => new Promise<void>((resolve) => (land = resolve)));
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest },
     }).start();
     const setId = actor.getSnapshot().context.setId;
     squat();
@@ -447,7 +448,7 @@ describe('set traces', () => {
           throw error;
         });
       const actor = createActor(workoutSession, {
-        input: { ...LOG, challenge, record: true },
+        input: { ...LOG, challenge },
       }).start();
       squat();
       await flush();
@@ -472,7 +473,7 @@ describe('set traces', () => {
 
   it('restart drops the old window and UUID, including its paused frames', async () => {
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true, video },
+      input: { ...LOG, challenge: squatTest, video },
     }).start();
     const oldId = actor.getSnapshot().context.setId;
     play(body({}));
@@ -506,7 +507,7 @@ describe('set traces', () => {
 
   it('a camera flip drops old and in-flight frames and records the new camera', async () => {
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest },
     }).start();
     play(body({}));
     actor.send({ type: 'flipCamera' });
@@ -526,7 +527,7 @@ describe('set traces', () => {
 
   it('keeps a long paused stretch and safely drops duplicate and decreasing timestamps', async () => {
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest },
     }).start();
     const pose = body({});
     for (const t of [1000, 1000, 990, 1066, 1033]) native.onResult?.(detection(pose, t));
@@ -543,7 +544,7 @@ describe('set traces', () => {
 
   it('writes held milliseconds on natural completion', async () => {
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: plan({ exercise: 'plank', goal: seconds(2) }), record: true },
+      input: { ...LOG, challenge: plan({ exercise: 'plank', goal: seconds(2) }) },
     }).start();
     hold(2400, plank({}));
     await flush();
@@ -557,7 +558,7 @@ describe('set traces', () => {
     'Discard from %s leaves no trace or video files, including late writes',
     async (from) => {
       const actor = createActor(workoutSession, {
-        input: { ...LOG, challenge, record: true, video },
+        input: { ...LOG, challenge, video },
       }).start();
       play(body({}));
       await flush();
@@ -596,14 +597,14 @@ describe('set traces', () => {
           );
           try {
             actor.send({ type: 'discard' });
-            expect(actor.getSnapshot().context.discarded).toBe(false);
+            expect(actor.getSnapshot().matches({ finished: { decision: 'failed' } })).toBe(true);
             expect(files).toEqual(before); // Rows first: the open workout can still be saved.
           } finally {
             db().run(sql`drop trigger stuck`);
           }
         }
         actor.send({ type: 'discard' });
-        expect(actor.getSnapshot().context.discarded).toBe(true);
+        expect(actor.getSnapshot().matches({ finished: { decision: 'discarded' } })).toBe(true);
       } else {
         // A failed Done leaves the workout open for launch recovery.
         db().run(
@@ -636,20 +637,15 @@ describe('set traces', () => {
     files.add(`${pending}kept.sht`);
     files.add(`${pending}notes.txt`);
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest },
     }).start();
     expect(files).toEqual(new Set([`${pending}kept.sht`, `${pending}notes.txt`]));
     actor.stop();
   });
 
-  it('writes nothing with recording off or with no frames', async () => {
-    const off = createActor(workoutSession, { input: { ...LOG, challenge } }).start();
-    squat();
-    off.send({ type: 'next' });
-    pushup();
-    off.stop();
+  it('writes nothing with no frames', async () => {
     const empty = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest },
     }).start();
     empty.send({ type: 'end' });
     empty.stop();
@@ -660,7 +656,7 @@ describe('set traces', () => {
 
   it('keeps no misleading partial trace of a set past the frame cap', async () => {
     const actor = createActor(workoutSession, {
-      input: { ...LOG, challenge: squatTest, record: true },
+      input: { ...LOG, challenge: squatTest },
     }).start();
     const pose = body({});
     for (let i = 0; i <= 9000; i++) native.onResult?.(detection(pose, 1000 + i * 66));

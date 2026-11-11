@@ -80,16 +80,27 @@ export async function googleToken(who: Person, aud: string = env.GOOGLE_CLIENT_I
   return `${body}.${base64url(new Uint8Array(signature))}`;
 }
 
-// No `cf-connecting-ip`: every sign-in of a test file counts toward one limit of 30 a minute.
 /** A request to the Worker; `bindings` stands in for a binding that fails or waits. */
 export const call = (path: string, init: RequestInit = {}, bindings: typeof env = env) =>
   worker.fetch(new Request(`${env.BETTER_AUTH_URL}${path}`, init), bindings, proxy.ctx);
 
-/** Signs in as the phone does; the session cookie, or null when refused. */
-export async function trySignIn(token: string) {
+const ips = new Map<string, string>();
+/** Each person signs in from their own IP, so no test meets the sign-in limit (30 a minute an IP). */
+export function ipOf(who: Person) {
+  const ip = ips.get(who.sub) ?? `10.0.${ips.size >> 8}.${ips.size & 255}`;
+  ips.set(who.sub, ip);
+  return ip;
+}
+
+/** Signs in as the phone does, from `ip`; the session cookie, or null when refused. */
+export async function trySignIn(token: string, ip: string) {
   const response = await call('/api/auth/sign-in/social', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'expo-origin': 'superhabit://' },
+    headers: {
+      'content-type': 'application/json',
+      'expo-origin': 'superhabit://',
+      'cf-connecting-ip': ip,
+    },
     body: JSON.stringify({ provider: 'google', idToken: { token } }),
   });
   if (!response.ok) return null;
@@ -100,7 +111,7 @@ export async function trySignIn(token: string) {
 }
 
 export async function signIn(who: Person) {
-  const cookie = await trySignIn(await googleToken(who));
+  const cookie = await trySignIn(await googleToken(who), ipOf(who));
   if (!cookie) throw new Error(`${who.name} was refused`);
   return cookie;
 }
@@ -126,13 +137,38 @@ export const consent = (cookie: string, body: object) =>
     body: JSON.stringify(body),
   });
 
-/** The hourly Cron's run at today's midnight (UTC), the one that also sweeps traces and purges accounts. */
+let people = 0;
+/** A new account, signed in: a test that counts its rows starts from none. */
+export async function someone(name = 'Sam Doe') {
+  const n = ++people;
+  const cookie = await signIn({
+    sub: `google-someone-${n}`,
+    email: `someone-${n}@example.com`,
+    name,
+  });
+  return { cookie, id: await idOf(cookie) };
+}
+
+/**
+ * The hourly Cron's run at midnight (UTC) after the fixtures' workout day (`outbox.ts`), the one that also
+ * sweeps traces and purges accounts. Its leagues part closes the week before and places that day's trainers.
+ */
 export const midnightCron = () =>
   worker.scheduled(
     {
       cron: '0 * * * *',
-      scheduledTime: Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`),
+      scheduledTime: Date.parse('2026-11-12T00:00:00Z'),
       noRetry() {},
     },
     env,
   );
+
+/**
+ * How many calls in a row answer before the first 429 (`call` gives the status). The limiter counts by the
+ * clock's minute, so a burst that straddles one starts counting again: it tries up to twice the limit, and
+ * a route with no limit gives Infinity.
+ */
+export async function passedBeforeLimit(call: () => Promise<number>, limit: number) {
+  for (let i = 0; i <= 2 * limit; i++) if ((await call()) === 429) return i;
+  return Infinity;
+}

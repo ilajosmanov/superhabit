@@ -21,6 +21,7 @@ export function SignInScreen({ signIn: actor }: { signIn: ActorRefFrom<typeof si
       (s.matches('forgetting') && s.context.pressed),
   );
   const error = useSelector(actor, (s) => s.context.error);
+  const ended = useSelector(actor, (s) => s.context.ended);
   const asking = useSelector(
     actor,
     (s) => (s.matches('asking') ? { next: s.context.next, replacing: s.context.replacing } : null),
@@ -53,6 +54,14 @@ export function SignInScreen({ signIn: actor }: { signIn: ActorRefFrom<typeof si
       </View>
 
       <View className="gap-4 px-4" style={{ paddingBottom: bottom + 24 }}>
+        {ended && !error && (
+          <Text
+            accessibilityLiveRegion="polite"
+            className="text-center font-sans text-base text-chalk"
+          >
+            You were signed out. Sign in again to carry on.
+          </Text>
+        )}
         {error && (
           <View
             accessibilityLiveRegion="polite"
@@ -81,9 +90,7 @@ export function SignInScreen({ signIn: actor }: { signIn: ActorRefFrom<typeof si
           />
         )}
         <Text className="text-center font-sans text-sm leading-normal text-muted">
-          {
-            'Your name and photo come from Google.\nVideos of you stay on this phone unless you share them.'
-          }
+          {'Your name and photo come from Google.\nVideos of you stay on this phone.'}
         </Text>
       </View>
     </View>

@@ -24,7 +24,10 @@ jobs:
           cache: true
           run-install: false
       - run: vp install --frozen-lockfile
-      - run: vp run check
-      - run: vp run lint:kt
+      # First: it generates server/worker-configuration.d.ts, which the type-aware lint reads.
       - run: vp run typecheck
-      - run: vp run test
+      - run: vp check
+      - run: vp run lint:kt
+      # A dev bundle runs the React Compiler on every screen and fails on one it can't compile; lint doesn't.
+      - run: vp exec expo export --dev --platform android --output-dir "$RUNNER_TEMP/bundle"
+      - run: vp test run

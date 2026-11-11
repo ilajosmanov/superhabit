@@ -1,15 +1,15 @@
-import { eq } from 'drizzle-orm';
 import { Directory, File, Paths } from 'expo-file-system';
 import { readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 import { POLICY_VERSION, sharingNow } from './consent';
+import { SessionGone } from './server';
 import { shareTraces } from './share-traces';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
+import { account } from '@/storage/account';
 import { db as database } from '@/storage/database';
 import { clearDatabase } from '@/storage/clear';
 import { writeSharing } from '@/storage/consent';
-import { enqueue } from '@/storage/outbox';
 import * as schema from '@/storage/schema';
 
 // Our server is faked; the files are real, in a folder of their own, and so is SQLite.
@@ -70,44 +70,9 @@ function record(name: string, ...setIds: string[]) {
   folder(name).create();
   for (const setId of setIds) writeFileSync(new File(folder(name), `${setId}.sht`).uri, 'trace');
 }
-/** A done workout with these sets; `sent` when the server has it. */
-function workout(id: string, setIds: string[], sent: boolean) {
-  database().transaction((tx) => {
-    tx.insert(schema.workouts)
-      .values({
-        id,
-        runId: null,
-        versionId: null,
-        day: '2026-11-11',
-        status: 'done',
-        startedAt: 1,
-        endedAt: 2,
-        tzOffsetMin: 120,
-        tz: 'Europe/Tallinn',
-        appVersion: '1.0.0',
-      })
-      .run();
-    for (const [planStep, setId] of setIds.entries())
-      tx.insert(schema.sets)
-        .values({
-          id: setId,
-          workoutId: id,
-          planStep,
-          exercise: 'squat',
-          goal: { type: 'reps', n: 10 },
-          reps: 10,
-          noReps: 0,
-          heldMs: 0,
-          startedAt: 1,
-          endedAt: 2,
-          counterVersion: '1.0.0',
-          attempts: [],
-          metrics: null,
-        })
-        .run();
-    if (!sent) enqueue(tx, { entity: 'workout', entityId: id, op: 'done', data: {} });
-  });
-}
+/** The sets whose workout the server has (the workout feature decides; faked here). */
+const onServer = new Set<string>();
+const synced = (setId: string) => onServer.has(setId);
 const share = (traces: boolean) =>
   database().transaction((tx) => writeSharing(tx, { traces, policyVersion: POLICY_VERSION }));
 const uploaded = () =>
@@ -116,17 +81,19 @@ const uploaded = () =>
     .sort((a, b) => a.localeCompare(b));
 
 describe('sharing traces', () => {
+  // The mock's temporary folder.
+  afterAll(() => rmSync(Paths.document.uri, { recursive: true, force: true }));
   beforeEach(async () => {
     await migrateDatabase();
     database().transaction((tx) => clearDatabase(tx));
     await migrateDatabase();
     fake.upload.mockReset();
+    onServer.clear();
     rmSync(new Directory(Paths.document, 'local').uri, { recursive: true, force: true });
   });
 
   it("shares each synced set's trace once, only while sharing is on; one the server can't read moves aside", async () => {
-    workout('w1', ['s1', 's2'], true);
-    workout('w2', ['s3'], false);
+    for (const setId of ['s1', 's2', 's5']) onServer.add(setId);
     record('pending', 's1', 's2', 's3');
     record('private', 's4');
     fake.upload.mockImplementation(async (url) =>
@@ -134,11 +101,11 @@ describe('sharing traces', () => {
     );
     vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    await shareTraces();
+    await shareTraces(synced);
     expect(uploaded()).toEqual([]);
 
     share(true);
-    await shareTraces();
+    await shareTraces(synced);
     expect(uploaded()).toEqual(['s1', 's2']);
     expect(files('sent')).toEqual(['s1.sht']);
     expect(files('unread')).toEqual(['s2.sht']);
@@ -146,39 +113,38 @@ describe('sharing traces', () => {
     expect(files('pending')).toEqual(['s3.sht']);
     expect(files('private')).toEqual(['s4.sht']);
 
-    await shareTraces();
+    await shareTraces(synced);
     expect(uploaded()).toHaveLength(2);
-    db().delete(schema.outbox).where(eq(schema.outbox.entityId, 'w2')).run();
-    await shareTraces();
+    onServer.add('s3');
+    await shareTraces(synced);
     expect(uploaded()).toEqual(['s1', 's2', 's3']);
     expect(files('sent')).toEqual(['s1.sht', 's3.sht']);
 
     // Turned off: nothing more goes.
     record('pending', 's5');
-    workout('w3', ['s5'], true);
     share(false);
-    await shareTraces();
+    await shareTraces(synced);
     expect(uploaded()).toHaveLength(3);
   });
 
   it('sends nothing once sharing is turned off, even while it reads the session', async () => {
     share(true);
-    workout('w1', ['s1'], true);
+    onServer.add('s1').add('s2');
     record('pending', 's1');
     fake.cookie.mockImplementationOnce(async () => {
       share(false);
       return 'session=1';
     });
-    await shareTraces();
+    await shareTraces(synced);
     expect(uploaded()).toEqual([]);
   });
 
   it('stops sharing here too when the server says it was turned off on another phone', async () => {
     share(true);
-    workout('w1', ['s1', 's2'], true);
+    onServer.add('s1').add('s2');
     record('pending', 's1', 's2');
     fake.upload.mockResolvedValue({ status: 403, body: 'sharing is off' });
-    await shareTraces();
+    await shareTraces(synced);
     expect(uploaded()).toHaveLength(1);
     expect(sharingNow()).toBe(false);
     expect(db().select().from(schema.outbox).all()).toEqual([]);
@@ -187,15 +153,25 @@ describe('sharing traces', () => {
 
   it('an upload cut off goes again next time', async () => {
     share(true);
-    workout('w1', ['s1'], true);
+    onServer.add('s1').add('s2');
     record('pending', 's1');
     fake.upload.mockRejectedValueOnce(new Error('Connection reset'));
-    await expect(shareTraces()).rejects.toThrow('Connection reset');
+    await expect(shareTraces(synced)).rejects.toThrow('Connection reset');
     expect(files('pending')).toEqual(['s1.sht']);
 
     fake.upload.mockResolvedValue({ status: 204, body: '' });
-    await shareTraces();
+    await shareTraces(synced);
     expect(files('pending')).toEqual([]);
     expect(files('sent')).toEqual(['s1.sht']);
+  });
+
+  it('a session the server ended stops it, and the next launch asks to sign in', async () => {
+    share(true);
+    onServer.add('s1');
+    record('pending', 's1');
+    fake.upload.mockResolvedValue({ status: 401, body: '' });
+    await expect(shareTraces(synced)).rejects.toThrow(SessionGone);
+    expect(account()).toMatchObject({ id: 'local', signedOut: true });
+    expect(files('pending')).toEqual(['s1.sht']);
   });
 });

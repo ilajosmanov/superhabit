@@ -35,3 +35,18 @@ it('lists only .sht files in sorted absolute paths without parsing them', () => 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+it('explains how to get recorded traces when clip data is missing, once per test module', () => {
+  const root = mkdtempSync(join(tmpdir(), 'superhabit-missing-traces-'));
+  const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+  try {
+    expect(traceFiles('missing', root)).toEqual([]);
+    expect(traceFiles('also-missing', root)).toEqual([]);
+    expect(info.mock.calls).toEqual([
+      [expect.stringContaining('Recorded traces are missing; see src/exercises/README.md')],
+    ]);
+  } finally {
+    info.mockRestore();
+    rmSync(root, { recursive: true, force: true });
+  }
+});

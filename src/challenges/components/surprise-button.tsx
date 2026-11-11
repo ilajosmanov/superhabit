@@ -1,4 +1,3 @@
-import type { ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -15,7 +14,7 @@ import { DieFigure } from '@/components/illustrations';
  * it reads as a tumble. Only the die turns, around its centre. Reanimated skips the turn when the phone
  * asks for less motion.
  */
-export function SurpriseButton({ onPress, style }: { onPress: () => void; style?: ViewStyle }) {
+export function SurpriseButton({ onPress, edge }: { onPress: () => void; edge?: boolean }) {
   const turn = useSharedValue(0);
   const rolling = useAnimatedStyle(() => ({ transform: [{ rotate: `${turn.get()}deg` }] }));
   return (
@@ -30,7 +29,7 @@ export function SurpriseButton({ onPress, style }: { onPress: () => void; style?
         );
         onPress();
       }}
-      style={style}
+      edge={edge}
       figure={
         <Animated.View style={rolling}>
           {/* About the 1.5px line of the symbols at this size. */}

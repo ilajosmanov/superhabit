@@ -1,3 +1,4 @@
+import { isHold } from './hold';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
 
@@ -29,8 +30,6 @@ export const RANGE = {
   seconds: { min: 10, max: 300, step: 10 },
 } as const;
 export const DAY_CHOICES = [7, 14, 21, 30] as const;
-
-const isHold = (exercise: ExerciseId) => EXERCISES[exercise].kind === 'hold';
 
 /** The exercise's slider unit. */
 export const unitOf = (exercise: ExerciseId) => (isHold(exercise) ? 'seconds' : 'reps');

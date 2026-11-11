@@ -8,7 +8,14 @@ import { settings } from './schema';
  * the server ends the session (`signedOut`): the data stays theirs until someone signs in. The rules for
  * keeping it are the account feature's (`account/store.ts`).
  */
-export type Account = { id: string; name: string; image: string | null; signedOut?: boolean };
+export type Account = {
+  id: string;
+  name: string;
+  image: string | null;
+  signedOut?: boolean;
+  /** Signed out by you (Sign out, with changes unsent), not by the server. */
+  byYou?: boolean;
+};
 
 const KEY = 'account';
 
@@ -24,7 +31,8 @@ export function readAccount(value: unknown): Account {
   if (typeof id !== 'string' || typeof name !== 'string') throw fail();
   if (image !== null && typeof image !== 'string') throw fail();
   const signedOut = 'signedOut' in value && value.signedOut === true;
-  return { id, name, image, signedOut };
+  const byYou = 'byYou' in value && value.byYou === true;
+  return { id, name, image, signedOut, byYou };
 }
 
 /** The account kept on this phone, or null before the first sign-in. */

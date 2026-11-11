@@ -36,6 +36,7 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
   private var closed = false
   private var failed = false
   private var delegate = Delegate.GPU
+  private var detectFailures = 0
 
   private fun create(delegate: Delegate): PoseLandmarker {
     val context = NitroModules.applicationContext ?: error("React context not ready")
@@ -89,12 +90,17 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
 
   // The fused gravity sensor ignores the phone's own shakes; a still phone's accelerometer reads the same.
   private fun startGravity() {
-    val manager = NitroModules.applicationContext?.getSystemService(Context.SENSOR_SERVICE) as? SensorManager ?: return
+    val manager = NitroModules.applicationContext?.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+    if (manager == null) {
+      reportFailure("gravity sensor service is unavailable")
+      return
+    }
     val registered = listOf(Sensor.TYPE_GRAVITY, Sensor.TYPE_ACCELEROMETER).any { type ->
       manager.getDefaultSensor(type)?.let { manager.registerListener(gravityListener, it, SensorManager.SENSOR_DELAY_GAME) } == true
     }
     if (!registered) {
-      Log.w(TAG, "no gravity sensor: positions judge shape alone")
+      // Positions need gravity to distinguish standing from lying down.
+      reportFailure("no gravity sensor registered")
       return
     }
     sensors = manager
@@ -188,10 +194,10 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
     try {
       val proxy = (frame as? NativeFrame)?.image
       if (proxy == null) {
-        return warnOnce("frame is not a NativeFrame")
+        return reportFailure("frame is not a NativeFrame")
       }
       if (proxy.format != PixelFormat.RGBA_8888) {
-        return warnOnce("expected RGBA frames (pixelFormat 'rgb'), got format ${proxy.format}")
+        return reportFailure("expected RGBA frames (pixelFormat 'rgb'), got format ${proxy.format}")
       }
       val ts = nextTimestampMs(proxy.imageInfo.timestamp / 1_000_000)
       val started = System.nanoTime()
@@ -199,6 +205,7 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
         landmarker = it
         startGravity()
       } ?: return
+      if (failed) return
       val brightness = brightness(proxy)
       var inferenceNs = 0L
       val detected = buildImage(proxy).use { image ->
@@ -206,6 +213,7 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
         val inferenceStart = System.nanoTime()
         detector.detectForVideo(image, options, ts).also { inferenceNs = System.nanoTime() - inferenceStart }
       }
+      detectFailures = 0
       val pose = detected.landmarks().firstOrNull()
       val world = detected.worldLandmarks().firstOrNull()
 
@@ -271,6 +279,23 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
       )
     } catch (e: Exception) {
       Log.e(TAG, "detect failed", e)
+      detectFailures++
+      if (detectFailures < MAX_DETECT_FAILURES) return
+      if (delegate == Delegate.GPU) {
+        delegate = Delegate.CPU
+        detectFailures = 0
+        val detector = landmarker
+        landmarker = null
+        try {
+          detector?.close()
+          landmarker = create(Delegate.CPU)
+          Log.w(TAG, "GPU inference failed, using CPU", e)
+        } catch (fallback: Exception) {
+          reportFailure(fallback.message ?: fallback.javaClass.simpleName)
+        }
+      } else {
+        reportFailure(e.message ?: e.javaClass.simpleName)
+      }
     }
   }
 
@@ -298,8 +323,7 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
   }
 
   // GPU is faster and runs cooler over a whole workout; some drivers refuse it, so fall back to CPU.
-  // shortcut: only catches a GPU that fails to start, not one that runs with wrong output; add a
-  // device denylist if field reports show that.
+  // shortcut: wrong output without an exception is undetected; add a device denylist if field reports show it.
   private fun createDetector(): PoseLandmarker? {
     try {
       val detector = try {
@@ -312,9 +336,8 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
       Log.i(TAG, "delegate: $delegate")
       return detector
     } catch (e: Exception) {
-      failed = true
       Log.e(TAG, "detector creation failed", e)
-      onFailed?.invoke(e.message ?: e.javaClass.simpleName)
+      reportFailure(e.message ?: e.javaClass.simpleName)
       return null
     }
   }
@@ -357,16 +380,16 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
     inferenceTotalNs = 0L
   }
 
-  private var warned = false
-
-  private fun warnOnce(message: String) {
-    if (warned) return
-    warned = true
+  private fun reportFailure(message: String) {
+    if (failed) return
+    failed = true
     Log.w(TAG, message)
+    onFailed?.invoke(message)
   }
 
   companion object {
     private const val TAG = "PoseLandmarker"
     private const val GRID = 32
+    private const val MAX_DETECT_FAILURES = 3
   }
 }

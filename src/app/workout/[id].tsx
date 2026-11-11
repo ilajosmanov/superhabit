@@ -10,15 +10,15 @@ import { SessionGate, SessionScreen } from '@/workout/components/session-screen'
 // The camera session for one of your runs: /workout/<run id>, or /workout/squat for one go (a free log).
 export default function WorkoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const library = useLibrary();
   const launchLeft = useLeftOpen();
   const left = library.workouts.find(({ status }) => status === 'open') ?? null;
   // Opened by a link at launch: startup's prompt offers this one back; wait for its Save or Discard.
   const waiting = left !== null && left.id === launchLeft;
   return (
-    <SessionGate openWorkout={left} waiting={waiting}>
-      {/* A new id is a new session. */}
-      {(workoutId) => <Session key={id} id={id} library={library} workoutId={workoutId} />}
+    <SessionGate key={id} openWorkout={left} waiting={waiting} onLeave={() => router.back()}>
+      {(workoutId) => <Session id={id} library={library} workoutId={workoutId} />}
     </SessionGate>
   );
 }

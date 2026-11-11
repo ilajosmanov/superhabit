@@ -6,7 +6,7 @@ import { userId } from '@/storage/account';
 import { db, type Transaction } from '@/storage/database';
 import { enqueue } from '@/storage/outbox';
 import { challenges, challengeVersions, runs } from '@/storage/schema';
-import { today } from '@/workout/plan/day';
+import { today } from '@/lib/day';
 import { readPlan, type Challenge } from '@/workout/plan/plan';
 
 /** Whole tables for the library's live subscriptions. */

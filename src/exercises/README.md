@@ -12,8 +12,8 @@ squat   = exercise(cycle(standingPosition, bothSides(jointAngle('knee'), 35), th
 burpee  = exercise(sequence([standingPosition, plankPosition], { maxStepMs }), labels)
 ```
 
-Labels are the name, the phone spot and its setup copy, and the hint. The kind works out the rest
-from its position and measure: the start heading, the body parts to frame, the gauge and the stats
+Labels are the name, the phone spot and its setup copy, the hint and the `how` steps for doing a rep.
+The kind works out the rest from its position and measure: the start heading, the body parts to frame, the gauge and the stats
 line.
 
 | Folder       | Holds                                                         |
@@ -24,15 +24,19 @@ line.
 | `body/`      | reading the pose dots: geometry, smoothing                    |
 
 This top level holds only the exercises themselves (`plank.ts`, `pushup.ts`, …), `exercise.ts`
-(labels, and `exercise()` to join them to a kind) and `registry.ts` (the list of exercises). Other
-folders import from `registry.ts`.
+(labels, and `exercise()` to join them to a kind) and `registry.ts` (the list of exercises). Workout
+code reads the exercise list and shared contracts from `registry.ts`; its session, orientation,
+depth gauge and pose code also import focused helpers and types from `exercise.ts`, `body/` and `kinds/`.
 
 Every exercise is a short config on these primitives; the plan is in the "Superhabit primitives"
 doc.
 
 Tests replay recorded clips (`.sht`, the trace file in `storage/`) from `__fixtures__/traces/`, which
-is git-ignored: see `AGENTS.md`. `__fixtures__/replay.ts` reads them (`toPose` turns a frame into dots);
-it is the one place here allowed to import `@/storage/trace-file`. Clip tests keep the hand-checked counts and spans; the files keep what the phone counted.
+is git-ignored: ask the repository owner for that folder and copy it here (see the root README's
+"Recorded traces for the counter tests"). Missing recorded data prints a reminder before clip tests
+skip. `__fixtures__/replay.ts` reads them (`toPose` turns a frame into dots); it is the one place here
+allowed to import `@/storage/trace-file`. Clip tests keep the hand-checked counts and spans; the files
+keep what the phone counted.
 
 `COUNTER_VERSIONS` in `registry.ts` is a hand-bumped semver for every exercise. Bump it when counting
 rules change. Cycle and sequence reports expose `startMs`, `bottomMs` and `endMs` on the detector clock,

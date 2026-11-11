@@ -8,7 +8,7 @@ import type { Live } from '@/workout/session/counting';
 import type { PoseDetection } from 'superhabit-pose';
 
 import { filterJoints, type JointFilter } from './joint-filter';
-import { toViewJoints } from './pose-camera';
+import { toViewJoints } from './view-joints';
 
 /**
  * The per-frame overlay: shared values written from each detector result and read on the UI thread
@@ -20,18 +20,23 @@ export function usePoseOverlay(camera: RefObject<CameraRef | null>) {
   const highlight = useSharedValue<readonly [number, number, number] | null>(null);
   const angle = useSharedValue<number | null>(null);
   const lowest = useSharedValue<number | null>(null);
-  const onPose = (result: PoseDetection, live: Live) => {
-    // Read at call time: the window turns when the orientation lock lands.
-    const { width, height } = Dimensions.get('window');
-    const view = toViewJoints(camera.current, result);
-    const smoothed = filterJoints(
-      filter.current,
-      view,
-      result.timestampMs / 1000,
-      Math.hypot(width, height),
-    );
-    filter.current = smoothed.state;
-    joints.set(smoothed.points);
+  const onPose = (result: PoseDetection, live: Live, drawSkeleton: boolean) => {
+    const view = toViewJoints(camera.current, result, drawSkeleton);
+    if (drawSkeleton) {
+      // Read at call time: the window turns when the orientation lock lands.
+      const { width, height } = Dimensions.get('window');
+      const smoothed = filterJoints(
+        filter.current,
+        view,
+        result.timestampMs / 1000,
+        Math.hypot(width, height),
+      );
+      filter.current = smoothed.state;
+      joints.set(smoothed.points);
+    } else {
+      filter.current = null;
+      joints.set([]);
+    }
     highlight.set(live.joints);
     angle.set(live.angle);
     lowest.set(live.lowest);

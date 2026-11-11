@@ -6,6 +6,7 @@ import { assign, fromCallback, fromPromise, setup } from 'xstate';
 import { SessionGone } from '@/account/server';
 import { shareTraces } from '@/account/share-traces';
 import { send, sync } from '@/account/sync';
+import { setIsSynced } from '@/workout/store';
 
 const FIRST_RETRY_MS = 5_000;
 const LAST_RETRY_MS = 5 * 60_000;
@@ -35,7 +36,7 @@ const listen = fromCallback(({ sendBack }) => {
 // Then the traces whose workouts the server now has.
 const round = fromPromise<void, boolean>(async ({ input: pull }) => {
   await (pull ? sync() : send());
-  await shareTraces();
+  await shareTraces(setIsSynced);
 });
 
 /**

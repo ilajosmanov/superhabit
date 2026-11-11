@@ -19,4 +19,10 @@ UI owned by workout. Routes compose these screens with other features; workout l
 Screens you see mid-workout have two reading distances: the far layer (the clock, the exercise and its
 goal) is big enough to read from the start position; instructions and buttons are for leaning in.
 
-`depth.test.ts` checks the gauge calculations; native components need their own test setup.
+`depth.test.ts` checks the gauge calculations; `controls.test.ts` checks the caption’s TalkBack policy.
+Native interaction tests need their own test setup.
+
+The route keys `SessionGate` by its route id so each session gets a fresh workout id. Permission pages
+and the session leave through callbacks from the route. The machine owns leaving and write failures;
+React keeps only the discard dialog open/closed. Restart uses a Material text button and asks before
+clearing a set with attempts or held time. Coach captions announce through TalkBack only while muted.

@@ -4,11 +4,11 @@ Small internal libraries every layer may use (Feature-Sliced Design's `shared/li
 area of focus and is plain TypeScript: no React, React Native, Expo or XState, and no import of our own
 code. Lint holds it to that.
 
-| File               | Focus                                                               |
-| ------------------ | ------------------------------------------------------------------- |
-| `text.ts`          | text as we show it: `capitalise` a name                             |
-| `duration.ts`      | time as we show it: `mss`, 312 s → "5:12"                           |
-| `one-at-a-time.ts` | `oneAtATime()`: async jobs run in turn, each after the last settled |
+| File          | Focus                                                              |
+| ------------- | ------------------------------------------------------------------ |
+| `text.ts`     | text as we show it: `capitalise` a name                            |
+| `duration.ts` | time as we show it: `mss`, 312 s → "5:12"                          |
+| `day.ts`      | local `YYYY-MM-DD` days: `today`, `addDays`, labels, next midnight |
 
 What does not go here: anything that knows about exercises, workouts or challenges (that is a feature's
 or `exercises/`), UI (`components/`), and catch-alls: no `utils.ts` or `helpers.ts`. A new file names its

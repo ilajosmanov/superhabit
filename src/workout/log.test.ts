@@ -1,10 +1,13 @@
-import { modules } from '@/workout/__fixtures__/session';
+import { files, modules, stuck, writeFile, flush } from '@/workout/__fixtures__/session';
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
-import { createActor, setup } from 'xstate';
+import { createActor, sendTo, setup } from 'xstate';
 
 import { workoutLog } from './log';
 import { discardWorkout, logSet, saveWorkout, workoutStart } from './store';
+import { writeTrace } from '@/workout/capture/recorder-file';
+import { traceBuilder, type TraceInfo } from '@/storage/trace-file';
+import { traceFolder, sentFolder, unreadFolder } from '@/storage/set-files';
 import { reps } from '@/workout/plan/plan';
 import type { StepResult } from '@/workout/plan/results';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
@@ -43,7 +46,12 @@ beforeEach(() => {
   db().delete(schema.workouts).run();
   db().delete(schema.outbox).run();
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  files.clear();
+  stuck.clear();
+});
 
 describe('workout log', () => {
   it('opens the workout with its first set, on the local day it started', () => {
@@ -107,22 +115,43 @@ describe('workout log', () => {
     discardWorkout('open');
     logSet(workoutStart('kept', FREE), set('kept', 0));
     saveWorkout('kept');
+    files.add('document/local/videos/kept-0-0.mp4');
+    files.add('document/local/traces/private/kept-0.sht');
     discardWorkout('kept');
+    expect(files).toEqual(
+      new Set(['document/local/videos/kept-0-0.mp4', 'document/local/traces/private/kept-0.sht']),
+    );
 
     expect(workouts().map(({ id }) => id)).toEqual(['kept']);
     expect(sets().map(({ workoutId }) => workoutId)).toEqual(['kept']);
   });
 
-  it('discards the workout when the session stops without Done, and keeps it after Done', () => {
-    const left = createActor(workoutLog, { input: input('left') }).start();
-    left.send({ type: 'set', set: set('left', 0) });
-    left.stop();
-    const done = createActor(workoutLog, { input: input('done') }).start();
-    done.send({ type: 'set', set: set('done', 0) });
-    done.send({ type: 'done' });
-    done.stop();
+  it.each([
+    ['reps', 1, 0],
+    ['held time', 0, 1000],
+    ['nothing', 0, 0],
+  ])('keeps a stopped workout open only when it counted %s', (_, reps, heldMs) => {
+    const log = createActor(workoutLog, { input: input('left') }).start();
+    log.send({ type: 'set', set: { ...set('left', 0), reps, heldMs } });
+    log.stop();
+    expect(workouts().map(({ id, status }) => [id, status])).toEqual(
+      reps || heldMs ? [['left', 'open']] : [],
+    );
+  });
 
-    expect(workouts().map(({ id, status }) => [id, status])).toEqual([['done', 'done']]);
+  it('ignores events other than set, done and discard', () => {
+    const actor = createActor(
+      setup({ actors: { log: workoutLog } }).createMachine({
+        invoke: { id: 'log', src: 'log', input: input('w') },
+        on: { unexpected: { actions: sendTo('log', ({ event }) => event) } },
+      }),
+    ).start();
+    const log = actor.getSnapshot().children.log;
+    log?.send({ type: 'set', set: set('w', 0) });
+    actor.send({ type: 'unexpected' });
+    expect(workouts().map(({ status }) => status)).toEqual(['open']);
+    expect(outbox()).toEqual([]);
+    actor.stop();
   });
 });
 
@@ -191,4 +220,43 @@ describe('Discard', () => {
     expect(replies).toEqual(['logFailed', 'logDiscarded']);
     expect(workouts()).toEqual([]);
   });
+});
+
+it('cancels every trace write and deletes later sets even if the first trace cannot be deleted', async () => {
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    callback(0);
+    return 1;
+  });
+  const info = (setId: string): TraceInfo => ({
+    exercise: 'pushup',
+    setId,
+    counterVersion: '1.0.0',
+    device: null,
+    camera: null,
+    takes: [],
+    consent: [],
+    counted: { reps: 10 },
+    labels: {},
+  });
+  let release = () => {};
+  writeFile.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+  );
+  logSet(workoutStart('w', FREE), set('w', 0));
+  logSet(workoutStart('w', FREE), set('w', 1));
+  const writing = writeTrace(info('w-1'), traceBuilder());
+  await flush();
+  const first = `${traceFolder(false).uri}/w-0.sht`;
+  files.add(first);
+  stuck.add(first);
+  for (const folder of [traceFolder(true), traceFolder(false), sentFolder(), unreadFolder()]) {
+    files.add(`${folder.uri}/w-1.sht`);
+  }
+  discardWorkout('w');
+  release();
+  await writing;
+  expect(files).toEqual(new Set([first]));
 });

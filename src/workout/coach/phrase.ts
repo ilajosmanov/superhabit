@@ -1,6 +1,12 @@
-import type { BodyPart, Phase } from '@/exercises/registry';
+import {
+  EXERCISES,
+  type BodyPart,
+  type Phase,
+  type Progress,
+  type ExerciseId,
+} from '@/exercises/registry';
 
-import type { Goal } from '@/workout/plan/plan';
+import type { FlatSteps, Goal } from '@/workout/plan/plan';
 
 /** Every this many counted reps the count gets a "keep going". */
 const ENCOURAGE_EVERY = 5;
@@ -21,7 +27,7 @@ type Next = { rest: number | null } | { what: string; place: string | null };
 
 /** Said at the end of an exercise step: the amount completed, then what comes next. */
 export function setPhrase(done: string, next: Next | null): string {
-  if (!next) return `${done}. Challenge done.`;
+  if (!next) return `${done}. Workout done.`;
   if ('rest' in next)
     return next.rest === null
       ? `${done}, set done. Rest.`
@@ -62,4 +68,30 @@ export const startPhrase = (prev: Phase, next: Phase) =>
 export function framePhrase(missing: readonly BodyPart[]): string | null {
   const [part] = missing;
   return part ? `Your ${part} ${part === 'head' ? 'is' : 'are'} out of frame` : null;
+}
+
+/** The finished tally, next exercise and phone placement as one spoken cue. */
+export function completedSetPhrase(
+  step: { exercise: ExerciseId; goal: Goal },
+  tally: Progress,
+  next: FlatSteps[number] | undefined,
+) {
+  const exercise = EXERCISES[step.exercise];
+  const heldS = Math.floor(tally.heldMs / 1000);
+  const amount =
+    exercise.kind === 'hold'
+      ? `${heldS} ${heldS === 1 ? 'second' : 'seconds'}`
+      : String(tally.reps);
+  const upcoming = next
+    ? {
+        name: next.exercise === 'rest' ? null : EXERCISES[next.exercise].name,
+        goal: next.goal,
+        place:
+          next.exercise === 'rest' || exercise.placement === EXERCISES[next.exercise].placement
+            ? null
+            : EXERCISES[next.exercise].place,
+      }
+    : null;
+  const cue = step.goal.type === 'max' && tally.broken ? (tally.lastRep?.cues[0] ?? null) : null;
+  return endPhrase(amount, upcoming, cue);
 }

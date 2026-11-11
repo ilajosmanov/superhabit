@@ -5,6 +5,7 @@ import { Text, useWindowDimensions, View } from 'react-native';
 import { SwipeRow } from './swipe-row';
 import { IconButton } from '@/components/icon-button';
 import { ExerciseFigure, ExerciseMotion, moves } from '@/components/illustrations';
+import { GUTTER } from '@/components/screen';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
 import { colors } from '@/theme';
@@ -19,7 +20,7 @@ export function HowItCounts({ exercises }: { exercises: readonly ExerciseId[] })
   const { width } = useWindowDimensions();
   const one = exercises.length === 1;
   const cards = exercises.map((id) => (
-    <Card key={id} exercise={id} width={one ? width - 48 : CARD} />
+    <Card key={id} exercise={id} width={one ? width - 2 * GUTTER : CARD} />
   ));
   return (
     <View className="gap-3">

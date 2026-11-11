@@ -2,7 +2,7 @@ import { aliveDays, streak } from './streak';
 import { db } from '@/storage/database';
 import { enqueue } from '@/storage/outbox';
 import { streakEvents } from '@/storage/schema';
-import type { Day } from '@/workout/plan/day';
+import type { Day } from '@/lib/day';
 import { findOpenWorkout, setRows, workoutRows } from '@/workout/store';
 
 /**

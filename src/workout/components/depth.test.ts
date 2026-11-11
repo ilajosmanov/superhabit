@@ -17,17 +17,10 @@ describe('depthAt', () => {
     expect(depthAt(160, bridge)).toBeCloseTo(0.8);
     expect(depthAt(120, bridge)).toBe(0);
   });
-
-  it('reads a 0..1 signal (jumping jack)', () => {
-    const jack = { down: 0.7, up: 0.1 };
-    expect(depthAt(0.1, jack)).toBe(0);
-    expect(depthAt(0.7, jack)).toBeCloseTo(0.8);
-  });
 });
 
 describe('depthText', () => {
-  it('gives angles a degree sign and a 0..1 signal one decimal', () => {
-    expect(depthText(99.6, { down: 100 })).toBe('100°');
-    expect(depthText(0.66, { down: 0.7 })).toBe('0.7');
+  it('rounds angles and adds a degree sign', () => {
+    expect(depthText(99.6)).toBe('100°');
   });
 });

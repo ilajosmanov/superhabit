@@ -18,7 +18,7 @@ export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>) {
   const { exercise: id, goal } = lastExercise(c);
   const tally: Progress = c[id];
   const unit: 'reps' | 'seconds' = EXERCISES[id].kind === 'hold' ? 'seconds' : 'reps';
-  const after = c.steps.slice(c.step + 1).find((step) => step.exercise !== 'rest');
+  const { set, sets, next: after } = c.details[c.step];
   const stage = STAGES.find((s) => snapshot.matches(s)) ?? 'counting';
   const rest = current(c).goal;
   // Annotated to hide the per-exercise counter types: what the between-sets prompt shows.
@@ -50,8 +50,8 @@ export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>) {
     /** Finished through the last step rather than `end`, met goals or not. */
     reachedEnd: c.reachedEnd,
     /** 1-based. */
-    set: c.steps.slice(0, c.step + 1).filter((step) => step.exercise !== 'rest').length,
-    sets: c.steps.filter((step) => step.exercise !== 'rest').length,
+    set,
+    sets,
     /** The set after this one (stable references, for shallowEqual). */
     next,
     /** The next set's exercise, for its figure. */
@@ -60,7 +60,7 @@ export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>) {
     /** Whole seconds; ticks while counting, switching or resting. */
     elapsedS: c.elapsedS,
     muted: c.muted,
-    skeleton: c.skeleton,
+    skeleton: c.skeleton && stage !== 'resting' && stage !== 'finished',
     camera: c.camera,
     /** The camera has a video output to film with; false for the rest of the session once it drops it. */
     filming: c.video !== undefined && !c.videoLost,
@@ -82,9 +82,13 @@ export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>) {
     /** Finished sets; on 'finished' includes the last (possibly partial) set. */
     results: c.results,
     /** Anything was counted: a rep, a no-rep or held time. Leaving without Done then asks first. */
-    counted: c.results.some((set) => set.reps + set.noReps > 0 || set.heldMs > 0),
+    counted: c.counted,
     /** Finished and every file final, so the sets' videos (`results[].takes`) are safe to play. */
-    final: c.final,
+    final: snapshot.matches({ finished: { files: 'ready' } }),
+    left:
+      snapshot.matches({ finished: { decision: 'kept' } }) ||
+      snapshot.matches({ finished: { decision: 'discarded' } }),
+    failed: snapshot.matches({ finished: { decision: 'failed' } }),
     /** A take is being filmed (the REC dot). */
     recording: c.take !== null,
     /** Counting can't go on: 'camera' (Resume retries it) or 'tracking' (only End). */

@@ -1,8 +1,8 @@
-import { eq, inArray, isNull } from 'drizzle-orm';
+import { eq, isNull } from 'drizzle-orm';
 
-import { consentsInForce } from '../consents/store';
+import { consentsInForce, purgeConsents } from '../consents/store';
 import type { Db } from '../db/db';
-import { consents, deletions, user } from '../db/schema';
+import { deletions, user } from '../db/schema';
 import { purgeLeagues } from '../leagues/store';
 import { purgeSynced } from '../sync/store';
 
@@ -31,12 +31,8 @@ export const deleteAccount = (db: Db, userId: string) =>
 
 /** Deletes what deleted accounts left (consents, synced rows, leagues), all due at once, in one transaction. */
 export function purgeDeleted(db: Db) {
-  const due = db
-    .select({ userId: deletions.userId })
-    .from(deletions)
-    .where(isNull(deletions.purgedAt));
   return db.batch([
-    db.delete(consents).where(inArray(consents.userId, due)),
+    purgeConsents(db),
     ...purgeSynced(db),
     ...purgeLeagues(db),
     db.update(deletions).set({ purgedAt: Date.now() }).where(isNull(deletions.purgedAt)),

@@ -1,4 +1,4 @@
-import { addDays, type Day } from '@/workout/plan/day';
+import { addDays, type Day } from '@/lib/day';
 import type { LoggedSet } from '@/workout/plan/logged-set';
 import { expand, type Session } from '@/workout/plan/plan';
 import { setShare, shareDone, workoutResults } from '@/workout/plan/results';
@@ -42,8 +42,8 @@ export type DayResult = {
   /** The sets the day shows: the shown try's, or every set a daily total summed. */
   sets: readonly LoggedSet[];
 };
-export type RunDay = { day: Day; number: number; from: Day; result: DayResult };
-export type RunState = { state: 'active' | 'finished' | 'left'; day: number; from: Day };
+type RunDay = { day: Day; number: number; from: Day; result: DayResult };
+type RunState = { state: 'active' | 'finished' | 'left'; day: number; from: Day };
 
 export const versionOf = (
   run: Pick<Run, 'pinnedVersionId'>,

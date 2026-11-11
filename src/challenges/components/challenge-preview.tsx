@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native';
 
-import { detail, plan } from '@/challenges/challenges';
+import { planView, trackedSets } from '@/challenges/plan-view';
 import { HowItCounts } from './how-it-counts';
 import { SessionPlan } from './session-plan';
 import type { Challenge } from '@/workout/plan/plan';
@@ -10,8 +10,8 @@ import type { Challenge } from '@/workout/plan/plan';
  * how each exercise counts.
  */
 export function ChallengePreview({ challenge }: { challenge: Challenge }) {
-  const session = plan(challenge);
-  const { tracking } = detail(challenge);
+  const session = planView(challenge);
+  const { tracking } = trackedSets(challenge);
   return (
     <>
       <View className="gap-6">

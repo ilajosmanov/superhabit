@@ -21,6 +21,7 @@ import { IconButton } from '@/components/icon-button';
 import { tick } from '@/components/tick';
 import { EXERCISES } from '@/exercises/registry';
 import { colors } from '@/theme';
+import { isHold } from '@/challenges/hold';
 import { pointAt, weight, type Clip, type Spot } from '@/challenges/reel';
 import { setShare } from '@/workout/plan/results';
 
@@ -79,10 +80,11 @@ export function SessionViewer({
   const content = useAnimatedStyle(() => ({ transform: [{ translateY: drag.get() }] }));
 
   const { set, result } = clips[spot.clip];
-  const { name, kind } = EXERCISES[result.exercise];
-  const got = kind === 'hold' ? result.heldMs / 1000 : result.reps;
+  const { name } = EXERCISES[result.exercise];
+  const hold = isHold(result.exercise);
+  const got = hold ? result.heldMs / 1000 : result.reps;
   const rounds = clips.some((clip) => clip.result.round > 1);
-  const goal = result.goal.type === 'max' ? '' : `/${result.goal.n}${kind === 'hold' ? ' S' : ''}`;
+  const goal = result.goal.type === 'max' ? '' : `/${result.goal.n}${hold ? ' S' : ''}`;
   return (
     <Modal
       visible

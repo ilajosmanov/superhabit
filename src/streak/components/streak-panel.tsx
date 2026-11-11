@@ -6,17 +6,10 @@ import Animated, { useReducedMotion } from 'react-native-reanimated';
 
 import { Icon } from '@/components/icon';
 import { tick } from '@/components/tick';
-import {
-  dayAt,
-  dayWords,
-  EARN_EVERY,
-  HOLD,
-  weeks,
-  type DayKind,
-  type Streak,
-} from '@/streak/streak';
+import { dayAt, dayWords, weeks } from './streak-grid';
+import { EARN_EVERY, HOLD, type DayKind, type Streak } from '@/streak/streak';
 import { colors } from '@/theme';
-import { addDays, dayLabel, type Day } from '@/workout/plan/day';
+import { addDays, dayLabel, type Day } from '@/lib/day';
 
 const STATUS: Record<Streak['status'], string> = {
   atRisk: 'Do any set today to keep it.',
@@ -199,6 +192,7 @@ export function StreakPanel({
           className="flex-row items-baseline gap-3"
         >
           <Text
+            maxFontSizeMultiplier={1}
             className={`font-sans text-6xl font-thin leading-none tracking-tighter ${
               status === 'done' ? 'text-accent' : current > 0 ? 'text-chalk' : 'text-faint'
             }`}

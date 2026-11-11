@@ -22,3 +22,6 @@ export const lit = {
     'linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 55%, rgba(0,0,0,0.08) 100%)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -2px 0 rgba(0,0,0,0.14)',
 } as const;
+
+/** A Compose button's label (`@expo/ui` Text style): Geist medium, like Material's label large. */
+export const COMPOSE_LABEL = { fontFamily: 'Geist', fontWeight: '500', fontSize: 15 } as const;

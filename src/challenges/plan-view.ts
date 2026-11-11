@@ -1,43 +1,17 @@
-import { EXERCISES, orientation, type ExerciseId, type Placement } from '@/exercises/registry';
-import { capitalise } from '@/lib/text';
+import { isHold } from './hold';
+import { EXERCISES, type ExerciseId, type Placement } from '@/exercises/registry';
 
-import { defineChallenge, expand, MAX, type Challenge, type Goal } from '@/workout/plan/plan';
+import { expand, type Challenge, type Goal } from '@/workout/plan/plan';
 
-/** Which way the phone stands, as mono labels say it. */
-export const phoneWay = (placement: Placement) =>
-  orientation(placement) === 'landscape' ? 'SIDEWAYS' : 'UPRIGHT';
+/** A rest step in mono labels: "30 S REST". */
+export const restLabel = (goal: Goal) => (goal.type === 'seconds' ? `${goal.n} S REST` : 'REST');
 
-/**
- * The exercises we offer on their own, in tile order: what the surprise card draws from (each once, as
- * many as you can; route id = exercise id) and what a new challenge is built on.
- */
-export const ONE_GO: readonly ExerciseId[] = [
-  'pushup',
-  'squat',
-  'plank',
-  'situp',
-  'lunge',
-  'glute-bridge',
-  'jumping-jack',
-  'leg-raise',
-  'wall-sit',
-  'burpee',
-];
-
-/** One go at an exercise, as many as you can: what the surprise card and a free log start. */
-export const oneGo = (exercise: ExerciseId) =>
-  defineChallenge({
-    name: capitalise(EXERCISES[exercise].name),
-    days: 1,
-    restartOnMiss: false,
-    dailyTotal: false,
-    session: [{ steps: [{ exercise, goal: MAX }], rounds: 1 }],
-  });
+export type TrackedSets = ReturnType<typeof trackedSets>;
 
 /** A challenge's exercise sets in session order, and how the camera tracks them, as the page says it. */
-export function detail(challenge: Challenge) {
+export function trackedSets(challenge: Challenge) {
   const sets = expand(challenge.session).filter((step) => step.exercise !== 'rest');
-  const holds = sets.filter((set) => EXERCISES[set.exercise].kind === 'hold').length;
+  const holds = sets.filter((set) => isHold(set.exercise)).length;
   const tracking =
     holds === sets.length
       ? 'The camera times your hold. Stay in position to keep the clock running.'
@@ -50,7 +24,8 @@ export function detail(challenge: Challenge) {
 /** An exercise step as the plan lists it, goal per round; `move` is where the phone goes first, when it moves. */
 export type PlanRow = { exercise: ExerciseId; goal: Goal; move?: string };
 
-const restLabel = (goal: Goal) => (goal.type === 'seconds' ? `${goal.n} S REST` : 'REST');
+export type PlanView = ReturnType<typeof planView>;
+
 const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
 
 /**
@@ -59,7 +34,7 @@ const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1
  * a phone line wherever the phone moves. `single` is the one row of a
  * one-exercise, one-round session, which the page shows as a numeral.
  */
-export function plan({ session }: Challenge) {
+export function planView({ session }: Challenge) {
   let placement: Placement | null = null;
   const parts = session.map((block, i) => {
     const between = block.rounds > 1 ? 'BETWEEN' : 'AFTER';

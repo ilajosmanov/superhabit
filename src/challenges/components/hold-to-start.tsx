@@ -6,7 +6,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
 
 import { colors, lit } from '@/theme';
 
@@ -41,14 +40,13 @@ export function HoldToStart({
         // Screen readers can't hold: their double tap starts right away.
         accessibilityActions={[{ name: 'activate' }]}
         onAccessibilityAction={start}
+        // The press itself times the hold: with animations off, Reanimated ends the fill on its first frame.
+        delayLongPress={HOLD_MS}
+        onLongPress={start}
+        // The fill only shows the hold; letting go early drains it.
         onPressIn={() => {
-          progress.set(
-            withTiming(1, { duration: HOLD_MS, easing: Easing.linear }, (done) => {
-              if (done) scheduleOnRN(start);
-            }),
-          );
+          progress.set(withTiming(1, { duration: HOLD_MS, easing: Easing.linear }));
         }}
-        // Letting go early cancels (the timing callback then gets done = false) and drains the fill.
         onPressOut={() => {
           progress.set(withTiming(0, { duration: 200 }));
         }}

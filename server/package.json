@@ -19,7 +19,7 @@
     "@types/node": "22.20.5",
     "auth": "1.7.20",
     "drizzle-kit": "1.0.0-rc.5",
-    "typescript": "~6.0.3",
+    "typescript": "6.0.3",
     "wrangler": "4.160.0"
   }
 }

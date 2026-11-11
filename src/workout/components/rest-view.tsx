@@ -64,7 +64,7 @@ export function RestView({
       <Frame landscape={landscape}>
         <View className="flex-1">
           <View className="flex-row items-center gap-2 self-start">
-            <CloseButton onPress={onEnd} label="End challenge" />
+            <CloseButton onPress={onEnd} label="End workout" />
             <Clock elapsedS={view.elapsedS} recording={false} waiting={false} />
           </View>
           <View

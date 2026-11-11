@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'superhabit-pose/joints';
 
 import { body } from '@/exercises/__fixtures__/body';
-import { angle, bestSide, mid, seen, tilt } from './geometry';
+import { angle, bestSide, seen, tilt } from './geometry';
 
 const at = (x: number, y: number, z = 0) => ({ x, y, z });
 
@@ -23,10 +23,6 @@ describe('tilt', () => {
     expect(tilt(at(1, 0))).toBeCloseTo(90);
     expect(tilt(at(1, 1))).toBeCloseTo(45);
   });
-});
-
-it('mid is the halfway point', () => {
-  expect(mid(at(0, 0, 0), at(2, 4, -6))).toEqual(at(1, 2, -3));
 });
 
 describe('bestSide', () => {

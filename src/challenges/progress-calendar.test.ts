@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vite-plus/test';
 
 import { runCalendar, type ProgressInput } from './progress';
 import { input, set, workout } from './__fixtures__/progress';
-import { today } from '@/workout/plan/day';
+import { today } from '@/lib/day';
 
 describe('run calendar', () => {
   const tried: ProgressInput = {

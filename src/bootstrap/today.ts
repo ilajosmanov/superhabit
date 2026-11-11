@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-import { today, type Day } from '@/workout/plan/day';
+import { today, type Day } from '@/lib/day';
 
 /** Today, as the startup machine keeps it: it turns at midnight and is read again when the app returns. */
 export const Today = createContext<Day>(today());

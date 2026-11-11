@@ -1,6 +1,7 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useRef } from 'react';
 
-import { ONE_GO } from '@/challenges/challenges';
+import { ONE_GO } from '@/challenges/one-go';
 import { Builder } from '@/challenges/components/builder';
 import { saveFailed } from '@/components/save-failed';
 import { draftOf, newDraft } from '@/challenges/draft';
@@ -19,6 +20,8 @@ export default function BuildScreen() {
   const library = useLibrary();
   const day = useToday();
   const fresh = ONE_GO.find((one) => one === exercise);
+  // Saved once: the screen still takes taps while it slides away, and a second would write again.
+  const saved = useRef(false);
 
   if (fresh) {
     return (
@@ -27,8 +30,10 @@ export default function BuildScreen() {
         from={day}
         action="Create challenge"
         onSave={(challenge) => {
+          if (saved.current) return;
           const made = create(challenge);
           if (!made) return saveFailed();
+          saved.current = true;
           // The picker and builder close; back from the new challenge goes to the tabs.
           router.dismissAll();
           router.push({ pathname: '/challenge/[id]', params: { id: made } });
@@ -45,7 +50,12 @@ export default function BuildScreen() {
       initial={draft}
       from={page.joined?.run.from ?? day}
       action="Save"
-      onSave={(challenge) => (edit(id, challenge) ? router.back() : saveFailed())}
+      onSave={(challenge) => {
+        if (saved.current) return;
+        if (!edit(id, challenge)) return saveFailed();
+        saved.current = true;
+        router.back();
+      }}
     />
   );
 }

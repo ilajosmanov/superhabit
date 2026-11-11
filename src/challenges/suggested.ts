@@ -17,7 +17,7 @@ export const OURS = 'superhabit';
  * a new phone gets a version only from the seed: keep each replaced version seeded too, or runs pulled back
  * pinned to it show as unavailable.
  */
-export type Suggested = { id: string; versionId: string; challenge: Challenge };
+type Suggested = { id: string; versionId: string; challenge: Challenge };
 
 // shortcut: testing goals, a minute or two each; the real ones (and the daily basics) are at git tag
 // `real-goals`. Put them back, as new versions, before pilot users get the app.

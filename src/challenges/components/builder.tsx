@@ -5,12 +5,12 @@ import {
   Slider,
   Text as ComposeText,
 } from '@expo/ui/jetpack-compose';
-import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
-import { AndroidHaptics, performAndroidHapticsAsync } from 'expo-haptics';
+import { fillMaxWidth, semantics } from '@expo/ui/jetpack-compose/modifiers';
+import { AndroidHaptics } from 'expo-haptics';
 import { useRef, useState } from 'react';
 import { Text, TextInput, View, type TextInputInstance } from 'react-native';
 
-import { addDays, dayLabel, type Day } from '@/workout/plan/day';
+import { addDays, dayLabel, type Day } from '@/lib/day';
 import {
   autoName,
   DAY_CHOICES,
@@ -21,16 +21,17 @@ import {
   withNumber,
   type Draft,
 } from '@/challenges/draft';
+import { isHold } from '@/challenges/hold';
 import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { SwitchRow } from '@/components/switch-row';
+import { tick } from '@/components/tick';
 import { EXERCISES } from '@/exercises/registry';
-import { colors } from '@/theme';
+import { colors, COMPOSE_LABEL } from '@/theme';
 import type { Challenge, Goal } from '@/workout/plan/plan';
 
 const label = 'font-mono text-xs tracking-widest text-muted';
-const FONT = { fontFamily: 'Geist', fontWeight: '500', fontSize: 15 } as const;
 // The segmented row's inactive fill and the switch's off track sit just off the ground.
 const SEGMENT = {
   activeContainerColor: colors.line,
@@ -40,6 +41,9 @@ const SEGMENT = {
   activeContentColor: colors.chalk,
   inactiveContentColor: colors.muted,
 };
+
+const amountLabel = (unit: 'reps' | 'seconds') =>
+  unit === 'seconds' ? 'Seconds every day' : 'Reps every day';
 
 /**
  * The daily number on the M3 slider, in fives of reps or tens of seconds, with Max one stop past the top;
@@ -62,6 +66,7 @@ function AmountSlider({
     // tries; typing the number covers it. Exclude the slider from system gestures if @expo/ui exposes it.
     <Host matchContents={{ vertical: true }}>
       <Slider
+        modifiers={[semantics({ contentDescription: amountLabel(unit) })]}
         value={value}
         min={min}
         max={top}
@@ -77,7 +82,7 @@ function AmountSlider({
         onValueChange={(next) => {
           const n = Math.round(next / step) * step;
           if (n === value) return;
-          void performAndroidHapticsAsync(AndroidHaptics.Segment_Frequent_Tick);
+          tick(AndroidHaptics.Segment_Frequent_Tick);
           onChange(n);
         }}
       />
@@ -110,7 +115,6 @@ export function Builder({
   const nameField = useRef<TextInputInstance>(null);
   const exercise = EXERCISES[draft.exercise];
   const { goal } = draft;
-  const hold = exercise.kind === 'hold';
 
   return (
     <Screen footer={<PrimaryButton label={action} onPress={() => onSave(toChallenge(draft))} />}>
@@ -136,8 +140,9 @@ export function Builder({
               // Emptied, the field saves under the exercise's name, so it shows it.
               placeholder={autoName(draft)}
               placeholderTextColor={colors.faint}
-              // One line's height (text-5xl × leading-tight): empty, Android measures by the font's taller
-              // metrics instead of the line height, and the field would grow.
+              // One line's height (text-5xl × leading-tight), so a larger system font would clip: empty,
+              // Android measures by the font's taller metrics instead of the line height, and the field would grow.
+              maxFontSizeMultiplier={1}
               className="h-15 flex-1 p-0 font-sans text-5xl font-extralight leading-tight tracking-tighter text-chalk"
             />
             <IconButton
@@ -145,7 +150,7 @@ export function Builder({
               label="Edit name"
               color={focused ? colors.accent : colors.muted}
               onPress={() => nameField.current?.focus()}
-              style={{ marginRight: -12 }}
+              edge
             />
           </View>
           {/* Focus restyles through `style`: a changing class list remounts the view (react-native-css). */}
@@ -168,7 +173,7 @@ export function Builder({
           <View className="flex-row items-end justify-between overflow-hidden">
             {/* The numeral is a field: any whole number, past the slider's range or between its stops. */}
             <TextInput
-              accessibilityLabel={hold ? 'Seconds every day' : 'Reps every day'}
+              accessibilityLabel={amountLabel(unitOf(draft.exercise))}
               value={typing ?? (goal.type === 'max' ? 'Max' : String(goal.n))}
               // Max has no number to edit: the field opens empty, Max as its placeholder.
               onFocus={() => setTyping(goal.type === 'max' ? '' : String(goal.n))}
@@ -188,12 +193,13 @@ export function Builder({
               selectionHandleColor={colors.accent}
               placeholder={goal.type === 'max' ? 'Max' : String(goal.n)}
               placeholderTextColor={colors.faint}
-              // One line's height (text-9xl × leading-none), pinned: empty, Android measures by the font's
-              // taller metrics and the field would grow.
+              // One line's height (text-9xl × leading-none), pinned, so a larger system font would clip: empty,
+              // Android measures by the font's taller metrics and the field would grow.
+              maxFontSizeMultiplier={1}
               className="-ml-1.5 h-32 flex-1 p-0 font-sans text-9xl font-extralight leading-none tracking-tighter text-chalk"
             />
             <View className="items-end gap-1 pb-4">
-              <Text className={label}>{hold ? 'SECONDS' : 'CLEAN REPS'}</Text>
+              <Text className={label}>{isHold(draft.exercise) ? 'SECONDS' : 'CLEAN REPS'}</Text>
               <Text className={label}>EVERY DAY</Text>
             </View>
           </View>
@@ -225,14 +231,13 @@ export function Builder({
                 key={days}
                 selected={days === draft.days}
                 onClick={() => {
-                  if (days !== draft.days)
-                    void performAndroidHapticsAsync(AndroidHaptics.Segment_Tick);
+                  if (days !== draft.days) tick();
                   setDraft((d) => ({ ...d, days }));
                 }}
                 colors={SEGMENT}
               >
                 <SegmentedButton.Label>
-                  <ComposeText style={FONT}>{String(days)}</ComposeText>
+                  <ComposeText style={COMPOSE_LABEL}>{String(days)}</ComposeText>
                 </SegmentedButton.Label>
               </SegmentedButton>
             ))}
@@ -244,7 +249,7 @@ export function Builder({
         label="Start over if I miss a day"
         note={
           draft.restartOnMiss
-            ? 'A day with no try sends you back to day 1.'
+            ? 'A day below your goal sends you back to day 1.'
             : 'A missed day stays empty; the run goes on.'
         }
         value={draft.restartOnMiss}

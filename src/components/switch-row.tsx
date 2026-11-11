@@ -1,8 +1,11 @@
 import { Host, Switch } from '@expo/ui/jetpack-compose';
-import { AndroidHaptics, performAndroidHapticsAsync } from 'expo-haptics';
+import { semantics } from '@expo/ui/jetpack-compose/modifiers';
+import { AndroidHaptics } from 'expo-haptics';
 import { Text, View } from 'react-native';
 
 import { colors } from '@/theme';
+
+import { tick } from './tick';
 
 /** A setting: its label and what the current value means, then Material's switch with a toggle tick. */
 export function SwitchRow({
@@ -27,12 +30,12 @@ export function SwitchRow({
       </View>
       <Host matchContents>
         <Switch
+          // TalkBack names the switch by the row's label, not just "Off, switch".
+          modifiers={[semantics({ contentDescription: label })]}
           value={value}
           enabled={!disabled}
           onCheckedChange={(on) => {
-            void performAndroidHapticsAsync(
-              on ? AndroidHaptics.Toggle_On : AndroidHaptics.Toggle_Off,
-            );
+            tick(on ? AndroidHaptics.Toggle_On : AndroidHaptics.Toggle_Off);
             onChange(on);
           }}
           colors={{

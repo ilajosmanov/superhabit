@@ -30,6 +30,10 @@ vi.mock('superhabit-pose', () => modules['superhabit-pose']);
 vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
+vi.mock('expo-keep-awake', () => ({
+  activateKeepAwakeAsync: async () => {},
+  deactivateKeepAwake: async () => {},
+}));
 vi.mock('expo-screen-orientation', () => modules['expo-screen-orientation']);
 vi.mock('expo-constants', () => modules['expo-constants']);
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
@@ -39,6 +43,7 @@ const { sessionView } = await import('./session-view');
 
 const sets = () => db().select().from(schema.sets).all();
 
+vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => callback(0));
 beforeAll(migrateDatabase);
 afterEach(reset);
 
@@ -152,7 +157,7 @@ describe('workoutSession starts, stops, writes rows and finishes', () => {
     });
     expect(view.results[0].heldMs).toBeGreaterThanOrEqual(2000);
     expect(view.results[0].heldMs).toBeLessThanOrEqual(2400);
-    expect(spoken()).toEqual(['Go', '2 seconds. Challenge done.']);
+    expect(spoken()).toEqual(['Go', '2 seconds. Workout done.']);
     actor.stop();
   });
 
@@ -218,7 +223,7 @@ describe('workoutSession starts, stops, writes rows and finishes', () => {
     expect(spoken()).toEqual([
       'Go',
       'Keep your body straight',
-      'Knees off the floor. 2 seconds. Challenge done.',
+      'Knees off the floor. 2 seconds. Workout done.',
     ]);
     actor.stop();
   });

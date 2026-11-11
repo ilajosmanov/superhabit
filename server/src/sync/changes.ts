@@ -4,7 +4,8 @@ import { z } from 'zod';
 // Fields the server doesn't know are dropped, so a newer phone's additions don't refuse its changes.
 
 const id = z.string().min(1).max(64);
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+// A real calendar date (`2026-02-30` is refused): the leagues count streaks from it.
+const day = z.iso.date();
 const instant = z.int().nonnegative();
 const count = z.int().nonnegative();
 const label = z.string().max(100);

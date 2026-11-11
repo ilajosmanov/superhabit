@@ -1,5 +1,4 @@
 import type { AndroidSymbol } from 'expo-symbols';
-import { router } from 'expo-router';
 import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,7 +22,15 @@ const STEPS = ['Permissions', 'Camera', 'Allow only while using the app'];
  * Boards 20a and 20b, before a session can start: ask for the camera (Android's dialog follows) or, once
  * it was denied for good, send you to Settings. Coming back re-checks it, so the session then starts.
  */
-export function CameraPermission({ canAsk, onAsk }: { canAsk: boolean; onAsk: () => void }) {
+export function CameraPermission({
+  canAsk,
+  onAsk,
+  onLeave,
+}: {
+  canAsk: boolean;
+  onAsk: () => void;
+  onLeave: () => void;
+}) {
   const { top, bottom } = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   return (
@@ -32,7 +39,7 @@ export function CameraPermission({ canAsk, onAsk }: { canAsk: boolean; onAsk: ()
       style={{ paddingTop: top + 12, paddingBottom: bottom + 24 }}
     >
       <View className="h-11 flex-row items-center">
-        <IconButton icon="close" label="Back" onPress={() => router.back()} />
+        <IconButton icon="close" label="Back" onPress={onLeave} />
       </View>
       {/* Scrolls, the button stays: on a 360×780 phone the page is ~40 dp taller than the screen, more
           with a larger font size. */}

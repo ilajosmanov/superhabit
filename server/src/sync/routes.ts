@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
 
+import { accountLimit } from '../auth/account-limit';
 import { signedIn } from '../auth/signed-in';
 import type { SignedInRoute } from '../env';
 import { change } from './changes';
@@ -18,6 +19,7 @@ export const syncRoutes = new Hono<SignedInRoute>()
     '/sync',
     bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.json({ error: 'over 1 MB' }, 413) }),
     signedIn,
+    accountLimit,
     async (c) => {
       const body = z
         .object({ changes: z.array(z.unknown()).max(MAX_CHANGES) })

@@ -7,6 +7,9 @@ import { ExerciseFigure } from '@/components/illustrations';
 import { TextButton } from '@/components/text-button';
 import { colors } from '@/theme';
 import type { CatalogEntry } from '@/challenges/catalog';
+import { SUGGESTED_CHALLENGES } from '@/challenges/suggested';
+
+const suggestedIds = new Set(SUGGESTED_CHALLENGES.map(({ id }) => id));
 
 /**
  * Outlined, never filled: a filled card means you joined it. The exercise and its daily goal in its own
@@ -77,9 +80,11 @@ function ComingSoon() {
   );
 }
 
-/** Our challenges, joined as-is, one row each, and the way to make your own. */
+/** Our challenges, then yours you aren't running, one row each, and the way to make your own. */
 export function Catalog({ entries }: { entries: readonly CatalogEntry[] }) {
   const router = useRouter();
+  const suggested = entries.filter(({ id }) => suggestedIds.has(id));
+  const yours = entries.filter(({ id }) => !suggestedIds.has(id));
   return (
     <View className="gap-1">
       <View className="h-12 flex-row items-center justify-between">
@@ -88,15 +93,27 @@ export function Catalog({ entries }: { entries: readonly CatalogEntry[] }) {
           icon="add"
           label="Create a challenge"
           onPress={() => router.push('/create')}
-          style={{ marginRight: -12 }}
+          edge
         />
       </View>
       <View className="gap-2.5">
-        {entries.map((entry) => (
+        {suggested.map((entry) => (
           <ChallengeCard key={entry.id} entry={entry} />
         ))}
         <ComingSoon />
       </View>
+      {yours.length > 0 && (
+        <>
+          <View className="mt-4 h-12 justify-center">
+            <Text className="font-mono text-xs tracking-widest text-muted">MADE BY YOU</Text>
+          </View>
+          <View className="gap-2.5">
+            {yours.map((entry) => (
+              <ChallengeCard key={entry.id} entry={entry} />
+            ))}
+          </View>
+        </>
+      )}
     </View>
   );
 }

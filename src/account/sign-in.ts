@@ -7,9 +7,9 @@ import {
 import { assign, fromPromise, setup } from 'xstate';
 
 import { authClient } from './auth-client';
-import { endSession } from './session';
+import { cookieTurn, endSession } from './session';
 import { GOOGLE_WEB_CLIENT_ID } from './server';
-import { keepAccount, replacing } from './store';
+import { keepSignIn, replacing } from './store';
 import type { Account } from '@/storage/account';
 
 /** Why the last try didn't sign in; null when nothing went wrong (or you closed Google's sheet). */
@@ -30,10 +30,9 @@ async function signInWithGoogle(): Promise<Signed | 'cancelled'> {
     picked = await GoogleOneTapSignIn.presentExplicitSignIn();
   }
   if (!isSuccessResponse(picked)) return 'cancelled';
-  const { data, error } = await authClient.signIn.social({
-    provider: 'google',
-    idToken: { token: picked.data.idToken },
-  });
+  const { data, error } = await cookieTurn(() =>
+    authClient.signIn.social({ provider: 'google', idToken: { token: picked.data.idToken } }),
+  );
   if (error || !data || !('user' in data)) throw new Error(error?.message ?? 'no session');
   const { id, name, image } = data.user;
   const account = { id, name, image: image ?? null };
@@ -43,7 +42,7 @@ async function signInWithGoogle(): Promise<Signed | 'cancelled'> {
 const signingIn = fromPromise(() => signInWithGoogle());
 const keeping = fromPromise<void, Account | null>(async ({ input }) => {
   if (!input) throw new Error('Nothing to keep');
-  keepAccount(input);
+  keepSignIn(input);
 });
 const reachable = fromPromise(async () => (await getNetworkStateAsync()).isInternetReachable);
 const forgetting = fromPromise(() => endSession());
@@ -56,6 +55,8 @@ type Context = {
   replacing: string | null;
   /** Here from Profile's Sign out: the old session ends first. */
   leaving: boolean;
+  /** Here because the server ended the session: the screen says so. */
+  ended: boolean;
   /** The button was tapped while the old session was ending: signing in follows. */
   pressed: boolean;
 };
@@ -82,13 +83,14 @@ export const signIn = setup<
   {},
   never,
   string,
-  { leaving?: boolean } | undefined
+  { leaving?: boolean; ended?: boolean } | undefined
 >({ actors: { signingIn, keeping, reachable, forgetting } }).createMachine({
   context: ({ input }) => ({
     error: null,
     next: null,
     replacing: null,
     leaving: input?.leaving ?? false,
+    ended: input?.ended ?? false,
     pressed: false,
   }),
   initial: 'starting',

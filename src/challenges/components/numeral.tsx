@@ -5,7 +5,7 @@ import { colors } from '@/theme';
 
 /**
  * A page's giant number with its words in a column on the right, amber once `met`; TalkBack reads it as
- * one stop. Clipped so a new number rises out of its baseline, like the podium steps.
+ * one stop. Clipped so a new number rises out of its baseline.
  */
 export function Numeral({
   n,
@@ -26,6 +26,8 @@ export function Numeral({
       {/* Keyed on the words too: hitting a goal exactly keeps the number and still rises. */}
       <Animated.View key={`${n} ${labels.join(' ')}`} entering={FadeInDown.duration(500)}>
         <Text
+          // Already giant: a larger system font would only push it off the screen.
+          maxFontSizeMultiplier={1}
           className="font-sans text-9xl font-extralight leading-none tracking-tighter"
           style={{ color: met ? colors.accent : colors.chalk }}
         >

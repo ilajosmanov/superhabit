@@ -2,14 +2,18 @@ import { describe, expect, it } from 'vite-plus/test';
 
 import {
   ann,
+  bob,
   call,
   consent,
   dee,
   env,
   googleToken,
   idOf,
+  ipOf,
   me,
+  passedBeforeLimit,
   signIn,
+  someone,
   trySignIn,
 } from '../__fixtures__/worker';
 
@@ -26,7 +30,7 @@ describe('sign-in', () => {
 
   it('refuses a token made for another app, and every route without a session', async () => {
     const elsewhere = await googleToken(ann, 'another-app.apps.googleusercontent.com');
-    expect(await trySignIn(elsewhere)).toBeNull();
+    expect(await trySignIn(elsewhere, ipOf(ann))).toBeNull();
     expect(await me('')).toBe(401);
     const change = { kind: 'traces', policyVersion: '1', granted: true };
     expect((await consent('', change)).status).toBe(401);
@@ -40,6 +44,32 @@ describe('sign-in', () => {
     expect(await me(cookie)).toMatchObject({ name: 'Dee Roy' });
     expect((await signOut({ 'expo-origin': 'superhabit://' })).status).toBe(200);
     expect(await me(cookie)).toBe(401);
+  });
+
+  it('takes 30 posts a minute from one IP; another IP still signs in', async () => {
+    const post = () =>
+      call('/api/auth/sign-in/social', {
+        method: 'POST',
+        headers: { 'cf-connecting-ip': '192.0.2.1' },
+      });
+    const passed = await passedBeforeLimit(async () => (await post()).status, 30);
+    expect(passed).toBeGreaterThanOrEqual(30);
+    expect(passed).toBeLessThanOrEqual(60);
+    expect(await me(await signIn(bob))).toMatchObject({ name: 'Bob Day' });
+  });
+
+  it("refuses a change another site's page asks for, though the browser sends the cookie", async () => {
+    const { cookie } = await someone();
+    const share = (headers: Record<string, string>) =>
+      call('/consent', {
+        method: 'PUT',
+        headers: { cookie, 'content-type': 'application/json', ...headers },
+        body: JSON.stringify({ kind: 'traces', policyVersion: '1', granted: true }),
+      });
+    expect((await share({ origin: 'https://evil.example' })).status).toBe(403);
+    expect(await me(cookie)).toMatchObject({ consents: [] });
+    // The app sends no Origin.
+    expect((await share({})).status).toBe(204);
   });
 
   it('keeps a phone used every day signed in: the session check at launch renews it', async () => {

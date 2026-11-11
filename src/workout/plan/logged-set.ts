@@ -19,7 +19,9 @@ export type LoggedSet = {
 const known = (id: string): id is ExerciseId => Object.hasOwn(EXERCISES, id);
 
 /** Stored set rows this app can read; a set of an exercise it doesn't know (a newer app's) is left out. */
-export function readSets(rows: readonly (typeof schema.sets.$inferSelect)[]): LoggedSet[] {
+export function readSets(
+  rows: readonly Omit<typeof schema.sets.$inferSelect, 'attempts' | 'metrics' | 'counterVersion'>[],
+): LoggedSet[] {
   return rows.flatMap((set) => {
     const goal = readGoal(set.goal);
     return known(set.exercise) && goal ? [{ ...set, exercise: set.exercise, goal }] : [];

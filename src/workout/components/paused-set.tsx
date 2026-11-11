@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { SecondaryButton } from './controls';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Icon } from '@/components/icon';
 import { mss } from '@/lib/duration';
 import { PrimaryButton } from '@/components/primary-button';
@@ -11,11 +12,12 @@ import { RepCount } from './rep-count';
 import { RepStrip } from './rep-strip';
 
 /**
- * Board 12: nothing counts; resume, restart the set, or end the challenge. When the camera stopped, Resume
+ * Board 12: nothing counts; resume, restart the set, or end the workout. When the camera stopped, Resume
  * tries it again; when tracking can't start on this phone, only End is left (the sets so far are kept).
  */
 export function PausedSet(props: PlatterProps) {
   const { view, landscape, onResume, onRestart, onEnd } = props;
+  const [asking, setAsking] = useState(false);
   // Landscape compacts so all of it fits a 360dp-tall screen; portrait keeps the full sizes.
   return (
     <>
@@ -62,19 +64,26 @@ export function PausedSet(props: PlatterProps) {
           />
         )}
         {!view.broken && (
-          <SecondaryButton
-            onPress={onRestart}
+          <TextButton
+            onPress={() => (view.started ? setAsking(true) : onRestart())}
             label="Restart set"
-            className={landscape ? 'h-9' : 'h-11'}
+            wide
           />
         )}
-        <TextButton
-          label="End challenge"
-          color={colors.warn}
-          onPress={onEnd}
-          style={{ alignSelf: 'center' }}
-        />
+        <TextButton label="End workout" onPress={onEnd} style={{ alignSelf: 'center' }} />
       </View>
+      {asking && (
+        <ConfirmDialog
+          title="Restart this set?"
+          text="What you counted in this set is cleared."
+          action="Restart"
+          onConfirm={() => {
+            setAsking(false);
+            onRestart();
+          }}
+          onCancel={() => setAsking(false)}
+        />
+      )}
     </>
   );
 }

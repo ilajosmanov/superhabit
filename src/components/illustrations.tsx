@@ -195,7 +195,8 @@ const PERIOD = 2600;
 // the same commit as the pop. So it plays only when asked.
 /**
  * The figure doing one rep, over and over: a frame clock in a shared value, drawn by Skia on the UI
- * thread, no effect or timer. Only played on request, so it ignores the reduced-motion setting.
+ * thread, no effect or timer. It ignores the reduced-motion setting: a caller that plays it unasked
+ * (`Waiting`) shows `ExerciseFigure` instead when the phone asks for less motion.
  */
 export function ExerciseMotion({ exercise, ...p }: FigureProps & { exercise: ExerciseKey }) {
   const figure = EXERCISE[exercise];

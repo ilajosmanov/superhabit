@@ -23,6 +23,9 @@ describe('points', () => {
     expect(plank(30_000)).toBeCloseTo(8.6, 1);
     expect(plank(90_000)).toBeCloseTo(plank(30_000));
     expect(setPoints(reps('handstand', { type: 'reps', n: 10 }, 10))).toBe(0);
+    expect(setPoints(reps('constructor', { type: 'reps', n: 10 }, 10))).toBe(0);
+    // A goal below zero is no goal: it can't take points away.
+    expect(setPoints(reps('squat', { type: 'reps', n: -5 }, 10))).toBeCloseTo(10);
   });
 
   it('adds 5% for each streak day before this one, up to 50%, and a frozen day keeps the streak', () => {

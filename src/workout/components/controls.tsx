@@ -127,10 +127,10 @@ export function Clock({
 }
 
 /** The coach's last phrase, shown whether or not the voice is muted. */
-export function Caption({ text }: { text: string }) {
+export function Caption({ text, muted }: { text: string; muted: boolean }) {
   return (
     <View
-      accessibilityLiveRegion="polite"
+      accessibilityLiveRegion={muted ? 'polite' : 'none'}
       className={`h-10 max-w-full flex-row items-center gap-2 rounded-full px-4 ${GLASS}`}
     >
       <Icon name="volume_up" size={16} color={colors.muted} />

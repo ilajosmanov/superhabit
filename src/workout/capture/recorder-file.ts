@@ -32,21 +32,16 @@ export async function writeTrace(info: TraceInfo, trace: TraceBuilder) {
     if (job.discarded) return;
     // shortcut: one quantizing pass over the set still runs on Hermes after paint, and backgrounding
     // delays it until return; persist earlier if killed background jobs matter.
-    const start = performance.now();
     const bytes = trace.bytes(info);
-    console.info('[recorder] encode ms', performance.now() - start, info.setId, trace.frames);
     folder.create({ intermediates: true, idempotent: true });
     const temp = traceTemp(info.setId, folder);
-    const write = performance.now();
     await writeGzip(bytes.buffer, temp.uri);
-    console.info('[recorder] write ms', performance.now() - write, info.setId, bytes.length);
     if (job.discarded) {
       if (temp.exists) temp.delete();
       return;
     }
     // shortcut: no fsync, a power cut right after the rename can leave an empty file; fsync if pulled traces ever show one.
     temp.rename(`${info.setId}.sht`);
-    console.info('[recorder] saved', info.setId, trace.frames, 'frames', info.counted);
   } catch (error) {
     console.warn('[recorder] could not write', error);
   } finally {

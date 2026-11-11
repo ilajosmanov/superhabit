@@ -13,7 +13,10 @@ module that VisionCamera frame processors call. Android only.
 
 Every detection carries, besides the points: `down` (gravity), `brightness` (mean luma 0..255 from a 32×32
 grid of pixels), `inferenceMs` (the MediaPipe call alone), `frameWidth`/`frameHeight` (upright),
-`rotation` (0/90/180/270 clockwise to upright) and `delegate` (`gpu`, or `cpu` when the GPU fails to start).
+`rotation` (0/90/180/270 clockwise to upright) and `delegate` (`gpu`, or `cpu` when GPU creation or inference fails).
+Three consecutive detection exceptions on GPU recreate the detector on CPU once. Three consecutive
+exceptions on CPU, failed CPU creation, unsupported frames or missing gravity sensors call `onFailed`
+once and stop detection. A successful detection resets the failure count.
 Image landmarks carry `presence` when MediaPipe fills it; world landmarks never do.
 
 After changing the contract, regenerate from this folder with the same Nitrogen as

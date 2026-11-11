@@ -1,16 +1,13 @@
-import * as Haptics from 'expo-haptics';
+import { AndroidHaptics } from 'expo-haptics';
 import { MaterialIcon, NativeTabs } from 'expo-router/native-tabs';
-import { Platform } from 'react-native';
 
+import { tick } from '@/components/tick';
 import { colors } from '@/theme';
 
 const label = { fontFamily: 'Geist', fontSize: 12 } as const;
 
-// Android's own on-screen-key tick, which follows the user's system touch-feedback setting.
-const tap = () =>
-  void (Platform.OS === 'android'
-    ? Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Virtual_Key)
-    : Haptics.selectionAsync());
+// Android's own on-screen-key tick.
+const tap = () => tick(AndroidHaptics.Virtual_Key);
 
 const items: { name: string; icon: MaterialIcon['md']; label: string }[] = [
   { name: 'index', icon: 'home', label: 'Home' },

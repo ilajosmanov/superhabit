@@ -12,15 +12,19 @@ const KEY = 'consent';
  */
 export type Sharing = { traces: boolean; policyVersion: string };
 
-export function sharing(): Sharing | null {
-  const row = db().select().from(settings).where(eq(settings.key, KEY)).get();
-  const value: unknown = row?.value;
+/** The answer's row; a live query on it keeps the shared snapshot's `sharing` current. */
+export const sharingRows = () => db().select().from(settings).where(eq(settings.key, KEY));
+
+/** The answer from its stored value; null when there is none, or it can't be read (asked again then). */
+export function readSharing(value: unknown): Sharing | null {
   if (typeof value !== 'object' || value === null) return null;
   if (!('traces' in value && 'policyVersion' in value)) return null;
   const { traces, policyVersion } = value;
   if (typeof traces !== 'boolean' || typeof policyVersion !== 'string') return null;
   return { traces, policyVersion };
 }
+
+export const sharing = () => readSharing(sharingRows().get()?.value);
 
 /** Keeps the answer, in the caller's transaction. */
 export function writeSharing(tx: Transaction, value: Sharing) {

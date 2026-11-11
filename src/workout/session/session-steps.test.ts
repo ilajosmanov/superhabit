@@ -6,6 +6,7 @@ import { createActor } from 'xstate';
 import { defineChallenge, MAX, reps, seconds, type Step } from '@/workout/plan/plan';
 import { EXERCISES } from '@/exercises/registry';
 
+import { body } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
 import {
   challenge,
@@ -34,6 +35,11 @@ vi.mock('superhabit-pose', () => modules['superhabit-pose']);
 vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
+const wakeLock = vi.hoisted(() => ({
+  activateKeepAwakeAsync: vi.fn(async () => {}),
+  deactivateKeepAwake: vi.fn(async () => {}),
+}));
+vi.mock('expo-keep-awake', () => wakeLock);
 vi.mock('expo-screen-orientation', () => modules['expo-screen-orientation']);
 vi.mock('expo-constants', () => modules['expo-constants']);
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
@@ -45,6 +51,7 @@ const workouts = () => db().select().from(schema.workouts).all();
 const sets = () => db().select().from(schema.sets).all();
 const outbox = () => db().select().from(schema.outbox).all();
 
+vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => callback(0));
 beforeAll(migrateDatabase);
 afterEach(reset);
 
@@ -78,22 +85,26 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     });
     pushup();
     expect(sessionView(actor.getSnapshot())).toMatchObject({ stage: 'finished', reps: 1 });
-    expect(speak).toHaveBeenLastCalledWith('1. Challenge done.', expect.anything());
+    expect(speak).toHaveBeenLastCalledWith('1. Workout done.', expect.anything());
     expect(spoken()).toHaveLength(4); // and 'Go' for the push-up set
     actor.stop();
   });
 
   it('keeps each set as it finishes, in plan order, and Done saves the workout with them once', () => {
+    const onLeave = vi.fn();
     const actor = createActor(workoutSession, { input: { ...LOG, challenge } }).start();
     squat();
     // Before the last set: the squat set is already kept, so a killed app keeps it.
     expect(sets().map(({ exercise }) => exercise)).toEqual(['squat']);
     actor.send({ type: 'next' });
     pushup();
-    actor.send({ type: 'save' });
-    actor.send({ type: 'save' });
+    actor.send({ type: 'save', onLeave });
+    actor.send({ type: 'save', onLeave });
+    actor.send({ type: 'discard', onLeave });
+    expect(onLeave).toHaveBeenCalledTimes(1);
+    expect(sessionView(actor.getSnapshot()).left).toBe(true);
 
-    expect(actor.getSnapshot().context.saved).toBe(true);
+    expect(actor.getSnapshot().matches({ finished: { decision: 'kept' } })).toBe(true);
     expect(workouts()).toEqual([expect.objectContaining({ id: 'w', status: 'done' })]);
     const counted = [expect.objectContaining({ counted: true })];
     expect(sets()).toEqual([
@@ -114,7 +125,10 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
   });
 
   it('is saved only once the database took it, and a failed Done can be tried again', () => {
-    const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
+    const onFailure = vi.fn();
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, onFailure },
+    }).start();
     actor.send({ type: 'end' });
     // Nothing counted: back from the Done page leaves without asking.
     expect(sessionView(actor.getSnapshot()).counted).toBe(false);
@@ -126,10 +140,10 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     } finally {
       db().run(sql`drop trigger full`);
     }
-    // Known as soon as Done is sent: the route reads it right after.
-    expect(actor.getSnapshot().context.saved).toBe(false);
+    expect(sessionView(actor.getSnapshot())).toMatchObject({ left: false, failed: true });
+    expect(onFailure).toHaveBeenCalledTimes(1);
     actor.send({ type: 'save' });
-    expect(actor.getSnapshot().context.saved).toBe(true);
+    expect(sessionView(actor.getSnapshot())).toMatchObject({ left: true, failed: false });
     expect(workouts()).toEqual([expect.objectContaining({ status: 'done' })]);
     actor.stop();
   });
@@ -487,7 +501,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     actor.stop();
   });
 
-  it('keeps a MAX rest open until next, even after ten minutes', () => {
+  it('ends an abandoned MAX rest after ten minutes, keeping the finished set', () => {
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, {
       input: {
@@ -507,11 +521,10 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     expect(spoken()).toEqual(['Go', '1, set done. Rest.']);
     vi.advanceTimersByTime(600_000);
     expect(sessionView(actor.getSnapshot())).toMatchObject({
-      stage: 'resting',
-      restLeftS: null,
+      stage: 'finished',
+      results: [{ reps: 1 }],
     });
-    actor.send({ type: 'next' });
-    expect(sessionView(actor.getSnapshot())).toMatchObject({ stage: 'countdown', countdown: 3 });
+    expect(sets()).toEqual([expect.objectContaining({ reps: 1 })]);
     actor.stop();
   });
 
@@ -662,7 +675,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     vi.advanceTimersByTime(3000); // The countdown timer was cancelled by the pause.
     squat();
     expect(sessionView(actor.getSnapshot())).toMatchObject({ stage: 'finished', reachedEnd: true });
-    expect(spoken()).toEqual(['Go', '1. Next, 1 squats.', '2', 'Go', '1. Challenge done.']);
+    expect(spoken()).toEqual(['Go', '1. Next, 1 squats.', '2', 'Go', '1. Workout done.']);
     actor.stop();
   });
 
@@ -695,4 +708,170 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     expect(lockAsync).toHaveBeenLastCalledWith(PORTRAIT);
     expect(lockAsync).toHaveBeenCalledTimes(4);
   });
+});
+
+it('ignores Done after Discard, leaving only once and never queuing the deleted workout', () => {
+  const onLeave = vi.fn();
+  const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
+  squat();
+  actor.send({ type: 'end' });
+  actor.send({ type: 'discard', onLeave });
+  actor.send({ type: 'save', onLeave });
+  actor.send({ type: 'discard', onLeave });
+  expect(onLeave).toHaveBeenCalledTimes(1);
+  expect(sessionView(actor.getSnapshot())).toMatchObject({ left: true, failed: false });
+  expect(actor.getSnapshot().matches({ finished: { decision: 'discarded' } })).toBe(true);
+  expect(workouts()).toEqual([]);
+  expect(outbox()).toEqual([]);
+  actor.stop();
+});
+
+it('draws paused frames as requested and hides resting frames', () => {
+  const onPose = vi.fn();
+  const actor = createActor(workoutSession, {
+    input: {
+      ...LOG,
+      challenge: plan(
+        { exercise: 'squat', goal: MAX },
+        { exercise: 'rest', goal: MAX },
+        { exercise: 'squat', goal: MAX },
+      ),
+      onPose,
+    },
+  }).start();
+  try {
+    actor.send({ type: 'pause' });
+    hold(132, body({}));
+    expect(onPose.mock.lastCall?.slice(1)).toEqual([
+      { angle: null, lowest: null, joints: null },
+      true,
+    ]);
+    actor.send({ type: 'toggleSkeleton' });
+    hold(132, body({}));
+    expect(onPose.mock.lastCall?.[2]).toBe(false);
+    actor.send({ type: 'toggleSkeleton' });
+    actor.send({ type: 'resume' });
+    actor.send({ type: 'next' });
+    expect(sessionView(actor.getSnapshot()).stage).toBe('resting');
+    hold(132, body({}));
+    expect(onPose.mock.lastCall?.slice(1)).toEqual([
+      { angle: null, lowest: null, joints: null },
+      false,
+    ]);
+  } finally {
+    actor.stop();
+  }
+});
+
+it('keeps a phone-call pause resumable and rearms idle ending only on return', () => {
+  vi.useFakeTimers({ now: NOW });
+  const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
+  try {
+    squat();
+    actor.send({ type: 'pause' });
+    vi.advanceTimersByTime(599_999);
+    actor.send({ type: 'away' });
+    vi.advanceTimersByTime(720_000);
+    actor.send({ type: 'back' });
+    expect(sessionView(actor.getSnapshot())).toMatchObject({ stage: 'paused', reps: 1 });
+    vi.advanceTimersByTime(599_999);
+    expect(sessionView(actor.getSnapshot()).stage).toBe('paused');
+    actor.send({ type: 'resume' });
+    squat();
+    actor.send({ type: 'away' });
+    vi.advanceTimersByTime(720_000);
+    actor.send({ type: 'back' });
+    vi.advanceTimersByTime(599_999);
+    expect(sessionView(actor.getSnapshot())).toMatchObject({ stage: 'paused', reps: 2 });
+    vi.advanceTimersByTime(1);
+    expect(sessionView(actor.getSnapshot())).toMatchObject({
+      stage: 'finished',
+      results: [{ reps: 2 }],
+    });
+    expect(sets()).toEqual([expect.objectContaining({ reps: 2 })]);
+  } finally {
+    actor.stop();
+  }
+});
+
+it('ends an idle pause through End and keeps the current set', () => {
+  vi.useFakeTimers({ now: NOW });
+  const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
+  squat();
+  actor.send({ type: 'pause' });
+  vi.advanceTimersByTime(599_999);
+  expect(sessionView(actor.getSnapshot()).stage).toBe('paused');
+  vi.advanceTimersByTime(1);
+  expect(sessionView(actor.getSnapshot())).toMatchObject({
+    stage: 'finished',
+    results: [{ reps: 1 }],
+  });
+  expect(sets()).toEqual([expect.objectContaining({ reps: 1 })]);
+  actor.stop();
+});
+
+it('gives a resumed pause a fresh idle wait', () => {
+  vi.useFakeTimers({ now: NOW });
+  const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
+  actor.send({ type: 'pause' });
+  vi.advanceTimersByTime(599_999);
+  actor.send({ type: 'resume' });
+  squat();
+  actor.send({ type: 'pause' });
+  vi.advanceTimersByTime(599_999);
+  expect(sessionView(actor.getSnapshot()).stage).toBe('paused');
+  vi.advanceTimersByTime(1);
+  expect(sessionView(actor.getSnapshot())).toMatchObject({
+    stage: 'finished',
+    results: [{ reps: 1 }],
+  });
+  actor.stop();
+});
+
+it('ends an abandoned phone switch without adding another set', () => {
+  vi.useFakeTimers({ now: NOW });
+  const actor = createActor(workoutSession, { input: { ...LOG, challenge } }).start();
+  squat();
+  vi.advanceTimersByTime(600_000);
+  expect(sessionView(actor.getSnapshot())).toMatchObject({
+    stage: 'finished',
+    results: [{ reps: 1 }],
+  });
+  expect(sets()).toHaveLength(1);
+  actor.stop();
+});
+
+it('ends counting that never finds the start position', () => {
+  vi.useFakeTimers({ now: NOW });
+  const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
+  vi.advanceTimersByTime(600_000);
+  expect(sessionView(actor.getSnapshot())).toMatchObject({ stage: 'finished', counted: false });
+  actor.stop();
+});
+
+it('resets counting idle time when the person returns to the start position', () => {
+  vi.useFakeTimers({ now: NOW });
+  const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
+  vi.advanceTimersByTime(599_999);
+  hold(1500, body({}));
+  vi.advanceTimersByTime(600_000);
+  expect(sessionView(actor.getSnapshot()).stage).toBe('counting');
+  hold(2000, { landmarks: [], worldLandmarks: [] });
+  expect(sessionView(actor.getSnapshot()).phase).toBe('waiting');
+  vi.advanceTimersByTime(599_999);
+  expect(sessionView(actor.getSnapshot()).stage).toBe('counting');
+  vi.advanceTimersByTime(1);
+  expect(sessionView(actor.getSnapshot()).stage).toBe('finished');
+  actor.stop();
+});
+
+it('releases keep-awake on the Done page while the session actor stays mounted', async () => {
+  const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
+  await Promise.resolve();
+  expect(wakeLock.activateKeepAwakeAsync).toHaveBeenCalledWith('w');
+  expect(wakeLock.deactivateKeepAwake).not.toHaveBeenCalled();
+  actor.send({ type: 'end' });
+  await Promise.resolve();
+  expect(wakeLock.deactivateKeepAwake).toHaveBeenCalledWith('w');
+  actor.stop();
 });

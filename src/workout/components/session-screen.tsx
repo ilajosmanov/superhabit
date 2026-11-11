@@ -1,6 +1,5 @@
 import { shallowEqual, useActorRef, useSelector } from '@xstate/react';
 import { uuid } from 'expo';
-import { useKeepAwake } from 'expo-keep-awake';
 import { usePreventRemove } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState, type ReactNode } from 'react';
@@ -45,7 +44,9 @@ export function SessionGate({
   openWorkout,
   waiting = false,
   children,
+  onLeave,
 }: {
+  onLeave: () => void;
   openWorkout: { id: string } | null;
   waiting?: boolean;
   children: (workoutId: string) => ReactNode;
@@ -69,6 +70,7 @@ export function SessionGate({
     return (
       // Once denied for good (Android's 'denied'), only Settings can grant it.
       <CameraPermission
+        onLeave={onLeave}
         canAsk={canRequestPermission}
         onAsk={() => void (canRequestPermission ? requestPermission() : Linking.openSettings())}
       />
@@ -106,9 +108,6 @@ function Session({
   done,
   onLeave,
 }: Props & { challenge: Challenge }) {
-  useKeepAwake();
-  // Leaving is allowed: Done went through, or you confirmed Discard.
-  const [leaving, setLeaving] = useState(false);
   // Back from the Done page, waiting on the Discard dialog: how to carry on leaving.
   const [asking, setAsking] = useState<(() => void) | null>(null);
   const camera = useRef<CameraRef>(null);
@@ -122,11 +121,12 @@ function Session({
   });
   // Done keeps the workout; leaving without it discards it.
   const session = useActorRef(workoutSession, {
-    input: { challenge, workoutId, target, start, video, record: true, onPose },
+    input: { challenge, workoutId, target, start, video, onPose, onFailure: saveFailed },
   });
   const landmarker = useSelector(session, (s) => s.context.landmarker);
   // Only discrete counter changes re-render; per-frame data stays out of React state.
   const view = useSelector(session, sessionView, shallowEqual);
+  const leaving = view.left;
   // The orientation lock lands asynchronously; lay out from the real window.
   const { width, height } = useWindowDimensions();
   const landscape = width > height;
@@ -142,14 +142,14 @@ function Session({
       else if (view.stage === 'finished') setAsking(() => repeat);
     },
   );
-  // The log answers at once: saved, or not (it keeps the sets and Done can be tapped again).
-  const onDone = () => {
-    session.send({ type: 'save' });
-    if (!session.getSnapshot().context.saved) return saveFailed();
-    setLeaving(true);
-    allowLeave();
-    onLeave();
-  };
+  const onDone = () =>
+    session.send({
+      type: 'save',
+      onLeave: () => {
+        allowLeave();
+        onLeave();
+      },
+    });
 
   const send =
     (
@@ -231,11 +231,7 @@ function Session({
           action="Discard"
           onConfirm={() => {
             setAsking(null);
-            // The log answers at once; a failed Discard keeps you here, the workout still open.
-            session.send({ type: 'discard' });
-            if (!session.getSnapshot().context.discarded) return saveFailed();
-            setLeaving(true);
-            asking();
+            session.send({ type: 'discard', onLeave: asking });
           }}
           onCancel={() => setAsking(null)}
         />

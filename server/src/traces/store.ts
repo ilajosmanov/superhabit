@@ -2,6 +2,7 @@ import { and, eq, isNull, notExists, or } from 'drizzle-orm';
 
 import type { Db } from '../db/db';
 import { consents, sets, traces, user } from '../db/schema';
+import { readHeader } from './header';
 
 /** Where a trace lives in the bucket. */
 const keyOf = (userId: string, setId: string) => `traces/${userId}/${setId}.sht`;
@@ -23,7 +24,7 @@ export const sharesTraces = async (db: Db, userId: string) =>
   (await sharing(db, userId)).length > 0;
 
 /** The account's sharing consent in force (its id, or null), and whether its set has synced. */
-export async function mayKeep(db: Db, userId: string, setId: string) {
+async function mayKeep(db: Db, userId: string, setId: string) {
   const [shared, synced] = await db.batch([
     sharing(db, userId),
     db
@@ -34,6 +35,31 @@ export async function mayKeep(db: Db, userId: string, setId: string) {
   return { consentId: shared[0]?.id ?? null, synced: synced.length > 0 };
 }
 
+/** What became of a trace offered: kept, or why not. */
+type TraceOutcome = 'kept' | 'sharingOff' | 'notSynced' | 'notATrace';
+
+/**
+ * Takes a set's trace file only while the account shares, for a set it has synced, from a whole file whose
+ * header names that set and a `traces@` consent at capture. The file (`read`) is read only once the
+ * account and the set allow it.
+ */
+export async function offerTrace(
+  db: Db,
+  bucket: R2Bucket,
+  { userId, setId }: { userId: string; setId: string },
+  read: () => Promise<ArrayBuffer>,
+): Promise<TraceOutcome> {
+  const { consentId, synced } = await mayKeep(db, userId, setId);
+  if (!consentId) return 'sharingOff';
+  if (!synced) return 'notSynced';
+  const file = await read();
+  const header = await readHeader(file);
+  if (header?.setId !== setId || !header.consent.some((given) => given.startsWith('traces@'))) {
+    return 'notATrace';
+  }
+  return (await keepTrace(db, bucket, { userId, setId, consentId }, file)) ? 'kept' : 'sharingOff';
+}
+
 /**
  * Keeps a set's trace under the consent `consentId`; false when that consent ended meanwhile (withdrawn,
  * even if given again), and then nothing is kept. The row goes first, so a deletion during the put finds
@@ -42,7 +68,7 @@ export async function mayKeep(db: Db, userId: string, setId: string) {
  */
 // shortcut: a deletion racing the put and then a failed second row write leaves a file without a row; add
 // a bucket listing to the sweep if R2 ever holds files that D1 doesn't.
-export async function keepTrace(
+async function keepTrace(
   db: Db,
   bucket: R2Bucket,
   { userId, setId, consentId }: { userId: string; setId: string; consentId: string },

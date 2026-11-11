@@ -1,3 +1,4 @@
+import { restLabel } from './plan-view';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
 
@@ -23,7 +24,7 @@ export function toEntry(id: string, { name, days, session }: Challenge): Catalog
     if (block.rounds > 1) note.push(`${block.rounds} ROUNDS`);
     for (const { exercise, goal } of block.steps) {
       if (exercise === 'rest') {
-        note.push(goal.type === 'seconds' ? `${goal.n}S REST` : 'REST');
+        note.push(restLabel(goal));
         continue;
       }
       steps.push({ exercise, name: capitalise(EXERCISES[exercise].name), goal: goalLabel(goal) });

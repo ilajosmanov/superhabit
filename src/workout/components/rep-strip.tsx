@@ -27,7 +27,7 @@ export function RepStrip({
   const width = bars.length * step;
   const line = H - depthAt(gauge.down, gauge) * H;
   const said = bars
-    .map(({ counted, depth }) => `${depthText(depth, gauge)}${counted ? '' : ' no-rep'}`)
+    .map(({ counted, depth }) => `${depthText(depth)}${counted ? '' : ' no-rep'}`)
     .join(', ');
   return (
     <Svg

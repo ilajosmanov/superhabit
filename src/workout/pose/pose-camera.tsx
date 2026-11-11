@@ -20,31 +20,10 @@ import {
   type CameraRef,
   type CameraVideoOutput,
 } from 'react-native-vision-camera';
-import type { PoseDetection, PoseLandmarker } from 'superhabit-pose';
+import type { PoseLandmarker } from 'superhabit-pose';
 
-import { JOINTS, skeleton, type Dot, type Segment } from './skeleton';
-import { MIN_VISIBILITY } from '@/exercises/body/geometry';
+import { skeleton, type Dot, type Segment } from './skeleton';
 import { colors } from '@/theme';
-
-/**
- * 33 entries in MediaPipe order, view coordinates; null where not visible enough or not finite.
- * The native transform includes the preview's cover scaling and, on the front camera, its mirroring.
- */
-export function toViewJoints(preview: CameraRef | null, result: PoseDetection): (SkPoint | null)[] {
-  const none = () => Array.from({ length: JOINTS }, () => null);
-  if (!preview) return none();
-  try {
-    return Array.from({ length: JOINTS }, (_, i) => {
-      const point = result.cameraLandmarks[i];
-      if (!point || (result.landmarks[i]?.visibility ?? 0) < MIN_VISIBILITY) return null;
-      const view = preview.convertCameraPointToViewPoint(point);
-      return Number.isFinite(view.x) && Number.isFinite(view.y) ? view : null;
-    });
-  } catch {
-    // CameraX has no sensor-to-view transform until the preview is ready.
-    return none();
-  }
-}
 
 // Bones and dots are drawn as one rounded rect or circle each: Skia's GPU backend draws those shapes
 // directly, while one path of many strokes or circles is painted on the CPU and uploaded as a texture
@@ -127,7 +106,7 @@ export function PoseCamera({
   video?: CameraVideoOutput;
   /** Switching reconfigures the session; VisionCamera picks the default device at that position. */
   camera: 'front' | 'back';
-  /** Off skips drawing only: detection and the shared values keep running for the gauge. */
+  /** Off skips the skeleton: detection and gauge values keep running. */
   showSkeleton: boolean;
   /** The preview streams frames, on start and again once a camera switch has rebound the session. */
   onReady: () => void;
@@ -170,11 +149,12 @@ export function PoseCamera({
 
   // One UI-thread pass per pose records the whole skeleton as a picture.
   const picture = useDerivedValue(() => {
+    const recorder = Skia.PictureRecorder();
+    const canvas = recorder.beginRecording();
+    if (!showSkeleton) return recorder.finishRecordingAsPicture();
     const shape = skeleton(joints.get(), highlight.get());
     const idle = tone === 'idle';
     const dot = idle ? colors.subtle : colors.accent;
-    const recorder = Skia.PictureRecorder();
-    const canvas = recorder.beginRecording();
     bones(canvas, shape.far, 3, colors.chalk, idle ? 0.3 : 0.45);
     bones(canvas, shape.near, 3, colors.chalk, idle ? 0.5 : 1);
     const limb = tone === 'noRep' ? colors.warn : colors.chalk;

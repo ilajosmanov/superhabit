@@ -10,6 +10,7 @@ vi.mock('expo-sqlite', () => ({}));
 vi.mock('react-native', () => ({}));
 vi.mock('@/account/sync', () => ({}));
 vi.mock('@/account/share-traces', () => ({}));
+vi.mock('@/workout/store', () => ({}));
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 

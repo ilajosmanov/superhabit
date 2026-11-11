@@ -1,6 +1,10 @@
 # Superhabit
 
-A sports challenge and habit-tracking app for iOS and Android, built with Expo and React Native.
+A sports challenge and habit-tracking app built with Expo and React Native: the phone's camera counts your reps. Android only for now (the two native modules in `modules/` have no iOS code yet).
+
+- `src/`: the app. `CODING_STANDARDS.md` says how it is laid out (layers, where a file goes, what a useful test is) and `AGENTS.md` holds the tooling and React rules; each folder has a short `README.md`.
+- `server/`: the Cloudflare Worker the app signs in to and syncs with. See [`server/README.md`](server/README.md).
+- `modules/`: the native pose detector and gzip writer (Nitro modules). `plugins/`: our Expo config plugins.
 
 ## Android setup
 
@@ -51,16 +55,44 @@ vp run start           # development server
 vp check               # formatting, lint, and type checks
 vp check --fix         # apply formatting and safe lint fixes
 vp run typecheck       # Expo's TypeScript compiler check
+vp exec expo export --dev --platform android --output-dir /tmp/bundle   # bundle as a dev build: fails on a screen the React Compiler can't compile (vp check doesn't)
 vp test run            # run logic tests
 vp test watch          # watch logic tests
 ```
 
-Edit screens in `src/app/`. Rebuild with `vp run android` after changing native dependencies or configuration. Add SDK packages with `vp exec expo install <package>`; add other packages with `vp add <package>`.
+Edit screens in `src/app/`. Rebuild with `vp run android` after changing native dependencies. After changing `app.json` or `plugins/` (a permission, a font, the backup rules), regenerate the native project first, or nothing changes: `vp run android` only generates `android/` when it is missing.
 
-Styles use NativeWind v5 RC and Tailwind v4, configured in `metro.config.js`, `postcss.config.mjs`, and `src/global.css`. Use `className` and `dark:` variants for system light/dark mode. Keep the pinned NativeWind and `react-native-css` RC versions paired when upgrading.
+```bash
+vp exec expo prebuild --platform android --clean
+vp run android
+```
+
+`android/` is generated and git-ignored: never edit it by hand. Add SDK packages with `vp exec expo install <package>`; add other packages with `vp add <package>`.
+
+Styles use NativeWind v5 RC and Tailwind v4, configured in `metro.config.js`, `postcss.config.mjs`, and `src/global.css`. The app is dark only (`userInterfaceStyle` in `app.json`): style with `className`, no `dark:` variants. Keep the pinned NativeWind and `react-native-css` RC versions paired when upgrading.
 
 Place logic tests beside their source as `src/**/*.test.ts`, importing test APIs from `vite-plus/test`. These Node tests cover plain TypeScript logic; native UI and camera behavior need component and device tests separately.
 
-CI runs checks and tests on pushes and pull requests. When upgrading Vite+, align the Vite alias and Vitest pin in `pnpm-workspace.yaml` with `vp toolchain`.
+CI (`.github/workflows/ci.yml`) runs the typecheck, `vp check`, ktlint, a dev bundle (which runs the React Compiler) and the tests on pushes and pull requests. When upgrading Vite+, align the Vite alias and Vitest pin in `pnpm-workspace.yaml` with `vp toolchain`.
 
-Local iOS builds require macOS and Xcode. See the [Expo setup guide](https://docs.expo.dev/get-started/set-up-your-environment/).
+## The server, accounts and keys
+
+The app talks to the Worker at the address in `src/account/server.ts`: production, unless `EXPO_PUBLIC_SERVER_URL` is set when Metro starts or the release is built. Point a dev build at your own Worker rather than at production: `EXPO_PUBLIC_SERVER_URL=<your Worker's address> vp run start` (see `server/README.md` for running one).
+
+Two git-ignored files in the repo root hold the secrets; ask the owner for them, never commit them:
+
+- `cloudflare.env`: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, for deploying the Worker and migrating its database.
+- `google.env`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, the Web client the Worker checks sign-ins against.
+
+Sign-in with Google needs two OAuth clients in one Google Cloud project:
+
+- a **Web** client, whose ID is in `src/account/server.ts` and `server/wrangler.jsonc`, with `https://<the Worker>/api/auth/callback/google` as an authorised redirect URI (the `/delete` page signs in through it);
+- an **Android** client for the package `com.ilajosmanov.superhabit` and the SHA-1 of the key the build is signed with. Builds are signed with the debug keystore for now, so one client covers everyone; a new signing key needs its SHA-1 added, or Google's sheet fails on that build.
+
+## Recorded traces for the counter tests
+
+The counters are tested against real recorded sets in `src/exercises/__fixtures__/traces/`. That folder is git-ignored (the clips' licences vary), and without it those tests skip and the suite still shows green. Ask the owner for the folder and copy it in before trusting a green run of a counter change.
+
+## Handing out a build
+
+`vp run android:release` makes the APK. Before each build you hand out, raise `version` in `app.json` and set a higher `android.versionCode`, then prebuild: every workout is stamped with the app version, which is how a report is tied to a build. Release builds are signed with the debug keystore for now; moving to a real key later means everyone uninstalls first, which deletes the videos on their phone.

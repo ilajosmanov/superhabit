@@ -50,12 +50,12 @@ export function DepthGauge({
   // `text` is the native prop behind `value`; it is not in TextInputProps.
   const readout = useAnimatedProps<TextInputProps & { text: string }>(() => {
     const a = angle.get();
-    return { text: a === null ? '—' : depthText(a, gauge) };
+    return { text: a === null ? '—' : depthText(a) };
   });
   const tick = pct(depthAt(gauge.down, gauge));
   const summary =
-    `Depth gauge, deep enough at ${depthText(gauge.down, gauge)}.` +
-    (lastDepth === null ? '' : ` Last rep reached ${depthText(lastDepth, gauge)}.`);
+    `Depth gauge, deep enough at ${depthText(gauge.down)}.` +
+    (lastDepth === null ? '' : ` Last rep reached ${depthText(lastDepth)}.`);
 
   return (
     <View accessible accessibilityLabel={summary} className="w-13 items-end gap-2">
@@ -77,7 +77,7 @@ export function DepthGauge({
           className="absolute right-5.5 -mt-2 font-mono text-xs leading-4 text-muted"
           style={{ top: tick }}
         >
-          {depthText(gauge.down, gauge)}
+          {depthText(gauge.down)}
         </Text>
         <Animated.View
           style={[

@@ -1,7 +1,8 @@
 import { Text, View } from 'react-native';
 
 import { Numeral } from './numeral';
-import { type PlanRow, type plan } from '@/challenges/challenges';
+import { isHold } from '@/challenges/hold';
+import type { PlanRow, PlanView } from '@/challenges/plan-view';
 import { Icon } from '@/components/icon';
 import { ExerciseFigure } from '@/components/illustrations';
 import { EXERCISES, orientation } from '@/exercises/registry';
@@ -10,7 +11,6 @@ import { colors } from '@/theme';
 import type { Goal } from '@/workout/plan/plan';
 import { setShare } from '@/workout/plan/results';
 
-const hold = (row: PlanRow) => EXERCISES[row.exercise].kind === 'hold';
 const amount = (goal: Goal) => (goal.type === 'max' ? 'Max' : String(goal.n));
 
 /**
@@ -18,7 +18,7 @@ const amount = (goal: Goal) => (goal.type === 'max' ? 'Max' : String(goal.n));
  * exact seconds held), and the
  * set to do now on today, -1 when none is.
  */
-export type DayDone = { done: readonly number[]; next: number };
+type DayDone = { done: readonly number[]; next: number };
 
 /**
  * What one day asks for and, given `day`, what it got. A one-exercise, one-round session is its goal as the
@@ -31,7 +31,7 @@ export function SessionPlan({
   days,
   day,
 }: {
-  plan: ReturnType<typeof plan>;
+  plan: PlanView;
   days: number;
   day?: DayDone;
 }) {
@@ -92,7 +92,7 @@ export function SessionPlan({
 
 /** The two words beside a one-exercise session's numeral: its unit and what the number is. */
 export function numeralLabels(row: PlanRow, got: number, days: number) {
-  const unit = hold(row) ? 'SECONDS' : 'CLEAN REPS';
+  const unit = isHold(row.exercise) ? 'SECONDS' : 'CLEAN REPS';
   if (got === 0) return [unit, days > 1 ? 'EVERY DAY' : 'IN ONE GO'];
   return row.goal.type === 'max' ? [unit, 'YOUR MAX'] : [`OF ${row.goal.n}`, unit];
 }
@@ -126,11 +126,11 @@ function Move({ row }: { row: PlanRow }) {
  */
 function Row({ row, got, live }: { row: PlanRow; got?: readonly number[]; live: boolean }) {
   const name = capitalise(EXERCISES[row.exercise].name);
-  const unit = hold(row) ? 'SEC' : 'REPS';
+  const unit = isHold(row.exercise) ? 'SEC' : 'REPS';
   const spoken =
     row.goal.type === 'max'
-      ? `as ${hold(row) ? 'long' : 'many'} as you can`
-      : `${row.goal.n} ${hold(row) ? 'seconds' : 'reps'}`;
+      ? `as ${isHold(row.exercise) ? 'long' : 'many'} as you can`
+      : `${row.goal.n} ${isHold(row.exercise) ? 'seconds' : 'reps'}`;
   // Held seconds are kept exact; the page shows whole ones.
   const total = Math.floor(got?.reduce((sum, n) => sum + n, 0) ?? 0);
   const tally =
@@ -139,7 +139,7 @@ function Row({ row, got, live }: { row: PlanRow; got?: readonly number[]; live: 
     <View
       accessible
       accessibilityLabel={`${name}, ${spoken}${got && got.length > 1 ? ' a round' : ''}${
-        got ? `, ${total} ${hold(row) ? 'seconds' : 'reps'} done` : ''
+        got ? `, ${total} ${isHold(row.exercise) ? 'seconds' : 'reps'} done` : ''
       }${live ? ', up next' : ''}`}
       className="min-h-19 flex-row items-center gap-4 border-t border-line py-3"
     >
@@ -171,7 +171,7 @@ function Row({ row, got, live }: { row: PlanRow; got?: readonly number[]; live: 
           </View>
         ) : (
           <Text className="font-mono text-xs tracking-widest text-muted">
-            {hold(row) ? 'TIMED HOLD' : 'CLEAN REPS'}
+            {isHold(row.exercise) ? 'TIMED HOLD' : 'CLEAN REPS'}
           </Text>
         )}
       </View>

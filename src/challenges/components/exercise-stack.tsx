@@ -43,7 +43,8 @@ export function StepsButton({ entry }: { entry: CatalogEntry }) {
         size={20}
         color={colors.muted}
         onPress={() => setOpen(true)}
-        style={{ marginVertical: -6, marginRight: -12 }}
+        edge
+        style={{ marginVertical: -6 }}
       />
       <Sheet open={open} onDismiss={() => setOpen(false)}>
         <View className="gap-2">

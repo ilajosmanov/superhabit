@@ -30,6 +30,7 @@ export function IconButton({
   color = colors.chalk,
   fill,
   diameter,
+  edge = false,
   style,
 }: {
   label: string;
@@ -39,6 +40,8 @@ export function IconButton({
   color?: string;
   fill?: string;
   diameter?: number;
+  /** At the end of a row: its 12dp of padding overhang, so what it shows lines up with the row's end. */
+  edge?: boolean;
   style?: ViewStyle;
 } & (
   | { icon: AndroidSymbol; figure?: undefined }
@@ -61,7 +64,7 @@ export function IconButton({
   const Toggle = fill ? FilledIconToggleButton : IconToggleButton;
   const Button = fill ? FilledIconButton : ComposeIconButton;
   return (
-    <Host matchContents style={style}>
+    <Host matchContents style={edge ? { marginRight: -12, ...style } : style}>
       {checked === undefined ? (
         <Button
           onClick={onPress}

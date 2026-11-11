@@ -3,7 +3,8 @@ import { Pressable, Text, View } from 'react-native';
 
 import { SessionViewer } from './session-viewer';
 import { SwipeRow } from './swipe-row';
-import { type detail } from '@/challenges/challenges';
+import { isHold } from '@/challenges/hold';
+import type { TrackedSets } from '@/challenges/plan-view';
 import { dayReel, type Spot } from '@/challenges/reel';
 import { IconButton } from '@/components/icon-button';
 import { ExerciseFigure } from '@/components/illustrations';
@@ -16,7 +17,7 @@ import { videosOf } from '@/storage/set-files';
 
 const CARD = 152;
 
-type Step = ReturnType<typeof detail>['sets'][number];
+type Step = TrackedSets['sets'][number];
 
 /**
  * Under a day you tried: a frame per set you did, in session order, to swipe through like a reel. `done`
@@ -85,9 +86,9 @@ function Frame({
   n: number;
   onPress?: () => void;
 }) {
-  const { name, kind } = EXERCISES[set.exercise];
+  const { name } = EXERCISES[set.exercise];
   // Held seconds are kept exact; the frame shows whole ones.
-  const amount = `${Math.floor(got)} ${kind === 'hold' ? 'S' : got === 1 ? 'REP' : 'REPS'}`;
+  const amount = `${Math.floor(got)} ${isHold(set.exercise) ? 'S' : got === 1 ? 'REP' : 'REPS'}`;
   const round = set.rounds > 1 ? ` · ROUND ${set.round}` : '';
   return (
     <Pressable

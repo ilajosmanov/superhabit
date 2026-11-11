@@ -4,22 +4,10 @@ import { describe, expect, it, vi } from 'vite-plus/test';
 
 import { open } from '../db/db';
 import { push } from '../__fixtures__/outbox';
-import { call, env, idOf, signIn } from '../__fixtures__/worker';
+import { call, env, passedBeforeLimit, someone } from '../__fixtures__/worker';
 import { board, closeWeek, weekOf } from './store';
 
 const db = open(env);
-let people = 0;
-/** A new account, signed in. */
-const someone = async (name = 'Sam') => {
-  const n = ++people;
-  const cookie = await signIn({
-    sub: `google-league-${n}`,
-    email: `league-${n}@example.com`,
-    name,
-  });
-  return { cookie, id: await idOf(cookie) };
-};
-
 // The week of Monday 2 Nov 2026; Wednesday at 10:00 UTC.
 const WEEK = '2026-11-02';
 const WEDNESDAY = Date.parse('2026-11-04T10:00:00Z');
@@ -199,6 +187,34 @@ describe('leagues', () => {
     await closeWeek(db, week);
     expect(await places(week, [quiet, late])).toEqual([[0, 'bronze', 10, 'stay']]);
     expect(await places('2026-07-13', [quiet, late])).toEqual([[0, 'bronze', null, null]]);
+
+    // A week nobody trained in closes all the same; a late workout doesn't open it.
+    const empty = '2026-05-04';
+    await closeWeek(db, empty);
+    await squats(late.cookie, [10], Date.parse('2026-05-06T08:00:00Z'), '2026-05-06');
+    await closeWeek(db, empty);
+    expect(await places(empty, [late])).toEqual([]);
+  });
+
+  it("scores a row it can't read as 0: the board still answers and the week still closes", async () => {
+    const week = '2026-04-06';
+    const crew = await Promise.all([someone(), someone()]);
+    for (const { cookie } of crew) {
+      await squats(cookie, [10], Date.parse('2026-04-07T08:00:00Z'), '2026-04-07');
+    }
+    // Kept by an older server: a day that isn't one.
+    await env.DB.prepare("update workouts set day = '2026-99-99' where user_id = ?")
+      .bind(crew[0].id)
+      .run();
+    await closeWeek(db, '2026-03-30');
+    const wednesday = Date.parse('2026-04-08T08:00:00Z');
+    await board(db, crew[0].id, wednesday);
+    expect((await board(db, crew[1].id, wednesday))?.rows.map((r) => r.points)).toEqual([10, 0]);
+    await closeWeek(db, week);
+    expect(await places(week, crew)).toEqual([
+      [1, 'bronze', 10, 'stay'],
+      [0, 'bronze', 0, 'stay'],
+    ]);
   });
 
   it('finishes a close that failed on one board, without letting anyone new in', async () => {
@@ -253,5 +269,13 @@ describe('leagues', () => {
     expect(weekOf(WEDNESDAY)).toBe(WEEK);
     expect(weekOf(Date.parse('2026-11-08T23:59:59Z'))).toBe(WEEK);
     expect(weekOf(Date.parse('2026-11-09T00:00:00Z'))).toBe('2026-11-09');
+  });
+
+  it('answers 60 board reads a minute from one account', async () => {
+    const { cookie } = await someone();
+    const read = async () => (await call('/leaderboard', { headers: { cookie } })).status;
+    const passed = await passedBeforeLimit(read, 60);
+    expect(passed).toBeGreaterThanOrEqual(60);
+    expect(passed).toBeLessThanOrEqual(120);
   });
 });

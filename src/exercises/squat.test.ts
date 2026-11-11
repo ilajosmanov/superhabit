@@ -31,6 +31,22 @@ describe('squat', () => {
     });
   });
 
+  it('rejects a 105° squat with a cue to go deeper', () => {
+    expect(play([standing, body({ thigh: 50, shin: 25 }), standing])).toMatchObject({
+      reps: 0,
+      noReps: 1,
+      lastRep: { counted: false, depth: expect.closeTo(105, 0), cues: ['Go deeper'] },
+    });
+  });
+
+  it('counts a 95° squat', () => {
+    expect(play([standing, body({ thigh: 60, shin: 25 }), standing])).toMatchObject({
+      reps: 1,
+      noReps: 0,
+      lastRep: { counted: true, depth: expect.closeTo(95, 0), cues: [] },
+    });
+  });
+
   it('counts a rep from a relaxed stance, knees at 155°', () => {
     const relaxed = body({ thigh: 12, shin: 13 });
     expect(play([relaxed, bottom, relaxed])).toMatchObject({ reps: 1, noReps: 0 });

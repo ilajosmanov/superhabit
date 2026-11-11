@@ -1,5 +1,5 @@
 import { createActor, fromPromise, waitFor } from 'xstate';
-import { describe, expect, it, vi } from 'vite-plus/test';
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { startup } from './startup';
@@ -9,10 +9,19 @@ import type { Account } from '@/storage/account';
 import { recovery } from '@/workout/recovery';
 
 vi.mock('@/challenges/library', () => ({}));
-vi.mock('@/streak/store', () => ({ keepFreezes: () => {} }));
+const freezes = vi.hoisted(() => ({ keep: vi.fn() }));
+vi.mock('@/streak/store', () => ({ keepFreezes: freezes.keep }));
 vi.mock('@/storage/database', () => ({}));
 // Signed in before, and the server can't be reached: the usual launch.
-vi.mock('@/storage/account', () => ({ account: () => ({ id: 'me', name: 'Me', image: null }) }));
+const kept = vi.hoisted(() => ({
+  account: vi.fn((): Account | null => ({ id: 'me', name: 'Me', image: null })),
+}));
+vi.mock('@/storage/account', () => ({ account: kept.account }));
+const store = vi.hoisted(() => ({ markSignedOut: vi.fn() }));
+vi.mock('@/account/store', async (original) => ({
+  ...(await original<typeof import('@/account/store')>()),
+  markSignedOut: store.markSignedOut,
+}));
 vi.mock('@/account/session', async () => {
   const { fromPromise: promise } = await import('xstate');
   return { checkSession: promise(async () => 'unknown'), signOut: promise(async () => {}) };
@@ -25,10 +34,11 @@ vi.mock('./keep-synced', async () => {
   const { fromCallback } = await import('xstate');
   return { keepSynced: fromCallback(() => {}) };
 });
-const videos = vi.hoisted(() => ({ deleteOrphans: vi.fn() }));
+const videos = vi.hoisted(() => ({ deleteOrphans: vi.fn(), deleteOld: vi.fn() }));
 vi.mock('@/workout/store', async (original) => ({
   ...(await original<typeof import('@/workout/store')>()),
   deleteOrphanVideos: videos.deleteOrphans,
+  deleteOldVideos: videos.deleteOld,
   findOpenWorkout: () => null,
 }));
 // This phone has the answer about sharing traces, unless a test says otherwise.
@@ -52,6 +62,12 @@ type Open = { id: string } | null;
 const nothingOpen = fromPromise<Open>(async () => null);
 
 describe('startup', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    synced.restored.mockReturnValue(true);
+    kept.account.mockReturnValue({ id: 'me', name: 'Me', image: null });
+  });
+
   it('keeps the splash over prepared data until the shared tables have first read', async () => {
     const actor = createActor(
       startup.provide({ actors: { migrate: fine, seed: fine, check: nothingOpen } }),
@@ -177,7 +193,7 @@ describe('startup', () => {
           migrate: fine,
           seed,
           check: nothingOpen,
-          identify: fromPromise(async (): Promise<'signIn' | 'ask' | 'go'> => 'signIn'),
+          identify: fromPromise(async (): Promise<'signIn' | 'ended' | 'ask' | 'go'> => 'signIn'),
           signIn,
           // A new account: the server has no answer, so it's asked.
           consent: consentMachine.provide({
@@ -266,7 +282,7 @@ describe('startup', () => {
           migrate: fine,
           seed: fine,
           check: nothingOpen,
-          identify: fromPromise(async (): Promise<'signIn' | 'ask' | 'go'> => 'ask'),
+          identify: fromPromise(async (): Promise<'signIn' | 'ended' | 'ask' | 'go'> => 'ask'),
           consent: consentMachine.provide({
             actors: { reading: fromPromise(async (): Promise<'answered' | 'ask'> => 'ask') },
           }),
@@ -308,5 +324,113 @@ describe('startup', () => {
     later.stop();
     expect(synced.sync).toHaveBeenCalledTimes(2);
     expect(videos.deleteOrphans).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't hold Warming up for long on a stalled network: Home opens and the pull goes on", async () => {
+    vi.useFakeTimers();
+    synced.restored.mockReturnValue(false);
+    synced.sync.mockReturnValue(new Promise<void>(() => {}));
+    const actor = createActor(startup.provide({ actors: { migrate: fine, seed: fine } })).start();
+    await vi.advanceTimersByTimeAsync(29_000);
+    expect(actor.getSnapshot().matches('restoring')).toBe(true);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(actor.getSnapshot().matches('reading')).toBe(true);
+    actor.stop();
+  });
+
+  it('writes freezes and deletes old videos once ready, and again on each new day', async () => {
+    freezes.keep.mockClear();
+    videos.deleteOld.mockClear();
+    const actor = createActor(
+      startup.provide({ actors: { migrate: fine, seed: fine, check: nothingOpen } }),
+    ).start();
+    await waitFor(actor, (s) => s.matches('reading'));
+    expect(freezes.keep).not.toHaveBeenCalled();
+    actor.send({ type: 'dataReady' });
+    const { today } = actor.getSnapshot().context;
+    expect(freezes.keep).toHaveBeenCalledWith(today);
+    expect(videos.deleteOld).toHaveBeenCalledWith(today);
+
+    actor.send({ type: 'day', day: '2030-01-02' });
+    expect(freezes.keep).toHaveBeenLastCalledWith('2030-01-02');
+    expect(videos.deleteOld).toHaveBeenLastCalledWith('2030-01-02');
+    expect(freezes.keep).toHaveBeenCalledTimes(2);
+    actor.stop();
+  });
+
+  it('asks a session the server ended to sign in at the next launch, and says why', async () => {
+    kept.account.mockReturnValue({ id: 'me', name: 'Me', image: null, signedOut: true });
+    const actor = createActor(startup.provide({ actors: { migrate: fine } })).start();
+    const signingIn = await waitFor(actor, (s) => s.matches('signingIn'));
+    expect(signingIn.children.signIn?.getSnapshot().context.ended).toBe(true);
+    actor.stop();
+
+    // Your own Sign out, with changes kept for your next sign-in: nothing ended that you didn't end.
+    kept.account.mockReturnValue({
+      id: 'me',
+      name: 'Me',
+      image: null,
+      signedOut: true,
+      byYou: true,
+    });
+    const left = createActor(startup.provide({ actors: { migrate: fine } })).start();
+    const back = await waitFor(left, (s) => s.matches('signingIn'));
+    expect(back.children.signIn?.getSnapshot().context.ended).toBe(false);
+    left.stop();
+
+    // A first launch asks without saying anything ended.
+    kept.account.mockReturnValue(null);
+    const first = createActor(startup.provide({ actors: { migrate: fine } })).start();
+    const asking = await waitFor(first, (s) => s.matches('signingIn'));
+    expect(asking.children.signIn?.getSnapshot().context.ended).toBe(false);
+    first.stop();
+  });
+
+  it('goes to sign-in when Profile or League found the session gone, saying why', async () => {
+    const actor = createActor(
+      startup.provide({ actors: { migrate: fine, seed: fine, check: nothingOpen } }),
+    ).start();
+    await waitFor(actor, (s) => s.matches('reading'));
+    actor.send({ type: 'dataReady' });
+    actor.send({ type: 'sessionEnded' });
+    const signingIn = await waitFor(actor, (s) => s.matches('signingIn'));
+    expect(signingIn.children.signIn?.getSnapshot().context.ended).toBe(true);
+    actor.stop();
+  });
+
+  it('goes to sign-in from the sharing question when its Yes found the session gone, saying why', async () => {
+    const actor = createActor(
+      startup.provide({
+        actors: {
+          migrate: fine,
+          identify: fromPromise(async (): Promise<'signIn' | 'ended' | 'ask' | 'go'> => 'ask'),
+          consent: consentMachine.provide({
+            actors: { reading: fromPromise(async (): Promise<'answered' | 'ask'> => 'ask') },
+          }),
+        },
+      }),
+    ).start();
+    await waitFor(actor, (s) => s.matches('consenting'));
+    actor.send({ type: 'sessionEnded' });
+    const signingIn = await waitFor(actor, (s) => s.matches('signingIn'));
+    expect(signingIn.children.signIn?.getSnapshot().context.ended).toBe(true);
+    actor.stop();
+  });
+
+  it('marks the deleted account signed out when the phone could not be cleared', async () => {
+    store.markSignedOut.mockClear();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const forget = fromPromise<void>(async () => {
+      throw new Error('disk I/O error');
+    });
+    const actor = createActor(
+      startup.provide({ actors: { migrate: fine, seed: fine, check: nothingOpen, forget } }),
+    ).start();
+    await waitFor(actor, (s) => s.matches('reading'));
+    actor.send({ type: 'dataReady' });
+    actor.send({ type: 'deleted' });
+    await waitFor(actor, (s) => s.matches('signingIn'));
+    expect(store.markSignedOut).toHaveBeenCalledTimes(1);
+    actor.stop();
   });
 });

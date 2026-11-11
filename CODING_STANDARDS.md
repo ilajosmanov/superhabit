@@ -20,7 +20,7 @@ src/challenges/     the challenge catalog: definitions, catalog entries, your li
 src/streak/         your streak: its rules, the freeze events kept, and Home's grid in components/
   ↓
 src/workout/        the workout feature: store, log actor and recovery
-  plan/             plan model, result contracts and local days
+  plan/             plan model and result contracts
   session/          session machine, counting, framing and orientation
   capture/          trace recorder, camcorder and their in-flight writes
   coach/            phrases and speech
@@ -33,7 +33,7 @@ src/components/     UI shared by every screen (icons, screen shell, buttons)
 src/theme.ts        colour tokens for APIs that take values; classes come from src/global.css
 src/storage/        what is kept on the phone and how: the SQLite tables, migrations, outbox; no UI
   ↓
-src/lib/            small focused libraries (FSD's shared/lib): text.ts, duration.ts; plain TypeScript
+src/lib/            small focused libraries (FSD's shared/lib): text.ts, duration.ts, day.ts; plain TypeScript
 modules/pose/       the native pose detector (a Nitro module)
 ```
 
@@ -42,7 +42,8 @@ modules/pose/       the native pose detector (a Nitro module)
 - **A feature's `components/` and `pose/` are its own UI.** Another feature may use its logic (challenges
   reads `workout/plan/results.ts`) but not its views; only a route composes two features' UI.
 - **`exercises/` is framework-free:** no React, React Native, Expo, Skia or XState. It takes pose data
-  and returns numbers, so plain tests cover it. It may import the pose module's _types_ only.
+  and returns numbers, so plain tests cover it. From the pose module it may import
+  only _types_ and the joint names (`superhabit-pose/joints`: plain constants, no native code).
 - **`lib/` is the floor:** every layer may use it, it imports nothing of ours and no framework. One focus
   per file, named for it (`text.ts`, not `utils.ts`); its README lists what each holds.
 - **Storage knows how, a feature knows what.** `storage/` holds the tables and opens the database; it
@@ -62,7 +63,9 @@ modules/pose/       the native pose detector (a Nitro module)
 ## The server (`server/`)
 
 The Cloudflare Worker is a separate package with the same idea: a folder per feature, imports only going
-down. Lint enforces it (`serverLayer` in `vite.config.mts`).
+down. Lint enforces the import bans for files named `routes.ts` and `store.ts` and for `db/` (`serverLayer` in
+`vite.config.mts`); the other files (`auth/`, `leagues/points.ts`, `traces/header.ts`, the pages) are held
+to it by review.
 
 ```
 server/src/index.ts        the Worker: mounts each feature's routes, runs the Cron

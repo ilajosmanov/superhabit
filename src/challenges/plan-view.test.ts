@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { detail, plan } from './challenges';
+import { planView, trackedSets } from './plan-view';
 import { defineChallenge, MAX, reps, seconds, type Session } from '@/workout/plan/plan';
 
 const challenge = (session: Session) =>
@@ -17,11 +17,11 @@ const circuit = challenge([
   },
 ]);
 
-describe('detail', () => {
+describe('trackedSets', () => {
   it('says how the camera tracks reps, holds, or both', () => {
     const squats = challenge([{ steps: [{ exercise: 'squat', goal: MAX }], rounds: 1 }]);
     const plank = challenge([{ steps: [{ exercise: 'plank', goal: seconds(60) }], rounds: 1 }]);
-    expect([squats, plank, circuit].map((c) => detail(c).tracking)).toEqual([
+    expect([squats, plank, circuit].map((c) => trackedSets(c).tracking)).toEqual([
       'The camera counts. Only full-range reps score.',
       'The camera times your hold. Stay in position to keep the clock running.',
       'The camera counts full-range reps and times your holds.',
@@ -29,7 +29,7 @@ describe('detail', () => {
   });
 
   it('lists every exercise set in session order, leaving rests out', () => {
-    expect(detail(circuit).sets.map((set) => set.exercise)).toEqual([
+    expect(trackedSets(circuit).sets.map((set) => set.exercise)).toEqual([
       'pushup',
       'plank',
       'pushup',
@@ -40,7 +40,7 @@ describe('detail', () => {
   });
 });
 
-describe('plan', () => {
+describe('planView', () => {
   it('says rounds and rest once a part and puts the phone line where the phone moves', () => {
     const tenFifteen = challenge([
       {
@@ -58,7 +58,7 @@ describe('plan', () => {
         rounds: 5,
       },
     ]);
-    const { parts, single } = plan(tenFifteen);
+    const { parts, single } = planView(tenFifteen);
     expect(parts).toEqual([
       {
         label: 'PART 1 · 5 ROUNDS · 30 S REST BETWEEN',
@@ -75,7 +75,7 @@ describe('plan', () => {
   });
 
   it('keeps one phone line while the phone stays put', () => {
-    const { parts, exercises } = plan(circuit);
+    const { parts, exercises } = planView(circuit);
     expect(parts).toEqual([
       {
         label: '3 ROUNDS · 30 S REST BETWEEN',
@@ -91,12 +91,12 @@ describe('plan', () => {
 
   it('gives a one-exercise, one-round session as a single row', () => {
     const fifty = challenge([{ steps: [{ exercise: 'pushup', goal: reps(50) }], rounds: 1 }]);
-    expect(plan(fifty).single).toEqual({
+    expect(planView(fifty).single).toEqual({
       exercise: 'pushup',
       goal: reps(50),
       move: 'Turn the phone sideways',
     });
     const twice = challenge([{ steps: [{ exercise: 'pushup', goal: reps(50) }], rounds: 2 }]);
-    expect(plan(twice).single).toBeNull();
+    expect(planView(twice).single).toBeNull();
   });
 });

@@ -27,11 +27,11 @@ test('set phrase says the count, then the next set or the end', () => {
   expect(setPhrase('7', { ...pushups, what: 'push-ups' })).toBe(
     '7, set done. Next, push-ups. Turn the phone sideways.',
   );
-  expect(setPhrase('20', null)).toBe('20. Challenge done.');
+  expect(setPhrase('20', null)).toBe('20. Workout done.');
 });
 
 test('set phrase accepts held seconds and a timed exercise next', () => {
-  expect(setPhrase('2 seconds', null)).toBe('2 seconds. Challenge done.');
+  expect(setPhrase('2 seconds', null)).toBe('2 seconds. Workout done.');
   expect(setPhrase('10', { what: 'plank 30 seconds', place: 'Turn the phone sideways' })).toBe(
     '10, set done. Next, plank 30 seconds. Turn the phone sideways.',
   );

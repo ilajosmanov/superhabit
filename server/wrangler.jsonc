@@ -5,15 +5,23 @@
   "compatibility_date": "2026-11-01",
   // Better Auth needs AsyncLocalStorage.
   "compatibility_flags": ["nodejs_compat"],
-  // Secrets, set with `wrangler secret put`: BETTER_AUTH_SECRET, GOOGLE_CLIENT_SECRET.
+  // Secrets, set with `wrangler secret put`: BETTER_AUTH_SECRET, GOOGLE_CLIENT_SECRET. Locally: .dev.vars.
   "vars": {
     "BETTER_AUTH_URL": "https://superhabit.cloudflare-putt001.workers.dev",
     // The Web client in Google Cloud: the audience of the ID tokens Google's sign-in gives the phone.
     "GOOGLE_CLIENT_ID": "408762936395-b66qcgf9a751gcv04p1jiorrier10amd.apps.googleusercontent.com",
   },
-  // Sign-in and session calls per caller (IP): 30 a minute.
+  // Per Cloudflare location, and approximate. AUTH_LIMIT: every POST under /api/auth/* (sign-in, sign-out)
+  // and POST /delete/google, per caller (IP): 30 a minute.
+  // ACCOUNT_LIMIT: per account, each of POST /sync, PUT /traces/<set> and GET /leaderboard: 60 a minute. A
+  // phone back after 8 weeks offline at 3 workouts a day has ~250 outbox rows: 25 sync calls of 10 rows, so
+  // 600 rows a minute is plenty. Its ~1,300 traces (8 sets a workout) go one at a time, a few hundred KB
+  // each: about 1 a second on a good line, so it may meet the limit; a 429 is a failed round, it backs off
+  // (5 s, 10 s, 20 s, 40 s) and goes on where it stopped. The leaderboard loads once each time its tab opens.
+  // One account's worst: 60 traces of 8 MB a minute into R2.
   "ratelimits": [
     { "name": "AUTH_LIMIT", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } },
+    { "name": "ACCOUNT_LIMIT", "namespace_id": "1002", "simple": { "limit": 60, "period": 60 } },
   ],
   // Hourly: the leagues (weeks close at Monday 00:00 UTC); at midnight UTC also traces no longer shared and
   // the purge of deleted accounts.

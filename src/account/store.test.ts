@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { forgetAccount, keepAccount, markSignedOut } from './store';
 import { account, userId } from '@/storage/account';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
+import { clearDatabase } from '@/storage/clear';
+import { db as database } from '@/storage/database';
 import * as schema from '@/storage/schema';
 
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
@@ -89,11 +91,14 @@ const rowsLeft = () =>
     .filter((table) => table !== schema.settings)
     .map((table) => db().select().from(table).all().length);
 
+// Each test starts from an empty database, whatever order they run in.
+beforeEach(async () => {
+  await migrateDatabase();
+  database().transaction((tx) => clearDatabase(tx));
+});
+
 describe('keeping the account that signed in', () => {
-  beforeEach(async () => {
-    await migrateDatabase();
-    keepAccount(ann);
-  });
+  beforeEach(() => keepAccount(ann));
 
   it('holds one account: the same account keeps its data, another clears every table', () => {
     train();
@@ -130,10 +135,7 @@ describe('keeping the account that signed in', () => {
 });
 
 describe('deleting the account', () => {
-  it('clears the phone: every table, the kept account, and its folder', async () => {
-    await migrateDatabase();
-    // Another account first: the database starts empty.
-    keepAccount(bob);
+  it('clears the phone: every table, the kept account, and its folder', () => {
     keepAccount(ann);
     train();
     forgetAccount();

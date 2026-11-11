@@ -12,7 +12,7 @@ import { seed } from '@/challenges/library';
 import { account } from '@/storage/account';
 import { migrateDatabase } from '@/storage/database';
 import { keepFreezes } from '@/streak/store';
-import { today, type Day } from '@/workout/plan/day';
+import { today, type Day } from '@/lib/day';
 import { recovery } from '@/workout/recovery';
 import { deleteOldVideos, deleteOrphanVideos, findOpenWorkout } from '@/workout/store';
 
@@ -26,7 +26,12 @@ type Context = {
   splashHidden: boolean;
   /** Sign-in follows Me's Sign out or Delete account: the old session ends first. */
   leaving: boolean;
+  /** Sign-in follows the server ending the session: the sign-in screen says so. */
+  ended: boolean;
 };
+
+/** How long "Warming up" waits for a first pull before Home opens anyway; the pull goes on behind it. */
+const RESTORE_MS = 30_000;
 
 /**
  * Gets the phone ready before any screen reads it: opens the database, brings its tables up to date, has
@@ -38,13 +43,16 @@ type Context = {
  * until there is something to show; `error` stays set while a Retry runs. Each step lives with its owner; this only orders them.
  * It also keeps today for the screens (`dayClock`), from launch on, and once ready writes the freezes of
  * days that are over and deletes videos past 30 days, at launch and at each new day. Until a pull has brought back what the server holds
- * (a new phone, or signed in again), `restoring` tries it before Home; once ready, `keepSynced` sends and
- * pulls.
+ * (a new phone, or signed in again), `restoring` tries it once before Home, for 30 s at most; once ready,
+ * `keepSynced` sends and pulls. A call from Profile or League that finds the session gone marks the account
+ * signed out (`account/call.ts`); their Sign in sends `sessionEnded`, which goes to signing in. So does the
+ * consent screen's, when its Yes found the session gone.
  *
  *   migrating --> identifying --> (consenting) --> seeding --> restoring --> checking --> reading --> ready
  *       ^    \           \--> signingIn --> consenting --^       \--> recovering (Save / Discard) --> ready
  *       |     \--------------\----------\----------\--> failed (shows the error) --retry
  *   ready --signOut--> signingOut --> signingIn
+ *   ready, consenting --sessionEnded--> signingIn
  *   ready --deleted--> forgetting --> signingIn
  */
 // Positional generics (no type assertions allowed): context, events, actors, children, actions.
@@ -54,10 +62,11 @@ export const startup = setup<
   | { type: 'dataReady'; error?: string }
   | { type: 'signOut' }
   | { type: 'deleted' }
+  | { type: 'sessionEnded' }
   | DayEvent,
   {
     migrate: PromiseActorLogic<void>;
-    identify: PromiseActorLogic<'signIn' | 'ask' | 'go'>;
+    identify: PromiseActorLogic<'signIn' | 'ended' | 'ask' | 'go'>;
     signIn: typeof signIn;
     consent: typeof consent;
     session: typeof checkSession;
@@ -75,10 +84,12 @@ export const startup = setup<
 >({
   actors: {
     migrate: fromPromise(() => migrateDatabase()),
-    // Signed in: an account is kept and the server hasn't ended its session. Then: is there a question?
+    // Signed in: an account is kept and its session wasn't ended. Then: is there a question?
     identify: fromPromise(async () => {
       const kept = account();
-      if (!kept || kept.signedOut) return 'signIn';
+      if (!kept) return 'signIn';
+      // Only the server ending it is news; your own Sign out isn't.
+      if (kept.signedOut) return kept.byYou ? 'signIn' : 'ended';
       return answered() ? 'go' : 'ask';
     }),
     signIn,
@@ -130,7 +141,14 @@ export const startup = setup<
     },
   },
 }).createMachine({
-  context: { error: '', today: today(), open: null, splashHidden: false, leaving: false },
+  context: {
+    error: '',
+    today: today(),
+    open: null,
+    splashHidden: false,
+    leaving: false,
+    ended: false,
+  },
   invoke: { src: 'dayClock' },
   on: { day: { actions: assign({ today: ({ event }) => event.day }) } },
   initial: 'migrating',
@@ -148,6 +166,11 @@ export const startup = setup<
         onDone: [
           { guard: ({ event }) => event.output === 'go', target: 'seeding' },
           { guard: ({ event }) => event.output === 'ask', target: 'consenting' },
+          {
+            guard: ({ event }) => event.output === 'ended',
+            target: 'signingIn',
+            actions: assign({ ended: true }),
+          },
           { target: 'signingIn' },
         ],
         onError: { target: 'failed', actions: 'fail' },
@@ -160,20 +183,24 @@ export const startup = setup<
       invoke: {
         src: 'signIn',
         id: 'signIn',
-        input: ({ context }) => ({ leaving: context.leaving }),
-        onDone: { target: 'consenting', actions: assign({ leaving: false }) },
+        input: ({ context }) => ({ leaving: context.leaving, ended: context.ended }),
+        onDone: { target: 'consenting', actions: assign({ leaving: false, ended: false }) },
       },
     },
     // The root shows the consent screen with the machine's child, when there is a question to ask.
     consenting: {
       entry: 'hideSplash',
       invoke: { src: 'consent', id: 'consent', onDone: 'seeding' },
+      // Its Yes found the session gone (the account is marked signed out, its data kept): sign in again.
+      on: { sessionEnded: { target: 'signingIn', actions: assign({ ended: true }) } },
     },
     seeding: {
       invoke: { src: 'seed', onDone: 'restoring', onError: { target: 'failed', actions: 'fail' } },
     },
     // The root shows the waiting screen from here to Home once the splash is gone (after signing in).
+    // A stalled network can't hold it: each call gives up after 20 s, but a pull may be many calls.
     restoring: {
+      after: { [RESTORE_MS]: 'checking' },
       invoke: { src: 'restore', onDone: 'checking', onError: 'checking' },
     },
     checking: {
@@ -220,6 +247,8 @@ export const startup = setup<
         day: { actions: [assign({ today: ({ event }) => event.day }), 'newDay'] },
         signOut: 'signingOut',
         deleted: 'forgetting',
+        // Profile or League found the session gone (the account is marked signed out): sign in again.
+        sessionEnded: { target: 'signingIn', actions: assign({ ended: true }) },
       },
     },
     // Profile's Sign out, once it sent what was waiting: the screens go, the database is cleared, the sign-in

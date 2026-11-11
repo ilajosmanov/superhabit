@@ -1,7 +1,7 @@
 import '@/global.css';
 
 import { useMachine } from '@xstate/react';
-import { Stack } from 'expo-router';
+import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
@@ -59,6 +59,7 @@ export default function RootLayout() {
           value={{
             signOut: () => send({ type: 'signOut' }),
             deleted: () => send({ type: 'deleted' }),
+            sessionEnded: () => send({ type: 'sessionEnded' }),
           }}
         >
           <LeftOpen value={state.context.open?.id ?? null}>
@@ -98,10 +99,10 @@ export default function RootLayout() {
           <SignInScreen signIn={signIn} />
         </Animated.View>
       )}
-      {/* Then, once per account: share your traces? */}
+      {/* Then, when this phone has no answer for the current privacy policy: share your traces? */}
       {consent && (
         <Animated.View style={StyleSheet.absoluteFill} entering={FADE_IN} exiting={FADE_OUT}>
-          <ConsentScreen consent={consent} />
+          <ConsentScreen consent={consent} onSignIn={() => send({ type: 'sessionEnded' })} />
         </Animated.View>
       )}
       {/* After a failure the error stays up, its button off while Retry runs. */}
@@ -124,6 +125,26 @@ export default function RootLayout() {
 
       <StatusBar style="light" />
     </GestureHandlerRootView>
+  );
+}
+
+/**
+ * A screen threw while rendering: said plainly instead of closing the app. Try again renders the app afresh.
+ */
+// shortcut: the error is only shown, not reported; add crash reporting once the owner picks a service.
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  // The error may come before Home, under the splash; hiding it twice does nothing.
+  SplashScreen.hide();
+  return (
+    <>
+      <Screen
+        label="SUPERHABIT"
+        title="Something went wrong"
+        intro={error.message}
+        footer={<PrimaryButton label="Try again" onPress={() => void retry()} />}
+      />
+      <StatusBar style="light" />
+    </>
   );
 }
 

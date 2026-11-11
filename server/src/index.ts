@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 
-import { accountRoutes, deletePageRoutes } from './account/routes';
+import { accountRoutes, deletePageRoutes, privacyRoutes } from './account/routes';
 import { purgeDeleted } from './account/store';
 import { authRoutes } from './auth/routes';
 import { consentRoutes } from './consents/routes';
@@ -22,6 +22,7 @@ const app = new Hono<Route>()
   .route('/', authRoutes)
   .route('/', accountRoutes)
   .route('/', deletePageRoutes)
+  .route('/', privacyRoutes)
   .route('/', consentRoutes)
   .route('/', syncRoutes)
   .route('/', traceRoutes)

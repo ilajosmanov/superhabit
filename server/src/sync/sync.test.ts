@@ -1,66 +1,17 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { done, push, set } from '../__fixtures__/outbox';
-import { ann, bob, call, carl, env, midnightCron, signIn } from '../__fixtures__/worker';
-
-// Outbox rows as the phone writes them (`src/storage/outbox.ts` and its callers), `v` included.
-const version = (challengeId: string, id: string, number: number) => ({
-  id,
-  challengeId,
-  number,
-  name: 'Morning squats',
-  days: 30,
-  dailyTotal: false,
-  restartOnMiss: true,
-  plan: [{ steps: [{ exercise: 'squat', goal: { type: 'reps', n: 10 } }], rounds: 3 }],
-  createdAt: 1_762_800_000_000,
-});
-const create = (id: string, versionId: string) => ({
-  entity: 'challenge',
-  entityId: id,
-  op: 'create',
-  payload: {
-    id,
-    owner: 'the-phone-says',
-    visibility: 'private',
-    currentVersionId: versionId,
-    version: version(id, versionId, 1),
-    v: 1,
-  },
-});
-const edit = (challengeId: string, versionId: string, number: number) => ({
-  entity: 'challenge',
-  entityId: challengeId,
-  op: 'edit',
-  payload: { version: version(challengeId, versionId, number), v: 1 },
-});
-const join = (id: string, challengeId: string) => ({
-  entity: 'run',
-  entityId: id,
-  op: 'join',
-  payload: {
-    id,
-    challengeId,
-    pinnedVersionId: null,
-    groupChallengeId: null,
-    startedOn: '2026-11-10',
-    endedOn: null,
-    endReason: null,
-    v: 1,
-  },
-});
-const leave = (id: string) => ({
-  entity: 'run',
-  entityId: id,
-  op: 'leave',
-  payload: { endedOn: '2026-11-11', endReason: 'left', v: 1 },
-});
-const freeze = (day: string) => ({
-  entity: 'streak_event',
-  entityId: `used:${day}`,
-  op: 'add',
-  payload: { event: { id: `used:${day}`, day, kind: 'used', createdAt: 1_762_900_000_000 }, v: 1 },
-});
+import {
+  create,
+  done,
+  edit,
+  freeze,
+  join,
+  leave,
+  push,
+  set,
+  version,
+} from '../__fixtures__/outbox';
+import { call, env, passedBeforeLimit, someone } from '../__fixtures__/worker';
 
 type Page = {
   rows: { entity: string; row: Record<string, unknown> }[];
@@ -76,19 +27,12 @@ const page = async (cookie: string, after?: number) => {
   if (typeof answer === 'number') throw new Error(`pull answered ${answer}`);
   return answer;
 };
-const rows = async (table: string, userId?: string) =>
-  (
-    await env.DB.prepare(`select * from ${table}${userId ? ' where user_id = ?' : ''}`)
-      .bind(...(userId ? [userId] : []))
-      .all()
-  ).results;
-const idOf = async (cookie: string) =>
-  (await (await call('/me', { headers: { cookie } })).json<{ id: string }>()).id;
+const rows = async (table: string, userId: string) =>
+  (await env.DB.prepare(`select * from ${table} where user_id = ?`).bind(userId).all()).results;
 
 describe('sync: the phone sends its outbox', () => {
   it('keeps each change once, however often the phone sends it', async () => {
-    const phone = await signIn(ann);
-    const you = await idOf(phone);
+    const { cookie: phone, id: you } = await someone();
     const outbox = [
       create('c1', 'c1-v1'),
       join('r1', 'c1'),
@@ -119,8 +63,7 @@ describe('sync: the phone sends its outbox', () => {
   });
 
   it("edits and leaving change only the account's own rows; the last edit taken wins", async () => {
-    const annPhone = await signIn(ann);
-    const annId = await idOf(annPhone);
+    const { cookie: annPhone, id: annId } = await someone('Ann');
     const ofC2 = async (table: string) =>
       (await rows(table, annId)).filter(
         (r) => r.id === 'r2' || r.id === 'c2' || r.challenge_id === 'c2',
@@ -129,13 +72,13 @@ describe('sync: the phone sends its outbox', () => {
     // Another phone of Ann's edited offline too; its edit arrives later and wins. Both versions stay.
     await push(annPhone, [edit('c2', 'c2-v3', 2)]);
 
-    // An edit naming another challenge's version (c1's, from the first test) doesn't take it.
-    await push(annPhone, [edit('c2', 'c1-v1', 4)]);
+    // An edit naming another challenge's version, taken in the same request, doesn't take it.
+    await push(annPhone, [create('c9', 'c9-v1'), edit('c2', 'c9-v1', 4)]);
     expect(await ofC2('challenges')).toEqual([
       expect.objectContaining({ current_version_id: 'c2-v3' }),
     ]);
 
-    const bobPhone = await signIn(bob);
+    const { cookie: bobPhone } = await someone('Bob');
     expect(await push(bobPhone, [edit('c2', 'bob-v', 9), leave('r2')])).toEqual({
       results: [{ ok: true }, { ok: true }],
     });
@@ -165,11 +108,11 @@ describe('sync: the phone sends its outbox', () => {
   });
 
   it("refuses a change it can't read and keeps the others", async () => {
-    const phone = await signIn(ann);
-    const you = await idOf(phone);
+    const { cookie: phone, id: you } = await someone();
     const broken = done('w-bad', null, ['s-bad']);
     const answer = await push(phone, [
-      { ...broken, payload: { workout: { ...broken.payload.workout, day: 'yesterday' } } },
+      // No such day: the leagues count streaks from it.
+      { ...broken, payload: { workout: { ...broken.payload.workout, day: '2026-02-30' } } },
       {
         ...create('c-null', 'c-null-v1'),
         payload: {
@@ -204,40 +147,17 @@ describe('sync: the phone sends its outbox', () => {
     ).toBe(400);
   });
 
-  it("a deleted account can't sync, and the purge removes all it synced", async () => {
-    const phone = await signIn(bob);
-    const deleted = await idOf(phone);
-    await push(phone, [
-      create('c3', 'c3-v1'),
-      join('r3', 'c3'),
-      done('w3', 'r3', ['s3']),
-      freeze('2026-11-02'),
-    ]);
-    expect(await rows('sets', deleted)).toHaveLength(1);
-
-    await call('/account', { method: 'DELETE', headers: { cookie: phone } });
-    expect(await push(phone, [freeze('2026-11-01')])).toBe(401);
-
-    const ann1 = await signIn(ann);
-    const kept = (await rows('changes', await idOf(ann1))).length;
-    await midnightCron();
-    for (const table of [
-      'challenges',
-      'challenge_versions',
-      'runs',
-      'workouts',
-      'sets',
-      'streak_events',
-      'changes',
-    ]) {
-      expect(await rows(table, deleted)).toEqual([]);
-    }
-    expect(await rows('changes', await idOf(ann1))).toHaveLength(kept);
+  it('takes 60 sends a minute from one account; another account still syncs', async () => {
+    const { cookie: phone } = await someone();
+    const send = async () => ((await push(phone, [])) === 429 ? 429 : 200);
+    const passed = await passedBeforeLimit(send, 60);
+    expect(passed).toBeGreaterThanOrEqual(60);
+    expect(passed).toBeLessThanOrEqual(120);
+    expect(await push((await someone()).cookie, [])).toEqual({ results: [] });
   });
 
   it('another phone of the account pulls its rows in pages, as the phone keeps them', async () => {
-    const phone = await signIn(carl);
-    const you = await idOf(phone);
+    const { cookie: phone, id: you } = await someone();
     await push(phone, [
       create('c4', 'c4-v1'),
       join('r4', 'c4'),
@@ -296,7 +216,7 @@ describe('sync: the phone sends its outbox', () => {
     expect([one.rows.length, one.more, two.rows.length, two.more]).toEqual([50, true, 10, false]);
 
     // Nobody else's rows, and a cursor that isn't one is refused.
-    const others = await page(await signIn(bob));
+    const others = await page((await someone()).cookie);
     expect(others.rows.map((r) => r.row.id)).not.toContain('c4');
     expect(await pull(phone, 'yesterday')).toBe(400);
   });

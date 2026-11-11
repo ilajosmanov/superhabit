@@ -1,0 +1,7 @@
+# Copy to .dev.vars (git-ignored); `wrangler dev` reads it over wrangler.jsonc's vars. Secrets go in .dev.vars, never here.
+# A random secret of your own: openssl rand -base64 32
+BETTER_AUTH_SECRET=
+# From google.env; only the /delete page's Google sign-in needs it.
+GOOGLE_CLIENT_SECRET=
+# Where `wrangler dev` listens, so Better Auth and the /delete page's forms take this origin.
+BETTER_AUTH_URL=http://localhost:8787

@@ -1,4 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useRef } from 'react';
 import { Text, View } from 'react-native';
 
 import { ChallengePreview } from '@/challenges/components/challenge-preview';
@@ -25,6 +26,9 @@ export default function ChallengeDetailScreen() {
   const router = useRouter();
   const library = useLibrary();
   const day = useToday();
+  // The run Join just started: until the live library has it, Join is still up and a second tap would
+  // start another.
+  const started = useRef<string | null>(null);
   const page = challengePage(library, id, day, run);
   if (!page) return <Screen title="Not found" />;
 
@@ -56,9 +60,11 @@ export default function ChallengeDetailScreen() {
               <PrimaryButton
                 label={page.ranBefore ? 'Start again' : 'Join'}
                 onPress={() => {
-                  const started = join(id);
+                  const pending = started.current;
+                  if (pending && !library.runs.some((r) => r.id === pending)) return;
+                  started.current = join(id);
                   // The page follows the new run, not the one over that its link named.
-                  if (started) router.setParams({ run: started });
+                  if (started.current) router.setParams({ run: started.current });
                   else saveFailed();
                 }}
               />
@@ -77,7 +83,7 @@ export default function ChallengeDetailScreen() {
                   icon="edit"
                   label="Edit challenge"
                   onPress={() => router.push({ pathname: '/build', params: { id } })}
-                  style={{ marginRight: -12 }}
+                  edge
                 />
               )
             : undefined,

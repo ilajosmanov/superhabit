@@ -15,6 +15,7 @@ export function TextButton({
   color = colors.chalk,
   disabled = false,
   wide = false,
+  edge = false,
   style,
 }: {
   label: string;
@@ -25,11 +26,16 @@ export function TextButton({
   disabled?: boolean;
   /** As wide as its parent, like the primary above it, so the press ripple matches. */
   wide?: boolean;
+  /** At the end of a row: its 12dp of padding overhang, so what it shows lines up with the row's end. */
+  edge?: boolean;
   /** Places the Compose host. */
   style?: ViewStyle;
 }) {
   return (
-    <Host matchContents={wide ? { vertical: true } : true} style={style}>
+    <Host
+      matchContents={wide ? { vertical: true } : true}
+      style={edge ? { marginRight: -12, ...style } : style}
+    >
       <ComposeTextButton
         onClick={onPress}
         enabled={!disabled}

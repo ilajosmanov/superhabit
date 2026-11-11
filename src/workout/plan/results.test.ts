@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vite-plus/test';
 
 import type { ExerciseId } from '@/exercises/registry';
 
-import { setAmounts, shareDone, type StepResult } from './results';
+import { countedWorkouts, setAmounts, shareDone, type StepResult } from './results';
 import { expand, MAX, reps, seconds } from './plan';
 
 const set = (exercise: ExerciseId): StepResult => ({
@@ -56,4 +56,23 @@ describe('shareDone', () => {
 
 it('gives what each exercise set got: reps, seconds held, 0 when never reached', () => {
   expect(setAmounts(steps, [squats(7), plank(12_900)])).toEqual([7, 12.9, 0]);
+});
+
+it('counts only done workouts with a positive rep or hold, matching sets by workout id', () => {
+  const workouts = [
+    { id: 'rep', status: 'done' },
+    { id: 'hold', status: 'done' },
+    { id: 'empty', status: 'done' },
+    { id: 'no-set', status: 'done' },
+    { id: 'open', status: 'open' },
+  ];
+  const sets = [
+    { workoutId: 'rep', reps: 1, heldMs: 0 },
+    { workoutId: 'hold', reps: 0, heldMs: 1 },
+    { workoutId: 'empty', reps: 0, heldMs: 0 },
+    { workoutId: 'open', reps: 10, heldMs: 1000 },
+    { workoutId: 'discarded', reps: 10, heldMs: 0 },
+  ];
+
+  expect(countedWorkouts(workouts, sets).map(({ id }) => id)).toEqual(['rep', 'hold']);
 });

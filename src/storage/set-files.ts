@@ -91,9 +91,23 @@ export function deleteVideos(setIds: readonly string[]) {
   for (const { setId, file } of listVideos()) if (ids.has(setId)) removeVideo(file);
 }
 
+/** Retention lists each completed-trace folder once, leaving pending uploads alone. */
+export function deleteSavedTraces(setIds: readonly string[]) {
+  if (setIds.length === 0) return;
+  const ids = new Set(setIds);
+  for (const folder of [traceFolder(false), sentFolder(), unreadFolder()]) {
+    if (!folder.exists) continue;
+    for (const { name } of folder.list()) {
+      const match = /^(.*)\.sht(?:\.tmp)?$/.exec(name);
+      if (match && ids.has(match[1])) new File(folder, name).delete();
+    }
+  }
+}
+
+/** Discard removes every final and temporary copy, including pending uploads. */
 export function deleteTraces(setIds: readonly string[]) {
   for (const setId of setIds) {
-    for (const folder of [traceFolder(true), traceFolder(false)]) {
+    for (const folder of [traceFolder(false), sentFolder(), unreadFolder(), traceFolder(true)]) {
       const file = new File(folder, `${setId}.sht`);
       if (file.exists) file.delete();
       const temp = traceTemp(setId, folder);

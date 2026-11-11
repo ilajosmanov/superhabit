@@ -3,17 +3,19 @@ import { createMiddleware } from 'hono/factory';
 
 import { createAuth } from '../auth/auth';
 import { signInLimit } from '../auth/sign-in-limit';
-import { signedIn } from '../auth/signed-in';
+import { fromAnotherSite, signedIn } from '../auth/signed-in';
 import { open } from '../db/db';
 import type { Route, SignedInRoute } from '../env';
 import { DELETE_PAGE_POLICY, DeletePage, type DeletePageState } from './delete-page';
+import { PRIVACY_PAGE_POLICY, PrivacyPage } from './privacy-page';
 import { deleteAccount, me } from './store';
 
-/** The web page's forms post only from the page itself: another site's form must not drive them. */
+/**
+ * The web page's forms post only from the page itself: another site's form must not drive them. A browser's
+ * form always names its page, so one without an Origin is refused too.
+ */
 const sameOrigin = createMiddleware<Route>(async (c, next) => {
-  if (c.req.header('origin') !== new URL(c.env.BETTER_AUTH_URL).origin) {
-    return c.text('Forbidden', 403);
-  }
+  if (!c.req.header('origin') || fromAnotherSite(c)) return c.text('Forbidden', 403);
   await next();
 });
 
@@ -103,3 +105,9 @@ export const deletePageRoutes = new Hono<Route>()
     passCookies(c, headers);
     return c.redirect('/delete', 303);
   });
+
+/** The privacy policy (`privacy-page.tsx`). */
+export const privacyRoutes = new Hono<Route>().get('/privacy', (c) => {
+  c.header('content-security-policy', PRIVACY_PAGE_POLICY);
+  return c.html(PrivacyPage());
+});

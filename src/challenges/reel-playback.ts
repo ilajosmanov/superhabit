@@ -4,7 +4,7 @@ import { assign, enqueueActions, fromCallback, not, setup } from 'xstate';
 import { after, type Clip, type Spot } from './reel';
 
 /** What the reel uses of an expo-video player. */
-export type Player = Pick<
+type Player = Pick<
   VideoPlayer,
   | 'duration'
   | 'currentTime'

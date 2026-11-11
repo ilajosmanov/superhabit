@@ -30,17 +30,31 @@ export function toPose(frame: TraceFrame): Pose {
   };
 }
 
+let missingReported = false;
+const reportMissing = () => {
+  if (missingReported) return;
+  missingReported = true;
+  console.info(
+    '[clips] Recorded traces are missing; see src/exercises/README.md for where to get __fixtures__/traces/.',
+  );
+};
+
 /** List eagerly, decode lazily: missing data skips, present but malformed data fails. */
 export function traceFiles(
   exercise: string,
   tracesRoot = fileURLToPath(new URL('./traces/', import.meta.url)),
 ): string[] {
   const directory = join(tracesRoot, exercise);
-  if (!existsSync(directory)) return [];
-  return readdirSync(directory, { withFileTypes: true })
+  if (!existsSync(directory)) {
+    reportMissing();
+    return [];
+  }
+  const files = readdirSync(directory, { withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith('.sht'))
     .map((entry) => join(directory, entry.name))
     .sort();
+  if (files.length === 0) reportMissing();
+  return files;
 }
 
 export function loadTrace(path: string) {
@@ -131,6 +145,7 @@ export function clipSuite<S extends Progress, M>(
   const clips = Object.keys(labels).map((clip) =>
     traceFiles('device').find((path) => path.endsWith(clip)),
   );
+  if (clips.some((path) => !path)) reportMissing();
   describe.skipIf(clips.some((path) => !path))(`${title} on device clips with gravity`, () => {
     it.each(Object.entries(labels))('%s: counts each real one once', (clip, spans) => {
       const path = clips.find((p) => p?.endsWith(clip));

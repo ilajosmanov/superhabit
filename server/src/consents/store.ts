@@ -1,7 +1,8 @@
-import { and, eq, isNull, ne, notExists, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, ne, notExists, sql } from 'drizzle-orm';
 
 import type { Db } from '../db/db';
-import { consents, user } from '../db/schema';
+import { consents, deletions, user } from '../db/schema';
+import { dropTraces, sharesTraces } from '../traces/store';
 
 export type ConsentKind = (typeof consents.$inferSelect)['kind'];
 
@@ -16,15 +17,31 @@ export const consentsInForce = (db: Db, userId: string) =>
     .from(consents)
     .where(and(eq(consents.userId, userId), isNull(consents.withdrawnAt)));
 
+type ConsentChange = { kind: ConsentKind; policyVersion: string; granted: boolean };
+
+/**
+ * Gives or withdraws a consent, and what goes with it: withdrawing traces deletes those shared (the daily
+ * sweep catches a deletion that fails here), and sharing again after a withdrawal whose deletion failed
+ * deletes those traces first.
+ */
+export async function changeConsent(
+  db: Db,
+  bucket: R2Bucket,
+  userId: string,
+  change: ConsentChange,
+) {
+  if (change.kind === 'traces' && change.granted && !(await sharesTraces(db, userId))) {
+    await dropTraces(db, bucket, userId);
+  }
+  await setConsent(db, userId, change);
+  if (change.kind === 'traces' && !change.granted) await dropTraces(db, bucket, userId);
+}
+
 /**
  * Gives (`granted`) or withdraws the consent of `kind`. Giving the one in force again changes nothing; a new
  * policy replaces it. Every grant stays as proof, stamped when replaced or withdrawn.
  */
-export async function setConsent(
-  db: Db,
-  userId: string,
-  { kind, policyVersion, granted }: { kind: ConsentKind; policyVersion: string; granted: boolean },
-) {
+async function setConsent(db: Db, userId: string, { kind, policyVersion, granted }: ConsentChange) {
   const now = Date.now();
   const inForce = and(
     eq(consents.userId, userId),
@@ -52,4 +69,10 @@ export async function setConsent(
       .where(and(eq(user.id, userId), notExists(db.select().from(consents).where(inForce)))),
   );
   return db.batch([withdraw, grant]);
+}
+
+/** Deletes the deleted accounts' consents: a statement for `purgeDeleted`'s one batch. */
+export function purgeConsents(db: Db) {
+  const deleted = db.select({ userId: deletions.userId }).from(deletions);
+  return db.delete(consents).where(inArray(consents.userId, deleted));
 }

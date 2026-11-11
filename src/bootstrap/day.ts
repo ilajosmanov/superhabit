@@ -1,7 +1,7 @@
 import { AppState } from 'react-native';
 import { fromCallback } from 'xstate';
 
-import { nextMidnight, today, type Day } from '@/workout/plan/day';
+import { nextMidnight, today, type Day } from '@/lib/day';
 
 export type DayEvent = { type: 'day'; day: Day };
 

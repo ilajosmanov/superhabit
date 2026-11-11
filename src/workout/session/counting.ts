@@ -3,7 +3,7 @@ import type { PoseDetection } from 'superhabit-pose';
 import { settle, type Framing } from './framing';
 import { repPhrase, startPhrase } from '@/workout/coach/phrase';
 import { done, type FlatSteps } from '@/workout/plan/plan';
-import { statsOf, type Attempt } from '@/workout/plan/results';
+import type { Attempt } from '@/workout/plan/results';
 import {
   EXERCISES,
   outOfFrame,
@@ -97,15 +97,9 @@ export function countFrame(c: Counting, result: PoseDetection) {
   const say: string[] = [];
   let flash: 'rep' | 'noRep' | null = null;
 
-  // shortcut: event lines stay on in release builds for lab sessions (adb logcat -s ReactNativeJS);
-  // drop them or gate them with the recorder setting before shipping.
-  if (next.phase !== prev.phase)
-    console.info('[session]', id, 'phase', prev.phase, '->', next.phase);
   const rep = next.lastRep;
   if (rep && (next.reps > prev.reps || next.noReps > prev.noReps)) {
     const { counted, depth } = rep;
-    console.info('[session]', id, counted ? 'rep' : 'no-rep', next.reps, next.noReps);
-    console.info('[session]', id, statsOf({ ...c, ...patch }, id));
     if (EXERCISES[id].kind !== 'hold') {
       if (rep.startMs === null || rep.endMs === null)
         throw new Error('Cycle and sequence attempts must have start and end times');
@@ -135,8 +129,6 @@ export function countFrame(c: Counting, result: PoseDetection) {
   // Framing is known once the first reading is all in frame or has settled; until then the checklist
   // shows every part out, never a false all-clear.
   if (!c.framed && (!parts?.length || framing.patch?.missing !== undefined)) update.framed = true;
-  if (framing.patch?.missing)
-    console.info('[session]', id, 'out of frame', framing.patch.missing.join(', ') || 'none');
   if (framing.phrase) say.push(framing.phrase);
   // The raw frame explains waiting immediately; the screen's framing checklist settles separately.
   const waiting =
@@ -148,4 +140,19 @@ export function countFrame(c: Counting, result: PoseDetection) {
           ? `out of frame: ${parts.join(', ')}`
           : 'start position';
   return { update, live, flash, say, phase: next.phase, waiting };
+}
+
+/** Plan-only readouts, built once so detector snapshots never scan the expanded plan. */
+export function stepDetails(steps: FlatSteps) {
+  let set = 0;
+  const numbers = steps.map((step) => (step.exercise === 'rest' ? set : ++set));
+  let next: Extract<FlatSteps[number], { exercise: ExerciseId }> | null = null;
+  return steps
+    .map((_, index) => {
+      const step = steps[steps.length - 1 - index];
+      const detail = { set: numbers[steps.length - 1 - index], sets: set, next };
+      if (step.exercise !== 'rest') next = step;
+      return detail;
+    })
+    .reverse();
 }

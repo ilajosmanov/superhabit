@@ -8,11 +8,11 @@ import { dayReel, type Clip } from '@/challenges/reel';
 import { mss } from '@/lib/duration';
 import { Icon } from '@/components/icon';
 import { SadFigure } from '@/components/illustrations';
-import { RollingLines } from '@/components/rolling-lines';
+import { RollingLines } from './rolling-lines';
 import { EXERCISES } from '@/exercises/registry';
 import { videosOf } from '@/storage/set-files';
 import { colors } from '@/theme';
-import { pad } from '@/workout/plan/day';
+import { pad } from '@/lib/day';
 
 /** "07:42": the time it started where you were then, whatever the phone's zone is now. */
 function clock({ startedAt, tzOffsetMin }: LogRow) {
@@ -21,8 +21,9 @@ function clock({ startedAt, tzOffsetMin }: LogRow) {
 }
 
 /**
- * The workouts saved on a day, a row each, oldest first; `empty` when there are none. A row that counted
- * something plays its own sets full screen, a challenge's try too: its page shows only the try that counts.
+ * The workouts saved on a day, a row each, oldest first; `empty` when there are none. A row whose sets
+ * have videos plays them full screen, a challenge's try too: its page shows only the try that counts. Its
+ * files are listed once, as it mounts: key it by the rows' workout ids.
  */
 export function DayLog({
   label,
@@ -34,6 +35,10 @@ export function DayLog({
   /** Said when there are no rows; several take turns. */
   empty: string | readonly string[];
 }) {
+  // shortcut: a workout saved while its last file was still finalizing misses that set until the list
+  // remounts (another day picked, or another workout saved); list again when the camcorder wraps if that
+  // shows up on the phone.
+  const [videos] = useState(() => videosOf(rows.flatMap((row) => row.sets.map(({ id }) => id))));
   const [watching, setWatching] = useState<{ clips: Clip[]; sets: number } | null>(null);
   return (
     <View className="gap-3">
@@ -53,19 +58,13 @@ export function DayLog({
       <View className="gap-2.5">
         {rows.map((row) => {
           const { steps } = row;
-          // Sets that got nothing were never filmed.
-          const plays = steps !== null && (row.reps > 0 || row.heldMs > 0);
-          // Its files are listed on the tap, never while a page slides: a set's last file may still have
-          // been writing when the workout was saved.
-          // shortcut: a row whose files are gone (cleared storage) shows play and does nothing.
-          const play = () => {
-            if (!steps) return;
-            const videos = videosOf(row.sets.map(({ id }) => id));
-            const clips = dayReel(steps, row.sets, videos);
-            const sets = steps.filter((step) => step.exercise !== 'rest').length;
-            if (clips.length > 0) setWatching({ clips, sets });
-          };
-          return <Row key={row.workoutId} row={row} onPress={plays ? play : undefined} />;
+          // Videos are kept 30 days and only on the phone that filmed them: no files, no play.
+          const clips = steps ? dayReel(steps, row.sets, videos) : [];
+          const sets = steps?.filter((step) => step.exercise !== 'rest').length ?? 0;
+          const play = () => setWatching({ clips, sets });
+          return (
+            <Row key={row.workoutId} row={row} onPress={clips.length > 0 ? play : undefined} />
+          );
         })}
       </View>
       {watching && (

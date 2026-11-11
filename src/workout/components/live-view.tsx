@@ -60,7 +60,7 @@ export function LiveView(props: PlatterProps) {
             </View>
           )}
           <View className={landscape ? 'items-start' : 'items-center'}>
-            {view.caption && <Caption text={view.caption} />}
+            {view.caption && <Caption text={view.caption} muted={view.muted} />}
           </View>
         </View>
         <SetPlatter {...props} />

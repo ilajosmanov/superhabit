@@ -1,17 +1,25 @@
 import { sql } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
+import { setSharing } from './consent';
+import { SessionGone } from './server';
+import { keepSignIn, markSignedOut } from './store';
 import { refused, restored, send, sync } from './sync';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import { db as database } from '@/storage/database';
+import { account, writeAccount } from '@/storage/account';
 import { clearDatabase } from '@/storage/clear';
 import { enqueue } from '@/storage/outbox';
 import * as schema from '@/storage/schema';
 
 // Our server is faked; what the phone keeps is real SQLite.
-type Init = { method?: string; body?: { changes: { entityId: string }[] } };
+type Init = {
+  method?: string;
+  body?: { changes?: { entityId: string }[]; granted?: boolean };
+};
 const fake = vi.hoisted(() => ({ fetch: vi.fn<(url: string, init?: Init) => Promise<unknown>>() }));
 vi.mock('./auth-client', () => ({ authClient: { $fetch: fake.fetch } }));
+vi.mock('expo-file-system', () => ({}));
 vi.mock('expo-network', () => ({}));
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 
@@ -19,7 +27,7 @@ const offline = () => Promise.reject(new TypeError('Network request failed'));
 /** The changes each POST carried. */
 const sent = () =>
   fake.fetch.mock.calls.flatMap(([, init]) =>
-    init?.body ? [init.body.changes.map((c) => c.entityId)] : [],
+    init?.body?.changes ? [init.body.changes.map((c) => c.entityId)] : [],
   );
 const queue = (entity: string, entityId: string) =>
   database().transaction((tx) =>
@@ -86,7 +94,9 @@ const workout = {
 /** The server: takes every change, and answers pulls with these pages by cursor. */
 function server(pages: Record<string, object>) {
   fake.fetch.mockImplementation(async (url: string, init?: Init) => {
-    if (init?.body) return { data: { results: init.body.changes.map(() => ({ ok: true })) } };
+    if (init?.method === 'PUT') return { data: null, error: null };
+    if (init?.body?.changes)
+      return { data: { results: init.body.changes.map(() => ({ ok: true })) } };
     const after = new URL(url).searchParams.get('after') ?? '';
     const page = pages[after];
     return page ? { data: page } : offline();
@@ -202,5 +212,109 @@ describe('sync: the outbox goes up, the account comes down', () => {
     expect(db().select().from(schema.runs).all()).toEqual([
       expect.objectContaining({ endedOn: '2026-11-11' }),
     ]);
+  });
+
+  it("sends a withdrawal of sharing made offline first, and fails the round while it can't", async () => {
+    fake.fetch.mockImplementation(offline);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await setSharing(false);
+    expect(outbox()).toMatchObject([{ entity: 'consent', op: 'withdraw' }]);
+
+    fake.fetch.mockResolvedValue({ data: null, error: { status: 500, message: 'down' } });
+    await expect(send()).rejects.toThrow('down');
+    expect(outbox()).toHaveLength(1);
+
+    fake.fetch.mockReset();
+    server({});
+    await send();
+    expect(fake.fetch.mock.calls.at(-1)?.[1]).toMatchObject({
+      method: 'PUT',
+      body: { granted: false },
+    });
+    expect(outbox()).toEqual([]);
+  });
+
+  it('a pull answered after you signed out keeps nothing, even for the same account signing in again', async () => {
+    const page = { rows: [{ entity: 'run', row: run }], cursor: 9, more: false };
+    // Another account after a first pull; the same account part way through one.
+    for (const [next, cursor] of [
+      [{ id: 'bob', name: 'Bob Day', image: null }, null],
+      [{ id: 'local', name: 'You', image: null }, '5'],
+    ] as const) {
+      database().transaction((tx) => {
+        clearDatabase(tx);
+        writeAccount(tx, { id: 'local', name: 'You', image: null });
+      });
+      if (cursor) db().insert(schema.syncCursors).values({ stream: 'changes', cursor }).run();
+      let answer: (value: unknown) => void = () => {};
+      fake.fetch.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+      const pulling = sync();
+      await vi.waitFor(() => expect(fake.fetch).toHaveBeenCalled());
+      // Signed out (the database cleared), and someone signed in.
+      database().transaction((tx) => {
+        clearDatabase(tx);
+        writeAccount(tx, next);
+      });
+      answer({ data: page });
+      await pulling;
+      expect(db().select().from(schema.runs).all()).toEqual([]);
+      expect(db().select().from(schema.syncCursors).all()).toEqual([]);
+      expect(restored()).toBe(false);
+      fake.fetch.mockReset();
+    }
+  });
+
+  it('runs a send and a pull one at a time: a send waits for the round before it', async () => {
+    queue('streak_event', 'a');
+    const calls: string[] = [];
+    let answerSend: () => void = () => {};
+    fake.fetch.mockImplementation(async (url: string, init?: Init) => {
+      calls.push(init?.method ?? 'GET');
+      if (init?.body?.changes) {
+        const results = init.body.changes.map(() => ({ ok: true }));
+        await new Promise<void>((resolve) => (answerSend = resolve));
+        return { data: { results } };
+      }
+      return { data: { rows: [], cursor: 0, more: false } };
+    });
+    const round = sync();
+    const another = send();
+    await vi.waitFor(() => expect(calls).toEqual(['POST']));
+    answerSend();
+    await Promise.all([round, another]);
+    // The queued row went once; the second send found nothing waiting.
+    expect(calls).toEqual(['POST', 'GET']);
+  });
+
+  it('a session gone marks its account signed out, but never one that signed in meanwhile', async () => {
+    queue('streak_event', 'a');
+    let answer: (value: unknown) => void = () => {};
+    fake.fetch.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    const sending = send();
+    await vi.waitFor(() => expect(fake.fetch).toHaveBeenCalled());
+    database().transaction((tx) => writeAccount(tx, { id: 'bob', name: 'Bob Day', image: null }));
+    answer({ data: null, error: { status: 401, message: 'Unauthorized' } });
+    await expect(sending).rejects.toBeInstanceOf(SessionGone);
+    expect(account()).toMatchObject({ id: 'bob', signedOut: false });
+
+    fake.fetch.mockResolvedValue({ data: null, error: { status: 401, message: 'Unauthorized' } });
+    await expect(send()).rejects.toBeInstanceOf(SessionGone);
+    expect(account()).toMatchObject({ id: 'bob', signedOut: true });
+  });
+
+  it('a session gone leaves alone the same account signed in again meanwhile', async () => {
+    queue('streak_event', 'a');
+    let answer: (value: unknown) => void = () => {};
+    fake.fetch.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    const sending = send();
+    await vi.waitFor(() => expect(fake.fetch).toHaveBeenCalled());
+    // Another call found the session gone; you signed in again as yourself.
+    const kept = account();
+    if (!kept) throw new Error('no account');
+    markSignedOut();
+    keepSignIn(kept);
+    answer({ data: null, error: { status: 401, message: 'Unauthorized' } });
+    await expect(sending).rejects.toBeInstanceOf(SessionGone);
+    expect(account()).toMatchObject({ id: kept.id, signedOut: false });
   });
 });

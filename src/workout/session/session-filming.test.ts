@@ -29,6 +29,10 @@ vi.mock('superhabit-pose', () => modules['superhabit-pose']);
 vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
+vi.mock('expo-keep-awake', () => ({
+  activateKeepAwakeAsync: async () => {},
+  deactivateKeepAwake: async () => {},
+}));
 vi.mock('expo-screen-orientation', () => modules['expo-screen-orientation']);
 vi.mock('expo-constants', () => modules['expo-constants']);
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
@@ -36,6 +40,7 @@ vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 const { workoutSession } = await import('./session');
 const { sessionView } = await import('./session-view');
 
+vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => callback(0));
 beforeAll(migrateDatabase);
 afterEach(reset);
 
@@ -70,11 +75,11 @@ describe('workoutSession filming', () => {
     await flush();
     play(plank({ elbow: 95 }), plank({ elbow: 170 }));
     expect(view()).toMatchObject({ stage: 'finished', final: false }); // files not final yet
-    expect(files.size).toBe(2);
+    expect([...files].filter((file) => file.endsWith('.mp4')).length).toBe(2);
     await flush();
     expect(view().final).toBe(true);
     const [squatSet, pushupSet] = view().results;
-    const filmed = [...files];
+    const filmed = [...files].filter((file) => file.endsWith('.mp4'));
     expect([...squatSet.takes, ...pushupSet.takes]).toEqual(filmed); // one file each, in order
     expect(filmed).toEqual([
       `document/local/videos/${squatSet.id}-0.mp4`,
@@ -83,7 +88,7 @@ describe('workoutSession filming', () => {
     actor.send({ type: 'save' });
     actor.stop();
     await flush();
-    expect(files.size).toBe(2);
+    expect([...files].filter((file) => file.endsWith('.mp4')).length).toBe(2);
   });
 
   it('drops a file that fails after its set ended from that set', async () => {
@@ -109,6 +114,57 @@ describe('workoutSession filming', () => {
     warn.mockRestore();
   });
 
+  it.each(['switching', 'next set', 'finished'])(
+    'lists a take that starts after its set ended, while in %s',
+    async (stage) => {
+      const actor = createActor(workoutSession, { input: { ...LOG, challenge, video } }).start();
+      try {
+        play(body({}));
+        for (let i = 0; i < 50 && !takes.length; i++) await Promise.resolve();
+        expect(takes).toHaveLength(1);
+        squat();
+        if (stage === 'next set') actor.send({ type: 'next' });
+        if (stage === 'finished') actor.send({ type: 'end' });
+        const view = () => sessionView(actor.getSnapshot());
+        const setId = view().results[0].id;
+        expect(view().results[0].takes).toEqual([]);
+
+        await flush();
+
+        const uri = `document/local/videos/${setId}-0.mp4`;
+        expect(files.has(uri)).toBe(true);
+        expect(view().results[0].takes).toEqual([uri]);
+        expect(view().recording).toBe(false);
+        if (stage === 'next set') {
+          actor.send({ type: 'end' });
+          expect(view().results[1].takes).toEqual([]);
+        }
+      } finally {
+        actor.stop();
+        await flush();
+      }
+    },
+  );
+
+  it('ignores a late start for a set replaced by Restart', async () => {
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, video },
+    }).start();
+    try {
+      play(body({}));
+      for (let i = 0; i < 50 && !takes.length; i++) await Promise.resolve();
+      expect(takes).toHaveLength(1);
+      actor.send({ type: 'pause' });
+      actor.send({ type: 'restart' });
+      await flush();
+      actor.send({ type: 'end' });
+      expect(sessionView(actor.getSnapshot()).results[0].takes).toEqual([]);
+    } finally {
+      actor.stop();
+      await flush();
+    }
+  });
+
   it('tries the remaining videos on Discard when one deletion fails, leaving other sets alone', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const actor = createActor(workoutSession, {
@@ -128,7 +184,7 @@ describe('workoutSession filming', () => {
     files.add(other);
     stuck.add(failed);
     actor.send({ type: 'discard' });
-    expect(actor.getSnapshot().context.discarded).toBe(true);
+    expect(actor.getSnapshot().matches({ finished: { decision: 'discarded' } })).toBe(true);
     expect(files).toEqual(new Set([failed, other]));
     expect(warn).toHaveBeenCalledWith(
       '[camcorder] could not delete a recording',
@@ -181,14 +237,14 @@ describe('workoutSession filming', () => {
     await flush();
     expect(view().recording).toBe(true);
     expect(stops()).toEqual([true, false]);
-    expect(files.size).toBe(2);
+    expect([...files].filter((file) => file.endsWith('.mp4')).length).toBe(2);
     actor.send({ type: 'end' });
     expect(view().results[0].takes).toHaveLength(2);
     actor.send({ type: 'save' });
     actor.stop();
     expect(takes[1].stopped).toBe(true);
     await flush();
-    expect(files.size).toBe(2);
+    expect([...files].filter((file) => file.endsWith('.mp4')).length).toBe(2);
   });
 
   it('starts a take only once the previous file is final, even on a quick pause and resume', async () => {
@@ -215,10 +271,10 @@ describe('workoutSession filming', () => {
     actor.send({ type: 'end' });
     actor.send({ type: 'save' });
     actor.stop();
-    expect(files.size).toBe(0);
+    expect([...files].filter((file) => file.endsWith('.mp4')).length).toBe(0);
     await flush(); // the file appears, is finalized, then kept
     expect(takes).toMatchObject([{ final: true }]);
-    expect(files.size).toBe(1);
+    expect([...files].filter((file) => file.endsWith('.mp4')).length).toBe(1);
   });
 
   it('cleans up only its own files when it finalizes after the next session started', async () => {
@@ -242,7 +298,7 @@ describe('workoutSession filming', () => {
     slow.forEach((final) => final());
     await flush();
     expect(takes.map((t) => t.final)).toEqual([true, false]);
-    expect(files.size).toBe(1); // the next session's take
+    expect([...files].filter((file) => file.endsWith('.mp4')).length).toBe(1); // the next session's take
     next.stop();
   });
 
@@ -354,9 +410,9 @@ describe('workoutSession filming', () => {
     actor.stop();
     await flush();
     begin(); // the recording starts after all, writes its file, and is stopped at once
-    expect(files.size).toBe(1);
+    expect([...files].filter((file) => file.endsWith('.mp4')).length).toBe(1);
     await flush();
-    expect(files.size).toBe(0);
+    expect([...files].filter((file) => file.endsWith('.mp4')).length).toBe(0);
   });
 
   it('counts as before when the camera cannot record', async () => {

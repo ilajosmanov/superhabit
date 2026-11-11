@@ -22,8 +22,10 @@ failure shows Retry instead of crashing; `db()` throws if anything reads before 
 
 Writes are synchronous `db.transaction(...)` calls with no `await` inside. Each feature's store builds
 its queries. Screens never subscribe themselves: one `LibraryProvider` (`challenges/library-live.tsx`)
-keeps every table live with `useLiveQuery` and shares the snapshot (see "Reading data on screens" in
-CODING_STANDARDS.md).
+keeps seven reads live with `useLiveQuery` (challenges, challenge versions, runs, workouts, sets, the
+account row and your sharing answer) and shares the snapshot (see "Reading data on screens" in CODING_STANDARDS.md).
+`streak_events`, `outbox`, `sync_cursors` and the rest of `settings` aren't live: their features read
+them when they need them.
 
 Tests that need real SQL mock `@/storage/database` with `__fixtures__/database.ts`: Node's own SQLite in
 memory, migrated from the same files.
@@ -61,8 +63,11 @@ Videos: `documents/<userId()>/videos/<setId>-<i>.mp4`; `video_t_ms = t − video
 `.sht.tmp` while written). The folder is the upload queue: `pending/` (recorded while sharing was on, not
 sent yet), `sent/`, `unread/` (the server couldn't read it) and `private/` (never leaves the phone).
 `roomToFilm` is false under 1 GB free: sets are then counted without filming.
-It knows no workout rules: callers choose which set ids to delete. `videosOf` lists existing files in
-numeric take order, preserving gaps, and omits sets whose native files are still reserved for writing.
+It knows no workout rules: callers choose which set ids to delete. `deleteTraces` removes final and
+temporary files from all four trace folders on discard. The workout's 30-day recording sweep calls
+`deleteSavedTraces`, listing `private/`, `sent/` and `unread/` once each to remove old saved sets' files
+without probing paths for the whole history; it leaves `pending/` alone. `videosOf` lists
+existing files in numeric take order, preserving gaps, and omits sets whose native files are still reserved for writing.
 
 Optional `stretches: [{ kind, startMs, endMs }]` use file-relative milliseconds and ordered, non-overlapping
 `countdown` / `waiting` / `counting` / `paused` spans; earlier clips omit them.

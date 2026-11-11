@@ -22,8 +22,7 @@ export type RecorderEvent =
   | { type: 'save'; counted: TraceHeader['counted'] }
   | TakeEvent;
 
-// shortcut: a window past 9000 frames leaves no trace (its count would describe frames it lacks);
-// stream to disk if sets longer than 5 min at 30 fps matter.
+// shortcut: over 9000 frames including countdown and pauses drops the trace; stream if longer windows matter.
 const MAX_FRAMES = 9000;
 
 /** One detector result as the set's trace keeps it, `t` ms after the set's first frame. */
@@ -51,8 +50,7 @@ function toFrame(
  * Packs each frame from countdown through set end, including waiting and pauses, as it arrives, so the
  * set's end has little left to do; every finished trace stays local.
  */
-export const recorder = fromCallback<RecorderEvent, { on: boolean }>(({ input, receive }) => {
-  if (!input.on) return;
+export const recorder = fromCallback<RecorderEvent>(({ receive }) => {
   sweepTraceWrites();
   let window: Window | null = null;
   let trace = traceBuilder();
@@ -118,7 +116,6 @@ export const recorder = fromCallback<RecorderEvent, { on: boolean }>(({ input, r
       const t = Math.round(result.timestampMs - t0);
       if (t <= lastT) return;
       if (trace.frames === MAX_FRAMES) {
-        console.info('[recorder] set too long to keep a trace');
         lose();
         return;
       }

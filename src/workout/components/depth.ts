@@ -15,9 +15,8 @@ export function depthAt(value: number, gauge: Gauge) {
   return Math.min(OVER, Math.max(0, t)) / OVER;
 }
 
-/** "100°" for an angle; "0.7" for a unitless signal (jumping jack's 0..1 spread). */
-export function depthText(value: number, gauge: { down: number }) {
+/** The gauge always measures angles in degrees. */
+export function depthText(value: number) {
   'worklet';
-  // Every angle gauge's `down` is well past 1°; only 0..1 signals sit at or below it.
-  return gauge.down > 1 ? `${Math.round(value)}°` : value.toFixed(1);
+  return `${Math.round(value)}°`;
 }

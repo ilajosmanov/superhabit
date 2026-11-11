@@ -6,6 +6,7 @@ import { SwipeRow } from './swipe-row';
 import { UnavailableCard } from './unavailable-card';
 import { toEntry } from '@/challenges/catalog';
 import type { Yours } from '@/challenges/library-view';
+import { GUTTER } from '@/components/screen';
 
 /**
  * The challenges you joined, due today first, then the surprise card, in a swipe row where the next
@@ -14,7 +15,7 @@ import type { Yours } from '@/challenges/library-view';
 export function YourChallenges({ joined }: { joined: readonly Yours[] }) {
   const { width } = useWindowDimensions();
   // 24px of the next card shows at the right edge.
-  const card = width - 48 - 24;
+  const card = width - 2 * GUTTER - 24;
 
   if (joined.length === 0) return <SurpriseCard />;
   return (

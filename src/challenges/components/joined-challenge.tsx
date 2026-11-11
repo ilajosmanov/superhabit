@@ -5,7 +5,7 @@ import { DayStrip } from './day-strip';
 import { HowItCounts } from './how-it-counts';
 import { SessionPlan } from './session-plan';
 import { WatchDay } from './watch-day';
-import { detail, plan } from '@/challenges/challenges';
+import { planView, trackedSets } from '@/challenges/plan-view';
 import type { Joined } from '@/challenges/library-view';
 import { doneToday, percent } from '@/challenges/run-view';
 import { expand } from '@/workout/plan/plan';
@@ -24,8 +24,8 @@ export function JoinedChallenge({ joined: { challenge, run, amounts } }: { joine
   const day = amounts.at(selected);
   const shown = day?.version ?? challenge;
   const done = day?.done;
-  const session = plan(shown);
-  const { sets } = detail(shown);
+  const session = planView(shown);
+  const { sets } = trackedSets(shown);
   const next =
     selected === today && done ? done.findIndex((n, i) => setShare(sets[i].goal, n) < 1) : -1;
 

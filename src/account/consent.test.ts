@@ -5,11 +5,13 @@ import { consent, POLICY_VERSION } from './consent';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import { db as database } from '@/storage/database';
 import { consentsGiven, sharing, writeSharing } from '@/storage/consent';
+import { account, writeAccount } from '@/storage/account';
 import { settings } from '@/storage/schema';
 
 // Our server and the network are faked; the machines and what the phone keeps are real.
 const fake = vi.hoisted(() => ({ fetch: vi.fn(), reachable: vi.fn(() => true) }));
 vi.mock('./auth-client', () => ({ authClient: { $fetch: fake.fetch } }));
+vi.mock('expo-file-system', () => ({}));
 vi.mock('expo-network', () => ({
   getNetworkStateAsync: async () => ({ isInternetReachable: fake.reachable() }),
 }));
@@ -92,5 +94,22 @@ describe('the consent question after sign-in', () => {
     await waitFor(actor, (s) => s.matches('asking') && s.context.error !== null);
     expect(actor.getSnapshot().context.error).toBe('offline');
     expect(sharing()).toBeNull();
+  });
+
+  it('a session the server ended says so, and Not now still works without it', async () => {
+    database().transaction((tx) => writeAccount(tx, { id: 'ann', name: 'Ann Lee', image: null }));
+    server();
+    const actor = createActor(consent).start();
+    await asked(actor);
+    fake.fetch.mockResolvedValue({ data: null, error: { status: 401, message: 'Unauthorized' } });
+    actor.send({ type: 'agree' });
+    await waitFor(actor, (s) => s.matches('asking') && s.context.error !== null);
+    expect(actor.getSnapshot().context.error).toBe('signedOut');
+    // The next launch asks to sign in; the data stays.
+    expect(account()).toMatchObject({ id: 'ann', signedOut: true });
+
+    actor.send({ type: 'notNow' });
+    await waitFor(actor, (s) => s.status === 'done');
+    expect(sharing()?.traces).toBe(false);
   });
 });

@@ -5,9 +5,7 @@ import {
   TextButton as ComposeTextButton,
 } from '@expo/ui/jetpack-compose';
 
-import { colors } from '@/theme';
-
-const FONT = { fontFamily: 'Geist', fontWeight: '500', fontSize: 15 } as const;
+import { colors, COMPOSE_LABEL } from '@/theme';
 
 /**
  * The platform's dialog for a choice: the action (red when it can't be undone), and Cancel or another
@@ -19,6 +17,7 @@ export function ConfirmDialog({
   action,
   warn = true,
   cancel = 'Cancel',
+  disabled = false,
   onConfirm,
   onCancel,
   onDismiss = onCancel,
@@ -31,6 +30,8 @@ export function ConfirmDialog({
   warn?: boolean;
   /** The other button's word. */
   cancel?: string;
+  /** Its action is running: both buttons are off. */
+  disabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   onDismiss?: () => void;
@@ -53,15 +54,18 @@ export function ConfirmDialog({
           <ComposeText style={{ fontFamily: 'Geist', fontSize: 15 }}>{text}</ComposeText>
         </AlertDialog.Text>
         <AlertDialog.ConfirmButton>
-          <ComposeTextButton onClick={onConfirm}>
-            <ComposeText color={warn ? colors.warn : colors.accent} style={FONT}>
+          <ComposeTextButton onClick={onConfirm} enabled={!disabled}>
+            <ComposeText
+              color={disabled ? colors.muted : warn ? colors.warn : colors.accent}
+              style={COMPOSE_LABEL}
+            >
               {action}
             </ComposeText>
           </ComposeTextButton>
         </AlertDialog.ConfirmButton>
         <AlertDialog.DismissButton>
-          <ComposeTextButton onClick={onCancel}>
-            <ComposeText color={colors.chalk} style={FONT}>
+          <ComposeTextButton onClick={onCancel} enabled={!disabled}>
+            <ComposeText color={disabled ? colors.muted : colors.chalk} style={COMPOSE_LABEL}>
               {cancel}
             </ComposeText>
           </ComposeTextButton>

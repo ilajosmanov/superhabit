@@ -51,16 +51,16 @@ export interface PoseDetection {
 export interface PoseLandmarker extends HybridObject<{ android: 'kotlin' }> {
   /**
    * Run on a camera frame from a VisionCamera frame-processor worklet (pixelFormat 'rgb'). `front`:
-   * the frame is from the front camera, which turns gravity's x and z the other way.
+   * the frame is from the front camera, which flips gravity's x; z is the same for both cameras.
    */
   detect(frame: Frame, front: boolean): void;
   /**
    * Called on the JS thread with every detection (empty arrays when no person), straight from native,
-   * so results never cross worklet runtimes. Not called after an error or close().
+   * so results never cross worklet runtimes. Not called after onFailed or close().
    */
   onResult: ((result: PoseDetection) => void) | undefined;
   /**
-   * Called once on the JS thread when the detector can't start on GPU or CPU: nothing will be detected for
+   * Called once on the JS thread when frames, gravity or GPU/CPU detection fail: nothing will be detected for
    * the rest of this instance's life. `message` is the native error, for the log.
    */
   onFailed: ((message: string) => void) | undefined;

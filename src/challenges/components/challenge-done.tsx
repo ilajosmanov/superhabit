@@ -5,7 +5,8 @@ import { Numeral } from './numeral';
 import { OVER_VIDEO } from './reel-player';
 import { SessionLoop } from './session-reel';
 import { numeralLabels, SessionPlan } from './session-plan';
-import { plan } from '@/challenges/challenges';
+import { isHold } from '@/challenges/hold';
+import { planView } from '@/challenges/plan-view';
 import { dayWord, type RunView } from '@/challenges/run-view';
 import { reelOf, type Clip } from '@/challenges/reel';
 import { mss } from '@/lib/duration';
@@ -38,11 +39,10 @@ export function ChallengeDone({
   onClose: () => void;
 }) {
   const { top, bottom, left, right } = useSafeAreaInsets();
-  const session = plan(challenge);
+  const session = planView(challenge);
   const steps = expand(challenge.session);
   const done = setAmounts(steps, view.results);
-  const onlyHolds =
-    view.results.length > 0 && view.results.every((set) => EXERCISES[set.exercise].kind === 'hold');
+  const onlyHolds = view.results.length > 0 && view.results.every((set) => isHold(set.exercise));
   // One exercise done once reads as that set against its goal; anything more as the session's total.
   const numeral = session.single
     ? { n: Math.floor(done[0]), labels: numeralLabels(session.single, done[0], challenge.days) }
@@ -166,7 +166,7 @@ function Hero({
  */
 function Numbers({ view, onlyHolds }: { view: SessionView; onlyHolds: boolean }) {
   const misses = view.results
-    .filter((set) => onlyHolds || EXERCISES[set.exercise].kind !== 'hold')
+    .filter((set) => onlyHolds || !isHold(set.exercise))
     .reduce((n, set) => n + set.noReps, 0);
   const numbers = [
     { n: mss(view.elapsedS), label: 'TIME' },

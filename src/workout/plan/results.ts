@@ -39,6 +39,17 @@ export type StepResult = {
   stats: string | null;
 };
 
+/** Done workouts with a counted rep or hold; an empty Done does not count. */
+export function countedWorkouts<T extends { id: string; status: string }>(
+  workouts: readonly T[],
+  sets: readonly Pick<LoggedSet, 'workoutId' | 'reps' | 'heldMs'>[],
+): T[] {
+  const counted = new Set(
+    sets.filter(({ reps, heldMs }) => reps > 0 || heldMs > 0).map(({ workoutId }) => workoutId),
+  );
+  return workouts.filter((workout) => workout.status === 'done' && counted.has(workout.id));
+}
+
 /** Metrics and cues of the last rep, or null before the first rep. */
 export function statsOf<K extends ExerciseId>(c: Counters, id: K) {
   const metrics = EXERCISES[id].stats(c[id]);

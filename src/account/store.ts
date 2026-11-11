@@ -1,10 +1,12 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { Directory, Paths } from 'expo-file-system';
 
 import { account, writeAccount, type Account } from '@/storage/account';
 import { clearDatabase } from '@/storage/clear';
+import { writeSharing, type Sharing } from '@/storage/consent';
 import { db } from '@/storage/database';
-import { challenges, runs, workouts } from '@/storage/schema';
+import { enqueue } from '@/storage/outbox';
+import { challenges, outbox, runs, workouts } from '@/storage/schema';
 
 /**
  * Whose data keeping `next` would clear (their name): null when another account's workouts, runs or own
@@ -41,11 +43,31 @@ export function keepAccount(next: Account) {
   });
 }
 
-/** The server ended the session: sign in again. The account stays, so its data does too. */
-export function markSignedOut() {
+/** Sign-ins kept since launch. Calls don't outlive the app, so memory is enough. */
+let signIns = 0;
+
+/** You signed in: the account is kept, and calls made before it no longer speak for its session. */
+export function keepSignIn(next: Account) {
+  keepAccount(next);
+  signIns += 1;
+}
+
+/**
+ * Which session a call is made in: the account, and the sign-in it came from. Read before the call; a
+ * 401 marks signed out only while it is still this one (`sessionEnded`).
+ */
+export const sessionNow = () => `${account()?.id}:${signIns}`;
+
+/**
+ * Signed out: the server ended the session, or you did with changes still unsent (`byYou`, so the next
+ * sign-in screen doesn't say the session ended). The account stays, so its data does too.
+ */
+export function markSignedOut(byYou = false) {
   const kept = account();
   if (!kept) return;
-  db().transaction((tx) => writeAccount(tx, { ...kept, signedOut: true }));
+  db().transaction((tx) =>
+    writeAccount(tx, { ...kept, signedOut: true, byYou: byYou || kept.byYou }),
+  );
 }
 
 /**
@@ -76,3 +98,32 @@ export function dropPreAccountFiles() {
   const local = new Directory(Paths.document, 'local');
   if (local.exists) local.delete();
 }
+
+/** A withdrawal of sharing the server hasn't heard yet. */
+const queuedWithdrawal = and(eq(outbox.entity, 'consent'), eq(outbox.entityId, 'traces'));
+
+/** Keeps your answer to sharing on this phone. */
+export const keepSharing = (answer: Sharing) => db().transaction((tx) => writeSharing(tx, answer));
+
+/** A yes the server took, kept here; a withdrawal still queued goes with it, or it would undo the yes. */
+export function keepGrant(policyVersion: string) {
+  db().transaction((tx) => {
+    writeSharing(tx, { traces: true, policyVersion });
+    tx.delete(outbox).where(queuedWithdrawal).run();
+  });
+}
+
+/** A no, and its withdrawal queued for the server: kept or lost together. */
+export function keepWithdrawal(policyVersion: string) {
+  db().transaction((tx) => {
+    writeSharing(tx, { traces: false, policyVersion });
+    enqueue(tx, { entity: 'consent', entityId: 'traces', op: 'withdraw', data: { policyVersion } });
+  });
+}
+
+/** Whether a withdrawal waits for the server. */
+export const withdrawalQueued = () =>
+  db().select({ id: outbox.id }).from(outbox).where(queuedWithdrawal).get() !== undefined;
+
+/** The server heard the withdrawal. */
+export const dropWithdrawal = () => db().delete(outbox).where(queuedWithdrawal).run();

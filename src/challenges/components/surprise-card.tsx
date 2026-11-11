@@ -2,7 +2,7 @@ import { Pressable, Text, View, type ViewStyle } from 'react-native';
 
 import { ExerciseStack } from './exercise-stack';
 import { useSurprise } from './surprise-sheet';
-import { ONE_GO } from '@/challenges/challenges';
+import { ONE_GO } from '@/challenges/one-go';
 import { DieFigure } from '@/components/illustrations';
 import { EXERCISES } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';

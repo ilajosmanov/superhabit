@@ -1,21 +1,23 @@
 import { Link } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
-import { ONE_GO, phoneWay } from '@/challenges/challenges';
+import { isHold } from '@/challenges/hold';
+import { ONE_GO } from '@/challenges/one-go';
 import { ExerciseFigure } from '@/components/illustrations';
-import { EXERCISES } from '@/exercises/registry';
+import { EXERCISES, orientation } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
 import { colors } from '@/theme';
 
-/** One row per exercise the camera counts, hairline-divided like Today; a row opens the builder. */
+/** One row per exercise the camera counts, hairline-divided; a row opens the builder. */
 export function ExercisePicker() {
   return (
     <View className="gap-1">
       <Text className="font-mono text-xs tracking-widest text-muted">PICK AN EXERCISE</Text>
       <View>
         {ONE_GO.map((id) => {
-          const { name, kind, placement } = EXERCISES[id];
-          const detail = `${kind === 'hold' ? 'SECONDS' : 'REPS'} · PHONE ${phoneWay(placement)}`;
+          const { name, placement } = EXERCISES[id];
+          const way = orientation(placement) === 'landscape' ? 'SIDEWAYS' : 'UPRIGHT';
+          const detail = `${isHold(id) ? 'SECONDS' : 'REPS'} · PHONE ${way}`;
           return (
             <Link key={id} href={{ pathname: '/build', params: { exercise: id } }} asChild>
               <Pressable

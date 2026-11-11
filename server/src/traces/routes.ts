@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 
+import { accountLimit } from '../auth/account-limit';
 import { signedIn } from '../auth/signed-in';
 import type { SignedInRoute } from '../env';
-import { readHeader } from './header';
-import { keepTrace, mayKeep } from './store';
+import { offerTrace } from './store';
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const SET_ID = /^[\w-]{1,64}$/;
@@ -19,24 +19,25 @@ export const traceRoutes = new Hono<SignedInRoute>()
     '/traces/:setId',
     bodyLimit({ maxSize: MAX_BYTES, onError: (c) => c.json({ error: 'over 8 MB' }, 413) }),
     signedIn,
+    accountLimit,
     async (c) => {
       const setId = c.req.param('setId');
       if (!SET_ID.test(setId)) return c.json({ error: 'not a set id' }, 400);
-      const { db, userId } = c.var;
-      const { consentId, synced } = await mayKeep(db, userId, setId);
-      if (!consentId) return c.json({ error: 'sharing is off' }, 403);
-      if (!synced) return c.json({ error: "its workout hasn't synced" }, 409);
-      const file = await c.req.arrayBuffer();
-      const header = await readHeader(file);
-      if (
-        header?.setId !== setId ||
-        !header.consent.some((consent) => consent.startsWith('traces@'))
-      ) {
-        return c.json({ error: 'not a whole trace of this set, recorded while sharing' }, 422);
+      const outcome = await offerTrace(
+        c.var.db,
+        c.env.TRACES,
+        { userId: c.var.userId, setId },
+        () => c.req.arrayBuffer(),
+      );
+      switch (outcome) {
+        case 'kept':
+          return c.body(null, 204);
+        case 'sharingOff':
+          return c.json({ error: 'sharing is off' }, 403);
+        case 'notSynced':
+          return c.json({ error: "its workout hasn't synced" }, 409);
+        case 'notATrace':
+          return c.json({ error: 'not a whole trace of this set, recorded while sharing' }, 422);
       }
-      if (!(await keepTrace(db, c.env.TRACES, { userId, setId, consentId }, file))) {
-        return c.json({ error: 'sharing is off' }, 403);
-      }
-      return c.body(null, 204);
     },
   );

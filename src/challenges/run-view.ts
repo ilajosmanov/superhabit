@@ -1,4 +1,4 @@
-import type { Day } from '@/workout/plan/day';
+import type { Day } from '@/lib/day';
 
 /**
  * A run on `today` as screens show it: `from` is its day 1 (later than the join day after a restart),

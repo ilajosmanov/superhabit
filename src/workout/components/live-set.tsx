@@ -64,7 +64,7 @@ function NoRepCard({ cue, depth, gauge }: { cue: string | null; depth: number; g
     <View accessibilityLiveRegion="polite" className="gap-1 rounded-2xl bg-warn/16 px-3 py-2.5">
       <Text className="font-sans text-lg leading-tight text-chalk">{cue ?? 'No rep'}</Text>
       <Text className="font-mono text-xs font-medium tracking-wider text-warn">
-        NO-REP · {depthText(depth, gauge)}/{depthText(gauge.down, gauge)}
+        NO-REP · {depthText(depth)}/{depthText(gauge.down)}
       </Text>
     </View>
   );

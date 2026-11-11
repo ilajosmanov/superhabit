@@ -22,11 +22,16 @@ vi.mock('superhabit-pose', () => modules['superhabit-pose']);
 vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
+vi.mock('expo-keep-awake', () => ({
+  activateKeepAwakeAsync: async () => {},
+  deactivateKeepAwake: async () => {},
+}));
 vi.mock('expo-screen-orientation', () => modules['expo-screen-orientation']);
 vi.mock('expo-constants', () => modules['expo-constants']);
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 
 const { workoutSession } = await import('./session');
+vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => callback(0));
 beforeAll(migrateDatabase);
 afterEach(reset);
 

@@ -1,9 +1,8 @@
 import { and, asc, eq, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 
-import { authClient } from './auth-client';
+import { call, Refused } from './call';
 import { tellWithdrawal } from './consent';
-import { SERVER_URL, SessionGone } from './server';
-import { oneAtATime } from '@/lib/one-at-a-time';
+import { oneAtATime } from './one-at-a-time';
 import { account } from '@/storage/account';
 import { db } from '@/storage/database';
 import {
@@ -17,9 +16,6 @@ import {
   syncCursors,
   workouts,
 } from '@/storage/schema';
-
-/** Over the server's 1 MB a request. */
-class TooLarge extends Error {}
 
 /** Outbox rows a send carries (the server takes 50): ten long workouts stay well under its 1 MB. */
 const BATCH = 10;
@@ -39,13 +35,9 @@ type Pulled =
   | { entity: 'streak_event'; row: typeof streakEvents.$inferInsert };
 type Page = { rows: Pulled[]; cursor: number; more: boolean };
 
-async function call<T>(path: string, init?: { method: 'POST'; body: object }) {
-  const { data, error } = await authClient.$fetch<T>(`${SERVER_URL}${path}`, init);
-  if (error?.status === 401) throw new SessionGone();
-  if (error?.status === 413) throw new TooLarge();
-  if (error || !data) throw new Error(error?.message ?? `${path}: no answer`);
-  return data;
-}
+/** The current pull's cursor; 0 before the first page is kept. */
+const cursorNow = () =>
+  db().select().from(syncCursors).where(eq(syncCursors.stream, CURSOR)).get()?.cursor ?? '0';
 
 // The outbox minus what consent.ts sends itself, and minus rows the server refused.
 const waiting = and(isNull(outbox.lastError), ne(outbox.entity, 'consent'));
@@ -81,17 +73,19 @@ async function sendAll() {
         })),
       },
     }).catch((error: unknown) => {
-      if (error instanceof TooLarge) return null;
+      if (error instanceof Refused && error.status === 413) return 'over 1 MB' as const;
       throw error;
     });
+    if (answer === null) throw new Error('/sync: no answer');
     // Signed out meanwhile: these rows are gone with the database.
     if (account()?.id !== owner) return;
     // Over 1 MB: one row at a time from here, and a row too large alone is refused like any other.
-    if (!answer && rows.length > 1) {
+    if (answer === 'over 1 MB' && rows.length > 1) {
       batch = 1;
       continue;
     }
-    const results = answer?.results ?? [{ ok: false, reason: 'over 1 MB' }];
+    const results: Result[] =
+      answer === 'over 1 MB' ? [{ ok: false, reason: answer }] : answer.results;
     db().transaction((tx) => {
       rows.forEach((row, i) => {
         const result = results[i];
@@ -163,10 +157,11 @@ async function pullAll() {
   const owner = account()?.id;
   if (!owner) return;
   for (;;) {
-    const after =
-      db().select().from(syncCursors).where(eq(syncCursors.stream, CURSOR)).get()?.cursor ?? '0';
+    const after = cursorNow();
     const page = await call<Page>(`/sync?after=${after}`);
-    if (account()?.id !== owner) return;
+    if (!page) throw new Error('/sync: no answer');
+    // Signed out meanwhile, even if the same account signed in again: this page follows a cursor that is gone.
+    if (account()?.id !== owner || cursorNow() !== after) return;
     keepPage(page);
     if (!page.more) return;
   }

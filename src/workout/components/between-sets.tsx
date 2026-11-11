@@ -28,7 +28,7 @@ export function BetweenSets({
   if (!next) return null;
   const amount = unit === 'seconds' ? view.heldS : view.reps;
   const target = unit === 'seconds' ? view.goalS : view.target;
-  const close = <CloseButton onPress={onEnd} label="End challenge" />;
+  const close = <CloseButton onPress={onEnd} label="End workout" />;
   const clock = (
     <Clock
       elapsedS={view.elapsedS}

@@ -18,6 +18,7 @@ const version = (id: string, name: string, days: number) => ({
 it('keeps the Done page on the version the session started on when the challenge is edited meanwhile', () => {
   const library: Library = {
     account: { id: 'local', name: 'You', image: null },
+    sharing: null,
     // Your challenge, edited mid-session from "Old" (1 day) to "New" (2 days); the run follows edits.
     challenges: [
       { id: 'c', owner: 'local', visibility: 'private', currentVersionId: 'v2', retiredAt: null },
@@ -85,12 +86,10 @@ it("lists a day's saved workouts oldest first, with their names, run days and th
     heldMs,
     startedAt: 0,
     endedAt: 1,
-    counterVersion: '1',
-    attempts: [],
-    metrics: null,
   });
   const library: Library = {
     account: { id: 'local', name: 'You', image: null },
+    sharing: null,
     challenges: [
       { id: 'c', owner: 'local', visibility: 'private', currentVersionId: 'v1', retiredAt: null },
       { id: 'c2', owner: 'local', visibility: 'private', currentVersionId: 'v2', retiredAt: null },

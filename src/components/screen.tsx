@@ -2,6 +2,9 @@ import type { ReactNode } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+/** The side padding of every screen (`px-6`): content is the window's width less two of these. */
+export const GUTTER = 24;
+
 /**
  * Every screen's skeleton: 48px title, 32px between sections.
  * Tab screens pass a `label` (44px hairline row pinned under the status bar; content scrolls beneath it). Pushed screens omit it: they sit

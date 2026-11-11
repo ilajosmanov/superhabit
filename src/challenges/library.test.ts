@@ -1,13 +1,13 @@
 import { modules } from '@/workout/__fixtures__/session';
 import { sql } from 'drizzle-orm';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 import { create, edit, join, leave, seed } from './library';
-import { challengePage, yourRuns, type Library } from './library-view';
+import { catalog, challengePage, yourRuns, type Library } from './library-view';
 import { SUGGESTED_CHALLENGES } from './suggested';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
-import { addDays, today } from '@/workout/plan/day';
+import { addDays, today } from '@/lib/day';
 import { logSet, saveWorkout, workoutStart } from '@/workout/store';
 import { defineChallenge, readPlan, reps, type Challenge } from '@/workout/plan/plan';
 
@@ -19,6 +19,7 @@ vi.mock('expo-constants', () => ({ default: { expoConfig: { version: '1.0.0' } }
 
 const library = (): Library => ({
   account: { id: 'local', name: 'You', image: null },
+  sharing: null,
   challenges: db().select().from(schema.challenges).all(),
   versions: db().select().from(schema.challengeVersions).all(),
   runs: db().select().from(schema.runs).all(),
@@ -71,6 +72,8 @@ const [floor] = SUGGESTED_CHALLENGES;
 
 beforeAll(migrateDatabase);
 beforeEach(() => {
+  // Noon, so a run never straddles midnight.
+  vi.useFakeTimers({ now: new Date(2026, 10, 11, 12) });
   for (const table of [
     schema.sets,
     schema.workouts,
@@ -82,6 +85,7 @@ beforeEach(() => {
     db().delete(table).run();
   seed();
 });
+afterEach(() => vi.useRealTimers());
 
 describe('seed', () => {
   it('stores every suggested challenge so this app can read it back, and changes nothing the second time', () => {
@@ -138,6 +142,22 @@ describe('writes', () => {
       endedOn: today(),
       endReason: 'left',
     });
+  });
+
+  it('keeps a challenge you made in the catalog once you leave it, to join again', () => {
+    const id = create(squats(21)) ?? '';
+    const [{ runId }] = yourRuns(library(), today());
+    expect(catalog(library(), yourRuns(library(), today())).map((entry) => entry.id)).not.toContain(
+      id,
+    );
+
+    leave(runId);
+
+    const listed = catalog(library(), yourRuns(library(), today())).map((entry) => entry.id);
+    expect(listed.at(-1)).toBe(id);
+    expect(challengePage(library(), id, today())).toMatchObject({ joined: null, ranBefore: true });
+    const again = join(id) ?? '';
+    expect(yourRuns(library(), today()).map((entry) => entry.runId)).toEqual([again]);
   });
 
   it('makes your edit current, and your run follows it unpinned', () => {

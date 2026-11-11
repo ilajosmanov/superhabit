@@ -18,7 +18,8 @@ Variants in one file share one reading and differ in their checks.
 `position.ts` is what every position must provide:
 
 - `read`: pose dots → the numbers it needs (angles, heights), and the side it read. It picks the
-  better-seen side. Null when joints are out of view.
+  better-seen side for one-sided positions; side plank reads both sides and returns no side. Null when
+  joints are out of view.
 - `parts`: the body parts that must be in frame to start.
 - `setup`: are you in the position at all (knees down is not a plank)? Judged at rest only: through
   a hold, and at the top of each rep. A movement passes through shapes that would fail it: the

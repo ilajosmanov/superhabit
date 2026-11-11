@@ -18,6 +18,7 @@ on that side too. When the position's side can't be measured, the kind tries the
 | `elevation.ts`   | how far a segment rises over level by gravity, degrees | squat's thighs, sit-up's torso, bridge's hips |
 | `spread.ts`      | the feet apart, forward or sideways, in leg lengths    | lunge's stride, jumping jack's legs           |
 
-`bothSides(measure, gap)` (in `measure.ts`) reads both limbs when both are seen: the higher, or
+`bothSides(measure, gap, read)` (in `measure.ts`) reads both limbs when both are seen: `read` is
+`'higher'` (the default) or `'lower'`. It returns the chosen value, or
 nothing when they differ by more than `gap`; with one seen, that one alone. A squat's knees move
 together; one alone is a kick.

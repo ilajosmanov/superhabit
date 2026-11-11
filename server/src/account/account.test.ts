@@ -1,5 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { is } from 'drizzle-orm';
+import { getTableConfig, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { describe, expect, it } from 'vite-plus/test';
 
+import * as schema from '../db/schema';
+import { create, done, freeze, join, push } from '../__fixtures__/outbox';
+import { trace } from '../__fixtures__/trace';
 import {
   ann,
   call,
@@ -13,12 +19,47 @@ import {
   signIn,
 } from '../__fixtures__/worker';
 
+// Every table holding an account's rows, read from the schema so a new one can't be missed. `deletions`
+// is the record that the account was deleted, kept so the purge can finish.
+const accountTables = Object.values(schema)
+  .filter((table) => is(table, SQLiteTable))
+  .map(getTableConfig)
+  .filter(({ name, columns }) => name !== 'deletions' && columns.some((c) => c.name === 'user_id'))
+  .map(({ name }) => name);
+const rowsOf = async (userId: string) =>
+  Object.fromEntries(
+    await Promise.all(
+      accountTables.map(async (table) => {
+        const { results } = await env.DB.prepare(`select * from ${table} where user_id = ?`)
+          .bind(userId)
+          .all();
+        return [table, results.length] as const;
+      }),
+    ),
+  );
+
 describe('account', () => {
   it('deletes an account: signed out everywhere, a new account on return, the rest purged by the Cron', async () => {
     const phone = await signIn(carl);
     const tablet = await signIn(carl);
     const deleted = await idOf(phone);
+    // A row in every table: shared, synced, a trace, a leaderboard choice, and a board from the Cron.
     await consent(phone, { kind: 'traces', policyVersion: '1', granted: true });
+    await push(phone, [
+      create('c1', 'c1-v1'),
+      join('r1', 'c1'),
+      done('w1', 'r1', ['s1']),
+      freeze('2026-11-10'),
+    ]);
+    await call('/traces/s1', { method: 'PUT', headers: { cookie: phone }, body: trace('s1') });
+    await call('/leaderboard/visibility', {
+      method: 'PUT',
+      headers: { cookie: phone, 'content-type': 'application/json' },
+      body: JSON.stringify({ visible: true }),
+    });
+    await midnightCron();
+    for (const [table, n] of Object.entries(await rowsOf(deleted)))
+      expect(n, table).toBeGreaterThan(0);
     const annPhone = await signIn(ann);
     await consent(annPhone, { kind: 'video', policyVersion: '1', granted: true });
 
@@ -31,14 +72,22 @@ describe('account', () => {
     expect(await me(back)).toMatchObject({ name: 'Carl Ito', consents: [] });
     expect(await idOf(back)).not.toBe(deleted);
 
-    const left = () =>
-      env.DB.prepare('select kind from consents where user_id = ?').bind(deleted).all();
-    expect((await left()).results).toHaveLength(1);
+    expect((await rowsOf(deleted)).consents).toBe(1);
     await midnightCron();
-    expect((await left()).results).toEqual([]);
+    expect(await rowsOf(deleted)).toEqual(Object.fromEntries(accountTables.map((t) => [t, 0])));
     expect(await me(annPhone)).toMatchObject({
       consents: [{ kind: 'video', policyVersion: '1', grantedAt: expect.any(Number) }],
     });
+  });
+
+  it('shows the privacy policy the app asks consent for, and nothing can run on it', async () => {
+    const app = readFileSync(new URL('../../../src/account/consent.ts', import.meta.url), 'utf8');
+    const version = /POLICY_VERSION = '([^']+)'/.exec(app)?.[1];
+    const page = await call('/privacy');
+    expect(page.status).toBe(200);
+    expect(page.headers.get('content-security-policy')).toContain("default-src 'none'");
+    // The page names the version for this check only; people read its date.
+    expect(await page.text()).toContain(`<meta name="version" content="${version}"`);
   });
 
   it('deletes from a browser: Google asks which account, then Delete signs out and deletes', async () => {
