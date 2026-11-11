@@ -5,7 +5,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
@@ -16,9 +16,9 @@ import { LeftOpen } from '@/bootstrap/left-open';
 import { Leave } from '@/bootstrap/leave';
 import { Today } from '@/bootstrap/today';
 import { LibraryProvider } from '@/challenges/library-live';
-import { ExerciseMotion } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
+import { Waiting } from '@/components/waiting';
 import { db } from '@/storage/database';
 import { colors } from '@/theme';
 import { RecoverPrompt } from '@/workout/components/recover-prompt';
@@ -88,7 +88,7 @@ export default function RootLayout() {
           state.matches(step),
         ) && (
           <Animated.View style={StyleSheet.absoluteFill} exiting={FADE_OUT}>
-            <WarmingUp />
+            <Waiting exercise="squat" text="Warming up" />
           </Animated.View>
         )}
       {/* First launch, or the server ended the session: sign in before anything else. Over the screens, so
@@ -124,16 +124,6 @@ export default function RootLayout() {
 
       <StatusBar style="light" />
     </GestureHandlerRootView>
-  );
-}
-
-/** A squat on repeat while the app gets your account ready. */
-function WarmingUp() {
-  return (
-    <View className="flex-1 items-center justify-center gap-6 bg-ground px-6">
-      <ExerciseMotion exercise="squat" size={160} weight={0.9} />
-      <Text className="text-center font-sans text-base leading-normal text-soft">Warming up</Text>
-    </View>
   );
 }
 

@@ -15,7 +15,6 @@ Signing in with Google, once, before anything else; the session with our server 
 | `store.ts`                      | `keepAccount` (one account per database), `markSignedOut`, `forgetAccount`, old files   |
 | `components/sign-in-screen.tsx` | the first launch (canvas board 21a): why the app, Google's dark button                  |
 | `components/consent-screen.tsx` | the consent question (board 22b): what you share, what stays, how to stop               |
-| `components/avatar.tsx`         | your Google photo over your initials (Profile)                                          |
 
 Google's sheet (Credential Manager, `react-native-nitro-google-signin`) gives an ID token for our Web
 client; the server checks it and starts a year-long session. The account (id, name, photo) is kept in the

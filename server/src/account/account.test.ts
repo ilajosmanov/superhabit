@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import worker from '../index';
-import { ann, call, carl, consent, dee, env, idOf, me, signIn } from '../__fixtures__/worker';
+import {
+  ann,
+  call,
+  carl,
+  consent,
+  dee,
+  env,
+  midnightCron,
+  idOf,
+  me,
+  signIn,
+} from '../__fixtures__/worker';
 
 describe('account', () => {
   it('deletes an account: signed out everywhere, a new account on return, the rest purged by the Cron', async () => {
@@ -24,7 +34,7 @@ describe('account', () => {
     const left = () =>
       env.DB.prepare('select kind from consents where user_id = ?').bind(deleted).all();
     expect((await left()).results).toHaveLength(1);
-    await worker.scheduled({ cron: '0 4 * * *', scheduledTime: Date.now(), noRetry() {} }, env);
+    await midnightCron();
     expect((await left()).results).toEqual([]);
     expect(await me(annPhone)).toMatchObject({
       consents: [{ kind: 'video', policyVersion: '1', grantedAt: expect.any(Number) }],

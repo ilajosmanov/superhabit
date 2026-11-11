@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import worker from '../index';
 import { done, push, set } from '../__fixtures__/outbox';
-import { ann, bob, call, carl, env, signIn } from '../__fixtures__/worker';
+import { ann, bob, call, carl, env, midnightCron, signIn } from '../__fixtures__/worker';
 
 // Outbox rows as the phone writes them (`src/storage/outbox.ts` and its callers), `v` included.
 const version = (challengeId: string, id: string, number: number) => ({
@@ -221,7 +220,7 @@ describe('sync: the phone sends its outbox', () => {
 
     const ann1 = await signIn(ann);
     const kept = (await rows('changes', await idOf(ann1))).length;
-    await worker.scheduled({ cron: '0 4 * * *', scheduledTime: Date.now(), noRetry() {} }, env);
+    await midnightCron();
     for (const table of [
       'challenges',
       'challenge_versions',

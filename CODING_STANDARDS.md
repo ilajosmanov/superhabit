@@ -13,7 +13,7 @@ src/app/            routes: read params, compose a screen, navigate
 src/bootstrap/      the app's start: the splash, database, sign-in, seeding, recovery, and today
   ↓
 src/account/        signing in with Google and the session with our server; the sign-in screen in components/
-src/friends/        the friends feature (for now, the leaderboard preview)
+src/leaderboard/    the weekly leagues: your board, and whether others see your name
 src/challenges/     the challenge catalog: definitions, catalog entries, your library (challenges and runs
                     kept on the phone), run progress, the reel of a session's sets
   components/       UI only challenges uses (catalog tiles, joined cards, the Done page and its reel)

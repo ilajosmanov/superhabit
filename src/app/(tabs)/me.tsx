@@ -2,7 +2,7 @@ import { useMachine } from '@xstate/react';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { Avatar } from '@/account/components/avatar';
+import { Avatar } from '@/components/avatar';
 import { SHARING_FACTS } from '@/account/components/consent-screen';
 import { me } from '@/account/me';
 import { useLeave } from '@/bootstrap/leave';

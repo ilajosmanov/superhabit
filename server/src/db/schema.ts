@@ -187,3 +187,42 @@ export const traces = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.userId, t.setId] })],
 );
+
+/**
+ * Weekly leagues (piece 7): your place in a week, the Monday (UTC) it starts. `cohort` numbers the boards of
+ * about 30 people within a league. `points`, `rank` and `move` are written when the week closes; until
+ * then the board counts points live.
+ */
+export const leagueWeeks = sqliteTable(
+  'league_weeks',
+  {
+    userId: text('user_id').notNull(),
+    week: text('week').notNull(),
+    league: text('league', { enum: ['bronze', 'silver', 'gold'] }).notNull(),
+    cohort: integer('cohort').notNull(),
+    points: integer('points'),
+    rank: integer('rank'),
+    move: text('move', { enum: ['up', 'down', 'stay'] }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.week] }),
+    index('league_weeks_board').on(t.week, t.league, t.cohort),
+  ],
+);
+
+/** Weeks closed: their ranks and moves are final, and a workout synced later doesn't reopen them. */
+export const leagueCloses = sqliteTable('league_closes', {
+  week: text('week').primaryKey(),
+  closedAt: integer('closed_at').notNull(),
+});
+
+/** Whether others see your name on the leaderboard. No row: hidden, and not asked yet. */
+export const leaderboardChoices = sqliteTable(
+  'leaderboard_choices',
+  {
+    userId: text('user_id').notNull(),
+    visible: integer('visible', { mode: 'boolean' }).notNull(),
+    chosenAt: integer('chosen_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId] })],
+);

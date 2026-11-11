@@ -125,3 +125,14 @@ export const consent = (cookie: string, body: object) =>
     headers: { cookie, 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
+
+/** The hourly Cron's run at today's midnight (UTC), the one that also sweeps traces and purges accounts. */
+export const midnightCron = () =>
+  worker.scheduled(
+    {
+      cron: '0 * * * *',
+      scheduledTime: Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`),
+      noRetry() {},
+    },
+    env,
+  );

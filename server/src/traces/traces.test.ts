@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import worker from '../index';
 import { open } from '../db/db';
 import { dropTraces } from './store';
 import { done, push } from '../__fixtures__/outbox';
-import { ann, bob, call, consent, env, idOf, signIn } from '../__fixtures__/worker';
+import { ann, bob, call, consent, env, midnightCron, idOf, signIn } from '../__fixtures__/worker';
 import { encodeTrace, type TraceInfo } from '../../../src/storage/trace-file';
 
 // Real `.sht` files, from the phone's own encoder.
@@ -41,8 +40,7 @@ const stored = async (userId: string) =>
   (await env.TRACES.list({ prefix: `traces/${userId}/` })).objects.map((o) => o.key);
 const rows = async (userId: string) =>
   (await env.DB.prepare('select set_id from traces where user_id = ?').bind(userId).all()).results;
-const cron = () =>
-  worker.scheduled({ cron: '0 4 * * *', scheduledTime: Date.now(), noRetry() {} }, env);
+const cron = () => midnightCron();
 
 describe('traces: the phone shares a set', () => {
   it('keeps a shared set once, and refuses what sharing never covered', async () => {

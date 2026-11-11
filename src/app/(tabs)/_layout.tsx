@@ -15,7 +15,7 @@ const tap = () =>
 const items: { name: string; icon: MaterialIcon['md']; label: string }[] = [
   { name: 'index', icon: 'home', label: 'Home' },
   { name: 'challenges', icon: 'flag', label: 'Challenges' },
-  { name: 'friends', icon: 'group', label: 'Friends' },
+  { name: 'leaderboard', icon: 'leaderboard', label: 'League' },
   { name: 'me', icon: 'person', label: 'Profile' },
 ];
 

@@ -15,8 +15,9 @@
   "ratelimits": [
     { "name": "AUTH_LIMIT", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } },
   ],
-  // Daily: traces no longer shared, then the purge of deleted accounts.
-  "triggers": { "crons": ["0 4 * * *"] },
+  // Hourly: the leagues (weeks close at Monday 00:00 UTC); at midnight UTC also traces no longer shared and
+  // the purge of deleted accounts.
+  "triggers": { "crons": ["0 * * * *"] },
   "observability": { "enabled": true },
   "d1_databases": [
     {
