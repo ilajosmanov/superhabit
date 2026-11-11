@@ -51,14 +51,28 @@ describe('account', () => {
 
     // Back from Google with a session (the phone's cookie stands in for the browser's).
     const browser = await signIn(dee);
-    expect(await (await call('/delete', { headers: { cookie: browser } })).text()).toContain(
-      'Dee Roy',
-    );
+    const signedInPage = await (await call('/delete', { headers: { cookie: browser } })).text();
+    expect(signedInPage).toContain('Dee Roy');
+    // The browser posts back the account the page showed.
+    const deeId = /name="account" value="([^"]+)"/.exec(signedInPage)?.[1] ?? '';
+    expect(deeId).toBe(await idOf(browser));
+    const form = (account: string) => new URLSearchParams({ account });
     const elsewhere = { cookie: browser, origin: 'https://evil.example' };
-    expect((await call('/delete', { method: 'POST', headers: elsewhere })).status).toBe(403);
+    expect(
+      (await call('/delete', { method: 'POST', headers: elsewhere, body: form(deeId) })).status,
+    ).toBe(403);
+    // A form shown for another account (a tab from before switching) deletes nothing.
+    const stale = await call('/delete', {
+      method: 'POST',
+      headers: { ...fromHere, cookie: browser },
+      body: form('ann-from-before'),
+    });
+    expect(await stale.text()).toContain('switched accounts');
+    expect(await idOf(browser)).toBe(deeId);
     const done = await call('/delete', {
       method: 'POST',
       headers: { ...fromHere, cookie: browser },
+      body: form(deeId),
     });
     expect(await done.text()).toContain('Your account is deleted');
     expect(await me(browser)).toBe(401);

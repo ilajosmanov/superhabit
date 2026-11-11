@@ -2,6 +2,7 @@ import { Hono, type Context } from 'hono';
 import { createMiddleware } from 'hono/factory';
 
 import { createAuth } from '../auth/auth';
+import { signInLimit } from '../auth/sign-in-limit';
 import { signedIn } from '../auth/signed-in';
 import { open } from '../db/db';
 import type { Route, SignedInRoute } from '../env';
@@ -32,6 +33,12 @@ const browserSession = (c: Context<Route>) =>
     query: { disableRefresh: true },
   });
 
+/** The account a signed-in page is about, and so the one its Delete deletes. */
+const shown = (user: { id: string; name: string; email: string }) => ({
+  name: user.name || user.email,
+  account: user.id,
+});
+
 export const accountRoutes = new Hono<SignedInRoute>()
   /** Who you are, as Google gave it, and the consents in force. */
   .get('/me', signedIn, async (c) => c.json(await me(c.var.db, c.var.userId)))
@@ -48,11 +55,11 @@ export const deletePageRoutes = new Hono<Route>()
     return page(
       c,
       session
-        ? { step: 'signedIn', name: session.user.name || session.user.email, problem }
+        ? { step: 'signedIn', ...shown(session.user), problem }
         : { step: 'signedOut', problem },
     );
   })
-  .post('/delete/google', sameOrigin, async (c) => {
+  .post('/delete/google', sameOrigin, signInLimit, async (c) => {
     const { headers, response } = await createAuth(c.env, open(c.env)).api.signInSocial({
       body: {
         provider: 'google',
@@ -69,6 +76,15 @@ export const deletePageRoutes = new Hono<Route>()
   .post('/delete', sameOrigin, async (c) => {
     const session = await browserSession(c);
     if (!session) return c.redirect('/delete', 303);
+    // A form from before another account signed in, in another tab, must not delete that one.
+    const { account } = await c.req.parseBody();
+    if (account !== session.user.id) {
+      return page(c, {
+        step: 'signedIn',
+        ...shown(session.user),
+        problem: 'You switched accounts in another tab. Check the name, then delete.',
+      });
+    }
     const db = open(c.env);
     await deleteAccount(db, session.user.id);
     // The session went with the account; this clears its cookie.

@@ -17,7 +17,7 @@ export const DELETE_PAGE_POLICY = [
 
 export type DeletePageState =
   | { step: 'signedOut'; problem?: string }
-  | { step: 'signedIn'; name: string; problem?: string }
+  | { step: 'signedIn'; name: string; account: string; problem?: string }
   | { step: 'deleted' };
 
 const TEXT = {
@@ -61,6 +61,7 @@ export function DeletePage({ state }: { state: DeletePageState }) {
                 Signed in as <strong>{state.name}</strong>
               </p>
               <form method="post" action="/delete">
+                <input type="hidden" name="account" value={state.account} />
                 <button class="delete" type="submit">
                   Delete my account
                 </button>
