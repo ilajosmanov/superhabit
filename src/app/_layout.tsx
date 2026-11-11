@@ -5,7 +5,7 @@ import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
@@ -16,8 +16,10 @@ import { LeftOpen } from '@/bootstrap/left-open';
 import { Leave } from '@/bootstrap/leave';
 import { Today } from '@/bootstrap/today';
 import { LibraryProvider } from '@/challenges/library-live';
+import { DroppedBarScene } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
-import { Screen } from '@/components/screen';
+import { GUTTER, Screen } from '@/components/screen';
+import { TextButton } from '@/components/text-button';
 import { Waiting } from '@/components/waiting';
 import { db } from '@/storage/database';
 import { colors } from '@/theme';
@@ -129,20 +131,44 @@ export default function RootLayout() {
 }
 
 /**
- * A screen threw while rendering: said plainly instead of closing the app. Try again renders the app afresh.
+ * A screen threw while rendering: said kindly instead of closing the app, never with the error itself. Try
+ * again renders the app afresh.
  */
 // shortcut: the error is only shown, not reported; add crash reporting once the owner picks a service.
-export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
   // The error may come before Home, under the splash; hiding it twice does nothing.
   SplashScreen.hide();
+  const { width } = useWindowDimensions();
   return (
     <>
       <Screen
         label="SUPERHABIT"
-        title="Something went wrong"
-        intro={error.message}
-        footer={<PrimaryButton label="Try again" onPress={() => void retry()} />}
-      />
+        footer={
+          <View className="gap-2">
+            <PrimaryButton label="Try again" onPress={() => void retry()} />
+            <View className="items-center">
+              {/* shortcut: does nothing yet; the owner wires it to sending feedback later. */}
+              <TextButton label="Send feedback" icon="feedback" onPress={() => {}} />
+            </View>
+          </View>
+        }
+      >
+        <View className="gap-8 pt-2">
+          <DroppedBarScene width={width - 2 * GUTTER} />
+          <View className="gap-3">
+            <Text
+              accessibilityRole="header"
+              maxFontSizeMultiplier={1.3}
+              className="font-sans text-5xl font-extralight leading-tight tracking-tighter text-chalk"
+            >
+              We dropped the bar
+            </Text>
+            <Text className="font-sans text-base leading-normal text-soft">
+              Something broke on our side, not yours. Your sets are safe on this phone.
+            </Text>
+          </View>
+        </View>
+      </Screen>
       <StatusBar style="light" />
     </>
   );

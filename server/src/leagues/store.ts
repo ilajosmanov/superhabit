@@ -24,7 +24,7 @@ import {
   user,
   workouts,
 } from '../db/schema';
-import { addDays, STREAK_CAP, weekPoints } from './points';
+import { addDays, RATES, STREAK_BONUS, STREAK_CAP, weekPoints } from './points';
 
 export type League = (typeof leagueWeeks.$inferSelect)['league'];
 type Move = NonNullable<(typeof leagueWeeks.$inferSelect)['move']>;
@@ -42,12 +42,15 @@ export function weekOf(now: number) {
 }
 const startOf = (week: string) => Date.parse(`${week}T00:00:00Z`);
 
+/** How many places at each end of a board of `n` can move: `min(5, n/3)`. */
+const zoneOf = (n: number) => Math.min(MOVE, Math.floor(n / 3));
+
 /**
  * Where the one at index `i` of a board of `n`, ranked best first, goes when the week closes: the top
  * `min(5, n/3)` up if they scored, as many at the bottom down; never above Gold or below Bronze.
  */
 function moveOf(i: number, n: number, points: number, league: League): Move {
-  const k = Math.min(MOVE, Math.floor(n / 3));
+  const k = zoneOf(n);
   if (i < k && points > 0 && league !== 'gold') return 'up';
   if (i >= n - k && league !== 'bronze') return 'down';
   return 'stay';
@@ -297,7 +300,9 @@ function shortName(name: string) {
 
 /**
  * Your board this week, placing you on one first. Others who chose to be seen show their name and photo;
- * the rest come back nameless. Null while last week is still closing: who goes where isn't settled.
+ * the rest come back nameless. With it, how last week closed for you (`last`, null if you weren't on a
+ * board), what each exercise scores (`rates`) and the streak bonus's rule (`bonus`). Null while last week is still closing: who goes where
+ * isn't settled.
  */
 export async function board(db: Db, userId: string, now: number) {
   const week = weekOf(now);
@@ -320,7 +325,8 @@ export async function board(db: Db, userId: string, now: number) {
     await place(db, week, startingLeagues([userId], history, week));
     [mine] = await yours();
   }
-  const [members, [choice]] = await db.batch([
+  const lastWeek = addDays(week, -7);
+  const [members, [choice], [last]] = await db.batch([
     db
       .select({
         userId: leagueWeeks.userId,
@@ -339,6 +345,10 @@ export async function board(db: Db, userId: string, now: number) {
         ),
       ),
     visibility(db, userId),
+    db
+      .select()
+      .from(leagueWeeks)
+      .where(and(eq(leagueWeeks.userId, userId), eq(leagueWeeks.week, lastWeek))),
   ]);
   const points = await pointsOf(
     db,
@@ -366,8 +376,16 @@ export async function board(db: Db, userId: string, now: number) {
     league: mine.league,
     up: moves.filter((move) => move === 'up').length,
     down: moves.filter((move) => move === 'down').length,
+    zone: zoneOf(ranked.length),
     visible: choice?.visible ?? null,
     rows,
+    // How last week closed for you. Its board's size isn't kept: a deleted account leaves it.
+    last:
+      last && last.rank !== null
+        ? { week: last.week, league: last.league, rank: last.rank, points: last.points ?? 0 }
+        : null,
+    rates: RATES,
+    bonus: { perDay: STREAK_BONUS, days: STREAK_CAP },
   };
 }
 

@@ -9,7 +9,9 @@ import { board, chooseVisibility } from './store';
 export const leagueRoutes = new Hono<SignedInRoute>()
   /**
    * Your board this week: `{ week, endsAt, league, up, down, visible, rows: [{ rank, you, name, image,
-   * points }] }`, where `up` and `down` count the places that move. 503 for the moment last week closes.
+   * points }], zone, last: { week, league, rank, points } | null, rates: [{ exercise, per, points }],
+   * bonus: { perDay, days } }`, where `up` and `down` count the places that move and `zone` the places at
+   * each end that can. 503 for the moment last week closes.
    */
   .get('/leaderboard', signedIn, accountLimit, async (c) => {
     const yours = await board(c.var.db, c.var.userId, Date.now());

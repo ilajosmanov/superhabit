@@ -1,23 +1,21 @@
 import { useMachine } from '@xstate/react';
+import { useState, type ReactNode } from 'react';
 import { Text, View } from 'react-native';
 
 import { FAILURE_TEXT } from '@/account/call';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Icon } from '@/components/icon';
 import { IconButton } from '@/components/icon-button';
+import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { SwitchRow } from '@/components/switch-row';
 import { TextButton } from '@/components/text-button';
 import { Waiting } from '@/components/waiting';
+import { PointsSheet } from '@/leaderboard/components/points-sheet';
 import { Standings } from '@/leaderboard/components/standings';
-import {
-  endsIn,
-  leaderboard,
-  stakes,
-  type Problem,
-  type TabEvents,
-} from '@/leaderboard/leaderboard';
-import { capitalise } from '@/lib/text';
+import { WeekResult } from '@/leaderboard/components/week-result';
+import { YourPlace } from '@/leaderboard/components/your-place';
+import { bonusOf, leaderboard, type Problem, type TabEvents } from '@/leaderboard/leaderboard';
 import { colors } from '@/theme';
 
 const PROBLEM: Record<Problem, string> = {
@@ -26,12 +24,27 @@ const PROBLEM: Record<Problem, string> = {
 };
 
 /**
- * This week's league: your place, the board, and whether others see your name. `tab` tells when the tab
- * opens and closes; `onSignIn` hands over to sign-in once the server ended the session.
+ * This week's league: how last week closed (once), then your place, the board, and whether others see
+ * your name. `tab` tells when the tab opens and closes; `onSignIn` hands over to sign-in once the server
+ * ended the session; `streak` is the days in a row your next set makes; `onScore` opens a random set, and
+ * `children` is where its sheet goes.
  */
-export function LeagueScreen({ tab, onSignIn }: { tab: TabEvents; onSignIn: () => void }) {
+export function LeagueScreen({
+  tab,
+  onSignIn,
+  streak,
+  onScore,
+  children,
+}: {
+  tab: TabEvents;
+  onSignIn: () => void;
+  streak: number;
+  onScore: () => void;
+  children?: ReactNode;
+}) {
   const [state, send] = useMachine(leaderboard, { input: { tab } });
-  const { board, problem, readAt, later, saveFailed, pending } = state.context;
+  const { board, problem, readAt, later, saveFailed, pending, seen, pulled } = state.context;
+  const [explained, setExplained] = useState(false);
   const reading = state.matches('loading') || state.matches('failing');
   // Signed out, reading again can't help: only signing in can.
   const signIn = <TextButton label="Sign in again" icon="login" onPress={onSignIn} />;
@@ -53,23 +66,30 @@ export function LeagueScreen({ tab, onSignIn }: { tab: TabEvents; onSignIn: () =
     );
   }
 
+  if (board.last && board.last.week !== seen) {
+    return <WeekResult board={board} onSeen={() => send({ type: 'seen' })} />;
+  }
+
   const you = board.rows.find((row) => row.you);
   const visible = pending ?? board.visible;
+  const bonus = bonusOf(board.bonus, streak);
   return (
     <Screen
       label="LEAGUE"
       action={
         <IconButton
-          icon="refresh"
-          label="Refresh"
+          icon="help"
+          label="How points count"
           size={20}
           edge
-          color={reading ? colors.muted : colors.chalk}
-          onPress={() => send({ type: 'retry' })}
+          onPress={() => setExplained(true)}
         />
       }
-      title={`${capitalise(board.league)} league`}
-      intro={stakes(board)}
+      refresh={{ refreshing: pulled && reading, onRefresh: () => send({ type: 'retry' }) }}
+      footer={
+        you?.points === 0 &&
+        board.endsAt > readAt && <PrimaryButton label="Score your first points" onPress={onScore} />
+      }
     >
       {problem && (
         <View accessibilityLiveRegion="polite" className="items-start gap-1">
@@ -82,23 +102,9 @@ export function LeagueScreen({ tab, onSignIn }: { tab: TabEvents; onSignIn: () =
           {problem === 'signedOut' && signIn}
         </View>
       )}
-      {you && (
-        <View accessible className="flex-row items-end gap-4">
-          <Text className="font-sans text-9xl font-thin leading-none tracking-tighter text-chalk">
-            {you.rank}
-          </Text>
-          <View className="gap-1 pb-4">
-            <Text className="font-mono text-xs tracking-widest text-muted">
-              OF {board.rows.length} · {you.points} POINTS
-            </Text>
-            <Text className="font-mono text-xs tracking-widest text-muted">
-              {endsIn(board.endsAt, readAt)}
-            </Text>
-          </View>
-        </View>
-      )}
-      <Standings board={board} />
-      <View className="gap-3 border-t border-line pt-4">
+      <YourPlace board={board} readAt={readAt} bonus={bonus} streak={streak} />
+      <Standings board={board} hidden={visible !== true} />
+      <View className="-mt-4 gap-3">
         <SwitchRow
           label="Show my name"
           note={
@@ -128,6 +134,13 @@ export function LeagueScreen({ tab, onSignIn }: { tab: TabEvents; onSignIn: () =
           onDismiss={() => send({ type: 'later' })}
         />
       )}
+      <PointsSheet
+        open={explained}
+        board={board}
+        bonus={bonus}
+        onDismiss={() => setExplained(false)}
+      />
+      {children}
     </Screen>
   );
 }

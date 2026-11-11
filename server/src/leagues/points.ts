@@ -23,8 +23,18 @@ const EFFORT: Record<string, { met: number; perRep?: number }> = {
 /** One squat is one point. */
 const SQUAT = 3.8 * 2.57;
 
+/**
+ * What one rep, or ten seconds of a hold, scores before the streak bonus, to a tenth: the phone's "How
+ * points count" lists these, so it never holds a copy of the table.
+ */
+export const RATES = Object.entries(EFFORT).map(([exercise, { met, perRep }]) => ({
+  exercise,
+  per: perRep ? ('rep' as const) : ('10 s' as const),
+  points: Math.round(((met * (perRep ?? 10)) / SQUAT) * 10) / 10,
+}));
+
 /** Each day of a streak after its first adds 5%, up to 50%. */
-const STREAK_BONUS = 0.05;
+export const STREAK_BONUS = 0.05;
 /** The longest streak that still adds: 11 days. */
 export const STREAK_CAP = 11;
 

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { EXERCISES, type ExerciseId, type Progress } from '@/exercises/registry';
+import { EXERCISES, isExerciseId, type ExerciseId, type Progress } from '@/exercises/registry';
 
 export type Goal = { type: 'reps'; n: number } | { type: 'seconds'; n: number } | { type: 'max' };
 type RestGoal = Extract<Goal, { type: 'seconds' | 'max' }>;
@@ -38,9 +38,7 @@ const goalSchema = z.union([
   secondsGoal,
   z.strictObject({ type: z.literal('reps'), n: z.number().int().positive() }),
 ]);
-const exerciseSchema = z.custom<ExerciseId>(
-  (value) => typeof value === 'string' && Object.hasOwn(EXERCISES, value),
-);
+const exerciseSchema = z.custom<ExerciseId>(isExerciseId);
 const stepSchema = z.union([
   z.strictObject({ exercise: exerciseSchema, goal: goalSchema }),
   z.strictObject({ exercise: z.literal('rest'), goal: z.union([maxGoal, secondsGoal]) }),

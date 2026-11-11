@@ -91,8 +91,8 @@ describe('leagues', () => {
     await squats(ann.cookie, [10], Date.parse('2026-11-09T00:00:00Z'), '2026-11-09');
 
     const before = await board(db, ann.id, WEDNESDAY);
-    // Both are new: on the same Bronze board.
-    expect(before).toMatchObject({ week: WEEK, league: 'bronze', visible: null });
+    // Both are new: on the same Bronze board, with no week behind them.
+    expect(before).toMatchObject({ week: WEEK, league: 'bronze', visible: null, last: null });
     expect((await board(db, bob.id, WEDNESDAY))?.rows).toEqual([
       { rank: 1, you: false, name: null, image: null, points: 15 },
       { rank: 2, you: true, name: 'Bob', image: expect.any(String), points: 10 },
@@ -152,6 +152,12 @@ describe('leagues', () => {
     }
     await closeWeek(db, '2026-07-27');
     for (const { id } of crew.slice(3)) await board(db, id, Date.parse('2026-08-04T09:00:00Z'));
+    // The nine who looked share a board (the three who trained join it at the close): three places could
+    // move up, but nobody on it has points.
+    expect(await board(db, crew[3].id, Date.parse('2026-08-04T09:00:00Z'))).toMatchObject({
+      zone: 3,
+      up: 0,
+    });
     await closeWeek(db, a);
     expect((await places(a, crew)).slice(0, 4)).toEqual([
       [0, 'bronze', 10, 'up'],
@@ -174,6 +180,18 @@ describe('leagues', () => {
       [0, 'gold', null, null],
       [1, 'silver', null, null],
     ]);
+    // The week after, each sees how theirs closed: where they were, their place, their points.
+    const monday = Date.parse('2026-08-17T09:00:00Z');
+    expect(await board(db, crew[0].id, monday)).toMatchObject({
+      league: 'gold',
+      // Alone on a board: nobody moves.
+      zone: 0,
+      last: { week: b, league: 'silver', rank: 1, points: 20 },
+    });
+    expect(await board(db, crew[2].id, monday)).toMatchObject({
+      league: 'bronze',
+      last: { week: b, league: 'silver', rank: 3, points: 0 },
+    });
   });
 
   it('puts whoever trained on a board when the week closes, and nobody after it has', async () => {

@@ -6,7 +6,8 @@ import {
   useClock,
   type SkPath,
 } from '@shopify/react-native-skia';
-import { useDerivedValue } from 'react-native-reanimated';
+import { View } from 'react-native';
+import Animated, { useDerivedValue, useReducedMotion } from 'react-native-reanimated';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { repAt } from './rep-loop';
@@ -118,6 +119,64 @@ export function CameraScene({ width, off = false }: { width: number; off?: boole
         strokeLinejoin="round"
       />
     </Svg>
+  );
+}
+
+/**
+ * Something broke, drawn wide (358 × 230) like `CameraScene`: someone sitting on the floor, the barbell
+ * rolled away. It rolls in once unless the phone asks for less motion.
+ */
+export function DroppedBarScene({ width }: { width: number }) {
+  const still = useReducedMotion();
+  const height = (width * 230) / 358;
+  const plate = (x: number) => (
+    <>
+      <Circle cx={x} cy={192} r={18} fill={colors.ground} stroke={colors.accent} strokeWidth={2} />
+      <Circle cx={x} cy={192} r={4} fill="none" stroke={colors.accent} strokeWidth={2} />
+    </>
+  );
+  return (
+    <View style={{ width, height }} pointerEvents="none">
+      <Svg width={width} height={height} viewBox="0 0 358 230">
+        <Path d="M10 210H348" stroke={colors.line} strokeWidth={2} strokeLinecap="round" />
+        <Path
+          d={`${ring(9, 13, HEAD)}M10.3 15.5L13.5 25.4M13.5 25.4L19.5 20.5L25 25.8M10.8 17L6.5 25.8`}
+          transform="translate(30 101) scale(4.2)"
+          fill="none"
+          stroke={colors.chalk}
+          strokeWidth={0.48}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M188 184h14M182 196h18"
+          stroke={colors.faint}
+          strokeWidth={1.5}
+          strokeLinecap="round"
+        />
+      </Svg>
+      <Animated.View
+        className="absolute inset-0"
+        style={
+          !still && {
+            animationName: {
+              from: { transform: [{ translateX: (-90 * width) / 358 }] },
+              to: { transform: [{ translateX: 0 }] },
+            },
+            animationDuration: '1.3s',
+            animationDelay: '0.3s',
+            animationFillMode: 'both',
+            animationTimingFunction: 'ease-out',
+          }
+        }
+      >
+        <Svg width={width} height={height} viewBox="0 0 358 230">
+          <Path d="M214 192H342" stroke={colors.accent} strokeWidth={2} strokeLinecap="round" />
+          {plate(236)}
+          {plate(320)}
+        </Svg>
+      </Animated.View>
+    </View>
   );
 }
 

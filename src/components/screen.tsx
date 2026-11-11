@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { colors } from '@/theme';
 
 /** The side padding of every screen (`px-6`): content is the window's width less two of these. */
 export const GUTTER = 24;
@@ -16,6 +18,7 @@ export function Screen({
   title,
   intro,
   footer,
+  refresh,
   children,
 }: {
   label?: string;
@@ -27,6 +30,8 @@ export function Screen({
   intro?: string;
   /** Pinned under the scroll, 16px above the system bar (a tab screen's tab bar already clears it). */
   footer?: ReactNode;
+  /** Pull down to read again: the platform's spinner shows while `refreshing`. */
+  refresh?: { refreshing: boolean; onRefresh: () => void };
   children?: ReactNode;
 }) {
   const { top, bottom } = useSafeAreaInsets();
@@ -46,6 +51,15 @@ export function Screen({
         showsVerticalScrollIndicator={false}
         contentContainerClassName="gap-8 px-6 pb-8"
         contentContainerStyle={{ paddingTop: label ? 32 : 8 }}
+        refreshControl={
+          refresh && (
+            <RefreshControl
+              {...refresh}
+              colors={[colors.chalk]}
+              progressBackgroundColor={colors.surface}
+            />
+          )
+        }
       >
         {title && (
           <View className="gap-3">

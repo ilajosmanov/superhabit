@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { Sheet } from './sheet';
+import { Sheet } from '@/components/sheet';
 import { isHold } from '@/challenges/hold';
 import { ONE_GO } from '@/challenges/one-go';
 import { ExerciseFigure } from '@/components/illustrations';

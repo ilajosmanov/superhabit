@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { Sheet } from './sheet';
+import { Sheet } from '@/components/sheet';
 import { IconButton } from '@/components/icon-button';
 import { ExerciseFigure } from '@/components/illustrations';
 import { colors } from '@/theme';

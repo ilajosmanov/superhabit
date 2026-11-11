@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { addDays, setPoints, weekPoints } from './points';
+import { addDays, RATES, setPoints, weekPoints } from './points';
 
 const reps = (exercise: string, goal: object, n: number) => ({
   exercise,
@@ -40,5 +40,13 @@ describe('points', () => {
     const gap = new Set(['2026-11-20', '2026-11-18']);
     expect(weekPoints([tenSquats], gap)).toBe(10);
     expect(weekPoints([tenSquats], new Set([...gap, '2026-11-19']))).toBe(11);
+  });
+
+  it('lists what a rep, or ten seconds of a hold, scores', () => {
+    const rate = (exercise: string) => RATES.find((r) => r.exercise === exercise);
+    expect(rate('squat')).toEqual({ exercise: 'squat', per: 'rep', points: 1 });
+    // 7.5 MET × 6.9 s against the squat's 3.8 × 2.57.
+    expect(rate('burpee')).toEqual({ exercise: 'burpee', per: 'rep', points: 5.3 });
+    expect(rate('plank')).toEqual({ exercise: 'plank', per: '10 s', points: 2.9 });
   });
 });

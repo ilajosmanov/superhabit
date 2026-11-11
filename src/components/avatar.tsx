@@ -1,5 +1,7 @@
 import { Image, Text, View } from 'react-native';
 
+import { colors } from '@/theme';
+
 /** "AL" for Ann Lee: the first letters of the first two words. */
 const initials = (name: string) =>
   name
@@ -17,15 +19,19 @@ export function Avatar({
   name,
   image,
   small = false,
+  lit = false,
 }: {
   name: string;
   image: string | null;
   small?: boolean;
+  /** Ringed in amber: you, in a list of people. */
+  lit?: boolean;
 }) {
   return (
     <View
       importantForAccessibility="no-hide-descendants"
-      className={`${small ? 'size-8' : 'size-16'} items-center justify-center overflow-hidden rounded-full border border-line bg-surface`}
+      className={`${small ? 'size-8' : 'size-16'} items-center justify-center overflow-hidden rounded-full border bg-surface`}
+      style={{ borderColor: lit ? colors.accent : colors.line }}
     >
       <Text className={`font-sans font-light text-soft ${small ? 'text-xs' : 'text-2xl'}`}>
         {initials(name)}

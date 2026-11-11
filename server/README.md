@@ -63,7 +63,10 @@ location, and approximate.
   `{ rows: [{ entity, row }], cursor, more }`. An edited challenge or left run comes again, after rows
   that point at it, so only a whole pull is complete.
 - `GET /leaderboard` (60 a minute per account): your board this week, putting you on one first: `{ week,
-  endsAt, league, up, down, visible, rows: [{ rank, you, name, image, points }] }`. Weeks run Monday to
+  endsAt, league, up, down, zone, visible, rows: [{ rank, you, name, image, points }], last, rates, bonus }`:
+  `zone` is how many places at each end can move, `last` how last week closed for you (`{ week, league, rank,
+  points }`, null if you weren't on a board), `rates` what a rep or ten seconds of a hold scores and
+  `bonus` the streak bonus's rule, so the phone keeps no copy of the scoring. Weeks run Monday to
   Monday, 00:00 UTC. Each league (Bronze, Silver, Gold) splits into boards of up to 30; a newcomer starts
   in Bronze. Points count live from synced sets that ended in the week: effort (MET × seconds of work, one
   squat = 1 point) up to each set's goal, plus 5% for each streak day before, up to 50%; a row that can't

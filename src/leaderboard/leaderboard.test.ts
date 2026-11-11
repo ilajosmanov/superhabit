@@ -1,7 +1,7 @@
 import { createActor, waitFor } from 'xstate';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
-import { endsIn, leaderboard, stakes, type Board } from './leaderboard';
+import { bonusOf, endsIn, lastWeekWords, leaderboard, standing, type Board } from './leaderboard';
 import { migrateDatabase } from '@/storage/__fixtures__/database';
 
 // Our server and the network are faked; the machine is real.
@@ -23,7 +23,7 @@ vi.mock('react-native', () => ({
   },
 }));
 
-const board = (visible: boolean | null): Board => ({
+const board = (visible: boolean | null, last: Board['last'] = null): Board => ({
   week: '2026-11-09',
   endsAt: Date.parse('2026-11-16T00:00:00Z'),
   league: 'bronze',
@@ -35,15 +35,19 @@ const board = (visible: boolean | null): Board => ({
     { rank: 2, you: true, name: 'Illia O.', image: null, points: 12 },
     { rank: 3, you: false, name: 'Ann L.', image: null, points: 3 },
   ],
+  zone: 1,
+  last,
+  rates: [{ exercise: 'squat', per: 'rep', points: 1 }],
+  bonus: { perDay: 0.05, days: 11 },
 });
 /** The server's answers: this board, and the visibility saved or refused. */
-function server(visible: boolean | null, saves = true) {
+function server(visible: boolean | null, saves = true, last: Board['last'] = null) {
   fake.fetch.mockImplementation(async (_url: string, init?: { method?: string }) =>
     init?.method === 'PUT'
       ? saves
         ? { data: null, error: null }
         : { data: null, error: { status: 500 } }
-      : { data: board(visible), error: null },
+      : { data: board(visible, last), error: null },
   );
 }
 
@@ -180,29 +184,137 @@ describe('the league tab', () => {
     expect(stale.board?.week).toBe('2026-11-09');
     expect(stale.board && endsIn(stale.board.endsAt, stale.readAt)).toBe('THIS WEEK HAS ENDED');
   });
+
+  it("takes an answer it can't read (a server older than the app) as a failed read", async () => {
+    const { zone: _zone, rates: _rates, bonus: _bonus, ...older } = board(true);
+    fake.fetch.mockResolvedValue({ data: older, error: null });
+    const actor = createActor(leaderboard, { input: tab() }).start();
+    await waitFor(actor, (s) => s.matches('shown'));
+    expect(actor.getSnapshot().context).toMatchObject({ board: null, problem: 'failed' });
+  });
+
+  it('shows how last week closed until you have seen it on this phone, a restart too', async () => {
+    const closed = { week: '2026-11-02', league: 'silver' as const, rank: 2, points: 140 };
+    server(true, true, closed);
+    const first = createActor(leaderboard, { input: tab() }).start();
+    await waitFor(first, (s) => s.matches('shown'));
+    expect(first.getSnapshot().context.seen).toBeNull();
+    first.send({ type: 'seen' });
+    expect(first.getSnapshot().context.seen).toBe('2026-11-02');
+    first.stop();
+
+    const again = createActor(leaderboard, { input: tab() }).start();
+    await waitFor(again, (s) => s.matches('shown'));
+    expect(again.getSnapshot().context.seen).toBe('2026-11-02');
+    // A week later, a new close to see.
+    expect(again.getSnapshot().context.board?.last?.week).toBe('2026-11-02');
+    server(true, true, { ...closed, week: '2026-11-09' });
+    open();
+    await waitFor(again, (s) => s.matches('shown') && s.context.board?.last?.week === '2026-11-09');
+    expect(again.getSnapshot().context.seen).toBe('2026-11-02');
+  });
 });
 
 describe('what the league tab says', () => {
-  const week = (league: Board['league'], up: number, down: number) => ({
-    ...board(true),
-    league,
-    up,
-    down,
+  /** A board of `points` by rank, you at `you` (1-based). */
+  const ranked = (league: Board['league'], points: number[], you: number, zone = 3): Board => {
+    return {
+      ...board(true),
+      league,
+      zone,
+      // The places that can move up, held by someone with points.
+      up: league === 'gold' ? 0 : points.slice(0, zone).filter((p) => p > 0).length,
+      down: league === 'bronze' ? 0 : zone,
+      rows: points.map((p, i) => ({
+        rank: i + 1,
+        you: i + 1 === you,
+        name: null,
+        image: null,
+        points: p,
+      })),
+    };
+  };
+  const nine = [90, 80, 70, 60, 50, 40, 30, 20, 10];
+
+  it('says the one gap worth acting on, in points', () => {
+    // 1st to 3rd move up: 4th, the first who stays, is who could push you out.
+    expect(standing(ranked('silver', nine, 2))).toBe(
+      "You'd move up to Gold. 4th is 20 points behind you.",
+    );
+    expect(standing(ranked('silver', [90, 80, 70, 70, 50, 40, 30, 20, 10], 3))).toBe(
+      "You'd move up to Gold. 4th is level with you.",
+    );
+    // 3rd is the last place up: 71 beats its 70.
+    expect(standing(ranked('silver', nine, 5))).toBe('21 points from moving up to Gold.');
+    // 7th to 9th drop: 8th's 20 has to pass 6th's 40.
+    expect(standing(ranked('silver', nine, 8))).toBe(
+      "You'd drop to Bronze. 21 points gets you clear.",
+    );
+    // Bronze has no drop zone: the bottom only looks up.
+    expect(standing(ranked('bronze', nine, 9))).toBe('61 points from moving up to Silver.');
+    expect(standing(ranked('gold', nine, 1))).toBe(
+      'You lead Gold, the top league. 2nd is 10 points behind you.',
+    );
+    expect(standing(ranked('gold', [90, 90, 70, 60, 50, 40, 30, 20, 10], 1))).toBe(
+      'You lead Gold, the top league. 2nd is level with you.',
+    );
+    expect(standing(ranked('gold', nine, 4))).toBe(
+      'Safe in Gold. The drop line is 30 points below you.',
+    );
   });
 
-  it('says who moves where, one or many', () => {
-    expect(stakes(week('silver', 1, 1))).toBe(
-      'First place moves up to Gold. Last place drops to Bronze.',
+  it('says one point is enough while a place that moves up has none', () => {
+    // Two places can move up and only one is held: any point takes the other.
+    expect(standing(ranked('bronze', [50, 20, 0, 0, 0, 0], 5, 2))).toBe(
+      '21 points from moving up to Silver.',
     );
-    expect(stakes(week('silver', 3, 2))).toBe(
-      'The top 3 move up to Gold. The bottom 2 drop to Bronze.',
+    expect(standing(ranked('bronze', [50, 0, 0, 0, 0, 0], 4, 2))).toBe(
+      '1 point from moving up to Silver.',
     );
-    expect(stakes(week('gold', 0, 3))).toBe(
-      'The bottom 3 drop to Silver. Stay near the top to keep your place in Gold.',
+    expect(standing(ranked('bronze', [50, 40], 2, 0))).toBe(
+      'Moving up starts once your board has three people.',
     );
-    expect(stakes(week('bronze', 0, 0))).toBe(
-      'Every counted rep and second scores. Moving up starts once three people with points share your board.',
+  });
+
+  it('before anyone scores, says how points come, or that a new week started', () => {
+    const quiet = ranked('bronze', [0, 0, 0], 1, 1);
+    expect(standing(quiet)).toBe('Every rep and second the camera counts scores points.');
+    expect(
+      standing({
+        ...quiet,
+        last: { week: '2026-11-02', league: 'bronze', rank: 4, points: 30 },
+      }),
+    ).toBe('A new week. Everyone on your board starts at 0.');
+  });
+
+  it('says where last week took you, and what the new board asks', () => {
+    const was = (league: Board['league']) => ({
+      week: '2026-11-02',
+      league,
+      rank: 2,
+      points: 540,
+    });
+    expect(lastWeekWords({ ...board(true), league: 'gold', last: was('silver') })).toEqual({
+      title: 'Up to Gold',
+      finished: '2ND · 540 POINTS',
+      text: 'A new board, everyone at 0. Gold is the top league: stay out of the bottom places to keep it.',
+    });
+    expect(lastWeekWords({ ...board(true), league: 'silver', last: was('silver') })?.title).toBe(
+      'Silver again',
     );
+    expect(lastWeekWords({ ...board(true), league: 'bronze', last: was('silver') })).toMatchObject({
+      title: 'Back to Bronze',
+      text: 'A new board, everyone at 0. Nobody drops from Bronze. The top places move up to Silver.',
+    });
+    expect(lastWeekWords(board(true))).toBeNull();
+  });
+
+  it('adds 5% for each day in a row after the first, up to 50%', () => {
+    const rule = { perDay: 0.05, days: 11 };
+    expect(bonusOf(rule, 1)).toBe(0);
+    expect(bonusOf(rule, 5)).toBe(20);
+    expect(bonusOf(rule, 11)).toBe(50);
+    expect(bonusOf(rule, 40)).toBe(50);
   });
 
   it('counts down in days, then hours on the last day, then says the week ended', () => {

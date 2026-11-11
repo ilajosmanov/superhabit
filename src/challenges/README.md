@@ -39,7 +39,7 @@ The challenge catalog, the challenges and runs kept on the phone, progress rules
 | `challenge-done.tsx`                                             | the Done page after a session: its reel, the numbers, the run                        |
 | `session-reel.tsx`, `session-viewer.tsx`, `reel-player.tsx`      | the reel on a loop, full screen like stories, and the players under both             |
 | `exercise-picker.tsx`, `builder.tsx`                             | making a challenge: pick the exercise, then name it and set its numbers              |
-| `sheet.tsx`, `swipe-row.tsx`                                     | the platform bottom sheet; a row of cards that snaps card by card                    |
+| `swipe-row.tsx`                                                  | a row of cards that snaps card by card                                               |
 
 A run of ours is pinned to the version you joined; a run of yours follows your edits. Finished, missed
 and restarted are worked out from done workouts (`progress.ts`), never stored. A day you did plays its

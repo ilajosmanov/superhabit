@@ -58,6 +58,10 @@ export type Samples = { [K in ExerciseId]: NonNullable<ReturnType<List[K]['measu
 // Mapped type so `EXERCISES[id].step(counters[id], …)` type-checks for a generic id.
 export const EXERCISES: { [K in ExerciseId]: Exercise<Counters[K], Samples[K]> } = LIST;
 
+/** Whether `id` names an exercise this app has (a newer app's isn't one). Own keys only. */
+export const isExerciseId = (id: unknown): id is ExerciseId =>
+  typeof id === 'string' && Object.hasOwn(EXERCISES, id);
+
 /** Fresh counters for every exercise; typed against Counters so a new key cannot be forgotten. */
 export const initialCounters: Counters = {
   squat: squat.initial,
