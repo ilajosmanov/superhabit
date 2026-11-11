@@ -22,11 +22,15 @@ const WHY = {
 export default function MeScreen() {
   const { account } = useLibrary();
   const leave = useLeave();
-  const [state, send] = useMachine(me.provide({ actions: { deleted: leave.deleted } }));
+  const [state, send] = useMachine(
+    me.provide({ actions: { deleted: leave.deleted, signedOut: leave.signOut } }),
+  );
   const [asking, setAsking] = useState<'signOut' | 'delete' | null>(null);
   const { sharing, error } = state.context;
   const deleting = state.matches('deleting') || state.matches('deleted');
-  const why = (about: 'sharing' | 'deleting') =>
+  const signingOut = state.matches('signingOut') || state.matches('left');
+  const { refused, unsent } = state.context;
+  const why = (about: 'sharing' | 'deleting' | 'signingOut') =>
     error?.about === about && error.why ? WHY[error.why] : null;
   return (
     <Screen label="SUPERHABIT" title="Profile">
@@ -56,25 +60,35 @@ export default function MeScreen() {
         {why('sharing') && <Problem text={why('sharing') ?? ''} />}
       </View>
       <View className="items-start border-t border-line pt-2">
-        <TextButton label="Sign out" icon="logout" onPress={() => setAsking('signOut')} />
+        {/* One call at a time: while the switch's call runs, these wait too. */}
+        <TextButton
+          label="Sign out"
+          icon="logout"
+          disabled={!state.matches('idle')}
+          onPress={() => setAsking('signOut')}
+        />
         <TextButton
           label="Delete account"
           icon="delete"
           color={colors.warn}
+          disabled={!state.matches('idle')}
           onPress={() => setAsking('delete')}
         />
       </View>
       {asking === 'signOut' && (
         <ConfirmDialog
           title="Sign out?"
-          text="Your workouts stay on this phone. If another account signs in here, they're replaced."
-          action="Sign out"
-          warn={false}
-          onConfirm={() => {
-            setAsking(null);
-            leave.signOut();
-          }}
-          onCancel={() => setAsking(null)}
+          text={
+            refused > 0
+              ? `${count(refused, 'change')} couldn't be saved to your account. Signing out loses ${refused === 1 ? 'it' : 'them'}.`
+              : (notSent(why('signingOut'), unsent) ??
+                'Your workouts are saved to your account, ready when you sign in again.')
+          }
+          action={signingOut ? 'Signing out…' : refused > 0 ? 'Sign out anyway' : 'Sign out'}
+          warn={refused > 0}
+          onConfirm={() => !signingOut && send({ type: 'signOut', anyway: refused > 0 })}
+          // Once it's sending, the dialog stays until the server answers.
+          onCancel={() => !signingOut && setAsking(null)}
         />
       )}
       {asking === 'delete' && (
@@ -95,6 +109,18 @@ export default function MeScreen() {
       )}
     </Screen>
   );
+}
+
+const count = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+/** Why signing out waits: what hasn't reached your account yet. */
+function notSent(why: string | null, workouts: number) {
+  if (!why) return null;
+  const what =
+    workouts > 0
+      ? `Your last ${count(workouts, 'workout')} ${workouts === 1 ? "isn't" : "aren't"}`
+      : "Your latest changes aren't";
+  return `${why}\n\n${what} saved to your account yet. Sign out once ${workouts === 1 ? 'it is' : 'they are'}.`;
 }
 
 function Problem({ text }: { text: string }) {

@@ -18,6 +18,19 @@ vi.mock('@/account/session', async () => {
   return { checkSession: promise(async () => 'unknown'), signOut: promise(async () => {}) };
 });
 vi.mock('@/account/auth-client', () => ({}));
+// The server already gave this phone what it holds, unless a test says otherwise.
+const synced = vi.hoisted(() => ({ restored: vi.fn(() => true), sync: vi.fn(async () => {}) }));
+vi.mock('@/account/sync', () => ({ restored: synced.restored, sync: synced.sync }));
+vi.mock('./keep-synced', async () => {
+  const { fromCallback } = await import('xstate');
+  return { keepSynced: fromCallback(() => {}) };
+});
+const videos = vi.hoisted(() => ({ deleteOrphans: vi.fn() }));
+vi.mock('@/workout/store', async (original) => ({
+  ...(await original<typeof import('@/workout/store')>()),
+  deleteOrphanVideos: videos.deleteOrphans,
+  findOpenWorkout: () => null,
+}));
 // This phone has the answer about sharing traces, unless a test says otherwise.
 vi.mock('@/account/consent', async (original) => ({
   ...(await original<typeof import('@/account/consent')>()),
@@ -264,5 +277,36 @@ describe('startup', () => {
     expect(SplashScreen.hide).toHaveBeenCalled();
     expect(asking.children.consent).toBeDefined();
     actor.stop();
+  });
+
+  it('brings back what the server holds before Home, and keeps videos without a set until it has', async () => {
+    const launch = () =>
+      createActor(startup.provide({ actors: { migrate: fine, seed: fine } })).start();
+    // Signed in again: Home waits for the pull.
+    synced.restored.mockReturnValue(false);
+    let pulled = () => {};
+    synced.sync.mockReturnValue(new Promise<void>((resolve) => (pulled = resolve)));
+    const first = launch();
+    await waitFor(first, (s) => s.matches('restoring'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(first.getSnapshot().matches('restoring')).toBe(true);
+    pulled();
+    await waitFor(first, (s) => s.matches('reading'));
+    first.stop();
+
+    // Offline: Home opens anyway, and the videos stay for the pull to come.
+    synced.sync.mockRejectedValue(new Error('Network request failed'));
+    const offline = launch();
+    await waitFor(offline, (s) => s.matches('reading'));
+    offline.stop();
+    expect(videos.deleteOrphans).not.toHaveBeenCalled();
+
+    // A later launch after the pull: no wait before Home, and the cleanup runs.
+    synced.restored.mockReturnValue(true);
+    const later = launch();
+    await waitFor(later, (s) => s.matches('reading'));
+    later.stop();
+    expect(synced.sync).toHaveBeenCalledTimes(2);
+    expect(videos.deleteOrphans).toHaveBeenCalledTimes(1);
   });
 });

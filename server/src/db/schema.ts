@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   check,
+  index,
   integer,
   primaryKey,
   sqliteTable,
@@ -43,4 +44,129 @@ export const deletions = sqliteTable(
     purgedAt: integer('purged_at'),
   },
   (t) => [primaryKey({ columns: [t.userId] })],
+);
+
+// What the phones sync up (piece 5): each row as its phone wrote it, keyed by its account and its id from the
+// phone. `received_at` is when the server first took it. Workouts arrive done, so they have no status.
+
+const synced = { userId: text('user_id').notNull(), id: text('id').notNull() };
+const received = { receivedAt: integer('received_at').notNull() };
+
+/** Challenges you made. Ours (owner superhabit) live in the app; a run of one points at its fixed id. */
+export const challenges = sqliteTable(
+  'challenges',
+  {
+    ...synced,
+    visibility: text('visibility', { enum: ['private', 'public'] }).notNull(),
+    currentVersionId: text('current_version_id').notNull(),
+    ...received,
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] })],
+);
+
+export const challengeVersions = sqliteTable(
+  'challenge_versions',
+  {
+    ...synced,
+    challengeId: text('challenge_id').notNull(),
+    number: integer('number').notNull(),
+    name: text('name').notNull(),
+    days: integer('days').notNull(),
+    dailyTotal: integer('daily_total', { mode: 'boolean' }).notNull(),
+    restartOnMiss: integer('restart_on_miss', { mode: 'boolean' }).notNull(),
+    plan: text('plan', { mode: 'json' }).notNull(),
+    createdAt: integer('created_at').notNull(),
+    ...received,
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] })],
+);
+
+export const runs = sqliteTable(
+  'runs',
+  {
+    ...synced,
+    challengeId: text('challenge_id').notNull(),
+    pinnedVersionId: text('pinned_version_id'),
+    groupChallengeId: text('group_challenge_id'),
+    startedOn: text('started_on').notNull(),
+    endedOn: text('ended_on'),
+    endReason: text('end_reason', { enum: ['left'] }),
+    ...received,
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] })],
+);
+
+export const workouts = sqliteTable(
+  'workouts',
+  {
+    ...synced,
+    runId: text('run_id'),
+    versionId: text('version_id'),
+    day: text('day').notNull(),
+    startedAt: integer('started_at').notNull(),
+    endedAt: integer('ended_at'),
+    tzOffsetMin: integer('tz_offset_min').notNull(),
+    tz: text('tz').notNull(),
+    appVersion: text('app_version').notNull(),
+    ...received,
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] })],
+);
+
+export const sets = sqliteTable(
+  'sets',
+  {
+    ...synced,
+    workoutId: text('workout_id').notNull(),
+    planStep: integer('plan_step').notNull(),
+    exercise: text('exercise').notNull(),
+    goal: text('goal', { mode: 'json' }).notNull(),
+    reps: integer('reps').notNull(),
+    noReps: integer('no_reps').notNull(),
+    heldMs: integer('held_ms').notNull(),
+    startedAt: integer('started_at').notNull(),
+    endedAt: integer('ended_at').notNull(),
+    counterVersion: text('counter_version').notNull(),
+    attempts: text('attempts', { mode: 'json' }).notNull(),
+    metrics: text('metrics', { mode: 'json' }),
+    ...received,
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.id] }),
+    // One set per planned step, as on the phone: a resent workout can't count a step twice.
+    uniqueIndex('sets_workout_step').on(t.userId, t.workoutId, t.planStep),
+  ],
+);
+
+/** Freezes; the id is `kind:day`, so two phones writing the same freeze write one row. */
+export const streakEvents = sqliteTable(
+  'streak_events',
+  {
+    ...synced,
+    day: text('day').notNull(),
+    kind: text('kind', { enum: ['earned', 'used'] }).notNull(),
+    createdAt: integer('created_at').notNull(),
+    ...received,
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] })],
+);
+
+/**
+ * What a pull reads after its cursor: one row per synced row, moved to the end (a new `seq`) each time the
+ * row is written. A workout's row stands for its sets.
+ */
+export const changes = sqliteTable(
+  'changes',
+  {
+    seq: integer('seq').primaryKey({ autoIncrement: true }),
+    userId: text('user_id').notNull(),
+    entity: text('entity', {
+      enum: ['challenge', 'challenge_version', 'run', 'workout', 'streak_event'],
+    }).notNull(),
+    entityId: text('entity_id').notNull(),
+  },
+  (t) => [
+    uniqueIndex('changes_row').on(t.userId, t.entity, t.entityId),
+    index('changes_pull').on(t.userId, t.seq),
+  ],
 );

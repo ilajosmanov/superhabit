@@ -23,6 +23,8 @@ export async function writeTrace(info: TraceInfo, trace: TraceBuilder) {
   const job = { discarded: false };
   jobs.set(info.setId, job);
   try {
+    // Whose set it is now: a sign-out before it lands must not move it to the next account's folder.
+    const folder = traceFolder();
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
     );
@@ -32,9 +34,8 @@ export async function writeTrace(info: TraceInfo, trace: TraceBuilder) {
     const start = performance.now();
     const bytes = trace.bytes(info);
     console.info('[recorder] encode ms', performance.now() - start, info.setId, trace.frames);
-    const folder = traceFolder();
     folder.create({ intermediates: true, idempotent: true });
-    const temp = traceTemp(info.setId);
+    const temp = traceTemp(info.setId, folder);
     const write = performance.now();
     await writeGzip(bytes.buffer, temp.uri);
     console.info('[recorder] write ms', performance.now() - write, info.setId, bytes.length);

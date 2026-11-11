@@ -2,10 +2,12 @@ import * as SplashScreen from 'expo-splash-screen';
 import { assign, enqueueActions, fromPromise, setup, type PromiseActorLogic } from 'xstate';
 
 import { dayClock, type DayEvent } from './day';
+import { keepSynced } from './keep-synced';
 import { answered, consent } from '@/account/consent';
 import { checkSession, signOut } from '@/account/session';
 import { dropPreAccountFiles, forgetAccount, markSignedOut } from '@/account/store';
 import { signIn } from '@/account/sign-in';
+import { restored, sync } from '@/account/sync';
 import { seed } from '@/challenges/library';
 import { account } from '@/storage/account';
 import { migrateDatabase } from '@/storage/database';
@@ -35,9 +37,11 @@ type Context = {
  * Me) goes back to signing in; so does Delete account, once the phone is cleared. The splash stays up
  * until there is something to show; `error` stays set while a Retry runs. Each step lives with its owner; this only orders them.
  * It also keeps today for the screens (`dayClock`), from launch on, and once ready writes the freezes of
- * days that are over, at launch and at each new day.
+ * days that are over, at launch and at each new day. Until a pull has brought back what the server holds
+ * (a new phone, or signed in again), `restoring` tries it before Home; once ready, `keepSynced` sends and
+ * pulls.
  *
- *   migrating --> identifying --> (consenting) --> seeding --> checking --> reading --> ready
+ *   migrating --> identifying --> (consenting) --> seeding --> restoring --> checking --> reading --> ready
  *       ^    \           \--> signingIn --> consenting --^       \--> recovering (Save / Discard) --> ready
  *       |     \--------------\----------\----------\--> failed (shows the error) --retry
  *   ready --signOut--> signingOut --> signingIn
@@ -60,9 +64,11 @@ export const startup = setup<
     signOut: typeof signOut;
     forget: PromiseActorLogic<void>;
     seed: PromiseActorLogic<void>;
+    restore: PromiseActorLogic<void>;
     check: PromiseActorLogic<{ id: string } | null>;
     recovery: typeof recovery;
     dayClock: typeof dayClock;
+    keepSynced: typeof keepSynced;
   },
   { recovery: 'recovery'; signIn: 'signIn'; consent: 'consent' },
   { hideSplash: undefined; fail: undefined; keepFreezes: undefined }
@@ -81,8 +87,14 @@ export const startup = setup<
     signOut,
     forget: fromPromise(async () => forgetAccount()),
     seed: fromPromise(async () => seed()),
+    // Offline, the app opens anyway: keepSynced pulls later, and the next launch tries here again.
+    restore: fromPromise(async () => {
+      if (restored()) return;
+      await sync().catch((error: unknown) => console.warn('[sync] restore failed', error));
+    }),
     check: fromPromise(async () => {
-      deleteOrphanVideos();
+      // Until then a video without a set may be one whose set a pull is still bringing back.
+      if (restored()) deleteOrphanVideos();
       try {
         dropPreAccountFiles();
       } catch (error) {
@@ -93,6 +105,7 @@ export const startup = setup<
     }),
     recovery,
     dayClock,
+    keepSynced,
   },
   actions: {
     hideSplash: enqueueActions(({ context, enqueue }) => {
@@ -151,7 +164,11 @@ export const startup = setup<
       invoke: { src: 'consent', id: 'consent', onDone: 'seeding' },
     },
     seeding: {
-      invoke: { src: 'seed', onDone: 'checking', onError: { target: 'failed', actions: 'fail' } },
+      invoke: { src: 'seed', onDone: 'restoring', onError: { target: 'failed', actions: 'fail' } },
+    },
+    // The root shows the waiting screen from here to Home once the splash is gone (after signing in).
+    restoring: {
+      invoke: { src: 'restore', onDone: 'checking', onError: 'checking' },
     },
     checking: {
       invoke: {
@@ -184,19 +201,23 @@ export const startup = setup<
     ready: {
       entry: ['hideSplash', 'keepFreezes'],
       // Nothing the check meets may take the app down: offline, it just didn't happen.
-      invoke: {
-        src: 'session',
-        onError: {
-          actions: ({ event }) => console.warn('[account] session check failed', event.error),
+      invoke: [
+        {
+          src: 'session',
+          onError: {
+            actions: ({ event }) => console.warn('[account] session check failed', event.error),
+          },
         },
-      },
+        { src: 'keepSynced' },
+      ],
       on: {
         day: { actions: [assign({ today: ({ event }) => event.day }), 'keepFreezes'] },
         signOut: 'signingOut',
         deleted: 'forgetting',
       },
     },
-    // Me's Sign out: the screens go, the sign-in screen comes.
+    // Profile's Sign out, once it sent what was waiting: the screens go, the database is cleared, the sign-in
+    // screen comes.
     signingOut: {
       invoke: {
         src: 'signOut',

@@ -4,7 +4,8 @@ import { userId } from './account';
 
 export const traceFolder = () => new Directory(Paths.document, userId(), 'traces', 'pending');
 const videoFolder = () => new Directory(Paths.document, userId(), 'videos');
-export const traceTemp = (setId: string) => new File(traceFolder(), `${setId}.sht.tmp`);
+export const traceTemp = (setId: string, folder = traceFolder()) =>
+  new File(folder, `${setId}.sht.tmp`);
 const videoPath = (setId: string, take: number) => new File(videoFolder(), `${setId}-${take}.mp4`);
 
 // File availability only: the capture owner keeps the native jobs and decides when to release them.

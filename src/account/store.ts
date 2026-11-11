@@ -34,7 +34,8 @@ export function replacing(next: Account): string | null {
 export function keepAccount(next: Account) {
   const before = account();
   db().transaction((tx) => {
-    // shortcut: unsent outbox rows go too; drain or refuse first once sync (piece 5) sends them.
+    // shortcut: unsent outbox rows go too (the session ended before they were sent); the ask before
+    // replacing names whose data goes. Send them first if that is ever seen.
     if (before?.id !== next.id) clearDatabase(tx);
     writeAccount(tx, { id: next.id, name: next.name, image: next.image });
   });
@@ -45,6 +46,14 @@ export function markSignedOut() {
   const kept = account();
   if (!kept) return;
   db().transaction((tx) => writeAccount(tx, { ...kept, signedOut: true }));
+}
+
+/**
+ * You signed out (Profile sent what was waiting first): the database is cleared, the account with it, so the
+ * next sign-in starts empty and pulls what the server holds. Files stay in the account's folder for then.
+ */
+export function clearSignedOut() {
+  db().transaction((tx) => clearDatabase(tx));
 }
 
 /**

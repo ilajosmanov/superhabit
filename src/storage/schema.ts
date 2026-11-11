@@ -160,14 +160,14 @@ export const outbox = sqliteTable('outbox', {
   entity: text('entity').notNull(),
   entityId: text('entity_id').notNull(),
   op: text('op').notNull(),
-  /** `{ v: 1, ... }`. */
   payload: text('payload', { mode: 'json' }).notNull(),
   createdAt: integer('created_at').notNull(),
   tries: integer('tries').notNull().default(0),
+  /** Why the server refused it: parked, never sent again. */
   lastError: text('last_error'),
 });
 
-/** How far each server stream has been read. */
+/** How far each server stream has been read (`account/sync.ts`). */
 export const syncCursors = sqliteTable(
   'sync_cursors',
   {

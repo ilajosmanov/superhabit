@@ -6,6 +6,8 @@ import { me } from './me';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import { db as database } from '@/storage/database';
 import { consentsGiven, writeSharing } from '@/storage/consent';
+import { writeAccount } from '@/storage/account';
+import { enqueue } from '@/storage/outbox';
 import { outbox, settings } from '@/storage/schema';
 
 // Our server and the network are faked; the machines and what the phone keeps are real.
@@ -50,7 +52,10 @@ describe('the profile page', () => {
     fake.fetch.mockResolvedValue({ data: null, error: { status: 500, message: 'down' } });
     actor.send({ type: 'share', on: true });
     const after = await waitFor(actor, (s) => s.matches('idle'));
-    expect(after.context).toEqual({ sharing: false, error: { about: 'sharing', why: 'failed' } });
+    expect(after.context).toMatchObject({
+      sharing: false,
+      error: { about: 'sharing', why: 'failed' },
+    });
     expect(consentsGiven()).toEqual([]);
   });
 
@@ -60,7 +65,7 @@ describe('the profile page', () => {
     const actor = createActor(me).start();
     actor.send({ type: 'share', on: false });
     const after = await waitFor(actor, (s) => s.matches('idle'));
-    expect(after.context).toEqual({ sharing: false, error: null });
+    expect(after.context).toMatchObject({ sharing: false, error: null });
     expect(consentsGiven()).toEqual([]);
     expect(db().select().from(outbox).all()).toMatchObject([
       { entity: 'consent', op: 'withdraw', payload: { policyVersion: POLICY_VERSION } },
@@ -89,5 +94,45 @@ describe('the profile page', () => {
     await waitFor(actor, (s) => s.status === 'done');
     expect(sent().at(-1)).toEqual([expect.stringMatching(/\/account$/), { method: 'DELETE' }]);
     expect(deleted).toHaveBeenCalledTimes(1);
+  });
+
+  it('signs out once nothing would be lost: offline it waits, and refused changes need Sign out anyway', async () => {
+    const signedOut = vi.fn();
+    database().transaction((tx) => {
+      writeAccount(tx, { id: 'ann', name: 'Ann Lee', image: null });
+      enqueue(tx, { entity: 'workout', entityId: 'w1', op: 'done', data: {} });
+    });
+    fake.fetch.mockRejectedValue(new Error('fetch failed: Unable to resolve host'));
+    fake.reachable.mockReturnValue(false);
+    const actor = createActor(me.provide({ actions: { signedOut } })).start();
+    actor.send({ type: 'signOut' });
+    await waitFor(actor, (s) => s.matches('idle'));
+    expect(actor.getSnapshot().context.error).toEqual({ about: 'signingOut', why: 'offline' });
+    expect(db().select().from(outbox).all()).toHaveLength(1);
+
+    // Online, the server refuses the workout: signing out would lose it, so it's said first.
+    fake.reachable.mockReturnValue(true);
+    fake.fetch.mockResolvedValue({ data: { results: [{ ok: false, reason: 'day: Invalid' }] } });
+    actor.send({ type: 'signOut' });
+    await waitFor(actor, (s) => s.matches('idle'));
+    expect(actor.getSnapshot().context).toMatchObject({ refused: 1, error: null });
+    expect(signedOut).not.toHaveBeenCalled();
+
+    actor.send({ type: 'signOut', anyway: true });
+    await waitFor(actor, (s) => s.status === 'done');
+    expect(signedOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('signs out when the server already ended the session: startup keeps what was unsent', async () => {
+    const signedOut = vi.fn();
+    database().transaction((tx) => {
+      writeAccount(tx, { id: 'ann', name: 'Ann Lee', image: null });
+      enqueue(tx, { entity: 'workout', entityId: 'w1', op: 'done', data: {} });
+    });
+    fake.fetch.mockResolvedValue({ data: null, error: { status: 401, message: 'signed out' } });
+    const actor = createActor(me.provide({ actions: { signedOut } })).start();
+    actor.send({ type: 'signOut' });
+    await waitFor(actor, (s) => s.status === 'done');
+    expect(signedOut).toHaveBeenCalledTimes(1);
   });
 });

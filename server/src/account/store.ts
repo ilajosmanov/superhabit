@@ -3,6 +3,7 @@ import { eq, inArray, isNull } from 'drizzle-orm';
 import { consentsInForce } from '../consents/store';
 import type { Db } from '../db/db';
 import { consents, deletions, user } from '../db/schema';
+import { purgeSynced } from '../sync/store';
 
 /** You: your name and photo, as Google gave them, and the consents in force. */
 export async function me(db: Db, userId: string) {
@@ -27,7 +28,7 @@ export const deleteAccount = (db: Db, userId: string) =>
     db.delete(user).where(eq(user.id, userId)),
   ]);
 
-/** Deletes what deleted accounts left (their consents, for now), all due at once, in one transaction. */
+/** Deletes what deleted accounts left (consents, synced rows), all due at once, in one transaction. */
 export function purgeDeleted(db: Db) {
   const due = db
     .select({ userId: deletions.userId })
@@ -35,6 +36,7 @@ export function purgeDeleted(db: Db) {
     .where(isNull(deletions.purgedAt));
   return db.batch([
     db.delete(consents).where(inArray(consents.userId, due)),
+    ...purgeSynced(db),
     db.update(deletions).set({ purgedAt: Date.now() }).where(isNull(deletions.purgedAt)),
   ]);
 }

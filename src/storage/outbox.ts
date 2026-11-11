@@ -3,7 +3,7 @@ import { outbox } from './schema';
 
 /**
  * Queues a change for the server inside the caller's transaction, so the change and its outbox row are
- * kept or lost together. `data` goes out in a versioned envelope, `{ v: 1, ...data }`.
+ * kept or lost together. `data` is what the server keeps (`account/sync.ts` sends it).
  */
 export function enqueue(
   tx: Transaction,
@@ -14,7 +14,7 @@ export function enqueue(
       entity: change.entity,
       entityId: change.entityId,
       op: change.op,
-      payload: { ...change.data, v: 1 },
+      payload: change.data,
       createdAt: Date.now(),
     })
     .run();

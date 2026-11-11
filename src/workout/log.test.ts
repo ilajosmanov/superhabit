@@ -80,13 +80,12 @@ describe('workout log', () => {
         entity: 'workout',
         entityId: 'w',
         op: 'done',
-        payload: expect.objectContaining({
-          v: 1,
+        payload: {
           workout: expect.objectContaining({
             id: 'w',
             sets: [expect.objectContaining({ id: 'w-0' })],
           }),
-        }),
+        },
       }),
     ]);
   });

@@ -1,7 +1,7 @@
 import { setImmediate } from 'node:timers';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 import { MAX, seconds } from '@/workout/plan/plan';
 import { body, detection } from '@/exercises/__fixtures__/body';
@@ -135,6 +135,30 @@ describe('set traces', () => {
         `document/local/videos/${setId}-1.mp4`,
       ]),
     );
+  });
+
+  it("lands a set's trace in its account's folder, though you sign out while it's written", async () => {
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, record: true },
+    }).start();
+    const setId = actor.getSnapshot().context.setId;
+    play(body({}));
+    actor.send({ type: 'end' });
+    // Signed out and another account signed in before the write's first paint.
+    const account = eq(schema.settings.key, 'account');
+    const [kept] = db().select().from(schema.settings).where(account).all();
+    db()
+      .update(schema.settings)
+      .set({ value: { id: 'bob', name: 'Bob', image: null } })
+      .where(account)
+      .run();
+    try {
+      await flush();
+      expect(files).toContain(`document/local/traces/pending/${setId}.sht`);
+    } finally {
+      actor.stop();
+      db().update(schema.settings).set({ value: kept?.value }).where(account).run();
+    }
   });
 
   it.each([false, true])(

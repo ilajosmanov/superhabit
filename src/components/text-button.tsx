@@ -1,4 +1,5 @@
 import { Host, RNHostView, Text, TextButton as ComposeTextButton } from '@expo/ui/jetpack-compose';
+import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import type { AndroidSymbol } from 'expo-symbols';
 import type { ViewStyle } from 'react-native';
 
@@ -12,6 +13,8 @@ export function TextButton({
   onPress,
   icon,
   color = colors.chalk,
+  disabled = false,
+  wide = false,
   style,
 }: {
   label: string;
@@ -19,18 +22,25 @@ export function TextButton({
   /** A leading Material Symbol. */
   icon?: AndroidSymbol;
   color?: string;
+  disabled?: boolean;
+  /** As wide as its parent, like the primary above it, so the press ripple matches. */
+  wide?: boolean;
   /** Places the Compose host. */
   style?: ViewStyle;
 }) {
   return (
-    <Host matchContents style={style}>
-      <ComposeTextButton onClick={onPress}>
+    <Host matchContents={wide ? { vertical: true } : true} style={style}>
+      <ComposeTextButton
+        onClick={onPress}
+        enabled={!disabled}
+        modifiers={wide ? [fillMaxWidth()] : undefined}
+      >
         {icon && (
           <RNHostView matchContents>
-            <Icon name={icon} size={16} color={color} />
+            <Icon name={icon} size={16} color={disabled ? colors.muted : color} />
           </RNHostView>
         )}
-        <Text color={color} style={{ fontFamily: 'Geist', fontSize: 16 }}>
+        <Text color={disabled ? colors.muted : color} style={{ fontFamily: 'Geist', fontSize: 16 }}>
           {label}
         </Text>
       </ComposeTextButton>

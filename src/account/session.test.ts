@@ -4,10 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { checkSession, signOut } from './session';
 import { keepAccount } from './store';
 import { account } from '@/storage/account';
-import { migrateDatabase } from '@/storage/__fixtures__/database';
+import { db, migrateDatabase } from '@/storage/__fixtures__/database';
+import { db as database } from '@/storage/database';
+import { enqueue } from '@/storage/outbox';
+import { outbox } from '@/storage/schema';
 
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 vi.mock('expo-file-system', () => ({ Paths: { document: 'documents' }, Directory: class {} }));
+vi.mock('expo-network', () => ({}));
 const getSession = vi.fn();
 const serverSignOut = vi.fn();
 vi.mock('./auth-client', () => ({
@@ -61,8 +65,16 @@ describe('the session check at launch', () => {
     expect(account()).toMatchObject({ name: 'Ann Lee-Smith', image: 'https://photo/ann' });
   });
 
-  it('signs you out on this phone at once, keeping your data for when you sign in again', async () => {
+  it('signing out clears the phone, unless something is still unsent: then it waits for your next sign-in', async () => {
+    database().transaction((tx) =>
+      enqueue(tx, { entity: 'workout', entityId: 'w1', op: 'done', data: {} }),
+    );
     await toPromise(createActor(signOut).start());
     expect(account()).toMatchObject({ id: 'ann', signedOut: true });
+    expect(db().select().from(outbox).all()).toHaveLength(1);
+
+    db().delete(outbox).run();
+    await toPromise(createActor(signOut).start());
+    expect(account()).toBeNull();
   });
 });

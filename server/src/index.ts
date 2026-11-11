@@ -6,6 +6,7 @@ import { authRoutes } from './auth/routes';
 import { consentRoutes } from './consents/routes';
 import { open } from './db/db';
 import type { Bindings, Route } from './env';
+import { syncRoutes } from './sync/routes';
 
 const app = new Hono<Route>()
   // Up, and the database answers.
@@ -16,7 +17,8 @@ const app = new Hono<Route>()
   .route('/', authRoutes)
   .route('/', accountRoutes)
   .route('/', deletePageRoutes)
-  .route('/', consentRoutes);
+  .route('/', consentRoutes)
+  .route('/', syncRoutes);
 
 /** The Worker: HTTP through the app, and the daily Cron (wrangler.jsonc) purging deleted accounts. */
 export default {

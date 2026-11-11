@@ -3,7 +3,8 @@ import { and, eq } from 'drizzle-orm';
 import { assign, fromPromise, setup } from 'xstate';
 
 import { authClient } from './auth-client';
-import { SERVER_URL } from './server';
+import { SERVER_URL, SessionGone } from './server';
+import { oneAtATime } from '@/lib/one-at-a-time';
 import { account } from '@/storage/account';
 import { sharing, writeSharing } from '@/storage/consent';
 import { db } from '@/storage/database';
@@ -41,46 +42,55 @@ async function tell(granted: boolean) {
     method: 'PUT',
     body: { kind: 'traces', policyVersion: POLICY_VERSION, granted },
   });
+  if (error?.status === 401) throw new SessionGone();
   if (error) throw new Error(error.message ?? `consent: ${error.status}`);
 }
+
+// One consent call at a time: a withdrawal sent again while a yes is on its way would undo the yes.
+const inTurn = oneAtATime();
 
 /**
  * Gives sharing on the server, which keeps the proof, then keeps the yes here; throws when the server
  * didn't take it. Withdrawing stops at once on this phone, online or not: a server that can't be told is
- * told later (the outbox).
+ * told later (`tellWithdrawal`).
  */
-export async function setSharing(granted: boolean) {
-  if (granted) {
-    const owner = account()?.id;
-    await tell(true);
-    // Another account signed in meanwhile: this yes isn't theirs.
-    if (account()?.id !== owner) return;
-    // The yes stands: a withdrawal still queued must not undo it.
+export const setSharing = (granted: boolean) =>
+  inTurn(async () => {
+    if (granted) {
+      const owner = account()?.id;
+      await tell(true);
+      // Another account signed in meanwhile: this yes isn't theirs.
+      if (account()?.id !== owner) return;
+      // The yes stands: a withdrawal still queued must not undo it.
+      db().transaction((tx) => {
+        writeSharing(tx, { traces: true, policyVersion: POLICY_VERSION });
+        tx.delete(outbox).where(queued).run();
+      });
+      return;
+    }
+    // The no and its withdrawal for the server, kept or lost together; told now if the server answers.
     db().transaction((tx) => {
-      writeSharing(tx, { traces: true, policyVersion: POLICY_VERSION });
-      tx.delete(outbox).where(queued).run();
+      writeSharing(tx, { traces: false, policyVersion: POLICY_VERSION });
+      enqueue(tx, {
+        entity: 'consent',
+        entityId: 'traces',
+        op: 'withdraw',
+        data: { policyVersion: POLICY_VERSION },
+      });
     });
-    return;
-  }
-  // The no and its withdrawal for the server, kept or lost together; told now if the server answers.
-  const owner = account()?.id;
-  db().transaction((tx) => {
-    writeSharing(tx, { traces: false, policyVersion: POLICY_VERSION });
-    enqueue(tx, {
-      entity: 'consent',
-      entityId: 'traces',
-      op: 'withdraw',
-      data: { policyVersion: POLICY_VERSION },
-    });
+    await withdraw().catch((error: unknown) => console.warn('[consent] withdrawal queued', error));
   });
-  try {
-    await tell(false);
-    if (account()?.id === owner) db().delete(outbox).where(queued).run();
-  } catch (error) {
-    // shortcut: nothing sends the outbox until sync (piece 5); the server's yes stands until then.
-    console.warn('[consent] withdrawal queued', error);
-  }
+
+/** Tells the server a withdrawal it hasn't heard yet, if there is one; throws when it can't. */
+async function withdraw() {
+  const owner = account()?.id;
+  if (!db().select({ id: outbox.id }).from(outbox).where(queued).get()) return;
+  await tell(false);
+  if (account()?.id === owner) db().delete(outbox).where(queued).run();
 }
+
+/** Sync's turn: a withdrawal made offline reaches the server; throws when it can't. */
+export const tellWithdrawal = () => inTurn(withdraw);
 
 /** Why a call to the server failed: no internet, or anything else. */
 export const whyFailed = fromPromise(async (): Promise<ConsentError> =>

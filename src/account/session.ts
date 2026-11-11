@@ -2,7 +2,8 @@ import { GoogleOneTapSignIn } from 'react-native-nitro-google-signin';
 import { fromPromise } from 'xstate';
 
 import { authClient } from './auth-client';
-import { keepAccount, markSignedOut } from './store';
+import { clearSignedOut, keepAccount, markSignedOut } from './store';
+import { unsent } from './sync';
 import { account } from '@/storage/account';
 
 /**
@@ -38,8 +39,10 @@ export async function endSession() {
 }
 
 /**
- * You signed out on Me: the account is marked signed out, its data kept (the same account finds it again,
- * another is asked about). The sign-in screen then ends the session (`signIn` with `leaving`).
+ * You signed out on Profile, which sent what was waiting: the database is cleared (`clearSignedOut`). Only
+ * if something is still unsent (the server had ended the session) is it kept, marked signed out, for the
+ * same account to send at its next sign-in. The sign-in screen then ends the session (`signIn` with
+ * `leaving`).
  */
-// shortcut: offline, the server's session lives on until it expires; send the sign-out with sync (piece 5).
-export const signOut = fromPromise(async () => markSignedOut());
+// shortcut: signed out offline (nothing was waiting), the server's session lives on until it expires.
+export const signOut = fromPromise(async () => (unsent() > 0 ? markSignedOut() : clearSignedOut()));

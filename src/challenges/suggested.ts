@@ -13,7 +13,9 @@ export const OURS = 'superhabit';
 /**
  * Ours, joined as-is, in catalog order; seeded into the database at every start. The ids are fixed so
  * every phone and the server agree. To change one, give it a new `versionId` (a fresh uuid): the seed adds
- * that version and makes it current, and runs pinned to the old one keep it.
+ * that version and makes it current, and runs pinned to the old one keep it. The server never holds ours, so
+ * a new phone gets a version only from the seed: keep each replaced version seeded too, or runs pulled back
+ * pinned to it show as unavailable.
  */
 export type Suggested = { id: string; versionId: string; challenge: Challenge };
 
