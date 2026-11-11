@@ -114,7 +114,12 @@ function Session({
   const camera = useRef<CameraRef>(null);
   const { joints, highlight, angle, lowest, onPose } = usePoseOverlay(camera);
   // Video only: no audio, so no microphone permission.
-  const video = useVideoOutput({ targetResolution: CommonResolutions.HD_16_9, enableAudio: false });
+  // 2.5 Mbps: about 19 MB a minute of 720p.
+  const video = useVideoOutput({
+    targetResolution: CommonResolutions.HD_16_9,
+    targetBitRate: 2_500_000,
+    enableAudio: false,
+  });
   // Done keeps the workout; leaving without it discards it.
   const session = useActorRef(workoutSession, {
     input: { challenge, workoutId, target, start, video, record: true, onPose },

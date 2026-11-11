@@ -11,6 +11,7 @@ Signing in with Google, once, before anything else; the session with our server 
 | `consent.ts`                    | `consent`: the question after sign-in, once per account; `setSharing`, `tellWithdrawal` |
 | `me.ts`                         | `me`: Profile's sharing switch, Sign out and Delete account                             |
 | `sync.ts`                       | `send` the outbox, `sync` (send, then pull), `restored`; what sign-out would lose       |
+| `share-traces.ts`               | `shareTraces`: traces recorded while sharing was on go up once their workout has synced |
 | `store.ts`                      | `keepAccount` (one account per database), `markSignedOut`, `forgetAccount`, old files   |
 | `components/sign-in-screen.tsx` | the first launch (canvas board 21a): why the app, Google's dark button                  |
 | `components/consent-screen.tsx` | the consent question (board 22b): what you share, what stays, how to stop               |
@@ -30,8 +31,13 @@ machine's child) before seeding, and `checkSession` once `ready` (it only ever u
 Right after sign-in, `consent` asks once whether you share your traces (the points the camera tracks,
 never video) to train the counter. It isn't asked when this phone has the answer (`storage/consent.ts`)
 or the server has a yes for this policy version from any phone. Yes needs the server, which keeps the
-proof; Not now is kept on the phone only. Profile's switch changes it later, and trace files record the
-answer at capture.
+proof; Not now is kept on the phone only. Profile's switch changes it later; turning it on shows the
+same facts first, and Cancel turns nothing on. A trace records the answer in force when its set started,
+which decides its folder: `pending/` to be shared, `private/` never.
+
+After each sync round, `shareTraces` sends the traces in `pending/` whose workout the server has, one at a
+time, while sharing is still on, and moves each to `sent/`. One the server can't read moves to `unread/`.
+Turning sharing off stops them; the server deletes what was shared when it hears the withdrawal.
 
 Delete account (Profile) needs the server: once it has deleted the account, startup clears the
 database and the account's folder (`forgetAccount`) and shows the sign-in screen, which ends the old

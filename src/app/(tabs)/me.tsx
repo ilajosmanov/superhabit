@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { Avatar } from '@/account/components/avatar';
+import { SHARING_FACTS } from '@/account/components/consent-screen';
 import { me } from '@/account/me';
 import { useLeave } from '@/bootstrap/leave';
 import { useLibrary } from '@/challenges/library-live';
@@ -75,6 +76,16 @@ export default function MeScreen() {
           onPress={() => setAsking('delete')}
         />
       </View>
+      {state.matches('confirming') && (
+        <ConfirmDialog
+          title="Train the coach?"
+          text={SHARING_FACTS.map(({ title, text }) => `${title}: ${text}`).join('\n\n')}
+          action="Count me in"
+          warn={false}
+          onConfirm={() => send({ type: 'agree' })}
+          onCancel={() => send({ type: 'cancel' })}
+        />
+      )}
       {asking === 'signOut' && (
         <ConfirmDialog
           title="Sign out?"

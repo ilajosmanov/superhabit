@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, lt } from 'drizzle-orm';
 import Constants from 'expo-constants';
 
 import { db } from '@/storage/database';
@@ -7,7 +7,7 @@ import { sets, workouts } from '@/storage/schema';
 import { deleteTraces, deleteVideos, listVideos, removeVideo } from '@/storage/set-files';
 import { discardTraceWrites } from '@/workout/capture/recorder-file';
 import { discardVideoWrites } from '@/workout/capture/camcorder';
-import { today } from '@/workout/plan/day';
+import { addDays, today, type Day } from '@/workout/plan/day';
 import type { StepResult } from '@/workout/plan/results';
 
 /** The run and version a workout counts toward; both null for a free log (one go at an exercise). */
@@ -127,6 +127,21 @@ export function saveOpenWorkout(id: string) {
 /** Whole tables for live readers; each subscription follows its own table's changes. */
 export const workoutRows = () => db().query.workouts.findMany();
 export const setRows = () => db().query.sets.findMany();
+
+/** Days a done workout keeps its videos; its counts and traces stay. */
+const VIDEO_DAYS = 30;
+
+/** Deletes the videos of done workouts more than 30 days before `today`: the only automatic deletion. */
+// shortcut: selects every old set each day and lists the videos folder; keep a pruned-up-to day if it slows.
+export function deleteOldVideos(day: Day) {
+  const old = db()
+    .select({ id: sets.id })
+    .from(sets)
+    .innerJoin(workouts, eq(workouts.id, sets.workoutId))
+    .where(and(eq(workouts.status, 'done'), lt(workouts.day, addDays(day, -VIDEO_DAYS))))
+    .all();
+  deleteVideos(old.map((row) => row.id));
+}
 
 /** At startup only, before any session runs; open workouts' sets must keep their videos for Save. */
 export function deleteOrphanVideos() {

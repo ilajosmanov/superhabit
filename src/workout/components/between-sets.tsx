@@ -29,7 +29,14 @@ export function BetweenSets({
   const amount = unit === 'seconds' ? view.heldS : view.reps;
   const target = unit === 'seconds' ? view.goalS : view.target;
   const close = <CloseButton onPress={onEnd} label="End challenge" />;
-  const clock = <Clock elapsedS={view.elapsedS} recording={view.recording} waiting={false} />;
+  const clock = (
+    <Clock
+      elapsedS={view.elapsedS}
+      recording={view.recording}
+      waiting={false}
+      lowSpace={view.lowSpace}
+    />
+  );
   return (
     <>
       <View className="absolute inset-0 bg-ground/70" />

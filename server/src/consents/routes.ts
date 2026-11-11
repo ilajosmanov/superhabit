@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 
 import { signedIn } from '../auth/signed-in';
 import type { SignedInRoute } from '../env';
+import { dropTraces, sharesTraces } from '../traces/store';
 import { setConsent, type ConsentKind } from './store';
 
 /** `{ kind, policyVersion, granted }` from a request body, or null when it isn't one. */
@@ -19,10 +20,20 @@ function consentChange(
 }
 
 export const consentRoutes = new Hono<SignedInRoute>()
-  /** Gives or withdraws a consent: `{ kind: 'traces' | 'video', policyVersion, granted }`. */
+  /**
+   * Gives or withdraws a consent: `{ kind: 'traces' | 'video', policyVersion, granted }`. Withdrawing
+   * traces deletes those shared.
+   */
   .put('/consent', signedIn, async (c) => {
     const change = consentChange(await c.req.json().catch(() => null));
     if (!change) return c.json({ error: 'expected { kind, policyVersion, granted }' }, 400);
-    await setConsent(c.var.db, c.var.userId, change);
+    const { db, userId } = c.var;
+    // Sharing again after a withdrawal whose deletion failed: those traces go before the new grant.
+    if (change.kind === 'traces' && change.granted && !(await sharesTraces(db, userId))) {
+      await dropTraces(db, c.env.TRACES, userId);
+    }
+    await setConsent(db, userId, change);
+    // What was shared goes with the consent; the daily sweep catches a deletion that fails here.
+    if (change.kind === 'traces' && !change.granted) await dropTraces(db, c.env.TRACES, userId);
     return c.body(null, 204);
   });

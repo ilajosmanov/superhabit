@@ -1,4 +1,5 @@
-import { assign, fromPromise, setup } from 'xstate';
+import { addDatabaseChangeListener } from 'expo-sqlite';
+import { assign, fromCallback, fromPromise, setup } from 'xstate';
 
 import { authClient } from './auth-client';
 import { setSharing, sharingNow, whyFailed, type ConsentError } from './consent';
@@ -21,12 +22,20 @@ const signingOut = fromPromise<number, boolean>(async ({ input: anyway }) => {
   return anyway ? 0 : refused();
 });
 
+// Sharing can change behind the screen: the server said it was turned off on another phone (`heardOff`).
+const settingsChanged = fromCallback(({ sendBack }) => {
+  const listener = addDatabaseChangeListener(({ tableName }) => {
+    if (tableName === 'settings') sendBack({ type: 'reread' });
+  });
+  return () => listener.remove();
+});
+
 type Failure = { about: 'sharing' | 'deleting' | 'signingOut'; why: ConsentError };
 
 /**
- * Profile's account controls, one call at a time (the switch is off while one runs). The switch shows its
- * new place at once; turning sharing on goes back if the server didn't take it (turning it off never
- * fails: `setSharing`). Delete account:
+ * Profile's account controls, one call at a time (the switch is off while one runs). Turning sharing on
+ * first shows what's shared (`confirming`: agree or cancel). The switch shows its new place at once; on
+ * goes back if the server didn't take it (turning it off never fails: `setSharing`). Delete account:
  * once the server has deleted it, `deleted` (provided by the screen) hands over to startup, which clears
  * the phone. Sign out first sends what's waiting, so the database can be cleared: offline it waits for the
  * internet, and changes the server refused are named and need `anyway`; then `signedOut` hands over.
@@ -41,30 +50,51 @@ export const me = setup<
     /** Workouts a failed sign-out couldn't send. */
     unsent: number;
   },
-  { type: 'share'; on: boolean } | { type: 'delete' } | { type: 'signOut'; anyway?: boolean },
+  | { type: 'share'; on: boolean }
+  | { type: 'agree' }
+  | { type: 'cancel' }
+  | { type: 'delete' }
+  | { type: 'signOut'; anyway?: boolean }
+  | { type: 'reread' },
   {
     sharing: typeof sharing;
     deleting: typeof deleting;
     signingOut: typeof signingOut;
     whyFailed: typeof whyFailed;
+    settingsChanged: typeof settingsChanged;
   },
   {},
   { deleted: undefined; signedOut: undefined }
 >({
-  actors: { sharing, deleting, signingOut, whyFailed },
+  actors: { sharing, deleting, signingOut, whyFailed, settingsChanged },
   actions: { deleted: () => {}, signedOut: () => {} },
 }).createMachine({
   context: () => ({ sharing: sharingNow(), error: null, refused: 0, unsent: 0 }),
+  invoke: { src: 'settingsChanged' },
   initial: 'idle',
   states: {
     idle: {
+      // What this phone keeps, after a call, or a change heard while one ran.
+      entry: assign({ sharing: () => sharingNow() }),
       on: {
-        share: {
-          target: 'sharing',
-          actions: assign({ sharing: ({ event }) => event.on, error: null }),
-        },
+        reread: { target: 'idle', reenter: true },
+        share: [
+          // Turning it on first shows what's shared, as the first question did.
+          {
+            guard: ({ event }) => event.on,
+            target: 'confirming',
+            actions: assign({ error: null }),
+          },
+          { target: 'sharing', actions: assign({ sharing: false, error: null }) },
+        ],
         delete: { target: 'deleting', actions: assign({ error: null }) },
         signOut: { target: 'signingOut', actions: assign({ error: null }) },
+      },
+    },
+    confirming: {
+      on: {
+        agree: { target: 'sharing', actions: assign({ sharing: true }) },
+        cancel: 'idle',
       },
     },
     signingOut: {

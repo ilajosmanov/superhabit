@@ -23,6 +23,7 @@ export function LiveView(props: PlatterProps) {
       elapsedS={view.elapsedS}
       recording={view.recording}
       waiting={view.phase === 'waiting' && !view.started}
+      lowSpace={view.lowSpace}
     />
   );
 

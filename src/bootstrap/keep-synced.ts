@@ -4,6 +4,7 @@ import { AppState } from 'react-native';
 import { assign, fromCallback, fromPromise, setup } from 'xstate';
 
 import { SessionGone } from '@/account/server';
+import { shareTraces } from '@/account/share-traces';
 import { send, sync } from '@/account/sync';
 
 const FIRST_RETRY_MS = 5_000;
@@ -31,12 +32,16 @@ const listen = fromCallback(({ sendBack }) => {
   };
 });
 
-const round = fromPromise<void, boolean>(({ input: pull }) => (pull ? sync() : send()));
+// Then the traces whose workouts the server now has.
+const round = fromPromise<void, boolean>(async ({ input: pull }) => {
+  await (pull ? sync() : send());
+  await shareTraces();
+});
 
 /**
  * Keeps your account on the server up to date while you're signed in: sends and pulls at the start, when
  * the app comes back to the front and when the network does; sends a second after a change is queued (Done,
- * a join, a freeze). A failure tries again later, slower each time, up to 5 minutes apart, or at once on the
+ * a join, a freeze). Each round then shares the traces waiting to go. A failure tries again later, slower each time, up to 5 minutes apart, or at once on the
  * next kick; a session the server ended stops it until the next sign-in starts it again.
  *
  *   running --done--> idle --kick--> soon --1 s--> running

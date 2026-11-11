@@ -14,7 +14,7 @@ import { migrateDatabase } from '@/storage/database';
 import { keepFreezes } from '@/streak/store';
 import { today, type Day } from '@/workout/plan/day';
 import { recovery } from '@/workout/recovery';
-import { deleteOrphanVideos, findOpenWorkout } from '@/workout/store';
+import { deleteOldVideos, deleteOrphanVideos, findOpenWorkout } from '@/workout/store';
 
 type Context = {
   error: string;
@@ -37,7 +37,7 @@ type Context = {
  * Me) goes back to signing in; so does Delete account, once the phone is cleared. The splash stays up
  * until there is something to show; `error` stays set while a Retry runs. Each step lives with its owner; this only orders them.
  * It also keeps today for the screens (`dayClock`), from launch on, and once ready writes the freezes of
- * days that are over, at launch and at each new day. Until a pull has brought back what the server holds
+ * days that are over and deletes videos past 30 days, at launch and at each new day. Until a pull has brought back what the server holds
  * (a new phone, or signed in again), `restoring` tries it before Home; once ready, `keepSynced` sends and
  * pulls.
  *
@@ -71,7 +71,7 @@ export const startup = setup<
     keepSynced: typeof keepSynced;
   },
   { recovery: 'recovery'; signIn: 'signIn'; consent: 'consent' },
-  { hideSplash: undefined; fail: undefined; keepFreezes: undefined }
+  { hideSplash: undefined; fail: undefined; newDay: undefined }
 >({
   actors: {
     migrate: fromPromise(() => migrateDatabase()),
@@ -114,12 +114,18 @@ export const startup = setup<
       enqueue.assign({ splashHidden: true });
     }),
     fail: assign({ error: ({ event }) => ('error' in event ? String(event.error) : '') }),
-    keepFreezes: ({ context }) => {
+    // At launch and each new day: the freezes of days that are over, and videos past 30 days.
+    newDay: ({ context }) => {
       try {
         keepFreezes(context.today);
       } catch (error) {
         // Nothing is lost: the next launch or day writes them.
         console.warn('[streak] could not keep freezes', error);
+      }
+      try {
+        deleteOldVideos(context.today);
+      } catch (error) {
+        console.warn('[videos] could not delete old videos', error);
       }
     },
   },
@@ -199,7 +205,7 @@ export const startup = setup<
       },
     },
     ready: {
-      entry: ['hideSplash', 'keepFreezes'],
+      entry: ['hideSplash', 'newDay'],
       // Nothing the check meets may take the app down: offline, it just didn't happen.
       invoke: [
         {
@@ -211,7 +217,7 @@ export const startup = setup<
         { src: 'keepSynced' },
       ],
       on: {
-        day: { actions: [assign({ today: ({ event }) => event.day }), 'keepFreezes'] },
+        day: { actions: [assign({ today: ({ event }) => event.day }), 'newDay'] },
         signOut: 'signingOut',
         deleted: 'forgetting',
       },

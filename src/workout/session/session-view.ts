@@ -64,6 +64,8 @@ export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>) {
     camera: c.camera,
     /** The camera has a video output to film with; false for the rest of the session once it drops it. */
     filming: c.video !== undefined && !c.videoLost,
+    /** Too little free space: the session counts without filming, and says so. */
+    lowSpace: c.lowSpace,
     /** The last phrase the coach said (set even when muted); cleared ~3 s later. */
     caption: c.caption,
     /** Body parts out of frame while phase is 'waiting', ~1 s stable; [] when all in or not waiting. */

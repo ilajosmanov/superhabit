@@ -57,7 +57,10 @@ file back; it throws on anything but a whole, valid file.
 
 Videos: `documents/<userId()>/videos/<setId>-<i>.mp4`; `video_t_ms = t − videoAnchorMs`.
 
-`set-files.ts` owns these paths and `documents/<userId()>/traces/pending/<setId>.sht` (plus `.sht.tmp`).
+`set-files.ts` owns these paths and the traces: `documents/<userId()>/traces/<folder>/<setId>.sht` (plus
+`.sht.tmp` while written). The folder is the upload queue: `pending/` (recorded while sharing was on, not
+sent yet), `sent/`, `unread/` (the server couldn't read it) and `private/` (never leaves the phone).
+`roomToFilm` is false under 1 GB free: sets are then counted without filming.
 It knows no workout rules: callers choose which set ids to delete. `videosOf` lists existing files in
 numeric take order, preserving gaps, and omits sets whose native files are still reserved for writing.
 

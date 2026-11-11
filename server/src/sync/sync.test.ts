@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 
 import worker from '../index';
+import { done, push, set } from '../__fixtures__/outbox';
 import { ann, bob, call, carl, env, signIn } from '../__fixtures__/worker';
 
 // Outbox rows as the phone writes them (`src/storage/outbox.ts` and its callers), `v` included.
@@ -55,42 +56,6 @@ const leave = (id: string) => ({
   op: 'leave',
   payload: { endedOn: '2026-11-11', endReason: 'left', v: 1 },
 });
-const set = (workoutId: string, id: string, planStep: number) => ({
-  id,
-  workoutId,
-  planStep,
-  exercise: 'squat',
-  goal: { type: 'reps', n: 10 },
-  reps: 10,
-  noReps: 1,
-  heldMs: 0,
-  startedAt: 1_762_850_000_000,
-  endedAt: 1_762_850_060_000,
-  counterVersion: '1.0.0+ab12',
-  attempts: [{ startMs: 0, bottomMs: 900, endMs: 1800, counted: true, depth: 0.9, cue: null }],
-  metrics: null,
-});
-const done = (id: string, runId: string | null, setIds: string[]) => ({
-  entity: 'workout',
-  entityId: id,
-  op: 'done',
-  payload: {
-    workout: {
-      id,
-      runId,
-      versionId: null,
-      day: '2026-11-11',
-      status: 'done',
-      startedAt: 1_762_850_000_000,
-      endedAt: 1_762_850_300_000,
-      tzOffsetMin: 0,
-      tz: 'Europe/London',
-      appVersion: '1.0.0',
-      sets: setIds.map((setId, i) => set(id, setId, i * 2)),
-    },
-    v: 1,
-  },
-});
 const freeze = (day: string) => ({
   entity: 'streak_event',
   entityId: `used:${day}`,
@@ -98,15 +63,6 @@ const freeze = (day: string) => ({
   payload: { event: { id: `used:${day}`, day, kind: 'used', createdAt: 1_762_900_000_000 }, v: 1 },
 });
 
-type Results = { results: ({ ok: true } | { ok: false; reason: string })[] };
-async function push(cookie: string, changes: object[]) {
-  const response = await call('/sync', {
-    method: 'POST',
-    headers: { cookie, 'content-type': 'application/json' },
-    body: JSON.stringify({ changes }),
-  });
-  return response.ok ? response.json<Results>() : response.status;
-}
 type Page = {
   rows: { entity: string; row: Record<string, unknown> }[];
   cursor: number;

@@ -35,3 +35,7 @@ export function consentsGiven(): string[] {
   const answer = sharing();
   return answer?.traces ? [`traces@${answer.policyVersion}`] : [];
 }
+
+/** Whether a trace recorded under these consents may be shared. */
+export const coversTraces = (consent: readonly string[]) =>
+  consent.some((given) => given.startsWith('traces@'));

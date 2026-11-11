@@ -3,6 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { createActor, fromPromise } from 'xstate';
 
 import {
+  deleteOldVideos,
   deleteOrphanVideos,
   findOpenWorkout,
   logSet,
@@ -59,6 +60,28 @@ describe('a workout left open', () => {
     saveOpenWorkout('left');
     expect(files).toEqual(
       new Set(['document/local/videos/saved-set-0.mp4', 'document/local/videos/s0-0.mp4']),
+    );
+  });
+
+  it("keeps a day's videos 30 days; a workout still open keeps its own", () => {
+    const daysAgo = (n: number) => new Date(2026, 10, 11 - n, 12);
+    for (const [id, n] of [
+      ['old', 31],
+      ['kept', 30],
+    ] as const) {
+      const done = workoutStart(id, { runId: null, versionId: null }, daysAgo(n));
+      logSet(done, { ...set(0, daysAgo(n).getTime()), id: `${id}-set`, workoutId: id });
+      saveOpenWorkout(id);
+      files.add(`document/local/videos/${id}-set-0.mp4`);
+    }
+    const open = workoutStart('left', { runId: null, versionId: null }, daysAgo(40));
+    logSet(open, set(0, daysAgo(40).getTime()));
+    files.add('document/local/videos/s0-0.mp4');
+
+    deleteOldVideos('2026-11-11');
+
+    expect(files).toEqual(
+      new Set(['document/local/videos/kept-set-0.mp4', 'document/local/videos/s0-0.mp4']),
     );
   });
 

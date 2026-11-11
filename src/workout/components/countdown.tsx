@@ -36,7 +36,12 @@ export function Countdown({
         <View className="flex-1">
           <View className="flex-row items-center gap-2 self-start">
             <CloseButton onPress={onPause} label="Pause" />
-            <Clock elapsedS={view.elapsedS} recording={view.recording} waiting={false} />
+            <Clock
+              elapsedS={view.elapsedS}
+              recording={view.recording}
+              waiting={false}
+              lowSpace={view.lowSpace}
+            />
           </View>
           <Text
             importantForAccessibility="no"

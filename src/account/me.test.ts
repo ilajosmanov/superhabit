@@ -17,6 +17,16 @@ vi.mock('expo-network', () => ({
   getNetworkStateAsync: async () => ({ isInternetReachable: fake.reachable() }),
 }));
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
+// The phone's database tells of each change, as expo-sqlite does.
+const changes = vi.hoisted(() => ({
+  listeners: new Set<(change: { tableName: string }) => void>(),
+}));
+vi.mock('expo-sqlite', () => ({
+  addDatabaseChangeListener: (listener: (change: { tableName: string }) => void) => {
+    changes.listeners.add(listener);
+    return { remove: () => changes.listeners.delete(listener) };
+  },
+}));
 
 /** The server's answers: `/me` with these consents, and yes to everything else. */
 function server(consents: { kind: string; policyVersion: string }[] = []) {
@@ -35,6 +45,7 @@ describe('the profile page', () => {
     db().delete(settings).run();
     db().delete(outbox).run();
     fake.fetch.mockReset();
+    changes.listeners.clear();
     fake.reachable.mockReturnValue(true);
   });
 
@@ -49,14 +60,46 @@ describe('the profile page', () => {
     expect(consentsGiven()).toEqual([]);
     expect(db().select().from(outbox).all()).toEqual([]);
 
+    // Cancelling what's shared turns nothing on.
+    actor.send({ type: 'share', on: true });
+    actor.send({ type: 'cancel' });
+    expect(actor.getSnapshot().value).toBe('idle');
+    expect(actor.getSnapshot().context.sharing).toBe(false);
+    expect(sent()).toHaveLength(1);
+
     fake.fetch.mockResolvedValue({ data: null, error: { status: 500, message: 'down' } });
     actor.send({ type: 'share', on: true });
+    actor.send({ type: 'agree' });
     const after = await waitFor(actor, (s) => s.matches('idle'));
     expect(after.context).toMatchObject({
       sharing: false,
       error: { about: 'sharing', why: 'failed' },
     });
     expect(consentsGiven()).toEqual([]);
+  });
+
+  it('shows sharing off once this phone hears it was turned off elsewhere', () => {
+    answer(true);
+    const actor = createActor(me).start();
+    expect(actor.getSnapshot().context.sharing).toBe(true);
+    answer(false);
+    for (const listener of changes.listeners) listener({ tableName: 'settings' });
+    expect(actor.getSnapshot().context.sharing).toBe(false);
+    actor.stop();
+    expect(changes.listeners.size).toBe(0);
+  });
+
+  it('shows a change heard while a call ran once it ends', async () => {
+    answer(true);
+    let answerDelete: (answer: unknown) => void = () => {};
+    fake.fetch.mockImplementation(() => new Promise((resolve) => (answerDelete = resolve)));
+    const actor = createActor(me).start();
+    actor.send({ type: 'delete' });
+    answer(false);
+    for (const listener of changes.listeners) listener({ tableName: 'settings' });
+    answerDelete({ data: null, error: { status: 500, message: 'down' } });
+    const after = await waitFor(actor, (s) => s.matches('idle'));
+    expect(after.context.sharing).toBe(false);
   });
 
   it('turning sharing off offline stops it on this phone and queues it for the server', async () => {
@@ -74,6 +117,7 @@ describe('the profile page', () => {
     // Back online, sharing again: the queued withdrawal mustn't undo it later.
     server();
     actor.send({ type: 'share', on: true });
+    actor.send({ type: 'agree' });
     await waitFor(actor, (s) => s.matches('idle'));
     expect(consentsGiven()).toEqual([`traces@${POLICY_VERSION}`]);
     expect(db().select().from(outbox).all()).toEqual([]);

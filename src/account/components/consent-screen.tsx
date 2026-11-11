@@ -12,6 +12,25 @@ import { PrimaryButton } from '@/components/primary-button';
 import { TextButton } from '@/components/text-button';
 import { colors } from '@/theme';
 
+/** What sharing means, here and when Profile's switch turns it on. */
+export const SHARING_FACTS = [
+  {
+    icon: 'scatter_plot',
+    title: 'What you share',
+    text: 'The points the camera tracks on your body, rep by rep.',
+  },
+  {
+    icon: 'videocam_off',
+    title: 'What stays here',
+    text: 'Videos and photos of you. They never leave this phone.',
+  },
+  {
+    icon: 'toggle_off',
+    title: 'Yours to stop',
+    text: "Turn it off in your profile, and what you've shared is deleted.",
+  },
+] as const satisfies readonly { icon: AndroidSymbol; title: string; text: string }[];
+
 /** Right after the first sign-in (board 22b, with 22a's drawing): share your traces? What goes, what stays, how to stop. */
 export function ConsentScreen({ consent: actor }: { consent: ActorRefFrom<typeof consent> }) {
   const { top, bottom } = useSafeAreaInsets();
@@ -56,22 +75,9 @@ export function ConsentScreen({ consent: actor }: { consent: ActorRefFrom<typeof
           </Text>
         </View>
         <View className="gap-6 border-t border-line pt-6">
-          <Point
-            icon="scatter_plot"
-            color={colors.accent}
-            title="What you share"
-            text="The points the camera tracks on your body, rep by rep."
-          />
-          <Point
-            icon="videocam_off"
-            title="What stays here"
-            text="Videos and photos of you. They never leave this phone."
-          />
-          <Point
-            icon="toggle_off"
-            title="Yours to stop"
-            text="Turn it off in your profile, and what you've shared is deleted."
-          />
+          {SHARING_FACTS.map((fact, i) => (
+            <Point key={fact.title} {...fact} color={i === 0 ? colors.accent : undefined} />
+          ))}
         </View>
       </ScrollView>
 

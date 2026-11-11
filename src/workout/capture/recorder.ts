@@ -65,6 +65,8 @@ export const recorder = fromCallback<RecorderEvent, { on: boolean }>(({ input, r
   let t0: number | null = null;
   /** The window keeps no trace: it ran too long, or a frame couldn't be kept. */
   let lost = false;
+  /** The consents in force when the set started: they decide whether its trace may be shared. */
+  let consent: string[] = [];
   const drop = () => {
     window = null;
     trace = traceBuilder();
@@ -76,6 +78,7 @@ export const recorder = fromCallback<RecorderEvent, { on: boolean }>(({ input, r
     lastT = -1;
     t0 = null;
     lost = false;
+    consent = [];
   };
   const lose = () => {
     lost = true;
@@ -91,7 +94,10 @@ export const recorder = fromCallback<RecorderEvent, { on: boolean }>(({ input, r
 
   receive((event) => {
     if (event.type === 'stage') {
-      if (window?.setId !== event.setId) drop();
+      if (window?.setId !== event.setId) {
+        drop();
+        consent = consentsGiven();
+      }
       window = event;
       mark(event.kind);
     } else if (event.type === 'takeStart') {
@@ -166,7 +172,7 @@ export const recorder = fromCallback<RecorderEvent, { on: boolean }>(({ input, r
             },
             stretches,
             takes,
-            consent: consentsGiven(),
+            consent,
             counted: event.counted,
             labels: {},
           },

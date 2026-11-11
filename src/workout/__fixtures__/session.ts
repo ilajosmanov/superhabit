@@ -100,7 +100,13 @@ export const modules = {
   },
   'expo-speech': { speak, stop: vi.fn() },
   'expo-file-system': {
-    Paths: { cache: { uri: 'cache' }, document: { uri: 'document' } },
+    Paths: {
+      cache: { uri: 'cache' },
+      document: { uri: 'document' },
+      get availableDiskSpace() {
+        return disk.free;
+      },
+    },
     Directory: FakeDirectory,
     File: class {
       constructor(dir: FakeDirectory, name: string) {
@@ -177,6 +183,8 @@ type Take = {
 };
 // The fake camera video output, like VisionCamera on CameraX: a take's file appears once it has started,
 // is final a tick after the recording ends (or once released from `finalizer.held`), and stopping a recording that has ended rejects.
+/** The phone's free space, in bytes. */
+export const disk = { free: 64 * 1024 ** 3 };
 export const takes: Take[] = [];
 /** While `held` is a list, finished files wait in it until the test calls them (CameraX is slow). */
 export const finalizer: { held: (() => void)[] | null } = { held: null };
@@ -234,6 +242,7 @@ export const stops = () => takes.map((t) => t.stopped);
 /** After each test: real timers, and no takes, files or workouts left from it. */
 export function reset() {
   vi.useRealTimers();
+  disk.free = 64 * 1024 ** 3;
   takes.length = 0;
   finalizer.held = null;
   stuck.clear();

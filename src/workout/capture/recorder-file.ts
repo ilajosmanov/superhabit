@@ -1,5 +1,6 @@
 import { writeGzip } from 'superhabit-gzip-file';
 
+import { coversTraces } from '@/storage/consent';
 import { sweepTraceTemps, traceFolder, traceTemp } from '@/storage/set-files';
 import type { TraceBuilder, TraceInfo } from '@/storage/trace-file';
 
@@ -24,7 +25,7 @@ export async function writeTrace(info: TraceInfo, trace: TraceBuilder) {
   jobs.set(info.setId, job);
   try {
     // Whose set it is now: a sign-out before it lands must not move it to the next account's folder.
-    const folder = traceFolder();
+    const folder = traceFolder(coversTraces(info.consent));
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
     );

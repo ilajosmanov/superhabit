@@ -81,27 +81,44 @@ export function Chip({
   );
 }
 
-/** Elapsed time; a REC dot while a take is filming, "NOT RECORDING" while waiting for the start position. */
+/**
+ * Elapsed time; a REC dot while a take is filming, "NOT RECORDING" while waiting for the start position,
+ * "LOW STORAGE" when the session counts without filming.
+ */
 export function Clock({
   elapsedS,
   recording,
   waiting,
+  lowSpace = false,
 }: {
   elapsedS: number;
   recording: boolean;
   waiting: boolean;
+  lowSpace?: boolean;
 }) {
   const time = mss(elapsedS);
-  const text = recording ? `REC ${time}` : waiting ? 'NOT RECORDING' : time;
+  const text = recording
+    ? `REC ${time}`
+    : lowSpace
+      ? `LOW STORAGE ${time}`
+      : waiting
+        ? 'NOT RECORDING'
+        : time;
   return (
     <View
       accessible
-      accessibilityLabel={recording ? `Recording, ${time}` : text}
+      accessibilityLabel={
+        recording
+          ? `Recording, ${time}`
+          : lowSpace
+            ? `Storage nearly full, counting without filming, ${time}`
+            : text
+      }
       className={`h-8 flex-row items-center gap-2 rounded-full px-3 ${GLASS}`}
     >
       {recording && <View className="size-2 rounded-full bg-warn" />}
       <Text
-        className={`font-mono text-sm tracking-widest ${recording || !waiting ? 'text-chalk' : 'text-muted'}`}
+        className={`font-mono text-sm tracking-widest ${recording || lowSpace || !waiting ? 'text-chalk' : 'text-muted'}`}
       >
         {text}
       </Text>

@@ -170,3 +170,20 @@ export const changes = sqliteTable(
     index('changes_pull').on(t.userId, t.seq),
   ],
 );
+
+/**
+ * Traces shared to train the counter (piece 6): one row per file in the R2 bucket `TRACES`, at
+ * `traces/<user>/<set>.sht`, so every file has one to find it by. `write_id` changes with each upload:
+ * a deletion removes only the rows it read, never one an upload stamped after its file landed.
+ */
+export const traces = sqliteTable(
+  'traces',
+  {
+    userId: text('user_id').notNull(),
+    setId: text('set_id').notNull(),
+    writeId: text('write_id').notNull(),
+    bytes: integer('bytes').notNull(),
+    uploadedAt: integer('uploaded_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.setId] })],
+);

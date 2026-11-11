@@ -15,7 +15,7 @@
   "ratelimits": [
     { "name": "AUTH_LIMIT", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } },
   ],
-  // The daily purge of deleted accounts.
+  // Daily: traces no longer shared, then the purge of deleted accounts.
   "triggers": { "crons": ["0 4 * * *"] },
   "observability": { "enabled": true },
   "d1_databases": [
@@ -26,4 +26,6 @@
       "database_id": "d685360b-811c-4fbb-a26e-f3ba0277db58",
     },
   ],
+  // Shared traces (piece 6). Created with --location enam, like the database.
+  "r2_buckets": [{ "binding": "TRACES", "bucket_name": "superhabit-traces" }],
 }

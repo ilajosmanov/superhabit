@@ -81,8 +81,9 @@ export async function googleToken(who: Person, aud: string = env.GOOGLE_CLIENT_I
 }
 
 // No `cf-connecting-ip`: every sign-in of a test file counts toward one limit of 30 a minute.
-export const call = (path: string, init: RequestInit = {}) =>
-  worker.fetch(new Request(`${env.BETTER_AUTH_URL}${path}`, init), env, proxy.ctx);
+/** A request to the Worker; `bindings` stands in for a binding that fails or waits. */
+export const call = (path: string, init: RequestInit = {}, bindings: typeof env = env) =>
+  worker.fetch(new Request(`${env.BETTER_AUTH_URL}${path}`, init), bindings, proxy.ctx);
 
 /** Signs in as the phone does; the session cookie, or null when refused. */
 export async function trySignIn(token: string) {

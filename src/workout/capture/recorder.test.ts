@@ -8,6 +8,7 @@ import { body, detection } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
 import { replay, toPose } from '@/exercises/__fixtures__/replay';
 import { COUNTER_VERSIONS, EXERCISES } from '@/exercises/registry';
+import { writeSharing } from '@/storage/consent';
 import { decodeTrace } from '@/storage/trace-file';
 
 import {
@@ -36,6 +37,7 @@ import {
   written,
 } from '@/workout/__fixtures__/session';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
+import { db as database } from '@/storage/database';
 import * as schema from '@/storage/schema';
 
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
@@ -130,7 +132,7 @@ describe('set traces', () => {
     await flush();
     expect(files).toEqual(
       new Set([
-        `document/local/traces/pending/${setId}.sht`,
+        `document/local/traces/private/${setId}.sht`,
         `document/local/videos/${setId}-0.mp4`,
         `document/local/videos/${setId}-1.mp4`,
       ]),
@@ -154,10 +156,31 @@ describe('set traces', () => {
       .run();
     try {
       await flush();
-      expect(files).toContain(`document/local/traces/pending/${setId}.sht`);
+      expect(files).toContain(`document/local/traces/private/${setId}.sht`);
     } finally {
       actor.stop();
       db().update(schema.settings).set({ value: kept?.value }).where(account).run();
+    }
+  });
+
+  it('shares a set only if sharing was on as it started, though turned off before it ends', async () => {
+    const share = (traces: boolean) =>
+      database().transaction((tx) => writeSharing(tx, { traces, policyVersion: '1' }));
+    share(true);
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: squatTest, record: true },
+    }).start();
+    const setId = actor.getSnapshot().context.setId;
+    try {
+      play(body({}));
+      share(false);
+      actor.send({ type: 'end' });
+      await flush();
+      expect(files).toContain(`document/local/traces/pending/${setId}.sht`);
+      expect(decodeTrace(written[0].bytes).header.consent).toEqual(['traces@1']);
+    } finally {
+      actor.stop();
+      db().delete(schema.settings).where(eq(schema.settings.key, 'consent')).run();
     }
   });
 
@@ -279,8 +302,8 @@ describe('set traces', () => {
     }
     expect(files).toEqual(
       new Set([
-        `document/local/traces/pending/${firstId}.sht`,
-        `document/local/traces/pending/${secondId}.sht`,
+        `document/local/traces/private/${firstId}.sht`,
+        `document/local/traces/private/${secondId}.sht`,
       ]),
     );
     const trace = decodeTrace(
@@ -342,7 +365,7 @@ describe('set traces', () => {
     actor.send({ type: 'save' });
     actor.stop(); // A kept set's write outlives the session.
     await flush();
-    expect(files).toEqual(new Set([`document/local/traces/pending/${setId}.sht`]));
+    expect(files).toEqual(new Set([`document/local/traces/private/${setId}.sht`]));
     expect(written).toHaveLength(1);
     expect(written[0].name).toBe(`${setId}.sht.tmp`);
     const trace = decodeTrace(written[0].bytes);
@@ -405,7 +428,7 @@ describe('set traces', () => {
     expect(files.size).toBe(0);
     land();
     await flush();
-    expect(files).toEqual(new Set([`document/local/traces/pending/${setId}.sht`]));
+    expect(files).toEqual(new Set([`document/local/traces/private/${setId}.sht`]));
     actor.stop();
   });
 
@@ -439,7 +462,7 @@ describe('set traces', () => {
         stage: 'finished',
         results: [{ reps: 1 }, { reps: 1 }],
       });
-      expect(files.has(`document/local/traces/pending/${nextId}.sht`)).toBe(true);
+      expect(files.has(`document/local/traces/private/${nextId}.sht`)).toBe(true);
       const trace = decodeTrace(written.at(-1)?.bytes ?? new Uint8Array());
       expect(trace.header.exercise).toBe('pushup');
       expect(replay(EXERCISES.pushup, trace).reps).toBe(1);
@@ -468,7 +491,7 @@ describe('set traces', () => {
     expect(setId).not.toBe(oldId);
     expect(files).toEqual(
       new Set([
-        `document/local/traces/pending/${setId}.sht`,
+        `document/local/traces/private/${setId}.sht`,
         `document/local/videos/${setId}-0.mp4`,
       ]),
     );

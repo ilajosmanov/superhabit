@@ -22,6 +22,7 @@ import { EXERCISES, initialCounters, orientation } from '@/exercises/registry';
 
 import { finishSet, type StepResult } from '@/workout/plan/results';
 import { camcorder, type VideoOutput } from '@/workout/capture/camcorder';
+import { roomToFilm } from '@/storage/set-files';
 import { appAway, type AwayEvent } from './app-away';
 import { workoutLog } from '@/workout/log';
 import type { LogTarget } from '@/workout/store';
@@ -81,6 +82,8 @@ type Context = Counting & {
   record: boolean;
   /** The camera dropped the video output: nothing more is filmed this session. */
   videoLost: boolean;
+  /** Too little free space at the start: the session counts without filming. */
+  lowSpace: boolean;
   stepS: number;
   stepStartedAt: number | null;
   workoutId: string;
@@ -336,37 +339,41 @@ const ADVANCE = [
 ] satisfies Parameters<typeof session.createStateConfig>[0]['always'];
 
 export const workoutSession = session.createMachine({
-  context: ({ input }) => ({
-    ...freshSet(),
-    workoutId: input.workoutId,
-    target: input.target,
-    start: input.start,
-    landmarker: null,
-    onPose: input.onPose,
-    video: input.video,
-    videoLost: false,
-    record: input.record ?? false,
-    steps: expand(input.challenge.session),
-    step: 0,
-    stepS: 0,
-    countdown: COUNTDOWN_S,
-    reachedEnd: false,
-    elapsedS: 0,
-    muted: false,
-    skeleton: true,
-    camera: 'front',
-    flipPending: false,
-    caption: null,
-    flash: null,
-    results: [],
-    take: null,
-    final: false,
-    saved: false,
-    discarded: false,
-    away: false,
-    broken: null,
-    cameraTry: 0,
-  }),
+  context: ({ input }) => {
+    const lowSpace = input.video !== undefined && !roomToFilm();
+    return {
+      ...freshSet(),
+      workoutId: input.workoutId,
+      target: input.target,
+      start: input.start,
+      landmarker: null,
+      onPose: input.onPose,
+      video: lowSpace ? undefined : input.video,
+      videoLost: false,
+      lowSpace,
+      record: input.record ?? false,
+      steps: expand(input.challenge.session),
+      step: 0,
+      stepS: 0,
+      countdown: COUNTDOWN_S,
+      reachedEnd: false,
+      elapsedS: 0,
+      muted: false,
+      skeleton: true,
+      camera: 'front',
+      flipPending: false,
+      caption: null,
+      flash: null,
+      results: [],
+      take: null,
+      final: false,
+      saved: false,
+      discarded: false,
+      away: false,
+      broken: null,
+      cameraTry: 0,
+    };
+  },
   invoke: [
     { src: 'landmarker' },
     { src: 'away' },

@@ -89,6 +89,17 @@ async function withdraw() {
   if (account()?.id === owner) db().delete(outbox).where(queued).run();
 }
 
+/**
+ * The server answered that sharing is off (withdrawn on another phone): this phone stops too, once `/me`
+ * agrees, in turn with `setSharing`, so a yes on its way isn't undone. Nothing is queued: the server has it.
+ */
+export const heardOff = () =>
+  inTurn(async () => {
+    const owner = account()?.id;
+    if (await givenBefore()) return;
+    if (account()?.id === owner && sharingNow()) keep(false);
+  });
+
 /** Sync's turn: a withdrawal made offline reaches the server; throws when it can't. */
 export const tellWithdrawal = () => inTurn(withdraw);
 

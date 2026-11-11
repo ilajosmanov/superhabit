@@ -9,6 +9,7 @@ vi.mock('expo-network', () => ({}));
 vi.mock('expo-sqlite', () => ({}));
 vi.mock('react-native', () => ({}));
 vi.mock('@/account/sync', () => ({}));
+vi.mock('@/account/share-traces', () => ({}));
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 

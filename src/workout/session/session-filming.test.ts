@@ -6,6 +6,7 @@ import { body } from '@/exercises/__fixtures__/body';
 import { plank } from '@/exercises/__fixtures__/plank';
 import {
   challenge,
+  disk,
   files,
   finalizer,
   flush,
@@ -39,6 +40,17 @@ beforeAll(migrateDatabase);
 afterEach(reset);
 
 describe('workoutSession filming', () => {
+  it('counts without filming when the phone has under 1 GB free, and says so', async () => {
+    disk.free = 900 * 1024 ** 2;
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge, video } }).start();
+    const view = () => sessionView(actor.getSnapshot());
+    play(body({}), body({ thigh: 70, shin: 25 }), body({}));
+    await flush();
+    expect(view()).toMatchObject({ lowSpace: true, filming: false, results: [{ reps: 1 }] });
+    expect(takes).toHaveLength(0);
+    actor.stop();
+  });
+
   it('films each set from the start position into its own file and keeps every file on the phone', async () => {
     const actor = createActor(workoutSession, { input: { ...LOG, challenge, video } }).start();
     const view = () => sessionView(actor.getSnapshot());
