@@ -90,8 +90,9 @@ const reading = fromPromise(async (): Promise<'answered' | 'ask'> => {
   return 'answered';
 });
 const saving = fromPromise(async () => setSharing(true));
-// shortcut: after a new policy, a yes under the old one stays on the server; piece 6 uploads only under
-// the current policy's grant.
+// shortcut: after a new policy, a yes under the old one stays on the server with the traces it shared
+// (nothing new goes up: uploads need the current policy's yes). Decide whether Not now withdraws it before
+// `POLICY_VERSION` first changes for real users.
 const notNow = fromPromise(async () => keep(false));
 
 /**

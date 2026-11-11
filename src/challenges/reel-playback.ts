@@ -220,7 +220,7 @@ export const reelPlayback = setup<
       { target: '.playing', actions: 'advance' },
     ],
     // shortcut: a drag held over a missing file reloads it on every move; fine while files go missing only
-    // by hand.
+    // by hand. Remember the missing one if `[reel] a file is missing` ever shows in logs.
     failed: [
       { guard: not('front'), actions: 'mark' },
       { guard: 'spent', actions: 'giveUp' },

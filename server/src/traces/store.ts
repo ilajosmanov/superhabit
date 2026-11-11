@@ -101,7 +101,8 @@ const of = (userId: string, rows: { setId: string; writeId: string }[]) =>
 
 /** Deletes every trace of the account: the files, then the rows as read. */
 // shortcut: a deletion that read its rows before sharing was given again can still delete the key of a
-// file uploaded since, leaving its row with no file (a trace lost, nothing kept); fine while rare.
+// file uploaded since, leaving its row with no file (a trace lost, nothing kept). Nothing reads the files
+// yet: have the training export skip a row without a file.
 export async function dropTraces(db: Db, bucket: R2Bucket, userId: string) {
   const kept = await db
     .select({ setId: traces.setId, writeId: traces.writeId })

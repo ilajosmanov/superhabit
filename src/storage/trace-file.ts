@@ -332,8 +332,8 @@ function parseHeader(bytes: Uint8Array): TraceHeader {
 /** A `.sht` file back into its header and frames; throws on anything but a whole, valid file. */
 export function decodeTrace(file: Uint8Array): { header: TraceHeader; frames: RecordedFrame[] } {
   let bytes: Uint8Array;
-  // shortcut: fflate does not check the gzip CRC, so a flipped byte can decode as a plausible value;
-  // add a checksum before uploads feed training (piece 6).
+  // fflate does not check the gzip CRC, so a flipped byte can decode as a plausible value: fine for tests
+  // and tools, the only readers here. The server checks every upload (`readHeader`).
   try {
     bytes = gunzipSync(file);
   } catch (cause) {

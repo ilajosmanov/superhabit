@@ -58,7 +58,8 @@ export async function endSession() {
  * same account to send at its next sign-in (`byYou`: that sign-in screen doesn't say the session ended).
  * The sign-in screen then ends the session (`signIn` with `leaving`).
  */
-// shortcut: signed out offline (nothing was waiting), the server's session lives on until it expires.
+// Signed out offline, the server's session stays until it expires (a year), but nothing holds it: Better
+// Auth's Expo plugin clears the phone's cookie before the sign-out call goes.
 export const signOut = fromPromise(async () =>
   unsent() > 0 ? markSignedOut(true) : clearSignedOut(),
 );

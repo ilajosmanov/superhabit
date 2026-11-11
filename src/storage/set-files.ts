@@ -72,7 +72,7 @@ export function listVideos() {
  * what exists rather than counting up. A set still filming or finalizing is left out: its file isn't
  * playable yet.
  */
-// shortcut: lists the whole videos folder (30 days of videos); fine once per day shown.
+// Lists the whole videos folder, once per day shown: retention keeps it to 30 days of videos.
 export function videosOf(setIds: readonly string[]) {
   const ids = new Set(setIds.filter((setId) => !writingVideos.has(setId)));
   const videos = new Map<string, string[]>();

@@ -29,9 +29,9 @@ export function replacing(next: Account): string | null {
 }
 
 /**
- * Keeps the account that just signed in. The database holds one account's data: another account's (or what
- * was kept before accounts existed) is cleared first, in the same transaction. Files stay in their account's
- * folder, named by its id, for when it signs in again.
+ * Keeps the account that just signed in. The database holds one account's data: another account's is
+ * cleared first, in the same transaction. Files stay in their account's folder, named by its id, for when
+ * it signs in again.
  */
 export function keepAccount(next: Account) {
   const before = account();
@@ -90,13 +90,6 @@ export function forgetAccount() {
     if (folder.exists) folder.delete();
   }
   db().transaction((tx) => clearDatabase(tx));
-}
-
-// shortcut: only phones from before accounts have it; remove after the first release.
-/** Deletes the files kept before accounts existed (`documents/local`); tried at each launch until gone. */
-export function dropPreAccountFiles() {
-  const local = new Directory(Paths.document, 'local');
-  if (local.exists) local.delete();
 }
 
 /** A withdrawal of sharing the server hasn't heard yet. */

@@ -5,7 +5,7 @@ import { dayClock, type DayEvent } from './day';
 import { keepSynced } from './keep-synced';
 import { answered, consent } from '@/account/consent';
 import { checkSession, signOut } from '@/account/session';
-import { dropPreAccountFiles, forgetAccount, markSignedOut } from '@/account/store';
+import { forgetAccount, markSignedOut } from '@/account/store';
 import { signIn } from '@/account/sign-in';
 import { restored, sync } from '@/account/sync';
 import { seed } from '@/challenges/library';
@@ -106,12 +106,6 @@ export const startup = setup<
     check: fromPromise(async () => {
       // Until then a video without a set may be one whose set a pull is still bringing back.
       if (restored()) deleteOrphanVideos();
-      try {
-        dropPreAccountFiles();
-      } catch (error) {
-        // Nothing depends on it: the next launch tries again.
-        console.warn('[account] could not delete the files from before accounts', error);
-      }
       return findOpenWorkout();
     }),
     recovery,
