@@ -28,6 +28,12 @@ The phone reaches Metro at `localhost:8081` through the USB cable, so changing n
 adb reverse tcp:8081 tcp:8081
 ```
 
+If the app hangs on the splash screen after you switch networks, it is still looking for Metro at an old Wi-Fi address (logcat shows `failed to connect to /<ip> (port 8081)`). Point it back at `localhost:8081` and restart it. Do this from the dev menu (Settings → Debug server host), or from the laptop:
+
+```bash
+adb shell "run-as com.ilajosmanov.superhabit sed -i 's/<old-ip>:8081/localhost:8081/' shared_prefs/com.ilajosmanov.superhabit_preferences.xml"
+```
+
 If the USB connection keeps dropping, connect over Wi-Fi instead. Open the dev menu (shake the phone), go to Settings → Debug server host, and enter `<laptop-ip>:8081` (find the IP with `ip -br addr`). Phone and laptop must be on the same network, with port 8081 open in the firewall. Update the host whenever the laptop's IP changes.
 
 To test without the cable, install a release build: it bundles the JavaScript, so it runs without Metro. Rebuild it after each code change. It builds only `arm64-v8a` (every current phone) to cut native compile time.
