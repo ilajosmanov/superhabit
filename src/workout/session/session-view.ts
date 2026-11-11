@@ -79,5 +79,9 @@ export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>) {
     final: c.final,
     /** A take is being filmed (the REC dot). */
     recording: c.take !== null,
+    /** Counting can't go on: 'camera' (Resume retries it) or 'tracking' (only End). */
+    broken: c.broken,
+    /** Changes on each camera retry: the camera mounts afresh. */
+    cameraTry: c.cameraTry,
   };
 }

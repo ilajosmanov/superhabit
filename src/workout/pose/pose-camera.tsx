@@ -112,6 +112,7 @@ export function PoseCamera({
   showSkeleton,
   onReady,
   onVideoLost,
+  onCameraFailed,
 }: {
   cameraRef: RefObject<CameraRef | null>;
   landmarker: PoseLandmarker | null;
@@ -132,6 +133,8 @@ export function PoseCamera({
   onReady: () => void;
   /** The video output was dropped after a camera error: nothing more can be filmed. */
   onVideoLost: () => void;
+  /** The camera failed with no video left to drop: counting can't go on until it is mounted again. */
+  onCameraFailed: () => void;
 }) {
   const asyncRunner = useAsyncRunner();
   // VisionCamera caches the preview's sensor-to-view matrix and refreshes it only on layout. A 180°
@@ -201,10 +204,12 @@ export function PoseCamera({
         onPreviewStarted={onReady}
         // Not every device binds preview + frames + video at once; CameraX then fails the whole configure.
         // shortcut: any camera error drops video for the rest of the session, even after a flip to a camera
-        // that might bind it; reset it (and the camcorder) if that matters.
+        // that might bind it; reset it (and the camcorder) if that matters. One without video is the camera
+        // itself failing.
         onError={(error) => {
           console.error('[camera]', error);
           if (video) onVideoLost();
+          else onCameraFailed();
         }}
       />
       {showSkeleton && (

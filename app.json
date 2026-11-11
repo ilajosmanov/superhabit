@@ -91,8 +91,14 @@
         }
       ],
       "expo-sqlite",
-      "expo-secure-store",
-      "expo-web-browser"
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": false
+        }
+      ],
+      "expo-web-browser",
+      "./plugins/backup-rules.js"
     ],
     "experiments": {
       "typedRoutes": true,

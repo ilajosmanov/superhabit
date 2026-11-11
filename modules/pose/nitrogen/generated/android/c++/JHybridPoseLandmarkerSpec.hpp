@@ -52,6 +52,8 @@ namespace margelo::nitro::superhabitpose {
     // Properties
     std::optional<std::function<void(const PoseDetection& /* result */)>> getOnResult() override;
     void setOnResult(const std::optional<std::function<void(const PoseDetection& /* result */)>>& onResult) override;
+    std::optional<std::function<void(const std::string& /* message */)>> getOnFailed() override;
+    void setOnFailed(const std::optional<std::function<void(const std::string& /* message */)>>& onFailed) override;
 
   public:
     // Methods

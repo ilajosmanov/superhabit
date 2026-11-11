@@ -23,6 +23,7 @@ import {
   spoken,
   squat,
   squatTest,
+  native,
 } from '@/workout/__fixtures__/session';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
@@ -287,6 +288,127 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
       ],
     });
     expect(lockAsync.mock.calls).toEqual([[PORTRAIT], [PORTRAIT]]);
+    actor.stop();
+  });
+
+  it('pauses when you leave the app mid-set, and stays paused until you resume', () => {
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: plan({ exercise: 'squat', goal: reps(3) }) },
+    }).start();
+    const view = () => sessionView(actor.getSnapshot());
+    squat();
+    actor.send({ type: 'away' });
+    expect(view()).toMatchObject({ stage: 'paused', reps: 1 });
+    actor.send({ type: 'back' });
+    expect(view().stage).toBe('paused');
+    actor.send({ type: 'resume' });
+    expect(view().stage).toBe('counting');
+    actor.stop();
+  });
+
+  it("doesn't count after a tap that arrives once the app has left, between sets", () => {
+    const actor = createActor(workoutSession, {
+      input: {
+        ...LOG,
+        challenge: plan(
+          { exercise: 'squat', goal: reps(1) },
+          { exercise: 'pushup', goal: reps(1) },
+        ),
+      },
+    }).start();
+    const view = () => sessionView(actor.getSnapshot());
+    squat();
+    expect(view().stage).toBe('switching');
+    actor.send({ type: 'away' });
+    actor.send({ type: 'next' });
+    expect(view()).toMatchObject({ stage: 'paused', exercise: 'pushup' });
+    actor.stop();
+  });
+
+  it("doesn't start the next set while you're away: a rest that ends meanwhile pauses its countdown", () => {
+    vi.useFakeTimers({ now: NOW });
+    const actor = createActor(workoutSession, {
+      input: {
+        ...LOG,
+        challenge: plan(
+          { exercise: 'squat', goal: reps(1) },
+          { exercise: 'rest', goal: seconds(30) },
+          { exercise: 'squat', goal: reps(2) },
+        ),
+      },
+    }).start();
+    const view = () => sessionView(actor.getSnapshot());
+    squat();
+    expect(view().stage).toBe('resting');
+    actor.send({ type: 'away' });
+    vi.advanceTimersByTime(60_000);
+    expect(view()).toMatchObject({ stage: 'paused', set: 2, reps: 0 });
+    actor.send({ type: 'back' });
+    actor.send({ type: 'resume' });
+    expect(view().stage).toBe('counting');
+    actor.stop();
+  });
+
+  it("ends with the sets so far when tracking can't start on this phone; nothing else is offered", () => {
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: plan({ exercise: 'squat', goal: reps(3) }) },
+    }).start();
+    const view = () => sessionView(actor.getSnapshot());
+    squat();
+    native.onFailed?.('GPU and CPU delegates failed');
+    expect(view()).toMatchObject({ stage: 'paused', broken: 'tracking', reps: 1 });
+    actor.send({ type: 'resume' });
+    actor.send({ type: 'restart' });
+    expect(view().stage).toBe('paused');
+    actor.send({ type: 'end' });
+    expect(view()).toMatchObject({ stage: 'finished', counted: true });
+    actor.stop();
+  });
+
+  it('keeps the next set unstarted when the camera fails between sets, so End saves only what counted', () => {
+    const actor = createActor(workoutSession, {
+      input: {
+        ...LOG,
+        challenge: plan(
+          { exercise: 'squat', goal: reps(1) },
+          { exercise: 'pushup', goal: reps(1) },
+        ),
+      },
+    }).start();
+    const view = () => sessionView(actor.getSnapshot());
+    squat();
+    expect(view().stage).toBe('switching');
+    actor.send({ type: 'cameraFailed' });
+    actor.send({ type: 'next' });
+    expect(view()).toMatchObject({ stage: 'paused', set: 2, broken: 'camera', exercise: 'pushup' });
+    actor.send({ type: 'end' });
+    expect(view().stage).toBe('finished');
+    expect(view().results).toHaveLength(1);
+    actor.stop();
+  });
+
+  it('keeps a failed detector as the reason when the camera fails too, so nothing resumes', () => {
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: plan({ exercise: 'squat', goal: reps(3) }) },
+    }).start();
+    const view = () => sessionView(actor.getSnapshot());
+    native.onFailed?.('no delegate');
+    actor.send({ type: 'cameraFailed' });
+    actor.send({ type: 'resume' });
+    expect(view()).toMatchObject({ stage: 'paused', broken: 'tracking' });
+    actor.stop();
+  });
+
+  it('pauses when the camera stops, and a retry mounts it afresh and counts on', () => {
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: plan({ exercise: 'squat', goal: reps(3) }) },
+    }).start();
+    const view = () => sessionView(actor.getSnapshot());
+    squat();
+    actor.send({ type: 'cameraFailed' });
+    expect(view()).toMatchObject({ stage: 'paused', broken: 'camera', cameraTry: 0 });
+    actor.send({ type: 'resume' });
+    expect(view()).toMatchObject({ stage: 'counting', broken: null, cameraTry: 1, reps: 1 });
     actor.stop();
   });
 

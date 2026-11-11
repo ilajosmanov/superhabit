@@ -162,7 +162,8 @@ function Session({
         | 'toggleSkeleton'
         | 'flipCamera'
         | 'cameraReady'
-        | 'videoLost',
+        | 'videoLost'
+        | 'cameraFailed',
     ) =>
     () =>
       session.send({ type });
@@ -175,6 +176,8 @@ function Session({
           a stopped camera's last frame showed through the Done page's video. */}
       {!(view.stage === 'finished' && view.final) && (
         <PoseCamera
+          // A camera retry mounts it afresh.
+          key={view.cameraTry}
           cameraRef={camera}
           landmarker={landmarker}
           isActive={view.stage !== 'finished'}
@@ -186,6 +189,7 @@ function Session({
           showSkeleton={view.skeleton}
           onReady={send('cameraReady')}
           onVideoLost={send('videoLost')}
+          onCameraFailed={send('cameraFailed')}
         />
       )}
       {view.stage === 'finished' ? (

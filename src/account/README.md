@@ -17,11 +17,13 @@ client; the server checks it and starts a year-long session. The account (id, na
 phone's database (`storage/account.ts`), so later launches go on offline. Only the server answering that
 the session is gone (signed out, expired, the account deleted) brings the sign-in screen back, at the next
 launch, never mid-use; offline or a failed call leaves you signed in. Calls give up after 20 s. The
-database holds one account's data: another account signing in clears it first.
+database holds one account's data: another account signing in clears it first, after asking when the phone
+holds that account's workouts, runs or challenges (until sync it's the only copy).
 
 `bootstrap/startup.ts` runs both: `identifying` → `signingIn` (the root shows the screen with the
 machine's child) before seeding, and `checkSession` once `ready` (it only ever updates the same account).
 
 Sign out (Me) marks the account signed out and shows the sign-in screen; the data stays on the phone, so
-the same account finds it again and another account replaces it. The server and Google are told if they
-can be reached; until sync (piece 5) a sign-out made offline leaves the server's session to expire.
+the same account finds it again and another account is asked about. The screen first ends the old session
+with the server and Google (`endSession`, busy button), so a late answer can't clear a new sign-in's
+cookie; until sync (piece 5) a sign-out made offline leaves the server's session to expire.

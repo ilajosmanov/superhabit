@@ -23,7 +23,11 @@ export const lockAsync = vi.fn(async () => {});
 export const PORTRAIT = 2;
 export const LANDSCAPE = 5;
 // The fake native detector: the session sets `onResult`, the test calls it like native would.
-export const native: { close: () => void; onResult?: (result: PoseDetection) => void } = {
+export const native: {
+  close: () => void;
+  onResult?: (result: PoseDetection) => void;
+  onFailed?: (message: string) => void;
+} = {
   close: vi.fn(),
 };
 
@@ -92,6 +96,7 @@ export const modules = {
   },
   'react-native': {
     Platform: { OS: 'android', Version: 37, constants: { Model: 'Pixel 9', Release: '17' } },
+    AppState: { addEventListener: () => ({ remove: () => {} }) },
   },
   'expo-speech': { speak, stop: vi.fn() },
   'expo-file-system': {

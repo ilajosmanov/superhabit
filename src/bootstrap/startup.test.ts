@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 
 import { startup } from './startup';
 import { signIn as signInMachine } from '@/account/sign-in';
+import type { Account } from '@/storage/account';
 import { recovery } from '@/workout/recovery';
 
 vi.mock('@/challenges/library', () => ({}));
@@ -138,9 +139,18 @@ describe('startup', () => {
     const seed = fromPromise(async () => {
       seeded = true;
     });
-    // Google and the server say yes.
+    // Google and the server say yes, for the account already kept (nothing to replace).
+    const me: Account = { id: 'me', name: 'Me', image: null };
     const signIn = signInMachine.provide({
-      actors: { signingIn: fromPromise(async (): Promise<'signedIn' | 'cancelled'> => 'signedIn') },
+      actors: {
+        signingIn: fromPromise(
+          async (): Promise<{ account: Account; replacing: string | null } | 'cancelled'> => ({
+            account: me,
+            replacing: null,
+          }),
+        ),
+        keeping: fromPromise<void, Account | null>(async () => {}),
+      },
     });
     const actor = createActor(
       startup.provide({

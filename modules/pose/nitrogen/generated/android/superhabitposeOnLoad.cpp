@@ -17,6 +17,7 @@
 
 #include "JHybridPoseLandmarkerSpec.hpp"
 #include "JFunc_void_PoseDetection.hpp"
+#include "JFunc_void_std__string.hpp"
 #include <NitroModules/DefaultConstructableObject.hpp>
 
 namespace margelo::nitro::superhabitpose {
@@ -43,6 +44,7 @@ void registerAllNatives() {
   // Register native JNI methods
   margelo::nitro::superhabitpose::JHybridPoseLandmarkerSpec::CxxPart::registerNatives();
   margelo::nitro::superhabitpose::JFunc_void_PoseDetection_cxx::registerNatives();
+  margelo::nitro::superhabitpose::JFunc_void_std__string_cxx::registerNatives();
 
   // Register Nitro Hybrid Objects
   HybridObjectRegistry::registerHybridObjectConstructor(

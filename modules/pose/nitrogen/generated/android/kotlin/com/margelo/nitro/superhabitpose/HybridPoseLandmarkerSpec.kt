@@ -40,6 +40,20 @@ abstract class HybridPoseLandmarkerSpec: HybridObject() {
     set(value) {
       onResult = value?.let { it }
     }
+  
+  abstract var onFailed: ((message: String) -> Unit)?
+  
+  private var onFailed_cxx: Func_void_std__string?
+    @Keep
+    @DoNotStrip
+    get() {
+      return onFailed?.let { Func_void_std__string_java(it) }
+    }
+    @Keep
+    @DoNotStrip
+    set(value) {
+      onFailed = value?.let { it }
+    }
 
   // Methods
   @DoNotStrip

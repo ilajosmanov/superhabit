@@ -27,13 +27,19 @@ export const checkSession = fromPromise(async (): Promise<'ok' | 'gone' | 'unkno
 });
 
 /**
- * You signed out on Me. The account is marked signed out at once, its data kept: the same account signing in
- * finds it again, another replaces it. The server and Google are told if they can be reached; nothing waits.
+ * Ends the session with the server and Google, if they can be reached (20 s at most). Waited for: a late
+ * answer would clear the cookie of a sign-in tapped right after.
+ */
+export async function endSession() {
+  const results = await Promise.allSettled([authClient.signOut(), GoogleOneTapSignIn.signOut()]);
+  for (const result of results) {
+    if (result.status === 'rejected') console.warn('[account] sign-out failed', result.reason);
+  }
+}
+
+/**
+ * You signed out on Me: the account is marked signed out, its data kept (the same account finds it again,
+ * another is asked about). The sign-in screen then ends the session (`signIn` with `leaving`).
  */
 // shortcut: offline, the server's session lives on until it expires; send the sign-out with sync (piece 5).
-export const signOut = fromPromise(async () => {
-  markSignedOut();
-  const tell = (what: string) => (error: unknown) => console.warn(`[account] ${what}`, error);
-  void authClient.signOut().catch(tell('server sign-out failed'));
-  void GoogleOneTapSignIn.signOut().catch(tell('Google sign-out failed'));
-});
+export const signOut = fromPromise(async () => markSignedOut());

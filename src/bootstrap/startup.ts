@@ -21,6 +21,8 @@ type Context = {
   open: { id: string } | null;
   /** A failure/retry or recovery must never hide the native splash a second time. */
   splashHidden: boolean;
+  /** Sign-in follows Me's Sign out: the old session ends first. */
+  leaving: boolean;
 };
 
 /**
@@ -97,7 +99,7 @@ export const startup = setup<
     },
   },
 }).createMachine({
-  context: { error: '', today: today(), open: null, splashHidden: false },
+  context: { error: '', today: today(), open: null, splashHidden: false, leaving: false },
   invoke: { src: 'dayClock' },
   on: { day: { actions: assign({ today: ({ event }) => event.day }) } },
   initial: 'migrating',
@@ -123,7 +125,12 @@ export const startup = setup<
     signingIn: {
       // A Retry that got here leaves no error over the screen.
       entry: ['hideSplash', assign({ error: '' })],
-      invoke: { src: 'signIn', id: 'signIn', onDone: 'seeding' },
+      invoke: {
+        src: 'signIn',
+        id: 'signIn',
+        input: ({ context }) => ({ leaving: context.leaving }),
+        onDone: { target: 'seeding', actions: assign({ leaving: false }) },
+      },
     },
     seeding: {
       invoke: { src: 'seed', onDone: 'checking', onError: { target: 'failed', actions: 'fail' } },
@@ -174,7 +181,7 @@ export const startup = setup<
     signingOut: {
       invoke: {
         src: 'signOut',
-        onDone: 'signingIn',
+        onDone: { target: 'signingIn', actions: assign({ leaving: true }) },
         // The account row couldn't be written: you stay signed in.
         onError: {
           target: 'ready',

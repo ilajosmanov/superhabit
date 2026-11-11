@@ -7,17 +7,22 @@ import {
 import { assign, fromPromise, setup } from 'xstate';
 
 import { authClient } from './auth-client';
+import { endSession } from './session';
 import { GOOGLE_WEB_CLIENT_ID } from './server';
-import { keepAccount } from './store';
+import { keepAccount, replacing } from './store';
+import type { Account } from '@/storage/account';
 
 /** Why the last try didn't sign in; null when nothing went wrong (or you closed Google's sheet). */
 export type SignInError = 'offline' | 'failed' | null;
 
+type Signed = { account: Account; replacing: string | null };
+
 /**
  * Google's own sheet picks the account (a saved one first, then any on the phone); the server checks its ID
- * token and starts a session; the account is kept on the phone. `cancelled` when you closed the sheet.
+ * token and starts a session. The account it gives back, with whose data keeping it would clear; or
+ * `cancelled` when you closed the sheet.
  */
-async function signInWithGoogle(): Promise<'signedIn' | 'cancelled'> {
+async function signInWithGoogle(): Promise<Signed | 'cancelled'> {
   GoogleOneTapSignIn.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
   let picked = await GoogleOneTapSignIn.signIn();
   if (isNoSavedCredentialFoundResponse(picked)) picked = await GoogleOneTapSignIn.createAccount();
@@ -31,36 +36,104 @@ async function signInWithGoogle(): Promise<'signedIn' | 'cancelled'> {
   });
   if (error || !data || !('user' in data)) throw new Error(error?.message ?? 'no session');
   const { id, name, image } = data.user;
-  keepAccount({ id, name, image: image ?? null });
-  return 'signedIn';
+  const account = { id, name, image: image ?? null };
+  return { account, replacing: replacing(account) };
 }
 
 const signingIn = fromPromise(() => signInWithGoogle());
+const keeping = fromPromise<void, Account | null>(async ({ input }) => {
+  if (!input) throw new Error('Nothing to keep');
+  keepAccount(input);
+});
 const reachable = fromPromise(async () => (await getNetworkStateAsync()).isInternetReachable);
+const forgetting = fromPromise(() => endSession());
 
-/** The sign-in screen's button: one try at a time; done once the account is kept. */
-// Positional generics (no type assertions allowed): context, events, actors.
+type Context = {
+  error: SignInError;
+  /** Signed in with Google and the server, not kept yet. */
+  next: Account | null;
+  /** Whose data keeping `next` would clear; asked about first. */
+  replacing: string | null;
+  /** Here from Me's Sign out: the old session ends first. */
+  leaving: boolean;
+};
+
+/**
+ * The sign-in screen's button: one try at a time; done once the account is kept. Signing in as another
+ * account while this phone holds someone's data asks first: it'd be cleared, and nothing else has it until
+ * sync. After Me's Sign out (`leaving`) the old session ends before the button works, so its late answer
+ * can't clear a new sign-in's cookie.
+ */
+// Positional generics (no type assertions allowed): context, events, actors, children, actions, guards,
+// delays, tags, input.
 export const signIn = setup<
-  { error: SignInError },
-  { type: 'press' },
-  { signingIn: typeof signingIn; reachable: typeof reachable }
->({ actors: { signingIn, reachable } }).createMachine({
-  context: { error: null },
-  initial: 'idle',
+  Context,
+  { type: 'press' } | { type: 'replace' } | { type: 'keepTheirs' },
+  {
+    signingIn: typeof signingIn;
+    keeping: typeof keeping;
+    reachable: typeof reachable;
+    forgetting: typeof forgetting;
+  },
+  {},
+  {},
+  {},
+  never,
+  string,
+  { leaving?: boolean } | undefined
+>({ actors: { signingIn, keeping, reachable, forgetting } }).createMachine({
+  context: ({ input }) => ({
+    error: null,
+    next: null,
+    replacing: null,
+    leaving: input?.leaving ?? false,
+  }),
+  initial: 'starting',
   states: {
+    starting: {
+      always: [{ guard: ({ context }) => context.leaving, target: 'forgetting' }, 'idle'],
+    },
     idle: { on: { press: { target: 'signingIn', actions: assign({ error: null }) } } },
     signingIn: {
       invoke: {
         src: 'signingIn',
         onDone: [
           { guard: ({ event }) => event.output === 'cancelled', target: 'idle' },
-          { target: 'done' },
+          {
+            target: 'asking',
+            guard: ({ event }) => event.output !== 'cancelled' && event.output.replacing !== null,
+            actions: assign(({ event }) =>
+              event.output === 'cancelled'
+                ? {}
+                : { next: event.output.account, replacing: event.output.replacing },
+            ),
+          },
+          {
+            target: 'keeping',
+            actions: assign({
+              next: ({ event }) => (event.output === 'cancelled' ? null : event.output.account),
+            }),
+          },
         ],
         onError: {
           target: 'failing',
           actions: ({ event }) => console.warn('[sign-in]', event.error),
         },
       },
+    },
+    asking: { on: { replace: 'keeping', keepTheirs: 'forgetting' } },
+    keeping: {
+      invoke: {
+        src: 'keeping',
+        input: ({ context }) => context.next,
+        onDone: 'done',
+        onError: { target: 'idle', actions: assign({ error: 'failed' }) },
+      },
+    },
+    // Keep them, or here from Sign out: the session ends before the button works again.
+    forgetting: {
+      invoke: { src: 'forgetting', onDone: 'idle', onError: 'idle' },
+      exit: assign({ next: null, replacing: null, leaving: false }),
     },
     // Says why: no internet, or anything else.
     failing: {

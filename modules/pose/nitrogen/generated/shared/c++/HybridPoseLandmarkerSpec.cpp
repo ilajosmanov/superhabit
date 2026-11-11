@@ -16,6 +16,8 @@ namespace margelo::nitro::superhabitpose {
     registerHybrids(this, [](Prototype& prototype) {
       prototype.registerHybridGetter("onResult", &HybridPoseLandmarkerSpec::getOnResult);
       prototype.registerHybridSetter("onResult", &HybridPoseLandmarkerSpec::setOnResult);
+      prototype.registerHybridGetter("onFailed", &HybridPoseLandmarkerSpec::getOnFailed);
+      prototype.registerHybridSetter("onFailed", &HybridPoseLandmarkerSpec::setOnFailed);
       prototype.registerHybridMethod("detect", &HybridPoseLandmarkerSpec::detect);
       prototype.registerHybridMethod("close", &HybridPoseLandmarkerSpec::close);
     });

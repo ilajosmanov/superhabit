@@ -22,6 +22,7 @@ import { EXERCISES, initialCounters, orientation } from '@/exercises/registry';
 
 import { finishSet, type StepResult } from '@/workout/plan/results';
 import { camcorder, type VideoOutput } from '@/workout/capture/camcorder';
+import { appAway, type AwayEvent } from './app-away';
 import { workoutLog } from '@/workout/log';
 import type { LogTarget } from '@/workout/store';
 import { done, expand, type Challenge } from '@/workout/plan/plan';
@@ -31,6 +32,7 @@ type Events =
   | { type: 'pose'; result: PoseDetection }
   | { type: 'next' } // counting: end the set; resting: skip rest; switching: the phone is in place
   | { type: 'pause' } // counting or countdown
+  | AwayEvent // the app left the screen or came back: a set or countdown pauses, you resume
   | { type: 'resume' } // paused
   | { type: 'restart' } // paused: zero the current set and count again
   | { type: 'end' } // any stage but finished: finish now, keeping results so far
@@ -40,6 +42,8 @@ type Events =
   | { type: 'flipCamera' }
   | { type: 'cameraReady' } // the camera's preview streams again (after a flip)
   | { type: 'videoLost' } // the camera dropped the video output: nothing more can be filmed
+  | { type: 'cameraFailed' } // the camera failed again without video: the set pauses until you retry it
+  | { type: 'trackingFailed' } // the detector can't start on this phone: only End is left
   | { type: 'save' } // finished: Done; the workout is kept once the log says so
   | { type: 'discard' } // finished: leave without keeping the workout
   | { type: 'logSaved' } // the log saved the workout
@@ -107,6 +111,12 @@ type Context = Counting & {
   saved: boolean;
   /** The log threw the workout away (Discard went through). */
   discarded: boolean;
+  /** The app is off the screen: nothing starts counting until you resume. */
+  away: boolean;
+  /** Counting can't go on: the camera stopped (retry it) or the detector can't start (end). */
+  broken: 'camera' | 'tracking' | null;
+  /** Bumped on each camera retry: the screen mounts the camera afresh. */
+  cameraTry: number;
 };
 
 const CAPTION_MS = 3000;
@@ -133,6 +143,10 @@ const freshSet = () =>
 const landmarker = fromCallback<Events>(({ sendBack }) => {
   const instance = createPoseLandmarker();
   instance.onResult = (result) => sendBack({ type: 'pose', result });
+  instance.onFailed = (message) => {
+    console.error('[pose] the detector could not start', message);
+    sendBack({ type: 'trackingFailed' });
+  };
   sendBack({ type: 'ready', landmarker: instance });
   return () => instance.close();
 });
@@ -151,6 +165,7 @@ type Actors = {
   camcorder: typeof camcorder;
   recorder: typeof recorder;
   log: typeof workoutLog;
+  away: typeof appAway;
 };
 
 const isLast = (c: Context) => c.step === c.steps.length - 1;
@@ -193,6 +208,8 @@ const without = (takes: readonly string[], uri: string) => takes.filter((take) =
  *      | pause (also from countdown)
  *   paused --resume | restart--> counting;  end: any stage but finished --> finished
  *
+ * Leaving the app (`away`) pauses counting and countdown, and keeps a countdown or a Continue from starting a
+ * set; a failed camera or detector (`broken`) does the same. You resume; a failed detector leaves only end.
  * Only `counting` steps a counter; countdown and paused frames also go to the recorder.
  * Everything said goes through `say`, so the caption is set even when muted.
  * finished is not `type: 'final'`: a final root state would stop speech and cut "Challenge done".
@@ -223,6 +240,7 @@ const session = setup<
     camcorder,
     recorder,
     log: workoutLog,
+    away: appAway,
   },
   actions: {
     suspendedFrame: enqueueActions(({ context, event, enqueue }) => {
@@ -345,9 +363,13 @@ export const workoutSession = session.createMachine({
     final: false,
     saved: false,
     discarded: false,
+    away: false,
+    broken: null,
+    cameraTry: 0,
   }),
   invoke: [
     { src: 'landmarker' },
+    { src: 'away' },
     { src: 'speech', id: 'speech' },
     {
       src: 'orientation',
@@ -382,6 +404,21 @@ export const workoutSession = session.createMachine({
         stepS: ({ context }) => context.stepS + 1,
       }),
     },
+    // Never counting while you can't see it: a set or countdown pauses (a raised `pause` only those take),
+    // and one reached meanwhile from a timed rest pauses too. Coming back leaves it paused.
+    away: { actions: [assign({ away: true }), raise({ type: 'pause' })] },
+    back: { actions: assign({ away: false }) },
+    cameraFailed: {
+      // A failed detector stays the reason: retrying the camera can't bring it back.
+      actions: [
+        assign({
+          broken: ({ context }) => (context.broken === 'tracking' ? 'tracking' : 'camera'),
+        }),
+        raise({ type: 'pause' }),
+      ],
+    },
+    // Once the detector failed it stays failed: a camera retry can't bring it back.
+    trackingFailed: { actions: [assign({ broken: 'tracking' }), raise({ type: 'pause' })] },
     toggleVoice: { actions: assign({ muted: ({ context }) => !context.muted }) },
     toggleSkeleton: { actions: assign({ skeleton: ({ context }) => !context.skeleton }) },
     say: {
@@ -471,11 +508,15 @@ export const workoutSession = session.createMachine({
         },
         end: { target: 'finished', actions: 'saveSet' },
       },
-      always: {
-        guard: ({ context }) =>
-          done(current(context).goal, context[lastExercise(context).exercise]),
-        target: 'ending',
-      },
+      always: [
+        // Reached while the camera or detector is down, or by a tap queued as the app left: nothing counts.
+        { guard: ({ context }) => context.broken !== null || context.away, target: 'paused' },
+        {
+          guard: ({ context }) =>
+            done(current(context).goal, context[lastExercise(context).exercise]),
+          target: 'ending',
+        },
+      ],
     },
     // Detector frames keep arriving (root `pose`) but nothing counts, so resuming needs the start position again.
     paused: {
@@ -485,8 +526,17 @@ export const workoutSession = session.createMachine({
       ],
       on: {
         pose: { actions: 'suspendedFrame' },
-        resume: 'counting',
+        // Counting itself sends a session with a failed detector straight back here.
+        resume: [
+          {
+            guard: ({ context }) => context.broken === 'camera',
+            target: 'counting',
+            actions: assign({ broken: null, cameraTry: ({ context }) => context.cameraTry + 1 }),
+          },
+          { target: 'counting' },
+        ],
         restart: {
+          guard: ({ context }) => context.broken === null,
           target: 'counting',
           actions: assign(() => freshSet()),
         },
@@ -529,6 +579,7 @@ export const workoutSession = session.createMachine({
       always: ADVANCE,
     },
     countdown: {
+      always: { guard: ({ context }) => context.away || context.broken !== null, target: 'paused' },
       entry: enqueueActions(({ context, enqueue }) => {
         enqueue.sendTo('recorder', traceStage(context, 'countdown'));
         // Keep the preceding completion phrase audible; the first numeral is visual only.
@@ -579,17 +630,32 @@ export const workoutSession = session.createMachine({
       on: {
         // The finished set's result was saved by `ending`.
         end: 'finished',
-        next: {
-          target: 'counting',
-          // Rotate only now: the between-sets prompt stays in the finished set's orientation.
-          actions: [
-            'nextStep',
-            sendTo('orientation', ({ context }) => ({
-              type: 'lock',
-              orientation: lockFor(context),
-            })),
-          ],
-        },
+        next: [
+          {
+            // The camera or detector failed, or the app left, between sets: the next set waits, unstarted,
+            // so End keeps only what was counted.
+            guard: ({ context }) => context.broken !== null || context.away,
+            target: 'paused',
+            actions: [
+              'nextStep',
+              sendTo('orientation', ({ context }) => ({
+                type: 'lock',
+                orientation: lockFor(context),
+              })),
+            ],
+          },
+          {
+            target: 'counting',
+            // Rotate only now: the between-sets prompt stays in the finished set's orientation.
+            actions: [
+              'nextStep',
+              sendTo('orientation', ({ context }) => ({
+                type: 'lock',
+                orientation: lockFor(context),
+              })),
+            ],
+          },
+        ],
       },
     },
     finished: {

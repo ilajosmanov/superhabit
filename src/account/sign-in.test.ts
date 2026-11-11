@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { signIn } from './sign-in';
 import { account } from '@/storage/account';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
-import { settings } from '@/storage/schema';
+import { challenges, settings, workouts } from '@/storage/schema';
+import { keepAccount } from './store';
 
 // Google's sheet, our server and the network are faked; the machine and the kept account are real.
 const fake = vi.hoisted(() => ({
@@ -13,8 +14,10 @@ const fake = vi.hoisted(() => ({
     signIn: vi.fn(),
     createAccount: vi.fn(),
     presentExplicitSignIn: vi.fn(),
+    signOut: vi.fn(async () => {}),
   },
   social: vi.fn(),
+  serverSignOut: vi.fn(async () => {}),
   reachable: vi.fn(),
 }));
 vi.mock('react-native-nitro-google-signin', () => ({
@@ -22,7 +25,9 @@ vi.mock('react-native-nitro-google-signin', () => ({
   isNoSavedCredentialFoundResponse: (r: { type: string }) => r.type === 'noSavedCredentialFound',
   isSuccessResponse: (r: { type: string }) => r.type === 'success',
 }));
-vi.mock('./auth-client', () => ({ authClient: { signIn: { social: fake.social } } }));
+vi.mock('./auth-client', () => ({
+  authClient: { signIn: { social: fake.social }, signOut: fake.serverSignOut },
+}));
 vi.mock('expo-network', () => ({
   getNetworkStateAsync: async () => ({ isInternetReachable: fake.reachable() }),
 }));
@@ -95,5 +100,73 @@ describe('signing in', () => {
     actor.send({ type: 'press' });
     expect((await settled(actor)).status).toBe('done');
     expect(account()?.id).toBe('ann');
+  });
+
+  it("asks before another account's workouts are cleared, and keeps them when you say so", async () => {
+    keepAccount({ id: 'bob', name: 'Bob Day', image: null });
+    db()
+      .insert(workouts)
+      .values({
+        id: 'w',
+        day: '2026-11-10',
+        status: 'done',
+        startedAt: 1,
+        tzOffsetMin: 0,
+        tz: 'UTC',
+        appVersion: '1.0.0',
+      })
+      .run();
+    fake.google.signIn.mockResolvedValue(picked);
+    fake.social.mockResolvedValue(accepted);
+
+    const actor = tap();
+    const asking = await waitFor(actor, (s) => s.matches('asking'));
+    expect(asking.context.replacing).toBe('Bob Day');
+    // A late sign-out answer must not land after the next sign-in: the button waits for it.
+    let answer = () => {};
+    fake.serverSignOut.mockReturnValueOnce(new Promise<void>((resolve) => (answer = resolve)));
+    actor.send({ type: 'keepTheirs' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(actor.getSnapshot().matches('forgetting')).toBe(true);
+    answer();
+    await waitFor(actor, (s) => s.matches('idle'));
+    expect(account()?.id).toBe('bob');
+    expect(db().select().from(workouts).all()).toHaveLength(1);
+    expect(fake.serverSignOut).toHaveBeenCalled();
+
+    actor.send({ type: 'press' });
+    await waitFor(actor, (s) => s.matches('asking'));
+    actor.send({ type: 'replace' });
+    expect((await settled(actor)).status).toBe('done');
+    expect(account()?.id).toBe('ann');
+    expect(db().select().from(workouts).all()).toEqual([]);
+  });
+
+  it('asks too when the other account has only a challenge it made, not just done workouts', async () => {
+    keepAccount({ id: 'bob', name: 'Bob Day', image: null });
+    db()
+      .insert(challenges)
+      .values({ id: 'c', owner: 'bob', visibility: 'private', currentVersionId: 'v' })
+      .run();
+    fake.google.signIn.mockResolvedValue(picked);
+    fake.social.mockResolvedValue(accepted);
+    const actor = tap();
+    expect((await waitFor(actor, (s) => s.matches('asking') || s.status === 'done')).value).toBe(
+      'asking',
+    );
+    actor.stop();
+  });
+
+  it('after Sign out, ends the old session before the button works again', async () => {
+    let answer = () => {};
+    fake.serverSignOut.mockReturnValueOnce(new Promise<void>((resolve) => (answer = resolve)));
+    const actor = createActor(signIn, { input: { leaving: true } }).start();
+    expect(actor.getSnapshot().matches('forgetting')).toBe(true);
+    actor.send({ type: 'press' });
+    expect(actor.getSnapshot().matches('forgetting')).toBe(true);
+    answer();
+    await waitFor(actor, (s) => s.matches('idle'));
+    expect(fake.google.signOut).toHaveBeenCalled();
+    actor.stop();
   });
 });

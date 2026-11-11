@@ -176,6 +176,8 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
   // Nitro hands each call to the JS thread asynchronously, so inference never waits on JS.
   @Volatile override var onResult: ((result: PoseDetection) -> Unit)? = null
 
+  @Volatile override var onFailed: ((message: String) -> Unit)? = null
+
   @Synchronized
   override fun detect(
     frame: HybridFrameSpec,
@@ -277,6 +279,7 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
     if (closed) return
     closed = true
     onResult = null
+    onFailed = null
     sensors?.unregisterListener(gravityListener)
     sensors = null
     displays = null
@@ -311,6 +314,7 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
     } catch (e: Exception) {
       failed = true
       Log.e(TAG, "detector creation failed", e)
+      onFailed?.invoke(e.message ?: e.javaClass.simpleName)
       return null
     }
   }

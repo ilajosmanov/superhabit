@@ -1,18 +1,27 @@
-import { useSelector } from '@xstate/react';
+import { shallowEqual, useSelector } from '@xstate/react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, G, Path, Rect, Text as SvgText } from 'react-native-svg';
 import type { ActorRefFrom } from 'xstate';
 
 import type { signIn } from '@/account/sign-in';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Icon } from '@/components/icon';
 import { colors } from '@/theme';
 
 /** The first launch (board 21a): why the app, and Google's button. Nothing else shows until it's done. */
 export function SignInScreen({ signIn: actor }: { signIn: ActorRefFrom<typeof signIn> }) {
   const { top, bottom } = useSafeAreaInsets();
-  const busy = useSelector(actor, (s) => s.matches('signingIn') || s.matches('failing'));
+  const busy = useSelector(
+    actor,
+    (s) => s.matches('signingIn') || s.matches('failing') || s.matches('forgetting'),
+  );
   const error = useSelector(actor, (s) => s.context.error);
+  const asking = useSelector(
+    actor,
+    (s) => (s.matches('asking') ? { next: s.context.next, replacing: s.context.replacing } : null),
+    shallowEqual,
+  );
   return (
     <View className="flex-1 bg-ground">
       <View className="px-6" style={{ paddingTop: top + 20 }}>
@@ -53,7 +62,20 @@ export function SignInScreen({ signIn: actor }: { signIn: ActorRefFrom<typeof si
             </Text>
           </View>
         )}
-        <GoogleButton busy={busy} onPress={() => actor.send({ type: 'press' })} />
+        <GoogleButton
+          busy={busy || asking !== null}
+          onPress={() => actor.send({ type: 'press' })}
+        />
+        {asking?.next && asking.replacing && (
+          <ConfirmDialog
+            title={`Sign in as ${asking.next.name}?`}
+            text={`${asking.replacing}'s workouts and challenges on this phone will be removed. They aren't backed up yet.`}
+            action="Sign in"
+            cancel="Keep them"
+            onConfirm={() => actor.send({ type: 'replace' })}
+            onCancel={() => actor.send({ type: 'keepTheirs' })}
+          />
+        )}
         <Text className="text-center font-sans text-sm leading-normal text-muted">
           {
             'Your name and photo come from Google.\nVideos of you stay on this phone unless you share them.'

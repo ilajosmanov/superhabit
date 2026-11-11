@@ -35,6 +35,8 @@ namespace margelo::nitro::camera { class HybridFrameSpec; }
 #include "JPoseCameraPoint.hpp"
 #include "PoseDelegate.hpp"
 #include "JPoseDelegate.hpp"
+#include <string>
+#include "JFunc_void_std__string.hpp"
 #include <memory>
 #include <VisionCamera/HybridFrameSpec.hpp>
 #include <VisionCamera/JHybridFrameSpec.hpp>
@@ -85,6 +87,23 @@ namespace margelo::nitro::superhabitpose {
   void JHybridPoseLandmarkerSpec::setOnResult(const std::optional<std::function<void(const PoseDetection& /* result */)>>& onResult) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_PoseDetection::javaobject> /* onResult */)>("setOnResult_cxx");
     method(_javaPart, onResult.has_value() ? JFunc_void_PoseDetection_cxx::fromCpp(onResult.value()) : nullptr);
+  }
+  std::optional<std::function<void(const std::string& /* message */)>> JHybridPoseLandmarkerSpec::getOnFailed() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void_std__string::javaobject>()>("getOnFailed_cxx");
+    auto __result = method(_javaPart);
+    return __result != nullptr ? std::make_optional([&]() -> std::function<void(const std::string& /* message */)> {
+      if (__result->isInstanceOf(JFunc_void_std__string_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_std__string_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void_std__string, void(std::string)>(std::move(__resultRef));
+      }
+    }()) : std::nullopt;
+  }
+  void JHybridPoseLandmarkerSpec::setOnFailed(const std::optional<std::function<void(const std::string& /* message */)>>& onFailed) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__string::javaobject> /* onFailed */)>("setOnFailed_cxx");
+    method(_javaPart, onFailed.has_value() ? JFunc_void_std__string_cxx::fromCpp(onFailed.value()) : nullptr);
   }
 
   // Methods

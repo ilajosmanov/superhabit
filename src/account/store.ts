@@ -1,8 +1,30 @@
+import { eq } from 'drizzle-orm';
 import { Directory, Paths } from 'expo-file-system';
 
 import { account, writeAccount, type Account } from '@/storage/account';
 import { clearDatabase } from '@/storage/clear';
 import { db } from '@/storage/database';
+import { challenges, runs, workouts } from '@/storage/schema';
+
+/**
+ * Whose data keeping `next` would clear (their name): null when another account's workouts, runs or own
+ * challenges aren't here. Asked about first: until sync, this phone has the only copy.
+ */
+export function replacing(next: Account): string | null {
+  const kept = account();
+  if (!kept || kept.id === next.id) return null;
+  const d = db();
+  const theirs =
+    d.select({ id: workouts.id }).from(workouts).limit(1).all().length > 0 ||
+    d.select({ id: runs.id }).from(runs).limit(1).all().length > 0 ||
+    d
+      .select({ id: challenges.id })
+      .from(challenges)
+      .where(eq(challenges.owner, kept.id))
+      .limit(1)
+      .all().length > 0;
+  return theirs ? kept.name : null;
+}
 
 /**
  * Keeps the account that just signed in. The database holds one account's data: another account's (or what

@@ -59,6 +59,11 @@ export interface PoseLandmarker extends HybridObject<{ android: 'kotlin' }> {
    * so results never cross worklet runtimes. Not called after an error or close().
    */
   onResult: ((result: PoseDetection) => void) | undefined;
+  /**
+   * Called once on the JS thread when the detector can't start on GPU or CPU: nothing will be detected for
+   * the rest of this instance's life. `message` is the native error, for the log.
+   */
+  onFailed: ((message: string) => void) | undefined;
   /** Terminal, idempotent shutdown. Pending worklet calls safely do nothing after this returns. */
   close(): void;
 }
