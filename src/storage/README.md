@@ -9,6 +9,7 @@ What is kept on the phone and how. No UI and no feature rules: a feature says wh
 | `database.ts`   | the one database (`superhabit.db`, foreign keys on): `migrateDatabase()`, `db()`    |
 | `outbox.ts`     | `enqueue`: a change for the server, written in the caller's transaction             |
 | `account.ts`    | the kept account: read, write, `userId()` (whose data it is); its rules: `account/` |
+| `consent.ts`    | your answer to sharing traces, as kept here (`null` before it's asked)              |
 | `clear.ts`      | `clearDatabase`: every table emptied in the caller's transaction                    |
 | `trace-file.ts` | a set's recorded trace (`.sht`): the format, packed as the set runs, read back      |
 | `set-files.ts`  | per-set trace/video paths, listing, deletion, temp sweeping and file availability   |

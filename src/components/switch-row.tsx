@@ -10,11 +10,14 @@ export function SwitchRow({
   note,
   value,
   onChange,
+  disabled = false,
 }: {
   label: string;
   note: string;
   value: boolean;
   onChange: (on: boolean) => void;
+  /** While a change is being saved: drawn as it is, but taps wait. */
+  disabled?: boolean;
 }) {
   return (
     <View className="flex-row items-center gap-4">
@@ -25,6 +28,7 @@ export function SwitchRow({
       <Host matchContents>
         <Switch
           value={value}
+          enabled={!disabled}
           onCheckedChange={(on) => {
             void performAndroidHapticsAsync(
               on ? AndroidHaptics.Toggle_On : AndroidHaptics.Toggle_Off,
@@ -38,6 +42,12 @@ export function SwitchRow({
             uncheckedTrackColor: colors.ground,
             uncheckedThumbColor: colors.faint,
             uncheckedBorderColor: colors.faint,
+            disabledCheckedTrackColor: colors.accent,
+            disabledCheckedThumbColor: colors.ground,
+            disabledCheckedBorderColor: colors.accent,
+            disabledUncheckedTrackColor: colors.ground,
+            disabledUncheckedThumbColor: colors.faint,
+            disabledUncheckedBorderColor: colors.faint,
           }}
         />
       </Host>

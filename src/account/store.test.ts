@@ -1,12 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
-import { keepAccount, markSignedOut } from './store';
+import { forgetAccount, keepAccount, markSignedOut } from './store';
 import { account, userId } from '@/storage/account';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
 
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
-vi.mock('expo-file-system', () => ({ Paths: { document: 'documents' }, Directory: class {} }));
+// The account folders on the phone: their paths, and which were deleted.
+const folders = vi.hoisted((): { deleted: string[] } => ({ deleted: [] }));
+vi.mock('expo-file-system', () => ({
+  Paths: { document: 'documents' },
+  Directory: class {
+    path: string;
+    exists = true;
+    constructor(...parts: string[]) {
+      this.path = parts.join('/');
+    }
+    delete() {
+      folders.deleted.push(this.path);
+    }
+  },
+}));
 
 const ann = { id: 'ann', name: 'Ann Lee', image: 'https://photo/ann' };
 const bob = { id: 'bob', name: 'Bob Day', image: null };
@@ -112,5 +126,19 @@ describe('keeping the account that signed in', () => {
     keepAccount(ann);
     expect(account()?.signedOut).toBe(false);
     expect(db().select().from(schema.sets).all()).toHaveLength(1);
+  });
+});
+
+describe('deleting the account', () => {
+  it('clears the phone: every table, the kept account, and its folder', async () => {
+    await migrateDatabase();
+    // Another account first: the database starts empty.
+    keepAccount(bob);
+    keepAccount(ann);
+    train();
+    forgetAccount();
+    expect(rowsLeft().every((n) => n === 0)).toBe(true);
+    expect(account()).toBeNull();
+    expect(folders.deleted).toEqual(['documents/ann']);
   });
 });

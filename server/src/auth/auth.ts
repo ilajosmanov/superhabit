@@ -20,7 +20,13 @@ export const createAuth = (env: Bindings, db: Db) => {
     secret: env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, { provider: 'sqlite', schema }),
     socialProviders: {
-      google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET },
+      google: {
+        clientId: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
+        // The web page's redirect flow (`/delete`): always ask which account, so "Not me" can pick another.
+        // The phone's ID tokens don't use it.
+        prompt: 'select_account',
+      },
     },
     // A year, renewed once a day while the app is used: a phone offline for weeks stays signed in.
     session: { expiresIn: 365 * DAY, updateAge: DAY },

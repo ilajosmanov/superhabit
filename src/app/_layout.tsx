@@ -7,11 +7,13 @@ import { StatusBar } from 'expo-status-bar';
 import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
 import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
+import { ConsentScreen } from '@/account/components/consent-screen';
 import { SignInScreen } from '@/account/components/sign-in-screen';
 import { startup } from '@/bootstrap/startup';
 import { LeftOpen } from '@/bootstrap/left-open';
-import { SignOut } from '@/bootstrap/sign-out';
+import { Leave } from '@/bootstrap/leave';
 import { Today } from '@/bootstrap/today';
 import { LibraryProvider } from '@/challenges/library-live';
 import { PrimaryButton } from '@/components/primary-button';
@@ -26,6 +28,9 @@ void SplashScreen.preventAutoHideAsync();
 // A deep link straight to a pushed page still has the tabs under it, so back and dismissAll lead home.
 export const unstable_settings = { anchor: '(tabs)' };
 
+const FADE_IN = FadeIn.duration(300);
+const FADE_OUT = FadeOut.duration(300);
+
 // Pushed pages get the platform toolbar: the system back arrow, untitled (the page draws its own title).
 const pushed = {
   headerShown: true,
@@ -39,18 +44,22 @@ export default function RootLayout() {
   const [state, send] = useMachine(startup);
   const recovery = state.children.recovery;
   const signIn = state.children.signIn;
+  const consent = state.children.consent;
   return (
     // Gesture handler's gestures (the day strip's drag) only run under this root.
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.ground }}>
-      {/* First launch, or the server ended the session: sign in before anything else. */}
-      {signIn && <SignInScreen signIn={signIn} />}
       {/* A workout left open is offered back before anything else shows. */}
       {recovery && <RecoverPrompt recovery={recovery} />}
       {/* No screen renders before the database is ready and read. Native stack and system back. Screens draw
           their own headers. A pushed page slides fully over the one below: Android's default
           cross-fades the two, which ghosts one page through the other. */}
       {(state.matches('reading') || state.matches('recovering') || state.matches('ready')) && (
-        <SignOut value={() => send({ type: 'signOut' })}>
+        <Leave
+          value={{
+            signOut: () => send({ type: 'signOut' }),
+            deleted: () => send({ type: 'deleted' }),
+          }}
+        >
           <LeftOpen value={state.context.open?.id ?? null}>
             <Today value={state.context.today}>
               <LibraryProvider onRead={(error) => send({ type: 'dataReady', error })}>
@@ -69,7 +78,20 @@ export default function RootLayout() {
               </LibraryProvider>
             </Today>
           </LeftOpen>
-        </SignOut>
+        </Leave>
+      )}
+      {/* First launch, or the server ended the session: sign in before anything else. Over the screens, so
+          each fades into the next instead of cutting: the question out over the app appearing below. */}
+      {signIn && (
+        <Animated.View style={StyleSheet.absoluteFill} entering={FADE_IN} exiting={FADE_OUT}>
+          <SignInScreen signIn={signIn} />
+        </Animated.View>
+      )}
+      {/* Then, once per account: share your traces? */}
+      {consent && (
+        <Animated.View style={StyleSheet.absoluteFill} entering={FADE_IN} exiting={FADE_OUT}>
+          <ConsentScreen consent={consent} />
+        </Animated.View>
       )}
       {/* After a failure the error stays up, its button off while Retry runs. */}
       {state.context.error !== '' && !state.matches('ready') && !recovery ? (

@@ -9,7 +9,7 @@ in CODING_STANDARDS.md for the layers.
 | `src/index.ts`      | the Worker: mounts the routes, runs the daily Cron                                          |
 | `src/env.ts`        | the bindings, vars and secrets the Worker gets; Hono route types                            |
 | `src/auth/`         | Better Auth (Google ID tokens, year-long sessions), its routes, `signedIn` (`signed-in.ts`) |
-| `src/account/`      | `GET /me`, `DELETE /account`, the purge of deleted accounts                                 |
+| `src/account/`      | `GET /me`, `DELETE /account`, the `/delete` web page, the purge of deleted accounts         |
 | `src/consents/`     | `PUT /consent`: one consent in force per kind, every grant kept as proof                    |
 | `src/db/`           | tables (`schema.ts`; Better Auth's generated `auth-schema.ts`), `open()`                    |
 | `src/__fixtures__/` | the test harness: the Worker on a local D1, test-signed Google tokens                       |
@@ -25,6 +25,11 @@ in CODING_STANDARDS.md for the layers.
 - `GET /me`: id, name, image (from Google) and the consents in force.
 - `PUT /consent` `{ kind: 'traces' | 'video', policyVersion, granted }`.
 - `DELETE /account`: signs every phone out at once; the same Google account comes back as a new user.
+- `GET /delete`: the same deletion from a browser (Google Play asks for one), rendered on the server
+  (`account/delete-page.tsx`, Hono JSX) with plain forms and no script. `POST /delete/google` starts
+  Google's redirect sign-in (`/api/auth/callback/google`, registered on the Web client), `POST /delete`
+  deletes, `POST /delete/sign-out` is "Not me". The posts take only the page's own origin; the page can't
+  be framed.
 - Cron, daily at 04:00 UTC: deletes what deleted accounts left (consents now; workouts and traces later).
 
 ## Running it

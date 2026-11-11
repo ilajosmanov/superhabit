@@ -54,15 +54,17 @@ type Context = {
   next: Account | null;
   /** Whose data keeping `next` would clear; asked about first. */
   replacing: string | null;
-  /** Here from Me's Sign out: the old session ends first. */
+  /** Here from Profile's Sign out: the old session ends first. */
   leaving: boolean;
+  /** The button was tapped while the old session was ending: signing in follows. */
+  pressed: boolean;
 };
 
 /**
  * The sign-in screen's button: one try at a time; done once the account is kept. Signing in as another
  * account while this phone holds someone's data asks first: it'd be cleared, and nothing else has it until
- * sync. After Me's Sign out (`leaving`) the old session ends before the button works, so its late answer
- * can't clear a new sign-in's cookie.
+ * sync. After Profile's Sign out (`leaving`) the old session ends before signing in starts, so its late
+ * answer can't clear a new sign-in's cookie; the button looks ready meanwhile, and a tap waits for it.
  */
 // Positional generics (no type assertions allowed): context, events, actors, children, actions, guards,
 // delays, tags, input.
@@ -87,6 +89,7 @@ export const signIn = setup<
     next: null,
     replacing: null,
     leaving: input?.leaving ?? false,
+    pressed: false,
   }),
   initial: 'starting',
   states: {
@@ -130,10 +133,15 @@ export const signIn = setup<
         onError: { target: 'idle', actions: assign({ error: 'failed' }) },
       },
     },
-    // Keep them, or here from Sign out: the session ends before the button works again.
+    // Keep them, or here from Sign out: the session ends before a sign-in starts.
     forgetting: {
-      invoke: { src: 'forgetting', onDone: 'idle', onError: 'idle' },
-      exit: assign({ next: null, replacing: null, leaving: false }),
+      on: { press: { actions: assign({ pressed: true, error: null }) } },
+      invoke: {
+        src: 'forgetting',
+        onDone: [{ guard: ({ context }) => context.pressed, target: 'signingIn' }, 'idle'],
+        onError: [{ guard: ({ context }) => context.pressed, target: 'signingIn' }, 'idle'],
+      },
+      exit: assign({ next: null, replacing: null, leaving: false, pressed: false }),
     },
     // Says why: no internet, or anything else.
     failing: {

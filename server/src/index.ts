@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 
-import { accountRoutes } from './account/routes';
+import { accountRoutes, deletePageRoutes } from './account/routes';
 import { purgeDeleted } from './account/store';
 import { authRoutes } from './auth/routes';
 import { consentRoutes } from './consents/routes';
@@ -15,6 +15,7 @@ const app = new Hono<Route>()
   })
   .route('/', authRoutes)
   .route('/', accountRoutes)
+  .route('/', deletePageRoutes)
   .route('/', consentRoutes);
 
 /** The Worker: HTTP through the app, and the daily Cron (wrangler.jsonc) purging deleted accounts. */

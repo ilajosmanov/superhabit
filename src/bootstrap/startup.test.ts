@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vite-plus/test';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { startup } from './startup';
+import { consent as consentMachine } from '@/account/consent';
 import { signIn as signInMachine } from '@/account/sign-in';
 import type { Account } from '@/storage/account';
 import { recovery } from '@/workout/recovery';
@@ -17,6 +18,11 @@ vi.mock('@/account/session', async () => {
   return { checkSession: promise(async () => 'unknown'), signOut: promise(async () => {}) };
 });
 vi.mock('@/account/auth-client', () => ({}));
+// This phone has the answer about sharing traces, unless a test says otherwise.
+vi.mock('@/account/consent', async (original) => ({
+  ...(await original<typeof import('@/account/consent')>()),
+  answered: () => true,
+}));
 vi.mock('react-native-nitro-google-signin', () => ({}));
 vi.mock('expo-network', () => ({}));
 vi.mock('drizzle-orm/expo-sqlite', () => ({}));
@@ -134,7 +140,7 @@ describe('startup', () => {
     actor.stop();
   });
 
-  it('shows sign-in on the first launch, and starts the app once you signed in', async () => {
+  it('shows sign-in on the first launch, asks about sharing, and starts the app', async () => {
     let seeded = false;
     const seed = fromPromise(async () => {
       seeded = true;
@@ -158,8 +164,15 @@ describe('startup', () => {
           migrate: fine,
           seed,
           check: nothingOpen,
-          identify: fromPromise(async () => false),
+          identify: fromPromise(async (): Promise<'signIn' | 'ask' | 'go'> => 'signIn'),
           signIn,
+          // A new account: the server has no answer, so it's asked.
+          consent: consentMachine.provide({
+            actors: {
+              reading: fromPromise(async (): Promise<'answered' | 'ask'> => 'ask'),
+              notNow: fine,
+            },
+          }),
         },
       }),
     ).start();
@@ -168,6 +181,10 @@ describe('startup', () => {
     expect(SplashScreen.hide).toHaveBeenCalledTimes(1);
     expect(seeded).toBe(false);
     asking.children.signIn?.send({ type: 'press' });
+
+    const question = await waitFor(actor, (s) => s.matches('consenting'));
+    expect(seeded).toBe(false);
+    question.children.consent?.send({ type: 'notNow' });
 
     await waitFor(actor, (s) => s.matches('reading'));
     expect(seeded).toBe(true);
@@ -208,6 +225,44 @@ describe('startup', () => {
     actor.send({ type: 'signOut' });
     await waitFor(actor, (s) => s.matches('signingIn'));
     expect(actor.getSnapshot().children.signIn).toBeDefined();
+    actor.stop();
+  });
+
+  it('clears the phone after the server deleted the account, then shows sign-in', async () => {
+    let cleared = false;
+    const forget = fromPromise(async () => {
+      cleared = true;
+    });
+    const actor = createActor(
+      startup.provide({ actors: { migrate: fine, seed: fine, check: nothingOpen, forget } }),
+    ).start();
+    await waitFor(actor, (s) => s.matches('reading'));
+    actor.send({ type: 'dataReady' });
+    actor.send({ type: 'deleted' });
+    const signingIn = await waitFor(actor, (s) => s.matches('signingIn'));
+    expect(cleared).toBe(true);
+    // The sign-in screen ends the old session with Google first.
+    expect(signingIn.context.leaving).toBe(true);
+    actor.stop();
+  });
+
+  it('asks a phone signed in before about sharing, once the splash is gone', async () => {
+    const actor = createActor(
+      startup.provide({
+        actors: {
+          migrate: fine,
+          seed: fine,
+          check: nothingOpen,
+          identify: fromPromise(async (): Promise<'signIn' | 'ask' | 'go'> => 'ask'),
+          consent: consentMachine.provide({
+            actors: { reading: fromPromise(async (): Promise<'answered' | 'ask'> => 'ask') },
+          }),
+        },
+      }),
+    ).start();
+    const asking = await waitFor(actor, (s) => s.matches('consenting'));
+    expect(SplashScreen.hide).toHaveBeenCalled();
+    expect(asking.children.consent).toBeDefined();
     actor.stop();
   });
 });

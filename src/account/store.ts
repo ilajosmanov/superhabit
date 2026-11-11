@@ -47,6 +47,20 @@ export function markSignedOut() {
   db().transaction((tx) => writeAccount(tx, { ...kept, signedOut: true }));
 }
 
+/**
+ * The account was deleted on the server: everything of it goes from this phone too, the database (the kept
+ * account with it, so the next sign-in is a first one) and its folder of videos and traces.
+ */
+export function forgetAccount() {
+  const kept = account();
+  // The folder first: once the account row is gone, nothing would know whose folder it was.
+  if (kept) {
+    const folder = new Directory(Paths.document, kept.id);
+    if (folder.exists) folder.delete();
+  }
+  db().transaction((tx) => clearDatabase(tx));
+}
+
 // shortcut: only phones from before accounts have it; remove after the first release.
 /** Deletes the files kept before accounts existed (`documents/local`); tried at each launch until gone. */
 export function dropPreAccountFiles() {

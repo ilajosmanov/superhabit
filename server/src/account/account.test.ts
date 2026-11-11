@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 
 import worker from '../index';
-import { ann, call, carl, consent, env, idOf, me, signIn } from '../__fixtures__/worker';
+import { ann, call, carl, consent, dee, env, idOf, me, signIn } from '../__fixtures__/worker';
 
 describe('account', () => {
   it('deletes an account: signed out everywhere, a new account on return, the rest purged by the Cron', async () => {
@@ -29,5 +29,38 @@ describe('account', () => {
     expect(await me(annPhone)).toMatchObject({
       consents: [{ kind: 'video', policyVersion: '1', grantedAt: expect.any(Number) }],
     });
+  });
+
+  it('deletes from a browser: Google asks which account, then Delete signs out and deletes', async () => {
+    const page = await call('/delete');
+    expect(page.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+    expect(await page.text()).toContain('Sign in with Google');
+
+    const fromHere = { origin: env.BETTER_AUTH_URL };
+    expect((await call('/delete/google', { method: 'POST' })).status).toBe(403);
+    const toGoogle = await call('/delete/google', { method: 'POST', headers: fromHere });
+    expect(toGoogle.status).toBe(303);
+    const google = new URL(toGoogle.headers.get('location') ?? '');
+    expect(google.host).toBe('accounts.google.com');
+    expect(google.searchParams.get('prompt')).toBe('select_account');
+    expect(google.searchParams.get('redirect_uri')).toBe(
+      `${env.BETTER_AUTH_URL}/api/auth/callback/google`,
+    );
+    // Google's answer is checked against the state cookie set here.
+    expect(toGoogle.headers.getSetCookie().length).toBeGreaterThan(0);
+
+    // Back from Google with a session (the phone's cookie stands in for the browser's).
+    const browser = await signIn(dee);
+    expect(await (await call('/delete', { headers: { cookie: browser } })).text()).toContain(
+      'Dee Roy',
+    );
+    const elsewhere = { cookie: browser, origin: 'https://evil.example' };
+    expect((await call('/delete', { method: 'POST', headers: elsewhere })).status).toBe(403);
+    const done = await call('/delete', {
+      method: 'POST',
+      headers: { ...fromHere, cookie: browser },
+    });
+    expect(await done.text()).toContain('Your account is deleted');
+    expect(await me(browser)).toBe(401);
   });
 });

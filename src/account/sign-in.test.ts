@@ -157,16 +157,18 @@ describe('signing in', () => {
     actor.stop();
   });
 
-  it('after Sign out, ends the old session before the button works again', async () => {
+  it('after Sign out, a tap signs in only once the old session has ended', async () => {
     let answer = () => {};
     fake.serverSignOut.mockReturnValueOnce(new Promise<void>((resolve) => (answer = resolve)));
+    fake.google.signIn.mockResolvedValue(picked);
+    fake.social.mockResolvedValue(accepted);
     const actor = createActor(signIn, { input: { leaving: true } }).start();
-    expect(actor.getSnapshot().matches('forgetting')).toBe(true);
     actor.send({ type: 'press' });
-    expect(actor.getSnapshot().matches('forgetting')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(fake.social).not.toHaveBeenCalled();
     answer();
-    await waitFor(actor, (s) => s.matches('idle'));
+    expect((await settled(actor)).status).toBe('done');
     expect(fake.google.signOut).toHaveBeenCalled();
-    actor.stop();
+    expect(account()?.id).toBe('ann');
   });
 });

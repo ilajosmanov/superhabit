@@ -3,6 +3,7 @@ import type { PoseDetection, PoseLandmark } from 'superhabit-pose';
 import { fromCallback } from 'xstate';
 
 import { COUNTER_VERSIONS, type ExerciseId } from '@/exercises/registry';
+import { consentsGiven } from '@/storage/consent';
 import {
   traceBuilder,
   type RecordedFrame,
@@ -165,7 +166,7 @@ export const recorder = fromCallback<RecorderEvent, { on: boolean }>(({ input, r
             },
             stretches,
             takes,
-            consent: [],
+            consent: consentsGiven(),
             counted: event.counted,
             labels: {},
           },

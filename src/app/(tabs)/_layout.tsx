@@ -16,7 +16,7 @@ const items: { name: string; icon: MaterialIcon['md']; label: string }[] = [
   { name: 'index', icon: 'home', label: 'Home' },
   { name: 'challenges', icon: 'flag', label: 'Challenges' },
   { name: 'friends', icon: 'group', label: 'Friends' },
-  { name: 'me', icon: 'person', label: 'Me' },
+  { name: 'me', icon: 'person', label: 'Profile' },
 ];
 
 /** The platform's own bottom tab bar (Material on Android), in the gym-floor palette. */

@@ -14,7 +14,11 @@ export function SignInScreen({ signIn: actor }: { signIn: ActorRefFrom<typeof si
   const { top, bottom } = useSafeAreaInsets();
   const busy = useSelector(
     actor,
-    (s) => s.matches('signingIn') || s.matches('failing') || s.matches('forgetting'),
+    (s) =>
+      s.matches('signingIn') ||
+      s.matches('failing') ||
+      // Tapped while the old session ends (Sign out, Keep them): signing in follows.
+      (s.matches('forgetting') && s.context.pressed),
   );
   const error = useSelector(actor, (s) => s.context.error);
   const asking = useSelector(
