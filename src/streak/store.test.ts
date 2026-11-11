@@ -55,8 +55,8 @@ describe('keepFreezes', () => {
   it('writes the freeze earned and the one spent once the days are over, each queued once', () => {
     for (let day = 1; day <= 7; day += 1) train(`2026-11-0${day}`);
 
-    keepFreezes('2026-11-09');
-    keepFreezes('2026-11-09');
+    keepFreezes('2026-11-09', true);
+    keepFreezes('2026-11-09', true);
 
     const written = ['earned:2026-11-07', 'used:2026-11-08'];
     expect(events().map(({ id }) => id)).toEqual(written);
@@ -67,9 +67,9 @@ describe('keepFreezes', () => {
     for (let day = 1; day <= 7; day += 1) train(`2026-11-0${day}`);
     train('2026-11-08', { open: true });
 
-    keepFreezes('2026-11-09');
+    keepFreezes('2026-11-09', true);
     saveWorkout('w-2026-11-08');
-    keepFreezes('2026-11-09');
+    keepFreezes('2026-11-09', true);
 
     expect(events().map(({ id }) => id)).toEqual(['earned:2026-11-07']);
   });
@@ -79,7 +79,7 @@ describe('keepFreezes', () => {
     // Done with nothing counted is not the 7th day.
     train('2026-11-07', { counted: 0 });
 
-    keepFreezes('2026-11-10');
+    keepFreezes('2026-11-10', true);
 
     expect(events()).toEqual([]);
   });

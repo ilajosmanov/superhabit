@@ -41,7 +41,7 @@ describe('streak', () => {
 
   it('earns a freeze on the 7th day and spends it on the next miss, so the streak goes on', () => {
     // 12 to 6 days ago earns one; 5 days ago is missed; 4 to 1 days ago since.
-    const s = streak([...span(12, 6), ...span(4, 1)], TODAY);
+    const s = streak([...span(12, 6), ...span(4, 1)], TODAY, true);
 
     expect(s.kind(ago(5))).toBe('frozen');
     // The frozen day counts in the streak, not toward the next freeze.
@@ -53,23 +53,31 @@ describe('streak', () => {
   });
 
   it('breaks on a second miss with one freeze, and says yesterday slipped', () => {
-    const s = streak(span(9, 3), TODAY);
+    const s = streak(span(9, 3), TODAY, true);
 
     expect([s.kind(ago(2)), s.kind(ago(1))]).toEqual(['frozen', 'missed']);
     expect(s).toMatchObject({ current: 0, best: 8, held: 0, toNext: 7, status: 'slipped' });
   });
 
   it('holds at most two freezes', () => {
-    const s = streak(span(21, 1), TODAY);
+    const s = streak(span(21, 1), TODAY, true);
 
     expect(s).toMatchObject({ current: 21, held: 2, toNext: null });
     expect(s.events.map(({ id }) => id)).toEqual([`earned:${ago(15)}`, `earned:${ago(8)}`]);
   });
 
   it('records only days that are over: a freeze earned today is held but written tomorrow', () => {
-    const s = streak(span(6, 0), TODAY);
+    const s = streak(span(6, 0), TODAY, true);
 
     expect(s.held).toBe(1);
+    expect(s.events).toEqual([]);
+  });
+
+  it('earns no freeze while freezes are off: the miss after 7 days breaks the streak', () => {
+    const s = streak([...span(12, 6), ...span(4, 1)], TODAY, false);
+
+    expect(s.kind(ago(5))).toBe('missed');
+    expect(s).toMatchObject({ current: 4, best: 7, held: 0 });
     expect(s.events).toEqual([]);
   });
 

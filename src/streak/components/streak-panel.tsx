@@ -7,7 +7,7 @@ import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { Icon } from '@/components/icon';
 import { tick } from '@/components/tick';
 import { dayAt, dayWords, weeks } from './streak-grid';
-import { EARN_EVERY, HOLD, type DayKind, type Streak } from '@/streak/streak';
+import { EARN_EVERY, FREEZES, HOLD, type DayKind, type Streak } from '@/streak/streak';
 import { colors } from '@/theme';
 import { addDays, dayLabel, type Day } from '@/lib/day';
 
@@ -153,12 +153,15 @@ function Grid({
             ['FROZEN', 'border border-soft'],
             ['MISSED', 'bg-line'],
           ] as const
-        ).map(([label, cell]) => (
-          <View key={label} className="flex-row items-center gap-1.5">
-            <View className={`size-2.5 rounded-sm ${cell}`} />
-            <Text className="font-mono text-xs tracking-widest text-muted">{label}</Text>
-          </View>
-        ))}
+        )
+          // No day can be frozen while freezes are off.
+          .filter(([label]) => FREEZES || label !== 'FROZEN')
+          .map(([label, cell]) => (
+            <View key={label} className="flex-row items-center gap-1.5">
+              <View className={`size-2.5 rounded-sm ${cell}`} />
+              <Text className="font-mono text-xs tracking-widest text-muted">{label}</Text>
+            </View>
+          ))}
       </View>
     </View>
   );
@@ -212,27 +215,29 @@ export function StreakPanel({
 
       <Grid today={today} kind={kind} picked={picked} onPick={onPick} />
 
-      <View className="h-14 flex-row items-center justify-between border-t border-line">
-        <Text className="font-mono text-xs tracking-widest text-muted">FREEZES</Text>
-        <View className="flex-row items-center gap-3">
-          <Text className="font-sans text-sm text-muted">{hint}</Text>
-          <View
-            accessible
-            accessibilityRole="image"
-            accessibilityLabel={`${held} of ${HOLD} freezes held`}
-            className="flex-row gap-1"
-          >
-            {Array.from({ length: HOLD }, (_, i) => (
-              <Icon
-                key={i}
-                name="ac_unit"
-                size={20}
-                color={i < held ? colors.chalk : colors.edge}
-              />
-            ))}
+      {FREEZES && (
+        <View className="h-14 flex-row items-center justify-between border-t border-line">
+          <Text className="font-mono text-xs tracking-widest text-muted">FREEZES</Text>
+          <View className="flex-row items-center gap-3">
+            <Text className="font-sans text-sm text-muted">{hint}</Text>
+            <View
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel={`${held} of ${HOLD} freezes held`}
+              className="flex-row gap-1"
+            >
+              {Array.from({ length: HOLD }, (_, i) => (
+                <Icon
+                  key={i}
+                  name="ac_unit"
+                  size={20}
+                  color={i < held ? colors.chalk : colors.edge}
+                />
+              ))}
+            </View>
           </View>
         </View>
-      </View>
+      )}
     </View>
   );
 }

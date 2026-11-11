@@ -245,6 +245,8 @@ function Segment({
 }
 
 /** Opens the system share sheet with one of the session's files. */
+// shortcut: shares the file as filmed, with no watermark; the Monetization Plan marks free clips, so add
+// it before pilots share any (it needs a re-encode step, and its own plan).
 async function shareTake(uri: string) {
   try {
     if (await Sharing.isAvailableAsync())

@@ -4,13 +4,7 @@ import Constants from 'expo-constants';
 import { db } from '@/storage/database';
 import { enqueue } from '@/storage/outbox';
 import { outbox, sets, workouts } from '@/storage/schema';
-import {
-  deleteSavedTraces,
-  deleteTraces,
-  deleteVideos,
-  listVideos,
-  removeVideo,
-} from '@/storage/set-files';
+import { deleteTraces, deleteVideos, listVideos, removeVideo } from '@/storage/set-files';
 import { discardTraceWrites } from '@/workout/capture/recorder-file';
 import { discardVideoWrites } from '@/workout/capture/camcorder';
 import { addDays, today, type Day } from '@/lib/day';
@@ -154,11 +148,11 @@ export const setIsSynced = (setId: string): boolean =>
     )
     .get() !== undefined;
 
-/** Days a done workout keeps recordings that are not waiting to be shared. */
+/** Days a done workout keeps its videos. */
 const RECORDING_DAYS = 30;
 
-/** Deletes old videos and traces, keeping traces still waiting to be shared. */
-// shortcut: selects every old set each day and lists recording folders; keep a pruned-up-to day if it slows.
+/** Deletes old videos. Traces are never swept: a saved set's trace stays until the account is deleted. */
+// shortcut: selects every old set each day and lists the videos folder; keep a pruned-up-to day if it slows.
 export function deleteOldVideos(day: Day) {
   const old = db()
     .select({ id: sets.id })
@@ -166,9 +160,7 @@ export function deleteOldVideos(day: Day) {
     .innerJoin(workouts, eq(workouts.id, sets.workoutId))
     .where(and(eq(workouts.status, 'done'), lt(workouts.day, addDays(day, -RECORDING_DAYS))))
     .all();
-  const ids = old.map((row) => row.id);
-  deleteVideos(ids);
-  deleteSavedTraces(ids);
+  deleteVideos(old.map((row) => row.id));
 }
 
 /** At startup only, before any session runs; open workouts' sets must keep their videos for Save. */

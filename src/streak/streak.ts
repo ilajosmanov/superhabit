@@ -9,6 +9,11 @@ type FreezeEvent = { id: string; day: Day; kind: 'earned' | 'used' };
 /** Alive days in a row that earn a freeze, and the most you can hold. */
 export const EARN_EVERY = 7;
 export const HOLD = 2;
+/**
+ * Freezes are paid (Monetization Plan), and there is no paid tier yet: off, nobody earns one, so no day is
+ * frozen and no event is written. The rules stay; turn this on per person when the tier exists.
+ */
+export const FREEZES: boolean = false;
 
 export type Streak = {
   /** Alive or frozen days in a row, up to today (today counts once it is alive). */
@@ -41,8 +46,9 @@ export function aliveDays(
 /**
  * Your streak from the days you trained (alive days) and today. Computed in full every time: freeze
  * events are only its record, so a day another phone later makes alive is simply alive, its freeze kept.
+ * Without `freezes` none is earned: every missed day breaks the streak.
  */
-export function streak(alive: Iterable<Day>, today: Day): Streak {
+export function streak(alive: Iterable<Day>, today: Day, freezes = FREEZES): Streak {
   const done = new Set(alive);
   const kinds = new Map<Day, DayKind>();
   const events: FreezeEvent[] = [];
@@ -64,7 +70,7 @@ export function streak(alive: Iterable<Day>, today: Day): Streak {
       count += 1;
       if (count === EARN_EVERY) {
         count = 0;
-        if (held < HOLD) {
+        if (freezes && held < HOLD) {
           held += 1;
           record('earned', day);
         }

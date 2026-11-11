@@ -10,6 +10,10 @@ One personal streak across the whole app, shown on Home (the first tab).
 | `components/streak-panel.tsx` | the Home panel: days in a row, today's status, 13 weeks of squares to pick a day on, freezes |
 | `components/streak-grid.ts`   | the 13-week grid layout, picked-day wording and the day under a tap                          |
 
+Freezes are off (`FREEZES` in `streak.ts`): they are paid in the Monetization Plan and there is no paid
+tier yet. Off, nobody earns one, no day is frozen, no event is written and the panel hides its FREEZES row;
+the rules below stay, tested with the switch on.
+
 A day is alive when a done workout started on it has a counted rep or hold, from any challenge or a free
 log. Every 7 alive days in a row earn a freeze (hold 2); a missed day with one held is frozen. The streak
 is computed from alive days every time it is shown. Freeze events are only its record for the server:

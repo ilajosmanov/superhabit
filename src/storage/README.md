@@ -64,9 +64,8 @@ Videos: `documents/<userId()>/videos/<setId>-<i>.mp4`; `video_t_ms = t − video
 sent yet), `sent/`, `unread/` (the server couldn't read it) and `private/` (never leaves the phone).
 `roomToFilm` is false under 1 GB free: sets are then counted without filming.
 It knows no workout rules: callers choose which set ids to delete. `deleteTraces` removes final and
-temporary files from all four trace folders on discard. The workout's 30-day recording sweep calls
-`deleteSavedTraces`, listing `private/`, `sent/` and `unread/` once each to remove old saved sets' files
-without probing paths for the whole history; it leaves `pending/` alone. `videosOf` lists
+temporary files from all four trace folders on discard. A saved set's trace is never deleted: the
+workout's 30-day sweep removes videos only, and traces go when the account does. `videosOf` lists
 existing files in numeric take order, preserving gaps, and omits sets whose native files are still reserved for writing.
 
 Optional `stretches: [{ kind, startMs, endMs }]` use file-relative milliseconds and ordered, non-overlapping

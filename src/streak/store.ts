@@ -1,4 +1,4 @@
-import { aliveDays, streak } from './streak';
+import { aliveDays, FREEZES, streak } from './streak';
 import { db } from '@/storage/database';
 import { enqueue } from '@/storage/outbox';
 import { streakEvents } from '@/storage/schema';
@@ -8,11 +8,12 @@ import { findOpenWorkout, setRows, workoutRows } from '@/workout/store';
 /**
  * Writes the freezes the rules gave days already over, each new one with its outbox row. Run at launch and
  * at each new day; a second run adds nothing, and an event another phone wrote for the same day is the same row.
- * Waits while a workout is open: one started at 23:58 may still make yesterday alive.
+ * Waits while a workout is open: one started at 23:58 may still make yesterday alive. Writes nothing while
+ * freezes are off.
  */
-export function keepFreezes(today: Day) {
+export function keepFreezes(today: Day, freezes = FREEZES) {
   if (findOpenWorkout()) return;
-  const { events } = streak(aliveDays(workoutRows().sync(), setRows().sync()), today);
+  const { events } = streak(aliveDays(workoutRows().sync(), setRows().sync()), today, freezes);
   if (events.length === 0) return;
   const createdAt = Date.now();
   db().transaction((tx) => {

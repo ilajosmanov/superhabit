@@ -86,46 +86,22 @@ describe('a workout left open', () => {
     );
   });
 
-  it('sweeps only old saved traces that are no longer pending uploads', () => {
-    const daysAgo = (n: number) => new Date(2026, 10, 11 - n, 12);
-    for (const [id, age, save] of [
-      ['old', 31, true],
-      ['boundary', 30, true],
-      ['open', 40, false],
-    ] as const) {
-      const workout = workoutStart(id, { runId: null, versionId: null }, daysAgo(age));
-      logSet(workout, { ...set(0, 1), id, workoutId: id });
-      if (save) saveOpenWorkout(id);
-      for (const folder of ['private', 'sent', 'unread', 'pending'])
-        for (const suffix of ['sht', 'sht.tmp'])
-          files.add(`document/local/traces/${folder}/${id}.${suffix}`);
-    }
-    const listing = vi.spyOn(modules['expo-file-system'].Directory.prototype, 'list');
-    const exists = vi.spyOn(files, 'has');
-    try {
-      deleteOldVideos('2026-11-11');
-      expect(
-        listing.mock.contexts
-          .map((folder) =>
-            folder instanceof modules['expo-file-system'].Directory ? folder.uri : null,
-          )
-          .sort((a, b) => (a ?? '').localeCompare(b ?? '')),
-      ).toEqual([
-        'document/local/traces/private',
-        'document/local/traces/sent',
-        'document/local/traces/unread',
-      ]);
-      expect(exists).not.toHaveBeenCalled();
-    } finally {
-      listing.mockRestore();
-      exists.mockRestore();
-    }
-    expect([...files].filter((path) => path.includes('/old.')).sort()).toEqual([
-      'document/local/traces/pending/old.sht',
-      'document/local/traces/pending/old.sht.tmp',
-    ]);
-    expect([...files].filter((path) => path.includes('/boundary.'))).toHaveLength(8);
-    expect([...files].filter((path) => path.includes('/open.'))).toHaveLength(8);
+  it('never deletes a trace with the old videos', () => {
+    const old = new Date(2026, 9, 1, 12);
+    logSet(workoutStart('old', { runId: null, versionId: null }, old), {
+      ...set(0, old.getTime()),
+      id: 'old-set',
+      workoutId: 'old',
+    });
+    saveOpenWorkout('old');
+    const traces = ['private', 'sent', 'unread', 'pending'].map(
+      (folder) => `document/local/traces/${folder}/old-set.sht`,
+    );
+    for (const path of [...traces, 'document/local/videos/old-set-0.mp4']) files.add(path);
+
+    deleteOldVideos('2026-11-11');
+
+    expect(files).toEqual(new Set(traces));
   });
 
   it('discards every final and temporary trace copy, including pending uploads', () => {
