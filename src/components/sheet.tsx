@@ -21,7 +21,7 @@ export function Sheet({
       containerColor={colors.surface}
       contentPadding={0}
     >
-      {/* Scrolls only when large text or a long day outgrows the screen. */}
+      {/* Scrolls only when its content (large text, a long list) outgrows the screen. */}
       <ScrollView>
         {/* Width from the sheet, height from the views, so the text wraps and the sheet fits it. */}
         <RNHostView matchContents={{ vertical: true }}>

@@ -1,7 +1,16 @@
 import { createActor, waitFor } from 'xstate';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
-import { bonusOf, endsIn, lastWeekWords, leaderboard, standing, type Board } from './leaderboard';
+import {
+  bonusOf,
+  endsIn,
+  lastWeekWords,
+  leaderboard,
+  standing,
+  unseenClose,
+  weekDay,
+  type Board,
+} from './leaderboard';
 import { migrateDatabase } from '@/storage/__fixtures__/database';
 
 // Our server and the network are faked; the machine is real.
@@ -152,6 +161,19 @@ describe('the league tab', () => {
     expect(closing.getSnapshot().context.problem).toBeNull();
   });
 
+  it('a pull while the tab is reading joins that read: the spinner shows until it ends', async () => {
+    server(true);
+    const actor = createActor(leaderboard, { input: tab() }).start();
+    await waitFor(actor, (s) => s.matches('shown'));
+    open();
+    expect(actor.getSnapshot().matches('loading')).toBe(true);
+    actor.send({ type: 'retry' });
+    expect(actor.getSnapshot().context.pulled).toBe(true);
+    await waitFor(actor, (s) => s.matches('shown'));
+    expect(actor.getSnapshot().context.pulled).toBe(false);
+    expect(reads()).toBe(2);
+  });
+
   it('reads the board again each time the tab opens, keeping the last one on screen meanwhile', async () => {
     server(false);
     const actor = createActor(leaderboard, { input: tab() }).start();
@@ -197,21 +219,23 @@ describe('the league tab', () => {
     const closed = { week: '2026-11-02', league: 'silver' as const, rank: 2, points: 140 };
     server(true, true, closed);
     const first = createActor(leaderboard, { input: tab() }).start();
+    /** What the tab shows first: last week's close, or null for the board. */
+    const shows = ({ context: { board, seen } }: ReturnType<typeof first.getSnapshot>) =>
+      board && unseenClose(board, seen);
     await waitFor(first, (s) => s.matches('shown'));
-    expect(first.getSnapshot().context.seen).toBeNull();
+    expect(shows(first.getSnapshot())).toEqual(closed);
     first.send({ type: 'seen' });
-    expect(first.getSnapshot().context.seen).toBe('2026-11-02');
+    expect(shows(first.getSnapshot())).toBeNull();
     first.stop();
 
     const again = createActor(leaderboard, { input: tab() }).start();
     await waitFor(again, (s) => s.matches('shown'));
-    expect(again.getSnapshot().context.seen).toBe('2026-11-02');
+    expect(shows(again.getSnapshot())).toBeNull();
     // A week later, a new close to see.
-    expect(again.getSnapshot().context.board?.last?.week).toBe('2026-11-02');
     server(true, true, { ...closed, week: '2026-11-09' });
     open();
     await waitFor(again, (s) => s.matches('shown') && s.context.board?.last?.week === '2026-11-09');
-    expect(again.getSnapshot().context.seen).toBe('2026-11-02');
+    expect(shows(again.getSnapshot())).toMatchObject({ week: '2026-11-09' });
   });
 });
 
@@ -285,6 +309,14 @@ describe('what the league tab says', () => {
         last: { week: '2026-11-02', league: 'bronze', rank: 4, points: 30 },
       }),
     ).toBe('A new week. Everyone on your board starts at 0.');
+    // The bottom place drops even at 0: the zone says so before the new week does.
+    const lastWeek = { week: '2026-11-02', league: 'silver' as const, rank: 4, points: 30 };
+    expect(standing({ ...ranked('silver', [0, 0, 0], 3, 1), last: lastWeek })).toBe(
+      "You'd drop to Bronze. 1 point gets you clear.",
+    );
+    expect(standing({ ...ranked('silver', [0, 0, 0], 2, 1), last: lastWeek })).toBe(
+      'A new week. Everyone on your board starts at 0.',
+    );
   });
 
   it('says where last week took you, and what the new board asks', () => {
@@ -294,19 +326,16 @@ describe('what the league tab says', () => {
       rank: 2,
       points: 540,
     });
-    expect(lastWeekWords({ ...board(true), league: 'gold', last: was('silver') })).toEqual({
+    expect(lastWeekWords('gold', was('silver'))).toEqual({
       title: 'Up to Gold',
       finished: '2ND · 540 POINTS',
       text: 'A new board, everyone at 0. Gold is the top league: stay out of the bottom places to keep it.',
     });
-    expect(lastWeekWords({ ...board(true), league: 'silver', last: was('silver') })?.title).toBe(
-      'Silver again',
-    );
-    expect(lastWeekWords({ ...board(true), league: 'bronze', last: was('silver') })).toMatchObject({
+    expect(lastWeekWords('silver', was('silver')).title).toBe('Silver again');
+    expect(lastWeekWords('bronze', was('silver'))).toMatchObject({
       title: 'Back to Bronze',
       text: 'A new board, everyone at 0. Nobody drops from Bronze. The top places move up to Silver.',
     });
-    expect(lastWeekWords(board(true))).toBeNull();
   });
 
   it('adds 5% for each day in a row after the first, up to 50%', () => {
@@ -318,6 +347,12 @@ describe('what the league tab says', () => {
   });
 
   it('counts down in days, then hours on the last day, then says the week ended', () => {
+    // Days count from the week's start, Monday 00:00 UTC: Wednesday noon is the third.
+    const end = Date.parse('2026-11-16T00:00:00Z');
+    expect(weekDay(end, Date.parse('2026-11-11T12:00:00Z'))).toBe(2);
+    expect(weekDay(end, Date.parse('2026-11-08T23:00:00Z'))).toBe(0);
+    // Read again after the week ended, offline: still its last day.
+    expect(weekDay(end, Date.parse('2026-11-16T07:00:00Z'))).toBe(6);
     const monday = Date.parse('2026-11-16T00:00:00Z');
     const hour = 60 * 60 * 1000;
     expect(endsIn(monday, monday - 6 * 24 * hour)).toBe('ENDS IN 6 DAYS');

@@ -29,9 +29,9 @@ import { addDays, RATES, STREAK_BONUS, STREAK_CAP, weekPoints } from './points';
 export type League = (typeof leagueWeeks.$inferSelect)['league'];
 type Move = NonNullable<(typeof leagueWeeks.$inferSelect)['move']>;
 const LEAGUES: League[] = ['bronze', 'silver', 'gold'];
-/** People on one board. */
+/** People on one board. The app's rules say it (src/leaderboard/components/your-place.tsx). */
 const COHORT = 30;
-/** The most who move up, and down, from one board. */
+/** The most who move up, and down, from one board. The app's rules say it too (your-place.tsx). */
 const MOVE = 5;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 

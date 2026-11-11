@@ -22,9 +22,13 @@ export function PointsSheet({
   bonus: number;
   onDismiss: () => void;
 }) {
-  // Exercises this app knows, reps by points, then holds.
+  // Exercises and units this app knows, reps by points, then holds.
   const rows = board.rates
-    .flatMap((rate) => (isExerciseId(rate.exercise) ? [{ ...rate, id: rate.exercise }] : []))
+    .flatMap((rate) =>
+      isExerciseId(rate.exercise) && (rate.per === 'rep' || rate.per === '10 s')
+        ? [{ ...rate, id: rate.exercise }]
+        : [],
+    )
     .sort((a, b) => (a.per === b.per ? b.points - a.points : a.per === 'rep' ? -1 : 1));
   const most = Math.max(...rows.map((row) => row.points), 1);
   const perDay = Math.round(board.bonus.perDay * 100);

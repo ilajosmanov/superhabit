@@ -1,6 +1,8 @@
 import { Text, View } from 'react-native';
 
 import {
+  ABOVE,
+  BELOW,
   endsIn,
   LEAGUES,
   scored,
@@ -15,7 +17,7 @@ import { capitalise } from '@/lib/text';
 import { colors } from '@/theme';
 
 /** The three leagues as steps, yours lit: where you stand on the ladder. */
-export function Steps({ league }: { league: League }) {
+function Steps({ league }: { league: League }) {
   const at = LEAGUES.indexOf(league);
   return (
     <View
@@ -82,9 +84,9 @@ function Week({ endsAt, readAt }: { endsAt: number; readAt: number }) {
 
 /** The week's rules, said once: the first time you see a board, before anyone has points. */
 function Rules({ league, endsAt }: { league: League; endsAt: number }) {
-  const at = LEAGUES.indexOf(league);
-  const above = LEAGUES.at(at + 1);
-  const below = at > 0 ? LEAGUES[at - 1] : undefined;
+  const above = ABOVE[league];
+  const below = BELOW[league];
+  // The server's COHORT and MOVE (server/src/leagues/store.ts): change them together.
   const rules = [
     ['ONE WEEK', `Seven days. This one closes ${closesAt(endsAt)}.`],
     ['YOUR BOARD', `Up to 30 people, all in ${capitalise(league)}.`],

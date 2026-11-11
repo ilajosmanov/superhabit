@@ -15,7 +15,13 @@ import { PointsSheet } from '@/leaderboard/components/points-sheet';
 import { Standings } from '@/leaderboard/components/standings';
 import { WeekResult } from '@/leaderboard/components/week-result';
 import { YourPlace } from '@/leaderboard/components/your-place';
-import { bonusOf, leaderboard, type Problem, type TabEvents } from '@/leaderboard/leaderboard';
+import {
+  bonusOf,
+  leaderboard,
+  unseenClose,
+  type Problem,
+  type TabEvents,
+} from '@/leaderboard/leaderboard';
 import { colors } from '@/theme';
 
 const PROBLEM: Record<Problem, string> = {
@@ -66,8 +72,9 @@ export function LeagueScreen({
     );
   }
 
-  if (board.last && board.last.week !== seen) {
-    return <WeekResult board={board} onSeen={() => send({ type: 'seen' })} />;
+  const last = unseenClose(board, seen);
+  if (last) {
+    return <WeekResult last={last} league={board.league} onSeen={() => send({ type: 'seen' })} />;
   }
 
   const you = board.rows.find((row) => row.you);
@@ -85,7 +92,7 @@ export function LeagueScreen({
           onPress={() => setExplained(true)}
         />
       }
-      refresh={{ refreshing: pulled && reading, onRefresh: () => send({ type: 'retry' }) }}
+      refresh={{ refreshing: pulled, onRefresh: () => send({ type: 'retry' }) }}
       footer={
         you?.points === 0 &&
         board.endsAt > readAt && <PrimaryButton label="Score your first points" onPress={onScore} />

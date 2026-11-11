@@ -134,7 +134,7 @@ export default function RootLayout() {
  * A screen threw while rendering: said kindly instead of closing the app, never with the error itself. Try
  * again renders the app afresh.
  */
-// shortcut: the error is only shown, not reported; add crash reporting once the owner picks a service.
+// shortcut: the error is neither shown nor reported; add crash reporting once the owner picks a service.
 export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
   // The error may come before Home, under the splash; hiding it twice does nothing.
   SplashScreen.hide();

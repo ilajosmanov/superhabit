@@ -39,7 +39,8 @@ const boardSchema = z.object({
   last: z.object({ week: z.string(), league, rank: z.number(), points: z.number() }).nullable(),
   /** What one rep, or ten seconds of a hold, scores before the streak bonus. */
   rates: z.array(
-    z.object({ exercise: z.string(), per: z.enum(['rep', '10 s']), points: z.number() }),
+    // Display only: a unit this app doesn't know mustn't fail the whole board.
+    z.object({ exercise: z.string(), per: z.string(), points: z.number() }),
   ),
   /** The streak bonus: `perDay` for each day in a row after the first, counting up to `days` days. */
   bonus: z.object({ perDay: z.number(), days: z.number() }),
@@ -145,16 +146,11 @@ export const leaderboard = setup<
   on: {
     opened: { actions: assign({ later: false }) },
     seen: {
+      guard: ({ context }) => !!context.board?.last,
       actions: [
-        assign({ seen: ({ context }) => context.board?.last?.week ?? context.seen }),
+        assign({ seen: ({ context }) => context.board?.last?.week ?? null }),
         ({ context }) => {
-          if (!context.seen) return;
-          // Not kept, it shows once more next launch: no worse than that.
-          try {
-            seeResult(context.seen);
-          } catch (error) {
-            console.warn('[leaderboard] seen', error);
-          }
+          if (context.board?.last) seeResult(context.board.last.week);
         },
       ],
     },
@@ -163,6 +159,7 @@ export const leaderboard = setup<
   states: {
     // The board, if any, stays while it is read again.
     loading: {
+      on: { retry: { actions: assign({ pulled: true }) } },
       invoke: {
         src: 'loading',
         onDone: {
@@ -183,7 +180,9 @@ export const leaderboard = setup<
         ],
       },
     },
+    // A pull while a read runs joins it.
     failing: {
+      on: { retry: { actions: assign({ pulled: true }) } },
       invoke: {
         src: 'whyCallFailed',
         input: thrown,
@@ -246,8 +245,16 @@ export const leaderboard = setup<
 
 /** Lowest first. */
 export const LEAGUES: League[] = ['bronze', 'silver', 'gold'];
-const ABOVE: Record<League, League | null> = { bronze: 'silver', silver: 'gold', gold: null };
-const BELOW: Record<League, League | null> = { bronze: null, silver: 'bronze', gold: 'silver' };
+export const ABOVE: Record<League, League | null> = {
+  bronze: 'silver',
+  silver: 'gold',
+  gold: null,
+};
+export const BELOW: Record<League, League | null> = {
+  bronze: null,
+  silver: 'bronze',
+  gold: 'silver',
+};
 
 const points = (n: number) => `${n} ${n === 1 ? 'point' : 'points'}`;
 const ordinal = (n: number) =>
@@ -257,6 +264,10 @@ const behind = (place: number, gap: number) =>
   gap > 0
     ? `${ordinal(place)} is ${points(gap)} behind you.`
     : `${ordinal(place)} is level with you.`;
+
+/** Last week's close, while you haven't seen it on this phone: the tab shows it before the board. */
+export const unseenClose = ({ last }: Board, seen: string | null) =>
+  last && last.week !== seen ? last : null;
 
 /** Whether anyone on the board has points: until then ranks mean nothing (a tie is ordered by id). */
 export const scored = ({ rows }: Board) => rows.some((row) => row.points > 0);
@@ -270,19 +281,20 @@ export function standing(board: Board) {
   const above = ABOVE[league];
   const below = BELOW[league];
   const you = rows.find((row) => row.you);
+  const n = rows.length;
+  // The bottom places drop with or without points (the server's `moveOf`), so this comes first.
+  if (you && below && you.rank > n - down) {
+    return `You'd drop to ${capitalise(below)}. ${points(rows[n - down - 1].points - you.points + 1)} gets you clear.`;
+  }
   if (!you || !scored(board)) {
     return last
       ? 'A new week. Everyone on your board starts at 0.'
       : 'Every rep and second the camera counts scores points.';
   }
   const { rank, points: mine } = you;
-  const n = rows.length;
   if (above && rank <= up) {
     // The first place that stays is who could push you out.
     return `You'd move up to ${capitalise(above)}. ${behind(up + 1, mine - rows[up].points)}`;
-  }
-  if (below && rank > n - down) {
-    return `You'd drop to ${capitalise(below)}. ${points(rows[n - down - 1].points - mine + 1)} gets you clear.`;
   }
   if (above) {
     if (zone === 0) return 'Moving up starts once your board has three people.';
@@ -311,8 +323,7 @@ export const weekDay = (endsAt: number, now: number) =>
   Math.min(6, Math.max(0, Math.floor((now - (endsAt - 7 * DAY)) / DAY)));
 
 /** How last week closed, in words: where you are now, and what the new board asks. */
-export function lastWeekWords({ league, last }: Board) {
-  if (!last) return null;
+export function lastWeekWords(league: League, last: NonNullable<Board['last']>) {
   const now = capitalise(league);
   const was = LEAGUES.indexOf(last.league);
   const is = LEAGUES.indexOf(league);
@@ -352,6 +363,9 @@ export const weekLetters = (endsAt: number) =>
     new Date(endsAt - (7 - i) * DAY + DAY / 2).toLocaleDateString([], { weekday: 'narrow' }),
   );
 
-/** When the week closes, where you are: "Sunday 19:00" west of UTC, "Monday 02:00" in Kyiv. */
+/**
+ * When the week closes, where you are, in the locale's own clock: "Sunday 07:00 PM" in New York, "Monday
+ * 00:00" in London in winter.
+ */
 export const closesAt = (endsAt: number) =>
   new Date(endsAt).toLocaleString([], { weekday: 'long', hour: '2-digit', minute: '2-digit' });

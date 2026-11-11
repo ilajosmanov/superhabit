@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { Icon } from '@/components/icon';
-import { LEAGUES, type Board } from '@/leaderboard/leaderboard';
+import { ABOVE, BELOW, type Board } from '@/leaderboard/leaderboard';
 import { colors } from '@/theme';
 
 type Row = Board['rows'][number];
@@ -12,9 +12,8 @@ type Part = { label: string; icon: AndroidSymbol; lit: boolean; rows: Row[] };
 
 /** The board's parts: who moves up, who stays, who drops, each headed by what it means. */
 function zones({ rows, league, up, down }: Board): Part[] {
-  const at = LEAGUES.indexOf(league);
-  const above = LEAGUES.at(at + 1);
-  const below = at > 0 ? LEAGUES[at - 1] : undefined;
+  const above = ABOVE[league];
+  const below = BELOW[league];
   const stay: Part = {
     label: `STAY IN ${league}`,
     icon: 'remove',

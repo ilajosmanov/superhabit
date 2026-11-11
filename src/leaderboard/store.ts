@@ -19,9 +19,14 @@ export function resultSeen(): string | null {
 
 /** Remembers you've seen how `week` closed, so it isn't shown again. */
 export function seeResult(week: string) {
-  db()
-    .insert(settings)
-    .values({ key: KEY, value: week })
-    .onConflictDoUpdate({ target: settings.key, set: { value: week } })
-    .run();
+  try {
+    db()
+      .insert(settings)
+      .values({ key: KEY, value: week })
+      .onConflictDoUpdate({ target: settings.key, set: { value: week } })
+      .run();
+  } catch (error) {
+    // Not kept, it shows once more next launch: no worse than that.
+    console.warn('[leaderboard] seen', error);
+  }
 }
