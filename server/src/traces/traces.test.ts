@@ -223,5 +223,6 @@ describe('traces: the phone shares a set', () => {
     const passed = await passedBeforeLimit(send, 60);
     expect(passed).toBeGreaterThanOrEqual(60);
     expect(passed).toBeLessThanOrEqual(120);
-  });
+    // Up to 120 real requests: well past the default 5 s on a slow run.
+  }, 20_000);
 });

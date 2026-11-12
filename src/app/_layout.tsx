@@ -1,5 +1,8 @@
+// First: Sentry starts before any other module runs.
+import '@/bootstrap/crash-reports';
 import '@/global.css';
 
+import * as Sentry from '@sentry/react-native';
 import { useMachine } from '@xstate/react';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -11,6 +14,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { ConsentScreen } from '@/account/components/consent-screen';
 import { SignInScreen } from '@/account/components/sign-in-screen';
+import { FeedbackButton } from '@/bootstrap/components/feedback-sheet';
 import { startup } from '@/bootstrap/startup';
 import { LeftOpen } from '@/bootstrap/left-open';
 import { Leave } from '@/bootstrap/leave';
@@ -19,7 +23,6 @@ import { LibraryProvider } from '@/challenges/library-live';
 import { DroppedBarScene } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
 import { GUTTER, Screen } from '@/components/screen';
-import { TextButton } from '@/components/text-button';
 import { Waiting } from '@/components/waiting';
 import { db } from '@/storage/database';
 import { colors } from '@/theme';
@@ -43,7 +46,10 @@ const pushed = {
   headerShadowVisible: false,
 } as const;
 
-export default function RootLayout() {
+// Wrapped: Sentry's touch and render tracking need the root.
+export default Sentry.wrap(RootLayout);
+
+function RootLayout() {
   const [state, send] = useMachine(startup);
   const recovery = state.children.recovery;
   const signIn = state.children.signIn;
@@ -131,11 +137,12 @@ export default function RootLayout() {
 }
 
 /**
- * A screen threw while rendering: said kindly instead of closing the app, never with the error itself. Try
- * again renders the app afresh.
+ * A screen threw while rendering: said kindly instead of closing the app, never with the error itself, which
+ * goes to Sentry (the wrapper reports it with the route). Try again renders the app afresh.
  */
-// shortcut: the error is neither shown nor reported; add crash reporting once the owner picks a service.
-export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+export const ErrorBoundary = Sentry.wrapExpoRouterErrorBoundary(DroppedBar);
+
+function DroppedBar({ retry }: ErrorBoundaryProps) {
   // The error may come before Home, under the splash; hiding it twice does nothing.
   SplashScreen.hide();
   const { width } = useWindowDimensions();
@@ -146,10 +153,7 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
         footer={
           <View className="gap-2">
             <PrimaryButton label="Try again" onPress={() => void retry()} />
-            <View className="items-center">
-              {/* shortcut: does nothing yet; the owner wires it to sending feedback later. */}
-              <TextButton label="Send feedback" icon="feedback" onPress={() => {}} />
-            </View>
+            <FeedbackButton />
           </View>
         }
       >

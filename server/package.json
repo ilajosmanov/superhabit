@@ -4,12 +4,13 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --dry-run --outdir dist --upload-source-maps && SENTRY_ORG=superhabit SENTRY_PROJECT=superhabit-server sentry sourcemap inject dist && SENTRY_ORG=superhabit SENTRY_PROJECT=superhabit-server sentry sourcemap upload dist && wrangler deploy --no-bundle --upload-source-maps dist/index.js",
     "typecheck": "wrangler types && tsc --noEmit"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.20",
     "@better-auth/expo": "1.7.20",
+    "@sentry/cloudflare": "11.12.0",
     "better-auth": "1.7.20",
     "drizzle-orm": "1.0.0-rc.5",
     "hono": "4.13.17",
@@ -19,6 +20,7 @@
     "@types/node": "22.20.5",
     "auth": "1.7.20",
     "drizzle-kit": "1.0.0-rc.5",
+    "sentry": "0.49.0",
     "typescript": "6.0.3",
     "wrangler": "4.160.0"
   }

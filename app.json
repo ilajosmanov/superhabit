@@ -105,7 +105,18 @@
         }
       ],
       "expo-web-browser",
-      "./plugins/backup-rules.js"
+      "./plugins/backup-rules.js",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "organization": "superhabit",
+          "project": "superhabit-app",
+          "experimental_android": {
+            "enableAndroidGradlePlugin": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

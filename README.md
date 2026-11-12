@@ -26,6 +26,12 @@ vp run android
 
 With several devices attached, pick one: `vp run android --device <serial>` (serial from `adb devices`).
 
+`vp run android` also keeps the phone's screen on while it charges (Developer options → Stay awake), so it doesn't lock mid-test. Any charger counts: a laptop's fast-charging USB-C port reports as AC, not USB. The setting stays on the phone across reboots; turn it off with:
+
+```bash
+adb shell svc power stayon false
+```
+
 The phone reaches Metro at `localhost:8081` through the USB cable, so changing networks doesn't break it. `vp run android` sets up that forward, but it's lost when adb restarts or the cable reconnects. If the app can't reach Metro or the JS debugger finds nothing, restore it:
 
 ```bash

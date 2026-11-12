@@ -7,7 +7,7 @@
  * page: plain HTML, no script. The app records consent against this version (`POLICY_VERSION` in
  * src/account/consent.ts): a new version there needs one here.
  */
-export const PRIVACY_POLICY_VERSION = '2026-11-11';
+export const PRIVACY_POLICY_VERSION = '2026-11-12';
 
 export const PRIVACY_PAGE_POLICY = [
   "default-src 'none'",
@@ -78,6 +78,14 @@ export function PrivacyPage() {
               pictures. Along with them we receive the exercise, what the app counted, the lighting
               level, your phone’s model and Android version, and basic details of the camera used.
             </p>
+            <p>
+              <strong>Crash and error reports.</strong> When the app or our server runs into an
+              error, we receive a report of where in our code it happened, your phone’s model,
+              Android version and app version, and a random number that identifies this install of
+              the app. Reports are not linked to your account and never include movement data,
+              videos or your workouts. If you send feedback from the app’s error screen, we receive
+              what you write with the report.
+            </p>
           </section>
 
           <section>
@@ -101,6 +109,7 @@ export function PrivacyPage() {
                 To make rep counting more accurate, using movement data from people who agreed to
                 share it.
               </li>
+              <li>To find and fix crashes and errors.</li>
             </ul>
           </section>
 
@@ -115,7 +124,9 @@ export function PrivacyPage() {
             <p>
               <strong>Companies that help us run the app.</strong> Google provides sign-in. A
               hosting provider runs our servers and stores our data in data centres in North
-              America, so your information may be kept outside your own country.
+              America. Sentry receives our crash and error reports and keeps them in the United
+              States; it is set not to keep your IP address. So your information may be kept outside
+              your own country.
             </p>
             <p>We do not share your information with anyone else.</p>
           </section>
@@ -124,7 +135,8 @@ export function PrivacyPage() {
             <h2>How long we keep it</h2>
             <p>
               We keep your information for as long as you have an account. Movement data is kept
-              until you stop sharing or delete your account.
+              until you stop sharing or delete your account. Crash and error reports are deleted
+              after at most 90 days.
             </p>
           </section>
 
@@ -155,6 +167,8 @@ export function PrivacyPage() {
               shared, is deleted within 24 hours. We keep only a note that an account was deleted
               and when, so that the deletion can be completed. Backups kept by our hosting provider
               may hold deleted information for up to 30 more days before it is removed for good.
+              Crash and error reports are not linked to your account, so they are not part of this;
+              they are deleted after at most 90 days.
             </p>
           </section>
 

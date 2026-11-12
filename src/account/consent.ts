@@ -7,7 +7,7 @@ import { account } from '@/storage/account';
 import { sharing, type Sharing } from '@/storage/consent';
 
 /** The privacy policy the consent was given under; a new one is asked again. */
-export const POLICY_VERSION = '2026-11-11';
+export const POLICY_VERSION = '2026-11-12';
 
 /** This phone has your answer for the current policy. */
 export const answered = () => sharing()?.policyVersion === POLICY_VERSION;

@@ -24,7 +24,9 @@ jobs:
           cache: true
           run-install: false
       - run: vp install --frozen-lockfile
-      # First: it generates server/worker-configuration.d.ts, which the type-aware lint reads.
+      # Expo's global and route types are generated and git-ignored.
+      - run: vp exec expo customize tsconfig.json
+      # Generates server/worker-configuration.d.ts, which the type-aware lint reads.
       - run: vp run typecheck
       - run: vp check
       - run: vp run lint:kt

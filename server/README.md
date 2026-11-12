@@ -6,7 +6,7 @@ in CODING_STANDARDS.md for the layers.
 
 | Folder / file       | Holds                                                                                                                     |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.ts`      | the Worker: mounts the routes, runs the hourly Cron                                                                       |
+| `src/index.ts`      | the Worker: mounts the routes, runs the hourly Cron, reports both to Sentry                                               |
 | `src/env.ts`        | the bindings, vars and secrets the Worker gets; Hono route types                                                          |
 | `src/auth/`         | Better Auth (Google ID tokens, year-long sessions), its routes, `signedIn`, `signInLimit`, `accountLimit`                 |
 | `src/account/`      | `GET /me`, `DELETE /account`, the `/delete` and `/privacy` web pages, the purge of deleted accounts                       |
@@ -101,11 +101,14 @@ Reaching Cloudflare needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` fro
 `cloudflare.env`. Run such a command in bash with the file loaded, which works from fish too:
 `bash -ac '. ../cloudflare.env && vp run deploy'`.
 
-- `vp run deploy`: to https://superhabit.cloudflare-putt001.workers.dev.
+- `vp run deploy`: to https://superhabit.cloudflare-putt001.workers.dev. It bundles to `dist/`, gives the
+  bundle and its source map a debug ID and uploads the map to Sentry (the `sentry` CLI's login: `vp exec
+  sentry auth login` once), then deploys that same bundle, so Sentry's stack traces show our files.
 - `vp exec drizzle-kit generate` after a schema change (no credentials), then
   `bash -ac '. ../cloudflare.env && vp exec drizzle-kit migrate'` for the D1 in Cloudflare.
 - Secrets (`vp exec wrangler secret put <name>`): `BETTER_AUTH_SECRET`; `GOOGLE_CLIENT_SECRET` (from
-  `google.env`), which `POST /delete/google` uses for the `/delete` page's Google sign-in.
+  `google.env`), which `POST /delete/google` uses for the `/delete` page's Google sign-in; `SENTRY_DSN`
+  (project superhabit-server), without which errors and the Cron's check-ins aren't sent.
 - After changing Better Auth's plugins, regenerate `src/db/auth-schema.ts`: `vp exec auth generate
   --config <file> --output src/db/auth-schema.ts`, with a throwaway config building `betterAuth` with the
   same plugins.

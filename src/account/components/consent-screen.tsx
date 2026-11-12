@@ -124,10 +124,6 @@ export function ConsentScreen({
           disabled={busy}
           onPress={() => actor.send({ type: 'notNow' })}
         />
-        <Text className="text-center font-sans text-sm text-muted">
-          Change your mind anytime in your profile.
-        </Text>
-        <TextButton wide label="Privacy policy" color={colors.muted} onPress={openPrivacyPolicy} />
       </View>
     </Animated.View>
   );

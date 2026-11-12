@@ -161,6 +161,7 @@ export const midnightCron = () =>
       noRetry() {},
     },
     env,
+    proxy.ctx,
   );
 
 /**

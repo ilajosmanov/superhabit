@@ -1,8 +1,9 @@
 const { sep } = require('node:path');
-const { getDefaultConfig } = require('expo/metro-config');
 const { withNativewind } = require('nativewind/metro');
+const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 
-const base = getDefaultConfig(__dirname);
+// Expo's config plus Sentry's serializer: each bundle and its source map get a debug ID to match on upload.
+const base = getSentryExpoConfig(__dirname);
 const config = withNativewind(base);
 
 // shortcut: react-native-css (3.1.0-rc.0 and rc.1) swaps `react-native` for a shim without RN 0.88's

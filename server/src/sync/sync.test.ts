@@ -154,7 +154,8 @@ describe('sync: the phone sends its outbox', () => {
     expect(passed).toBeGreaterThanOrEqual(60);
     expect(passed).toBeLessThanOrEqual(120);
     expect(await push((await someone()).cookie, [])).toEqual({ results: [] });
-  });
+    // Up to 120 real requests: well past the default 5 s on a slow run.
+  }, 20_000);
 
   it('another phone of the account pulls its rows in pages, as the phone keeps them', async () => {
     const { cookie: phone, id: you } = await someone();

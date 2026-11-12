@@ -1,7 +1,11 @@
 import type { Db } from './db/db';
 
 /** What the Worker is given: `wrangler.jsonc`'s bindings and vars, and the secrets set with `wrangler secret put`. */
-export type Bindings = Env & { BETTER_AUTH_SECRET: string; GOOGLE_CLIENT_SECRET: string };
+export type Bindings = Env & {
+  BETTER_AUTH_SECRET: string;
+  GOOGLE_CLIENT_SECRET: string;
+  SENTRY_DSN?: string;
+};
 
 /** A route's Hono environment. */
 export type Route = { Bindings: Bindings };

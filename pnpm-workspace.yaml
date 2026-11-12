@@ -11,6 +11,8 @@ allowBuilds:
   esbuild: false
   # wrangler brings workerd in; same: its script only checks the platform binary pnpm installs.
   workerd: false
+  # Sentry's SDK brings its CLI in (source map and symbol uploads); same: pnpm installs the platform binary.
+  '@sentry/cli': false
 
 packages:
   - server
