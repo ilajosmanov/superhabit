@@ -17,6 +17,7 @@ export const ONE_GO: readonly ExerciseId[] = [
   'jumping-jack',
   'leg-raise',
   'wall-sit',
+  'side-plank',
   'burpee',
 ];
 
