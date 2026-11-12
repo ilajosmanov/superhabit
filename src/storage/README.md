@@ -2,17 +2,18 @@
 
 What is kept on the phone and how. No UI and no feature rules: a feature says what it keeps.
 
-| File            | Holds                                                                               |
-| --------------- | ----------------------------------------------------------------------------------- |
-| `schema.ts`     | the SQLite tables (Drizzle)                                                         |
-| `relations.ts`  | how the tables join, for `db.query.<table>.findMany({ with })`                      |
-| `database.ts`   | the one database (`superhabit.db`, foreign keys on): `migrateDatabase()`, `db()`    |
-| `outbox.ts`     | `enqueue`: a change for the server, written in the caller's transaction             |
-| `account.ts`    | the kept account: read, write, `userId()` (whose data it is); its rules: `account/` |
-| `consent.ts`    | your answer to sharing traces, as kept here (`null` before it's asked)              |
-| `clear.ts`      | `clearDatabase`: every table emptied in the caller's transaction                    |
-| `trace-file.ts` | a set's recorded trace (`.sht`): the format, packed as the set runs, read back      |
-| `set-files.ts`  | per-set trace/video paths, listing, deletion, temp sweeping and file availability   |
+| File              | Holds                                                                                                     |
+| ----------------- | --------------------------------------------------------------------------------------------------------- |
+| `schema.ts`       | the SQLite tables (Drizzle)                                                                               |
+| `relations.ts`    | how the tables join, for `db.query.<table>.findMany({ with })`                                            |
+| `database.ts`     | the one database (`superhabit.db`, foreign keys on): `migrateDatabase()`, `db()`                          |
+| `outbox.ts`       | `enqueue`: a change for the server, written in the caller's transaction                                   |
+| `account.ts`      | the kept account: read, write, `userId()` (whose data it is); its rules: `account/`                       |
+| `consent.ts`      | your answer to sharing traces, as kept here (`null` before it's asked)                                    |
+| `clear.ts`        | `clearDatabase`: every table emptied in the caller's transaction                                          |
+| `theme-choice.ts` | light, dark or the phone's theme: in `expo-sqlite/kv-store`, not the database, so it outlives signing out |
+| `trace-file.ts`   | a set's recorded trace (`.sht`): the format, packed as the set runs, read back                            |
+| `set-files.ts`    | per-set trace/video paths, listing, deletion, temp sweeping and file availability                         |
 
 After changing `schema.ts`, run `vp exec drizzle-kit generate` and commit `migrations/`. Until the first
 release there is one `init` migration: delete it and generate again rather than adding one.

@@ -4,7 +4,7 @@ import { Icon } from '@/components/icon';
 import { ExerciseFigure } from '@/components/illustrations';
 import { EXERCISES, type BodyPart } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
-import { colors } from '@/theme';
+import { dark as colors } from '@/theme';
 
 import { Chip } from './controls';
 import { GoalLine, spokenGoal } from './goal-line';

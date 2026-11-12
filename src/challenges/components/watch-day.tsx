@@ -10,7 +10,7 @@ import { IconButton } from '@/components/icon-button';
 import { ExerciseFigure } from '@/components/illustrations';
 import { EXERCISES } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 import type { LoggedSet } from '@/workout/plan/logged-set';
 import type { FlatSteps } from '@/workout/plan/plan';
 import { videosOf } from '@/storage/set-files';
@@ -86,6 +86,7 @@ function Frame({
   n: number;
   onPress?: () => void;
 }) {
+  const colors = useColors();
   const { name } = EXERCISES[set.exercise];
   // Held seconds are kept exact; the frame shows whole ones.
   const amount = `${Math.floor(got)} ${isHold(set.exercise) ? 'S' : got === 1 ? 'REP' : 'REPS'}`;

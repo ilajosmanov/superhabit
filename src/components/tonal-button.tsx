@@ -2,7 +2,8 @@ import { FilledTonalButton, Host, RNHostView, Spacer, Text } from '@expo/ui/jetp
 import { height, width } from '@expo/ui/jetpack-compose/modifiers';
 import type { AndroidSymbol } from 'expo-symbols';
 
-import { colors, COMPOSE_LABEL } from '@/theme';
+import { COMPOSE_LABEL } from '@/theme';
+import { useColors } from './colors';
 
 import { Icon } from './icon';
 
@@ -17,6 +18,7 @@ export function TonalButton({
   icon?: AndroidSymbol;
   onPress: () => void;
 }) {
+  const colors = useColors();
   return (
     <Host matchContents>
       <FilledTonalButton

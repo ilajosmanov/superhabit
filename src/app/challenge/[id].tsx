@@ -16,7 +16,7 @@ import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { useToday } from '@/bootstrap/today';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 /**
  * A challenge. Not running: the preview teaches it, and a tap joins it from today (again, once a run is
@@ -26,6 +26,7 @@ import { colors } from '@/theme';
  * readable. A plan from a newer app asks for an update.
  */
 export default function ChallengeDetailScreen() {
+  const colors = useColors();
   const { id, run } = useLocalSearchParams<{ id: string; run?: string }>();
   const router = useRouter();
   const library = useLibrary();

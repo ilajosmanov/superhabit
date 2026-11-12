@@ -3,7 +3,9 @@
 @import 'tailwindcss/utilities.css';
 @import 'nativewind/theme';
 
-/* "Gym floor" palette from the design canvas. Only these colors exist; Tailwind's defaults are removed. */
+/* "Gym floor" palette from the design canvas. Only these colors exist; Tailwind's defaults are removed.
+   Dark is the default; the light block below swaps the values when the phone, or Profile's choice
+   (Appearance.setColorScheme), says light. theme.ts mirrors both. */
 @theme {
   --color-*: initial;
   --color-ground: #0d0e0b; /* app background */
@@ -15,8 +17,30 @@
   --color-muted: #a3a396; /* labels, secondary text */
   --color-subtle: #8c8d80; /* table headers, footnotes */
   --color-faint: #7a7b70; /* large denominators ("/ 30") only; too dim for small text */
-  --color-accent: #f2b544;
+  --color-accent: #f2b544; /* amber as a fill: the key, bars, dots */
+  --color-mark: #f2b544; /* amber as text, an icon or a focus ring: darker on paper */
+  --color-ink: #0d0e0b; /* the label on amber, in either theme */
   --color-warn: #ff6a55; /* no-reps, missed days */
+}
+
+/* The same roles on paper. Text tokens keep 4.5:1 on ground and surface, faint and edge 3:1 (theme.test.ts).
+   accent, mark and ink are stated again so they stay variables (a value stated once is inlined). */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-ground: #f2f0e8;
+    --color-surface: #fbfaf6;
+    --color-line: #d9d6c9;
+    --color-edge: #85867a; /* a control's outline: 3:1, unlike the decorative line */
+    --color-chalk: #0d0e0b;
+    --color-soft: #3a3c33;
+    --color-muted: #55564b;
+    --color-subtle: #5f6055;
+    --color-faint: #6c6d62;
+    --color-accent: #f2b544;
+    --color-mark: #8a5700;
+    --color-ink: #0d0e0b;
+    --color-warn: #b3261e;
+  }
 }
 
 /* Fonts are linked natively by the expo-font plugin in app.json under these family names.

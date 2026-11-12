@@ -5,7 +5,7 @@ import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import { dayWord, type RunView } from '@/challenges/run-view';
 import { addDays, dayLabel } from '@/lib/day';
 import { tick } from '@/components/tick';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 /**
  * Every day of a run as a bar: its height is how much of that day's session you did, and a dot marks
@@ -20,6 +20,7 @@ export function DayStrip({
   selected: number;
   onSelect: (day: number) => void;
 }) {
+  const colors = useColors();
   const width = useRef(1);
   // The day last picked, so a drag ticks once per day even before the page re-renders.
   const last = useRef(selected);
@@ -55,7 +56,7 @@ export function DayStrip({
         <Text className="font-mono text-xs tracking-widest text-chalk">{label}</Text>
         <Text
           className="font-mono text-xs tracking-widest"
-          style={{ color: tried ? colors.accent : colors.muted }}
+          style={{ color: tried ? colors.mark : colors.muted }}
         >
           {word}
         </Text>

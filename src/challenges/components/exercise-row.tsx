@@ -3,10 +3,10 @@ import { Pressable, Text, View, type PressableProps } from 'react-native';
 
 import { ExerciseStack } from './exercise-stack';
 import { Icon } from '@/components/icon';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 /**
- * The outlined row of the catalog and of a day on Home: a name and one mono line, the exercises under
+ * The softly filled row of the catalog and of a day on Home (no outline: the joined card has that): a name and one mono line, the exercises under
  * them (never beside: a long circuit can't squeeze the name), and one big number with its unit. The rest
  * of the props go to the pressable, so a `Link asChild` can wrap it.
  */
@@ -27,11 +27,12 @@ export function ExerciseRow({
   amount: string | number;
   unit: string;
 } & PressableProps) {
+  const colors = useColors();
   return (
     // The wrapper clips the ripple to the card's corners.
-    <View className="overflow-hidden rounded-2xl border border-line">
+    <View className="overflow-hidden rounded-2xl bg-surface">
       <Pressable
-        android_ripple={{ color: colors.surface }}
+        android_ripple={{ color: colors.line }}
         className="flex-row items-center gap-4 px-5 py-4"
         {...pressable}
       >

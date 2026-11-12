@@ -3,7 +3,7 @@ import { Pressable, Text, View, type ViewStyle } from 'react-native';
 
 import { ExerciseStack, StepsButton } from './exercise-stack';
 import { Icon } from '@/components/icon';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 import type { CatalogEntry } from '@/challenges/catalog';
 import { doneToday, percent, type RunView } from '@/challenges/run-view';
 
@@ -12,6 +12,7 @@ import { doneToday, percent, type RunView } from '@/challenges/run-view';
  * today, hairline = no try or still ahead.
  */
 function DayGrid({ run: { day, days, progress } }: { run: RunView }) {
+  const colors = useColors();
   return (
     // 176 wide fits ten 12px squares with 6px gaps, so the grid wraps at ten a row.
     <View className="w-44 flex-row flex-wrap gap-1.5">
@@ -36,8 +37,8 @@ function DayGrid({ run: { day, days, progress } }: { run: RunView }) {
 }
 
 /**
- * A challenge you joined. Only joined challenges get this card (day grid, status line), so nothing
- * you haven't picked looks picked. `style` sets the width inside the swipe row.
+ * A challenge you joined. It wears the Surprise card's look (hairline, surface fading into the
+ * ground from the top right corner); only joined challenges get the day grid and status line, so nothing you haven't picked looks picked. `style` sets the width inside the swipe row.
  */
 export function JoinedCard({
   run,
@@ -48,6 +49,7 @@ export function JoinedCard({
   entry: CatalogEntry;
   style?: ViewStyle;
 }) {
+  const colors = useColors();
   const done = doneToday(run);
   const share = run.progress[run.day - 1];
   const status = done ? 'DONE TODAY' : share > 0 ? `TODAY ${percent(share)}` : 'DUE TODAY';
@@ -98,7 +100,15 @@ export function JoinedCard({
 
   return (
     // The wrapper clips the ripple to the card's corners.
-    <View className="overflow-hidden rounded-3xl border border-edge bg-surface" style={style}>
+    <View
+      className="overflow-hidden rounded-3xl border border-line"
+      style={[
+        {
+          backgroundImage: `radial-gradient(ellipse at 85% 15%, ${colors.surface} 0%, ${colors.ground} 70%)`,
+        },
+        style,
+      ]}
+    >
       {/* The run too: several runs of one challenge each open their own. */}
       <Link href={{ pathname: '/challenge/[id]', params: { id: entry.id, run: run.id } }} asChild>
         {body}

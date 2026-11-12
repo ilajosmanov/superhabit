@@ -1,10 +1,3 @@
-import {
-  Host,
-  SegmentedButton,
-  SingleChoiceSegmentedButtonRow,
-  Text as ComposeText,
-} from '@expo/ui/jetpack-compose';
-import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import { useRef, useState } from 'react';
 import { Text, TextInput, View, type TextInputInstance } from 'react-native';
 
@@ -22,25 +15,15 @@ import { isHold } from '@/challenges/hold';
 import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
+import { Segments } from '@/components/segments';
 import { SwitchRow } from '@/components/switch-row';
-import { tick } from '@/components/tick';
 import { EXERCISES } from '@/exercises/registry';
-import { colors, COMPOSE_LABEL } from '@/theme';
+import { useColors } from '@/components/colors';
 import { MAX, type Challenge } from '@/workout/plan/plan';
 
 import { AmountInput } from './amount-input';
 
 const label = 'font-mono text-xs tracking-widest text-muted';
-// The segmented row's colours (the builder's and Your numbers'): the inactive fill sits just off the ground.
-export const SEGMENT = {
-  activeContainerColor: colors.line,
-  inactiveContainerColor: colors.ground,
-  activeBorderColor: colors.edge,
-  inactiveBorderColor: colors.edge,
-  activeContentColor: colors.chalk,
-  inactiveContentColor: colors.muted,
-};
-
 const amountLabel = (unit: 'reps' | 'seconds') =>
   unit === 'seconds' ? 'Seconds every day' : 'Reps every day';
 
@@ -62,6 +45,7 @@ export function Builder({
   action: string;
   onSave: (challenge: Challenge) => void;
 }) {
+  const colors = useColors();
   const [draft, setDraft] = useState(initial);
   const [focused, setFocused] = useState(false);
   const nameField = useRef<TextInputInstance>(null);
@@ -86,9 +70,9 @@ export function Builder({
               autoCapitalize="sentences"
               autoCorrect={false}
               returnKeyType="done"
-              cursorColor={colors.accent}
+              cursorColor={colors.mark}
               selectionColor={colors.line}
-              selectionHandleColor={colors.accent}
+              selectionHandleColor={colors.mark}
               // Emptied, the field saves under the exercise's name, so it shows it.
               placeholder={autoName(draft)}
               placeholderTextColor={colors.faint}
@@ -100,7 +84,7 @@ export function Builder({
             <IconButton
               icon="edit"
               label="Edit name"
-              color={focused ? colors.accent : colors.muted}
+              color={focused ? colors.mark : colors.muted}
               onPress={() => nameField.current?.focus()}
               edge
             />
@@ -109,7 +93,7 @@ export function Builder({
           <View
             className="border-b"
             style={{
-              borderColor: focused ? colors.accent : colors.edge,
+              borderColor: focused ? colors.mark : colors.edge,
               borderStyle: focused ? 'solid' : 'dashed',
             }}
           />
@@ -135,25 +119,11 @@ export function Builder({
           <Text className={label}>DAYS</Text>
           <Text className={label}>ENDS {dayLabel(addDays(from, draft.days - 1))}</Text>
         </View>
-        <Host matchContents={{ vertical: true }}>
-          <SingleChoiceSegmentedButtonRow modifiers={[fillMaxWidth()]}>
-            {DAY_CHOICES.map((days) => (
-              <SegmentedButton
-                key={days}
-                selected={days === draft.days}
-                onClick={() => {
-                  if (days !== draft.days) tick();
-                  setDraft((d) => ({ ...d, days }));
-                }}
-                colors={SEGMENT}
-              >
-                <SegmentedButton.Label>
-                  <ComposeText style={COMPOSE_LABEL}>{String(days)}</ComposeText>
-                </SegmentedButton.Label>
-              </SegmentedButton>
-            ))}
-          </SingleChoiceSegmentedButtonRow>
-        </Host>
+        <Segments
+          choices={DAY_CHOICES}
+          value={draft.days}
+          onChange={(days) => setDraft((d) => ({ ...d, days }))}
+        />
       </View>
 
       <SwitchRow

@@ -11,7 +11,7 @@ import type { AndroidSymbol } from 'expo-symbols';
 import type { ReactElement } from 'react';
 import type { ViewStyle } from 'react-native';
 
-import { colors } from '@/theme';
+import { useColors } from './colors';
 
 import { Icon } from './icon';
 
@@ -27,7 +27,7 @@ export function IconButton({
   onPress,
   checked,
   size = 24,
-  color = colors.chalk,
+  color: given,
   fill,
   diameter,
   edge = false,
@@ -51,6 +51,8 @@ export function IconButton({
       figure: ReactElement;
     }
 )) {
+  const colors = useColors();
+  const color = given ?? colors.chalk;
   const content = (
     <RNHostView matchContents>
       {figure ?? (icon && <Icon name={icon} size={size} color={color} />)}

@@ -1,5 +1,7 @@
 // First: Sentry starts before any other module runs.
 import '@/bootstrap/crash-reports';
+// Then the theme you chose, before the first frame.
+import '@/bootstrap/appearance';
 import '@/global.css';
 
 import * as Sentry from '@sentry/react-native';
@@ -25,7 +27,8 @@ import { PrimaryButton } from '@/components/primary-button';
 import { GUTTER, Screen } from '@/components/screen';
 import { Waiting } from '@/components/waiting';
 import { db } from '@/storage/database';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
+import { dark } from '@/theme';
 import { RecoverPrompt } from '@/workout/components/recover-prompt';
 
 // Called at load, before anything renders, so the splash stays up until `startup` hides it.
@@ -37,23 +40,23 @@ export const unstable_settings = { anchor: '(tabs)' };
 const FADE_IN = FadeIn.duration(300);
 const FADE_OUT = FadeOut.duration(300);
 
-// Pushed pages get the platform toolbar: the system back arrow, untitled (the page draws its own title).
-const pushed = {
-  headerShown: true,
-  title: '',
-  headerTintColor: colors.chalk,
-  headerStyle: { backgroundColor: colors.ground },
-  headerShadowVisible: false,
-} as const;
-
 // Wrapped: Sentry's touch and render tracking need the root.
 export default Sentry.wrap(RootLayout);
 
 function RootLayout() {
+  const colors = useColors();
   const [state, send] = useMachine(startup);
   const recovery = state.children.recovery;
   const signIn = state.children.signIn;
   const consent = state.children.consent;
+  // Pushed pages get the platform toolbar: the system back arrow, untitled (the page draws its own title).
+  const pushed = {
+    headerShown: true,
+    title: '',
+    headerTintColor: colors.chalk,
+    headerStyle: { backgroundColor: colors.ground },
+    headerShadowVisible: false,
+  } as const;
   return (
     // Gesture handler's gestures (the day strip's drag) only run under this root.
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.ground }}>
@@ -85,6 +88,11 @@ function RootLayout() {
                   <Stack.Screen name="create" options={pushed} />
                   <Stack.Screen name="build" options={pushed} />
                   <Stack.Screen name="tune" options={pushed} />
+                  {/* The camera stays dark in either theme; only its Done page wears the theme. */}
+                  <Stack.Screen
+                    name="workout/[id]"
+                    options={{ contentStyle: { backgroundColor: dark.ground } }}
+                  />
                 </Stack>
               </LibraryProvider>
             </Today>
@@ -132,7 +140,7 @@ function RootLayout() {
         </View>
       ) : null}
 
-      <StatusBar style="light" />
+      <StatusBar style="auto" />
     </GestureHandlerRootView>
   );
 }
@@ -174,7 +182,7 @@ function DroppedBar({ retry }: ErrorBoundaryProps) {
           </View>
         </View>
       </Screen>
-      <StatusBar style="light" />
+      <StatusBar style="auto" />
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { useMachine } from '@xstate/react';
+import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { FAILURE_TEXT } from '@/account/call';
@@ -8,14 +9,17 @@ import { Avatar } from '@/components/avatar';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Icon } from '@/components/icon';
 import { Screen } from '@/components/screen';
+import { Segments } from '@/components/segments';
 import { SwitchRow } from '@/components/switch-row';
 import { TextButton } from '@/components/text-button';
 import type { Account } from '@/storage/account';
 import type { Sharing } from '@/storage/consent';
-import { colors } from '@/theme';
+import { THEME_CHOICES, themeChoice, type ThemeChoice } from '@/storage/theme-choice';
+import { capitalise } from '@/lib/text';
+import { useColors } from '@/components/colors';
 
 /**
- * Your profile (board 23): your Google name and photo, sharing your reps, Sign out, Delete account. The
+ * Your profile (board 23): your Google name and photo, sharing your reps, the theme, Sign out, Delete account. The
  * route hands over to startup: `leave` signs out, after a deletion, or signs in again once the server
  * ended the session.
  */
@@ -23,18 +27,23 @@ export function ProfileScreen({
   account,
   sharing: kept,
   leave,
+  onTheme,
 }: {
   account: Account;
   /** Your answer to sharing, as this phone keeps it (the shared snapshot's). */
   sharing: Sharing | null;
   leave: { signOut: () => void; deleted: () => void; sessionEnded: () => void };
+  /** Wears and keeps the theme picked here. */
+  onTheme: (choice: ThemeChoice) => void;
 }) {
+  const colors = useColors();
   const [state, send] = useMachine(
     me.provide({ actions: { deleted: leave.deleted, signedOut: leave.signOut } }),
   );
   const { error, refused, unsent } = state.context;
   const sharing = sharingShown(state, kept);
   const ended = state.matches('ended');
+  const [theme, setTheme] = useState(themeChoice);
   return (
     <Screen label="SUPERHABIT" title="Profile">
       <View className="flex-row items-center gap-4">
@@ -67,6 +76,23 @@ export function ProfileScreen({
           disabled={!state.matches('idle')}
         />
         {state.matches('idle') && error && <Problem text={FAILURE_TEXT[error]} />}
+      </View>
+      <View className="gap-3 border-t border-line pt-4">
+        <View className="gap-1">
+          <Text className="font-sans text-base text-chalk">Theme</Text>
+          <Text className="font-sans text-sm text-muted">
+            {theme === 'system' ? 'Follows your phone. ' : ''}Workouts and videos stay dark.
+          </Text>
+        </View>
+        <Segments
+          choices={THEME_CHOICES}
+          value={theme}
+          label={capitalise}
+          onChange={(choice) => {
+            setTheme(choice);
+            onTheme(choice);
+          }}
+        />
       </View>
       <View className="items-start border-t border-line pt-2">
         <TextButton label="Privacy policy" icon="policy" onPress={openPrivacyPolicy} />
@@ -140,6 +166,7 @@ export function ProfileScreen({
 }
 
 function Problem({ text }: { text: string }) {
+  const colors = useColors();
   return (
     <View accessibilityLiveRegion="polite" className="flex-row items-center gap-2">
       <Icon name="error" size={18} color={colors.warn} />

@@ -7,7 +7,7 @@ import { Icon } from '@/components/icon';
 import { PrimaryButton } from '@/components/primary-button';
 import { EXERCISES } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
-import { colors } from '@/theme';
+import { dark as colors } from '@/theme';
 import type { SessionView } from '@/workout/session/session-view';
 
 import { Clock, CloseButton, Frame, GLASS, SecondaryButton, SetLine } from './controls';

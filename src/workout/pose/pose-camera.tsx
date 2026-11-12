@@ -23,7 +23,7 @@ import {
 import type { PoseLandmarker } from 'superhabit-pose';
 
 import { skeleton, type Dot, type Segment } from './skeleton';
-import { colors } from '@/theme';
+import { dark as colors } from '@/theme';
 
 // Bones and dots are drawn as one rounded rect or circle each: Skia's GPU backend draws those shapes
 // directly, while one path of many strokes or circles is painted on the CPU and uploaded as a texture

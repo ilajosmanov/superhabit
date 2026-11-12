@@ -7,7 +7,7 @@ import type { AndroidSymbol } from 'expo-symbols';
 import { mss } from '@/lib/duration';
 import { Icon } from '@/components/icon';
 import { IconButton } from '@/components/icon-button';
-import { colors } from '@/theme';
+import { dark as colors } from '@/theme';
 
 // shortcut: no blur; Android can't blur the camera's SurfaceView. Revisit if the preview moves to a TextureView.
 /** The floating material over the camera: surface at 75 %, a faint chalk hairline. */

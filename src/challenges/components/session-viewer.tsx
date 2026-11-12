@@ -20,7 +20,8 @@ import { OVER_VIDEO, Screens, useReel } from './reel-player';
 import { IconButton } from '@/components/icon-button';
 import { tick } from '@/components/tick';
 import { EXERCISES } from '@/exercises/registry';
-import { colors } from '@/theme';
+import { Night } from '@/components/colors';
+import { dark as colors } from '@/theme';
 import { isHold } from '@/challenges/hold';
 import { pointAt, weight, type Clip, type Spot } from '@/challenges/reel';
 import { setShare } from '@/workout/plan/results';
@@ -94,79 +95,82 @@ export function SessionViewer({
       navigationBarTranslucent
       onRequestClose={close}
     >
+      {/* Video is watched in the dark in either theme. */}
       {/* A Modal is its own native root on Android: gestures need their own root view. */}
-      <GestureHandlerRootView style={StyleSheet.absoluteFill}>
-        <Animated.View
-          style={[StyleSheet.absoluteFill, { backgroundColor: colors.ground }, backdrop]}
-        />
-        <GestureDetector gesture={pan}>
-          <Animated.View style={[{ flex: 1, paddingTop: top, paddingBottom: bottom }, content]}>
-            <Pressable
-              accessibilityRole="adjustable"
-              accessibilityLabel="Sets of this session"
-              accessibilityValue={{ text: `set ${spot.clip + 1} of ${clips.length} filmed` }}
-              accessibilityHint="Tap the right side for the next set, the left for the one before"
-              accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-              onAccessibilityAction={({ nativeEvent }) =>
-                step(nativeEvent.actionName === 'increment' ? 1 : -1)
-              }
-              onPress={({ nativeEvent }) => step(nativeEvent.locationX < width / 3 ? -1 : 1)}
-              // Paused for as long as the finger stays down.
-              onLongPress={() => shown.pause()}
-              onPressOut={() => shown.play()}
-              className="flex-1"
-            >
-              <Screens players={players} front={front} fit="contain" />
-            </Pressable>
-            <View
-              className="absolute inset-x-0 flex-row justify-between px-4"
-              style={{ top: top + 8 }}
-            >
-              <IconButton icon="close" label="Close" fill={OVER_VIDEO} onPress={close} />
-              <IconButton
-                icon="share"
-                label="Send this set"
-                fill={OVER_VIDEO}
-                onPress={() => void shareTake(clips[spot.clip].takes[spot.part])}
-              />
-            </View>
-            <View
-              className="absolute inset-x-0 gap-4 px-5 pt-16"
-              style={{
-                bottom: 0,
-                paddingBottom: bottom + 28,
-                backgroundImage: `linear-gradient(180deg, transparent 0%, ${colors.ground}D9 45%)`,
-              }}
-            >
-              <View className="flex-row items-end justify-between gap-4">
-                <View className="shrink gap-1.5">
-                  <Text className="font-mono text-xs tracking-widest text-soft">
-                    {`SET ${set + 1} OF ${sets}${rounds ? ` · ROUND ${result.round}` : ''}`}
-                  </Text>
-                  <Text
-                    numberOfLines={1}
-                    className="font-sans text-3xl font-light tracking-tight text-chalk capitalize"
-                  >
-                    {name}
-                  </Text>
-                </View>
-                <View className="flex-row items-baseline gap-1">
-                  <Text
-                    className="font-sans text-6xl font-extralight leading-none tracking-tighter"
-                    style={{
-                      color: setShare(result.goal, got) >= 1 ? colors.accent : colors.chalk,
-                    }}
-                  >
-                    {Math.floor(got)}
-                  </Text>
-                  <Text className="font-mono text-xs tracking-widest text-soft">{goal}</Text>
-                </View>
+      <Night>
+        <GestureHandlerRootView style={StyleSheet.absoluteFill}>
+          <Animated.View
+            style={[StyleSheet.absoluteFill, { backgroundColor: colors.ground }, backdrop]}
+          />
+          <GestureDetector gesture={pan}>
+            <Animated.View style={[{ flex: 1, paddingTop: top, paddingBottom: bottom }, content]}>
+              <Pressable
+                accessibilityRole="adjustable"
+                accessibilityLabel="Sets of this session"
+                accessibilityValue={{ text: `set ${spot.clip + 1} of ${clips.length} filmed` }}
+                accessibilityHint="Tap the right side for the next set, the left for the one before"
+                accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+                onAccessibilityAction={({ nativeEvent }) =>
+                  step(nativeEvent.actionName === 'increment' ? 1 : -1)
+                }
+                onPress={({ nativeEvent }) => step(nativeEvent.locationX < width / 3 ? -1 : 1)}
+                // Paused for as long as the finger stays down.
+                onLongPress={() => shown.pause()}
+                onPressOut={() => shown.play()}
+                className="flex-1"
+              >
+                <Screens players={players} front={front} fit="contain" />
+              </Pressable>
+              <View
+                className="absolute inset-x-0 flex-row justify-between px-4"
+                style={{ top: top + 8 }}
+              >
+                <IconButton icon="close" label="Close" fill={OVER_VIDEO} onPress={close} />
+                <IconButton
+                  icon="share"
+                  label="Send this set"
+                  fill={OVER_VIDEO}
+                  onPress={() => void shareTake(clips[spot.clip].takes[spot.part])}
+                />
               </View>
-              <SetBar clips={clips} now={spot.clip} progress={progress} onScrub={scrub} />
-            </View>
-          </Animated.View>
-        </GestureDetector>
-      </GestureHandlerRootView>
+              <View
+                className="absolute inset-x-0 gap-4 px-5 pt-16"
+                style={{
+                  bottom: 0,
+                  paddingBottom: bottom + 28,
+                  backgroundImage: `linear-gradient(180deg, transparent 0%, ${colors.ground}D9 45%)`,
+                }}
+              >
+                <View className="flex-row items-end justify-between gap-4">
+                  <View className="shrink gap-1.5">
+                    <Text className="font-mono text-xs tracking-widest text-soft">
+                      {`SET ${set + 1} OF ${sets}${rounds ? ` · ROUND ${result.round}` : ''}`}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      className="font-sans text-3xl font-light tracking-tight text-chalk capitalize"
+                    >
+                      {name}
+                    </Text>
+                  </View>
+                  <View className="flex-row items-baseline gap-1">
+                    <Text
+                      className="font-sans text-6xl font-extralight leading-none tracking-tighter"
+                      style={{
+                        color: setShare(result.goal, got) >= 1 ? colors.accent : colors.chalk,
+                      }}
+                    >
+                      {Math.floor(got)}
+                    </Text>
+                    <Text className="font-mono text-xs tracking-widest text-soft">{goal}</Text>
+                  </View>
+                </View>
+                <SetBar clips={clips} now={spot.clip} progress={progress} onScrub={scrub} />
+              </View>
+            </Animated.View>
+          </GestureDetector>
+        </GestureHandlerRootView>
+      </Night>
     </Modal>
   );
 }

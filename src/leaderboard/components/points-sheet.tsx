@@ -4,7 +4,7 @@ import { Sheet } from '@/components/sheet';
 import { EXERCISES, isExerciseId } from '@/exercises/registry';
 import type { Board } from '@/leaderboard/leaderboard';
 import { capitalise } from '@/lib/text';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 /**
  * How points count, from the server's own table: what a rep (or ten seconds of a hold) scores, a bar per
@@ -22,6 +22,7 @@ export function PointsSheet({
   bonus: number;
   onDismiss: () => void;
 }) {
+  const colors = useColors();
   // Exercises and units this app knows, reps by points, then holds.
   const rows = board.rates
     .flatMap((rate) =>

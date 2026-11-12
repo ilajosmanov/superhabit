@@ -30,7 +30,7 @@ src/workout/        the workout feature: store, log actor and recovery
 src/exercises/      pure rep logic: angles, counters, the exercise registry
   ↓
 src/components/     UI shared by every screen (icons, screen shell, buttons)
-src/theme.ts        colour tokens for APIs that take values; classes come from src/global.css
+src/theme.ts        the dark and light palettes for APIs that take values (read with useColors()); classes come from src/global.css
 src/storage/        what is kept on the phone and how: the SQLite tables, migrations, outbox; no UI
   ↓
 src/lib/            small focused libraries (FSD's shared/lib): text.ts, duration.ts, day.ts; plain TypeScript

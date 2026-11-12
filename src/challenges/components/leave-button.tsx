@@ -5,13 +5,14 @@ import { leave } from '@/challenges/library';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { IconButton } from '@/components/icon-button';
 import { saveFailed } from '@/components/save-failed';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 /**
  * Leaves the run `runId` today. It can't be undone (joining again starts from day 1), so it asks first,
  * in the platform's dialog.
  */
 export function LeaveButton({ runId }: { runId: string }) {
+  const colors = useColors();
   const router = useRouter();
   const [asking, setAsking] = useState(false);
   const onLeave = () => {

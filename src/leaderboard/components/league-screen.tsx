@@ -22,7 +22,7 @@ import {
   type Problem,
   type TabEvents,
 } from '@/leaderboard/leaderboard';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 const PROBLEM: Record<Problem, string> = {
   ...FAILURE_TEXT,
@@ -48,6 +48,7 @@ export function LeagueScreen({
   onScore: () => void;
   children?: ReactNode;
 }) {
+  const colors = useColors();
   const [state, send] = useMachine(leaderboard, { input: { tab } });
   const { board, problem, readAt, later, saveFailed, pending, seen, pulled } = state.context;
   const [explained, setExplained] = useState(false);

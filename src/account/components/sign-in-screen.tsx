@@ -7,10 +7,11 @@ import type { ActorRefFrom } from 'xstate';
 import type { signIn } from '@/account/sign-in';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Icon } from '@/components/icon';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 /** The first launch (board 21a): why the app, and Google's button. Nothing else shows until it's done. */
 export function SignInScreen({ signIn: actor }: { signIn: ActorRefFrom<typeof signIn> }) {
+  const colors = useColors();
   const { top, bottom } = useSafeAreaInsets();
   const busy = useSelector(
     actor,
@@ -152,7 +153,7 @@ function GoogleMark() {
 
 /** The phone against the wall, watching you squat: a dot on every joint, the knee's angle in amber. */
 function Watched() {
-  const { accent, chalk, line, surface } = colors;
+  const { accent, mark, chalk, line, surface } = useColors();
   return (
     <Svg
       width={358}
@@ -202,7 +203,7 @@ function Watched() {
         <Circle cx={21} cy={18} r={0.95} fill={accent} />
         <Circle cx={20} cy={26} r={0.75} fill={chalk} />
         <Circle cx={24} cy={12} r={0.75} fill={chalk} />
-        <SvgText x={23.4} y={22.6} fill={accent} fontFamily="Geist Mono" fontSize={2.6}>
+        <SvgText x={23.4} y={22.6} fill={mark} fontFamily="Geist Mono" fontSize={2.6}>
           90°
         </SvgText>
       </G>

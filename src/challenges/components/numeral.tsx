@@ -1,7 +1,7 @@
 import { Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 /**
  * A page's giant number with its words in a column on the right, amber once `met`; TalkBack reads it as
@@ -16,6 +16,7 @@ export function Numeral({
   labels: readonly string[];
   met: boolean;
 }) {
+  const colors = useColors();
   return (
     <View
       accessible
@@ -29,7 +30,7 @@ export function Numeral({
           // Already giant: a larger system font would only push it off the screen.
           maxFontSizeMultiplier={1}
           className="font-sans text-9xl font-extralight leading-none tracking-tighter"
-          style={{ color: met ? colors.accent : colors.chalk }}
+          style={{ color: met ? colors.mark : colors.chalk }}
         >
           {n}
         </Text>

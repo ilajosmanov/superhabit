@@ -14,10 +14,11 @@ import {
   type League,
 } from '@/leaderboard/leaderboard';
 import { capitalise } from '@/lib/text';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 /** The three leagues as steps, yours lit: where you stand on the ladder. */
 function Steps({ league }: { league: League }) {
+  const colors = useColors();
   const at = LEAGUES.indexOf(league);
   return (
     <View
@@ -38,6 +39,7 @@ function Steps({ league }: { league: League }) {
 
 /** Monday to Sunday, today outlined; the time left beside it, chalk on the last day. */
 function Week({ endsAt, readAt }: { endsAt: number; readAt: number }) {
+  const colors = useColors();
   const today = weekDay(endsAt, readAt);
   const left = endsIn(endsAt, readAt);
   return (
@@ -135,6 +137,7 @@ export function YourPlace({
   /** Days in a row your next set makes. */
   streak: number;
 }) {
+  const colors = useColors();
   const you = board.rows.find((row) => row.you);
   const counted = you !== undefined && you.points > 0;
   const n = board.rows.length;

@@ -5,13 +5,14 @@ import { Text, TextInput, View } from 'react-native';
 import { PrimaryButton } from '@/components/primary-button';
 import { Sheet } from '@/components/sheet';
 import { TextButton } from '@/components/text-button';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 /**
  * The crash screen's Send feedback: a sheet with one field. What you write goes to Sentry with the crash it
  * follows (the last event sent), so it reads beside the stack trace. Only the text goes: no name, no email.
  */
 export function FeedbackButton() {
+  const colors = useColors();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [sent, setSent] = useState(false);
@@ -48,9 +49,9 @@ export function FeedbackButton() {
           multiline
           maxLength={1000}
           autoFocus
-          cursorColor={colors.accent}
+          cursorColor={colors.mark}
           selectionColor={colors.line}
-          selectionHandleColor={colors.accent}
+          selectionHandleColor={colors.mark}
           placeholder="I tapped…"
           placeholderTextColor={colors.faint}
           textAlignVertical="top"

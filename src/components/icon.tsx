@@ -1,7 +1,7 @@
 import { SymbolView, type AndroidSymbol } from 'expo-symbols';
 import light from 'expo-symbols/androidWeights/light';
 
-import { colors } from '@/theme';
+import { useColors } from './colors';
 
 // shortcut: Material Symbols only; give `name` its SF Symbol (`{ ios, android }`) when iOS ships.
 /**
@@ -11,12 +11,14 @@ import { colors } from '@/theme';
 export function Icon({
   name,
   size = 24,
-  color = colors.chalk,
+  color: given,
 }: {
   name: AndroidSymbol;
   size?: number;
   color?: string;
 }) {
+  const colors = useColors();
+  const color = given ?? colors.chalk;
   return (
     <SymbolView
       name={{ android: name }}

@@ -2,11 +2,12 @@ import { Link } from 'expo-router';
 import { Pressable, Text, View, type ViewStyle } from 'react-native';
 
 import { Icon } from '@/components/icon';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 import type { Unavailable } from '@/challenges/library-view';
 
 /** A run of a challenge from a newer app: it can't be shown or started until the app is updated. */
 export function UnavailableCard({ entry, style }: { entry: Unavailable; style?: ViewStyle }) {
+  const colors = useColors();
   return (
     // The wrapper clips the ripple to the card's corners.
     <View className="overflow-hidden rounded-3xl border border-line" style={style}>

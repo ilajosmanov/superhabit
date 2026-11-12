@@ -6,7 +6,7 @@ import { Icon } from '@/components/icon';
 import { mss } from '@/lib/duration';
 import { PrimaryButton } from '@/components/primary-button';
 import { TextButton } from '@/components/text-button';
-import { colors } from '@/theme';
+import { dark as colors } from '@/theme';
 import { setLabel, type PlatterProps } from './platter-header';
 import { RepCount } from './rep-count';
 import { RepStrip } from './rep-strip';

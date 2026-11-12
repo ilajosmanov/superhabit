@@ -6,10 +6,11 @@ import { ONE_GO } from '@/challenges/one-go';
 import { ExerciseFigure } from '@/components/illustrations';
 import { EXERCISES, orientation } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 /** One row per exercise the camera counts, hairline-divided; a row opens the builder. */
 export function ExercisePicker() {
+  const colors = useColors();
   return (
     <View className="gap-1">
       <Text className="font-mono text-xs tracking-widest text-muted">PICK AN EXERCISE</Text>

@@ -8,7 +8,7 @@ import { ExerciseFigure, ExerciseMotion, moves } from '@/components/illustration
 import { GUTTER } from '@/components/screen';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 const CARD = 256;
 
@@ -31,6 +31,7 @@ export function HowItCounts({ exercises }: { exercises: readonly ExerciseId[] })
 }
 
 function Card({ exercise, width }: { exercise: ExerciseId; width: number }) {
+  const colors = useColors();
   const { name, ready, how } = EXERCISES[exercise];
   const steps = [ready, ...how];
   const [play, setPlay] = useState(false);

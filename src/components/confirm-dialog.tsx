@@ -5,7 +5,8 @@ import {
   TextButton as ComposeTextButton,
 } from '@expo/ui/jetpack-compose';
 
-import { colors, COMPOSE_LABEL } from '@/theme';
+import { COMPOSE_LABEL } from '@/theme';
+import { useColors } from './colors';
 
 /**
  * The platform's dialog for a choice: the action (red when it can't be undone), and Cancel or another
@@ -36,6 +37,7 @@ export function ConfirmDialog({
   onCancel: () => void;
   onDismiss?: () => void;
 }) {
+  const colors = useColors();
   return (
     // Out of the layout's flow: the dialog draws in its own window, but its host would take a slot.
     <Host matchContents style={{ position: 'absolute' }}>
@@ -56,7 +58,7 @@ export function ConfirmDialog({
         <AlertDialog.ConfirmButton>
           <ComposeTextButton onClick={onConfirm} enabled={!disabled}>
             <ComposeText
-              color={disabled ? colors.muted : warn ? colors.warn : colors.accent}
+              color={disabled ? colors.muted : warn ? colors.warn : colors.mark}
               style={COMPOSE_LABEL}
             >
               {action}

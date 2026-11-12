@@ -6,7 +6,8 @@ import { ONE_GO } from '@/challenges/one-go';
 import { DieFigure } from '@/components/illustrations';
 import { EXERCISES } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
-import { colors, lit } from '@/theme';
+import { lit } from '@/theme';
+import { useColors } from '@/components/colors';
 
 const EVERY = ONE_GO.map((id) => ({
   exercise: id,
@@ -19,6 +20,7 @@ const EVERY = ONE_GO.map((id) => ({
  * `style` sets the width inside the swipe row.
  */
 export function SurpriseCard({ style }: { style?: ViewStyle }) {
+  const colors = useColors();
   const surprise = useSurprise();
   return (
     // The wrapper clips the ripple to the card's corners.
@@ -26,7 +28,8 @@ export function SurpriseCard({ style }: { style?: ViewStyle }) {
       className="overflow-hidden rounded-3xl border border-line"
       style={[
         {
-          backgroundImage: `radial-gradient(ellipse at 85% 15%, ${colors.surface} 0%, ${colors.ground} 70%)`,
+          // A whisper of amber over the fade, so it differs from a joined card.
+          backgroundImage: `radial-gradient(ellipse at 85% 15%, ${colors.accent}1F 0%, ${colors.accent}00 55%), radial-gradient(ellipse at 85% 15%, ${colors.surface} 0%, ${colors.ground} 70%)`,
         },
         style,
       ]}
@@ -55,9 +58,7 @@ export function SurpriseCard({ style }: { style?: ViewStyle }) {
         <View className="flex-row items-center justify-between border-t border-line pt-4">
           <ExerciseStack steps={EVERY} />
           <View className="h-11 justify-center rounded-full bg-accent px-6" style={lit}>
-            <Text className="font-sans text-base font-semibold tracking-tight text-ground">
-              Start
-            </Text>
+            <Text className="font-sans text-base font-semibold tracking-tight text-ink">Start</Text>
           </View>
         </View>
       </Pressable>

@@ -11,7 +11,7 @@ import Animated, { useDerivedValue, useReducedMotion } from 'react-native-reanim
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { repAt } from './rep-loop';
-import { colors } from '@/theme';
+import { useColors } from './colors';
 
 type FigureProps = {
   size?: number;
@@ -26,7 +26,9 @@ type FigureProps = {
  * are Material Symbols (`Icon`); only what no icon set has is drawn here.
  * SVG, not Skia: a Skia canvas is its own GPU surface and blinks when a tab re-attaches.
  */
-function Figure({ d, size = 24, color = colors.chalk, weight = 1.5 }: FigureProps & { d: string }) {
+function Figure({ d, size = 24, color: given, weight = 1.5 }: FigureProps & { d: string }) {
+  const colors = useColors();
+  const color = given ?? colors.chalk;
   return (
     <Svg width={size} height={size} viewBox="0 0 32 32" pointerEvents="none">
       <Path
@@ -77,6 +79,7 @@ export const SadFigure = (p: FigureProps) => <Figure d={SAD} {...p} />;
  * someone squatting. `off`: the camera is dark (no view, the lens struck through, everything dimmed).
  */
 export function CameraScene({ width, off = false }: { width: number; off?: boolean }) {
+  const colors = useColors();
   const ink = off ? colors.faint : colors.chalk;
   return (
     <Svg width={width} height={(width * 230) / 358} viewBox="0 0 358 230" pointerEvents="none">
@@ -127,6 +130,7 @@ export function CameraScene({ width, off = false }: { width: number; off?: boole
  * rolled away. It rolls in once unless the phone asks for less motion.
  */
 export function DroppedBarScene({ width }: { width: number }) {
+  const colors = useColors();
   const still = useReducedMotion();
   const height = (width * 230) / 358;
   const plate = (x: number) => (
@@ -272,9 +276,11 @@ function Moving({
   to,
   mid,
   size = 24,
-  color = colors.chalk,
+  color: given,
   weight = 1.5,
 }: FigureProps & { from: SkPath; to: SkPath; mid: SkPath | null }) {
+  const colors = useColors();
+  const color = given ?? colors.chalk;
   const clock = useClock();
   // `interpolate` weighs the path it is called on: 1 = itself, 0 = the argument.
   const path = useDerivedValue(() => {

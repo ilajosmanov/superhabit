@@ -7,7 +7,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { colors, lit } from '@/theme';
+import { lit } from '@/theme';
+import { useColors } from '@/components/colors';
 
 const HOLD_MS = 700;
 
@@ -23,6 +24,7 @@ export function HoldToStart({
   /** Today's session is done already: the key says you go again. */
   again?: boolean;
 }) {
+  const colors = useColors();
   const progress = useSharedValue(0);
   const fill = useAnimatedStyle(() => ({ transform: [{ scaleX: progress.get() }] }));
   const start = () => {
@@ -58,14 +60,14 @@ export function HoldToStart({
             {
               position: 'absolute',
               inset: 0,
-              backgroundColor: colors.ground,
+              backgroundColor: colors.ink,
               opacity: 0.16,
               transformOrigin: 'left',
             },
             fill,
           ]}
         />
-        <Text className="font-sans text-lg font-semibold tracking-tight text-ground">
+        <Text className="font-sans text-lg font-semibold tracking-tight text-ink">
           {again ? 'Hold to go again' : 'Hold to start'}
         </Text>
       </Pressable>

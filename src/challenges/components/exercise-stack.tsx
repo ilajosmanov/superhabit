@@ -4,7 +4,7 @@ import { Text, View } from 'react-native';
 import { Sheet } from '@/components/sheet';
 import { IconButton } from '@/components/icon-button';
 import { ExerciseFigure } from '@/components/illustrations';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 import type { CatalogEntry, CatalogStep } from '@/challenges/catalog';
 
 // Five tiles and a "+N" tile fit one line on the narrowest card.
@@ -33,6 +33,7 @@ function StepLines({ entry }: { entry: CatalogEntry }) {
 
 /** The (i) beside a challenge's name: its full day in the platform sheet, like the surprise card's. */
 export function StepsButton({ entry }: { entry: CatalogEntry }) {
+  const colors = useColors();
   const [open, setOpen] = useState(false);
   return (
     <>

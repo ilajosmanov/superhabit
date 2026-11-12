@@ -2,7 +2,7 @@ import { AndroidHaptics } from 'expo-haptics';
 import { MaterialIcon, NativeTabs } from 'expo-router/native-tabs';
 
 import { tick } from '@/components/tick';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 const label = { fontFamily: 'Geist', fontSize: 12 } as const;
 
@@ -18,6 +18,7 @@ const items: { name: string; icon: MaterialIcon['md']; label: string }[] = [
 
 /** The platform's own bottom tab bar (Material on Android), in the gym-floor palette. */
 export default function TabsLayout() {
+  const colors = useColors();
   return (
     <NativeTabs
       backgroundColor={colors.ground}

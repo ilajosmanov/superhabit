@@ -10,7 +10,7 @@ import { SadFigure } from '@/components/illustrations';
 import { RollingLines } from './rolling-lines';
 import { EXERCISES } from '@/exercises/registry';
 import { videosOf } from '@/storage/set-files';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 import { pad } from '@/lib/day';
 
 /** "07:42": the time it started where you were then, whatever the phone's zone is now. */
@@ -34,6 +34,7 @@ export function DayLog({
   /** Said when there are no rows; several take turns. */
   empty: string | readonly string[];
 }) {
+  const colors = useColors();
   // shortcut: a workout saved while its last file was still finalizing misses that set until the list
   // remounts (another day picked, or another workout saved); list again when the camcorder wraps if that
   // shows up on the phone.

@@ -6,7 +6,7 @@ import { PrimaryButton } from '@/components/primary-button';
 import { GUTTER, Screen } from '@/components/screen';
 import { LEAGUES, lastWeekWords, type Board, type League } from '@/leaderboard/leaderboard';
 import { capitalise } from '@/lib/text';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 const GAP = 6;
 const HEIGHT = [72, 120, 168];
@@ -20,6 +20,7 @@ const ABOVE_STEP = 14;
  * less motion, or when you stayed.
  */
 function Stairs({ from, to }: { from: League; to: League }) {
+  const colors = useColors();
   const still = useReducedMotion();
   // League stays mounted behind Home and reads its board at launch: the climb waits until the tab is in
   // front, the dot held on last week's step meanwhile.

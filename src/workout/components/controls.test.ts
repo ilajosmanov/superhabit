@@ -6,6 +6,7 @@ vi.mock('react-native-safe-area-context', () => ({}));
 vi.mock('@expo/ui/jetpack-compose', () => ({}));
 vi.mock('@expo/ui/jetpack-compose/modifiers', () => ({}));
 vi.mock('expo-symbols', () => ({}));
+vi.mock('react-native-css/native', () => ({}));
 vi.mock('expo-symbols/androidWeights/light', () => ({ default: 300 }));
 
 const { Caption } = await import('./controls');

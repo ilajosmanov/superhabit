@@ -4,7 +4,7 @@ import { Text, View } from 'react-native';
 import { Avatar } from '@/components/avatar';
 import { Icon } from '@/components/icon';
 import { ABOVE, BELOW, type Board } from '@/leaderboard/leaderboard';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 type Row = Board['rows'][number];
 
@@ -48,6 +48,7 @@ function zones({ rows, league, up, down }: Board): Part[] {
 }
 
 function Place({ row, top, hidden }: { row: Row; top: number; hidden: boolean }) {
+  const colors = useColors();
   const { rank, you, name, image, points } = row;
   // Ties at 0 are ordered by id: a place there means nothing.
   const place = points > 0 ? String(rank) : '–';
@@ -57,9 +58,7 @@ function Place({ row, top, hidden }: { row: Row; top: number; hidden: boolean })
       accessibilityLabel={`${points > 0 ? `${rank}. ` : ''}${you ? (hidden ? 'You, hidden from others' : 'You') : (name ?? 'Hidden athlete')}, ${points} points`}
       className={`h-13 flex-row items-center gap-3.5 ${you ? '-mx-3 rounded-xl bg-surface px-3' : ''}`}
     >
-      <Text
-        className={`w-7 font-sans text-xl font-extralight ${you ? 'text-accent' : 'text-soft'}`}
-      >
+      <Text className={`w-7 font-sans text-xl font-extralight ${you ? 'text-mark' : 'text-soft'}`}>
         {place}
       </Text>
       {name ? (
@@ -101,6 +100,7 @@ function Place({ row, top, hidden }: { row: Row; top: number; hidden: boolean })
  * hairline under each name sized by points. `hidden`: others see you as Hidden athlete.
  */
 export function Standings({ board, hidden }: { board: Board; hidden: boolean }) {
+  const colors = useColors();
   const top = board.rows[0]?.points ?? 0;
   return (
     <View>

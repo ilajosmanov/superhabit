@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { useDerivedValue } from 'react-native-reanimated';
 
-import { colors } from '@/theme';
+import { dark as colors } from '@/theme';
 
 /**
  * Time left as an amber line over a faint track: it runs back toward its start and is gone after

@@ -1,16 +1,8 @@
-import {
-  Host,
-  SegmentedButton,
-  SingleChoiceSegmentedButtonRow,
-  Text as ComposeText,
-} from '@expo/ui/jetpack-compose';
-import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { AmountInput } from './amount-input';
-import { SEGMENT } from './builder';
 import type { Amount } from '@/challenges/draft';
 import {
   dayChoices,
@@ -22,6 +14,7 @@ import {
   type Values,
 } from '@/challenges/tune';
 import { Icon } from '@/components/icon';
+import { Segments } from '@/components/segments';
 import { ExerciseFigure } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
@@ -29,7 +22,7 @@ import { TextButton } from '@/components/text-button';
 import { tick } from '@/components/tick';
 import { EXERCISES } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
-import { colors, COMPOSE_LABEL } from '@/theme';
+import { useColors } from '@/components/colors';
 import type { Challenge } from '@/workout/plan/plan';
 
 const label = 'font-mono text-xs tracking-widest text-muted';
@@ -86,6 +79,7 @@ export function TuneNumbers({
   challenge: Challenge;
   onJoin: (yours: Challenge | null) => void;
 }) {
+  const colors = useColors();
   const knobs = knobsOf(challenge);
   const [values, setValues] = useState<Values>({});
   const [reset, setReset] = useState(0);
@@ -207,7 +201,7 @@ export function TuneNumbers({
               </Text>
               <Text className={`pb-4 ${label}`}>DAYS</Text>
             </View>
-            <Days choices={dayChoices(knob.ours)} value={value} onChange={set} />
+            <Segments choices={dayChoices(knob.ours)} value={value} onChange={set} />
           </>
         ) : (
           // Reset also clears typed text when the selected knob's saved amount is unchanged.
@@ -234,38 +228,5 @@ export function TuneNumbers({
         </View>
       </View>
     </Screen>
-  );
-}
-
-function Days({
-  choices,
-  value,
-  onChange,
-}: {
-  choices: readonly number[];
-  value: Amount;
-  onChange: (n: number) => void;
-}) {
-  return (
-    <Host matchContents={{ vertical: true }}>
-      <SingleChoiceSegmentedButtonRow modifiers={[fillMaxWidth()]}>
-        {choices.map((days) => (
-          <SegmentedButton
-            key={days}
-            selected={days === value}
-            onClick={() => {
-              if (days === value) return;
-              tick();
-              onChange(days);
-            }}
-            colors={SEGMENT}
-          >
-            <SegmentedButton.Label>
-              <ComposeText style={COMPOSE_LABEL}>{String(days)}</ComposeText>
-            </SegmentedButton.Label>
-          </SegmentedButton>
-        ))}
-      </SingleChoiceSegmentedButtonRow>
-    </Host>
   );
 }

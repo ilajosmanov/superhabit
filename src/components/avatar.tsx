@@ -1,6 +1,6 @@
 import { Image, Text, View } from 'react-native';
 
-import { colors } from '@/theme';
+import { useColors } from './colors';
 
 /** "AL" for Ann Lee: the first letters of the first two words. */
 const initials = (name: string) =>
@@ -27,6 +27,7 @@ export function Avatar({
   /** Ringed in amber: you, in a list of people. */
   lit?: boolean;
 }) {
+  const colors = useColors();
   return (
     <View
       importantForAccessibility="no-hide-descendants"

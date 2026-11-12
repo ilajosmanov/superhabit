@@ -5,6 +5,7 @@ import { OVER_VIDEO, Screens, useReel } from './reel-player';
 import { SessionViewer } from './session-viewer';
 import { IconButton } from '@/components/icon-button';
 import type { Clip, Spot } from '@/challenges/reel';
+import { dark } from '@/theme';
 
 /**
  * The session's sets on a loop, one after another, sized and placed by `className`; `children` (given the
@@ -76,6 +77,8 @@ function Loop({
         icon="open_in_full"
         label="Watch the session full screen"
         size={18}
+        // Chalk on the dark disc in either theme.
+        color={dark.chalk}
         fill={OVER_VIDEO}
         onPress={() => onWatch(spot)}
         style={{ position: 'absolute', ...expand }}

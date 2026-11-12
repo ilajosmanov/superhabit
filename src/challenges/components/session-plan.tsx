@@ -7,7 +7,7 @@ import { Icon } from '@/components/icon';
 import { ExerciseFigure } from '@/components/illustrations';
 import { EXERCISES, orientation } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 import type { Goal } from '@/workout/plan/plan';
 import { setShare } from '@/workout/plan/results';
 
@@ -66,7 +66,7 @@ export function SessionPlan({
               <View className="flex-row justify-between gap-4 pb-2.5">
                 <Text className="flex-1 font-mono text-xs tracking-widest text-muted">{label}</Text>
                 {here && rounds > 1 && (
-                  <Text className="font-mono text-xs tracking-widest text-accent">
+                  <Text className="font-mono text-xs tracking-widest text-mark">
                     {`ROUND ${Math.floor(next / rows.length) + 1} OF ${rounds}`}
                   </Text>
                 )}
@@ -107,6 +107,7 @@ function Fill({ share, height }: { share: number; height: number }) {
 }
 
 function Move({ row }: { row: PlanRow }) {
+  const colors = useColors();
   const sideways = orientation(EXERCISES[row.exercise].placement) === 'landscape';
   return (
     <View className="flex-row items-center gap-3 pb-4">
@@ -125,6 +126,7 @@ function Move({ row }: { row: PlanRow }) {
  * shown; `live` marks the set to do now.
  */
 function Row({ row, got, live }: { row: PlanRow; got?: readonly number[]; live: boolean }) {
+  const colors = useColors();
   const name = capitalise(EXERCISES[row.exercise].name);
   const unit = isHold(row.exercise) ? 'SEC' : 'REPS';
   const spoken =

@@ -5,7 +5,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { colors } from '@/theme';
+import { dark as colors } from '@/theme';
 
 import { depthAt, depthText, type Gauge } from './depth';
 

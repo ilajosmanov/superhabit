@@ -17,6 +17,7 @@ import { LiveView } from './live-view';
 import { RecoverOpenWorkout } from './recover-prompt';
 import { RestView } from './rest-view';
 import { useSlidIn } from './slid-in';
+import { Night } from '@/components/colors';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { saveFailed } from '@/components/save-failed';
 import type { LogTarget } from '@/workout/store';
@@ -28,9 +29,11 @@ import { sessionView, type SessionView } from '@/workout/session/session-view';
 
 function Centered({ text }: { text: string }) {
   return (
-    <View className="flex-1 items-center justify-center bg-ground p-6">
-      <Text className="text-center font-sans text-chalk">{text}</Text>
-    </View>
+    <Night>
+      <View className="flex-1 items-center justify-center bg-ground p-6">
+        <Text className="text-center font-sans text-chalk">{text}</Text>
+      </View>
+    </Night>
   );
 }
 
@@ -56,12 +59,19 @@ export function SessionGate({
   const left = openWorkout?.id !== workoutId ? openWorkout : null;
   const slidIn = useSlidIn();
   // After useSlidIn, so the slide is still caught while it waits.
-  if (waiting) return <View className="flex-1 bg-ground" />;
+  const blank = (
+    <Night>
+      <View className="flex-1 bg-ground" />
+    </Night>
+  );
+  if (waiting) return blank;
   if (left) {
     return (
-      <View className="flex-1 bg-ground">
-        <RecoverOpenWorkout key={left.id} workoutId={left.id} />
-      </View>
+      <Night>
+        <View className="flex-1 bg-ground">
+          <RecoverOpenWorkout key={left.id} workoutId={left.id} />
+        </View>
+      </Night>
     );
   }
   if (Platform.OS !== 'android') return <Centered text="Pose tracking is available on Android." />;
@@ -69,16 +79,18 @@ export function SessionGate({
   if (!hasPermission) {
     return (
       // Once denied for good (Android's 'denied'), only Settings can grant it.
-      <CameraPermission
-        onLeave={onLeave}
-        canAsk={canRequestPermission}
-        onAsk={() => void (canRequestPermission ? requestPermission() : Linking.openSettings())}
-      />
+      <Night>
+        <CameraPermission
+          onLeave={onLeave}
+          canAsk={canRequestPermission}
+          onAsk={() => void (canRequestPermission ? requestPermission() : Linking.openSettings())}
+        />
+      </Night>
     );
   }
   // The camera, detector and orientation lock start once the page is in: started mid-slide, they held
   // one frame of the slide for 150 ms.
-  if (!slidIn) return <View className="flex-1 bg-ground" />;
+  if (!slidIn) return blank;
   return children(workoutId);
 }
 
@@ -171,71 +183,77 @@ function Session({
   const tone = view.phase === 'waiting' ? 'idle' : view.flash === 'noRep' ? 'noRep' : 'live';
 
   return (
-    <View className="flex-1 bg-ground">
+    <View className="flex-1">
       <StatusBar hidden />
-      {/* Gone once every file is final (stopped, not unmounted, until then, so no take is cut short):
+      {/* The camera and all over it stay dark in either theme: light chrome would glare over the picture. */}
+      <Night>
+        <View className="absolute inset-0 bg-ground">
+          {/* Gone once every file is final (stopped, not unmounted, until then, so no take is cut short):
           a stopped camera's last frame showed through the Done page's video. */}
-      {!(view.stage === 'finished' && view.final) && (
-        <PoseCamera
-          // A camera retry mounts it afresh.
-          key={view.cameraTry}
-          cameraRef={camera}
-          landmarker={landmarker}
-          isActive={view.stage !== 'finished'}
-          joints={joints}
-          highlight={highlight}
-          tone={tone}
-          video={view.filming ? video : undefined}
-          camera={view.camera}
-          showSkeleton={view.skeleton}
-          onReady={send('cameraReady')}
-          onVideoLost={send('videoLost')}
-          onCameraFailed={send('cameraFailed')}
-        />
-      )}
-      {view.stage === 'finished' ? (
-        done({
-          view,
-          challenge,
-          onClose: onDone,
-        })
-      ) : view.stage === 'resting' ? (
-        <RestView view={view} landscape={landscape} onContinue={send('next')} onEnd={send('end')} />
-      ) : view.stage === 'switching' ? (
-        <BetweenSets
-          view={view}
-          landscape={landscape}
-          onContinue={send('next')}
-          onEnd={send('end')}
-        />
-      ) : (
-        <LiveView
-          view={view}
-          landscape={landscape}
-          angle={angle}
-          lowest={lowest}
-          onPause={send('pause')}
-          onEndSet={send('next')}
-          onResume={send('resume')}
-          onRestart={send('restart')}
-          onEnd={send('end')}
-          onToggleVoice={send('toggleVoice')}
-          onToggleSkeleton={send('toggleSkeleton')}
-          onFlipCamera={send('flipCamera')}
-        />
-      )}
-      {asking && (
-        <ConfirmDialog
-          title="Discard this workout?"
-          text="What you counted in it isn't kept."
-          action="Discard"
-          onConfirm={() => {
-            setAsking(null);
-            session.send({ type: 'discard', onLeave: asking });
-          }}
-          onCancel={() => setAsking(null)}
-        />
-      )}
+          {!(view.stage === 'finished' && view.final) && (
+            <PoseCamera
+              // A camera retry mounts it afresh.
+              key={view.cameraTry}
+              cameraRef={camera}
+              landmarker={landmarker}
+              isActive={view.stage !== 'finished'}
+              joints={joints}
+              highlight={highlight}
+              tone={tone}
+              video={view.filming ? video : undefined}
+              camera={view.camera}
+              showSkeleton={view.skeleton}
+              onReady={send('cameraReady')}
+              onVideoLost={send('videoLost')}
+              onCameraFailed={send('cameraFailed')}
+            />
+          )}
+          {view.stage === 'finished' ? null : view.stage === 'resting' ? (
+            <RestView
+              view={view}
+              landscape={landscape}
+              onContinue={send('next')}
+              onEnd={send('end')}
+            />
+          ) : view.stage === 'switching' ? (
+            <BetweenSets
+              view={view}
+              landscape={landscape}
+              onContinue={send('next')}
+              onEnd={send('end')}
+            />
+          ) : (
+            <LiveView
+              view={view}
+              landscape={landscape}
+              angle={angle}
+              lowest={lowest}
+              onPause={send('pause')}
+              onEndSet={send('next')}
+              onResume={send('resume')}
+              onRestart={send('restart')}
+              onEnd={send('end')}
+              onToggleVoice={send('toggleVoice')}
+              onToggleSkeleton={send('toggleSkeleton')}
+              onFlipCamera={send('flipCamera')}
+            />
+          )}
+          {asking && (
+            <ConfirmDialog
+              title="Discard this workout?"
+              text="What you counted in it isn't kept."
+              action="Discard"
+              onConfirm={() => {
+                setAsking(null);
+                session.send({ type: 'discard', onLeave: asking });
+              }}
+              onCancel={() => setAsking(null)}
+            />
+          )}
+        </View>
+      </Night>
+      {/* The Done page is a page again: it wears the theme. */}
+      {view.stage === 'finished' && done({ view, challenge, onClose: onDone })}
     </View>
   );
 }

@@ -8,7 +8,7 @@ import { Icon } from '@/components/icon';
 import { tick } from '@/components/tick';
 import { dayAt, dayWords, weeks } from './streak-grid';
 import { EARN_EVERY, FREEZES, HOLD, type DayKind, type Streak } from '@/streak/streak';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 import { addDays, dayLabel, type Day } from '@/lib/day';
 
 const STATUS: Record<Streak['status'], string> = {
@@ -72,6 +72,7 @@ function Grid({
   picked: Day;
   onPick: (day: Day) => void;
 }) {
+  const colors = useColors();
   const columns = weeks(today);
   const month = (week: Day[]) => dayLabel(week[0]).slice(-3);
   const size = useRef({ width: 1, height: 1 });
@@ -179,6 +180,7 @@ export function StreakPanel({
   picked: Day;
   onPick: (day: Day) => void;
 }) {
+  const colors = useColors();
   const { current, best, trained, held, toNext, status, kind } = streak;
   const hint =
     toNext === null
@@ -197,7 +199,7 @@ export function StreakPanel({
           <Text
             maxFontSizeMultiplier={1}
             className={`font-sans text-6xl font-thin leading-none tracking-tighter ${
-              status === 'done' ? 'text-accent' : current > 0 ? 'text-chalk' : 'text-faint'
+              status === 'done' ? 'text-mark' : current > 0 ? 'text-chalk' : 'text-faint'
             }`}
           >
             {current}

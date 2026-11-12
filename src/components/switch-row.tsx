@@ -3,7 +3,7 @@ import { semantics } from '@expo/ui/jetpack-compose/modifiers';
 import { AndroidHaptics } from 'expo-haptics';
 import { Text, View } from 'react-native';
 
-import { colors } from '@/theme';
+import { useColors } from './colors';
 
 import { tick } from './tick';
 
@@ -22,6 +22,7 @@ export function SwitchRow({
   /** While a change is being saved: drawn as it is, but taps wait. */
   disabled?: boolean;
 }) {
+  const colors = useColors();
   return (
     <View className="flex-row items-center gap-4">
       <View className="flex-1 gap-1">
@@ -40,13 +41,13 @@ export function SwitchRow({
           }}
           colors={{
             checkedTrackColor: colors.accent,
-            checkedThumbColor: colors.ground,
+            checkedThumbColor: colors.ink,
             checkedBorderColor: colors.accent,
             uncheckedTrackColor: colors.ground,
             uncheckedThumbColor: colors.faint,
             uncheckedBorderColor: colors.faint,
             disabledCheckedTrackColor: colors.accent,
-            disabledCheckedThumbColor: colors.ground,
+            disabledCheckedThumbColor: colors.ink,
             disabledCheckedBorderColor: colors.accent,
             disabledUncheckedTrackColor: colors.ground,
             disabledUncheckedThumbColor: colors.faint,

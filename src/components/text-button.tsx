@@ -3,7 +3,7 @@ import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import type { AndroidSymbol } from 'expo-symbols';
 import type { ViewStyle } from 'react-native';
 
-import { colors } from '@/theme';
+import { useColors } from './colors';
 
 import { Icon } from './icon';
 
@@ -12,7 +12,7 @@ export function TextButton({
   label,
   onPress,
   icon,
-  color = colors.chalk,
+  color: given,
   disabled = false,
   wide = false,
   edge = false,
@@ -31,6 +31,8 @@ export function TextButton({
   /** Places the Compose host. */
   style?: ViewStyle;
 }) {
+  const colors = useColors();
+  const color = given ?? colors.chalk;
   return (
     <Host
       matchContents={wide ? { vertical: true } : true}

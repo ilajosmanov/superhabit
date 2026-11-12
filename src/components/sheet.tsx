@@ -2,7 +2,7 @@ import { BottomSheet, RNHostView, ScrollView } from '@expo/ui';
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
 
-import { colors } from '@/theme';
+import { useColors } from './colors';
 
 /** The platform bottom sheet (Material 3 on Android) with our own views inside, as tall as they are. */
 export function Sheet({
@@ -14,6 +14,7 @@ export function Sheet({
   onDismiss: () => void;
   children: ReactNode;
 }) {
+  const colors = useColors();
   return (
     <BottomSheet
       isPresented={open}

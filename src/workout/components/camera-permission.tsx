@@ -6,7 +6,7 @@ import { Icon } from '@/components/icon';
 import { IconButton } from '@/components/icon-button';
 import { CameraScene } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
-import { colors } from '@/theme';
+import { dark as colors } from '@/theme';
 
 // Each line is a fact of this build: the pose model runs on the phone, and video is filmed without audio.
 const FACTS: readonly [AndroidSymbol, string][] = [

@@ -13,7 +13,7 @@ import { mss } from '@/lib/duration';
 import { ExerciseFigure } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
-import { colors } from '@/theme';
+import { Night, useColors } from '@/components/colors';
 import { expand, type Challenge } from '@/workout/plan/plan';
 import { setAmounts, shareDone } from '@/workout/plan/results';
 import type { SessionView } from '@/workout/session/session-view';
@@ -103,12 +103,30 @@ function Hero({
   numeral: { n: number; labels: readonly string[]; met: boolean };
   top: number;
 }) {
+  const colors = useColors();
   const { height } = useWindowDimensions();
   const clips = view.final ? reelOf(view.results) : [];
-  // Over the video, under its full-screen button; nothing here takes a tap. `playing`: the set on screen.
-  const over = (playing: Clip | null) => (
+  // The names at the top; `playing`: the set on screen.
+  const names = (playing: Clip | null) => (
+    <View
+      pointerEvents="none"
+      className="absolute right-20 left-6 gap-1.5"
+      style={{ top: top + 20 }}
+    >
+      <Text numberOfLines={1} className="font-mono text-xs font-medium tracking-widest text-chalk">
+        {name.toUpperCase()}
+      </Text>
+      {playing && (
+        <Text numberOfLines={1} className="font-mono text-xs tracking-widest text-soft uppercase">
+          {`Set ${playing.set + 1} of ${view.sets} · ${EXERCISES[playing.result.exercise].name}`}
+        </Text>
+      )}
+    </View>
+  );
+  // Over the video, under its full-screen button; nothing here takes a tap.
+  const over = (playing: Clip) => (
     <>
-      {/* Dark under the name, clear through the middle, the page's ground under the numeral. */}
+      {/* Dark under the names, clear through the middle, the page's ground under the numeral. */}
       <View
         pointerEvents="none"
         className="absolute inset-0"
@@ -116,23 +134,8 @@ function Hero({
           backgroundImage: `linear-gradient(180deg, ${OVER_VIDEO} 0%, transparent 22%, transparent 45%, ${colors.ground} 100%)`,
         }}
       />
-      <View
-        pointerEvents="none"
-        className="absolute right-20 left-6 gap-1.5"
-        style={{ top: top + 20 }}
-      >
-        <Text
-          numberOfLines={1}
-          className="font-mono text-xs font-medium tracking-widest text-chalk"
-        >
-          {name.toUpperCase()}
-        </Text>
-        {playing && (
-          <Text numberOfLines={1} className="font-mono text-xs tracking-widest text-soft uppercase">
-            {`Set ${playing.set + 1} of ${view.sets} · ${EXERCISES[playing.result.exercise].name}`}
-          </Text>
-        )}
-      </View>
+      {/* On that dark the names are chalk in either theme. */}
+      <Night>{names(playing)}</Night>
     </>
   );
   return (
@@ -149,7 +152,7 @@ function Hero({
       ) : (
         <View className="absolute inset-0 items-center justify-center">
           <ExerciseFigure exercise={figure} size={220} weight={0.6} color={colors.edge} />
-          {over(null)}
+          {names(null)}
         </View>
       )}
       {/* Outside `over`: the trees above swap as the files turn final, and it would rise again each time. */}
@@ -165,6 +168,7 @@ function Hero({
  * breaks when it was only holds).
  */
 function Numbers({ view, onlyHolds }: { view: SessionView; onlyHolds: boolean }) {
+  const colors = useColors();
   const misses = view.results
     .filter((set) => onlyHolds || !isHold(set.exercise))
     .reduce((n, set) => n + set.noReps, 0);

@@ -4,14 +4,14 @@ import { Text, View } from 'react-native';
 import { ExerciseRow } from './exercise-row';
 import { Icon } from '@/components/icon';
 import { TextButton } from '@/components/text-button';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 import type { CatalogEntry } from '@/challenges/catalog';
 import { SUGGESTED_CHALLENGES } from '@/challenges/suggested';
 
 const suggestedIds = new Set(SUGGESTED_CHALLENGES.map(({ id }) => id));
 
 /**
- * Outlined, never filled: a filled card means you joined it. The exercise and its daily goal in its own
+ * A soft fill, no outline or glow: those mean you joined it. The exercise and its daily goal in its own
  * unit (a circuit: its exercises and rounds), and the length in days.
  */
 function ChallengeCard({ entry }: { entry: CatalogEntry }) {
@@ -39,6 +39,7 @@ function ChallengeCard({ entry }: { entry: CatalogEntry }) {
 
 /** Bar work we don't count yet: a dashed card, not a link. */
 function ComingSoon() {
+  const colors = useColors();
   return (
     <View
       accessible

@@ -12,6 +12,8 @@ own only for what Material has no form of.
 | `tonal-button.tsx`   | Material's filled tonal button, 60dp tall and sized to its label                                                                 | a footer's second action beside the primary                               |
 | `text-button.tsx`    | Material's text button in Geist                                                                                                  | secondary actions; `edge` at a row's end                                  |
 | `icon-button.tsx`    | Material's icon button: a symbol or our own figure, 48dp                                                                         | an action shown as an icon; `checked` for a toggle; `edge` at a row's end |
+| `segments.tsx`       | Material's segmented row, as wide as its parent                                                                                  | one choice of a few (days, the theme)                                     |
+| `colors.tsx`         | `useColors()`: the palette in force, light or dark; `Night`: a part that stays dark                                              | a prop that takes a colour value; `Night` around the camera and video     |
 | `switch-row.tsx`     | a label, what the value means, and Material's switch                                                                             | an on/off setting                                                         |
 | `confirm-dialog.tsx` | the platform's dialog for a choice; `disabled` while its action runs                                                             | before something that can't be undone, or a choice that must be made      |
 | `icon.tsx`           | a Material Symbol                                                                                                                | any icon; whatever holds it says what it means                            |
@@ -22,4 +24,6 @@ own only for what Material has no form of.
 | `tick.ts`            | `tick(kind)`: Android's haptic feedback, a selection tick on iOS                                                                 | every haptic: detents, toggles, keys                                      |
 | `save-failed.ts`     | `saveFailed()`: the alert for a write that didn't go through                                                                     | after a feature's write returns null                                      |
 
-Colour tokens and `COMPOSE_LABEL` (a Compose button's label font) are in `src/theme.ts`.
+The two palettes (`dark`, `light`) and `COMPOSE_LABEL` (a Compose button's label font) are in `src/theme.ts`.
+Classes (`text-chalk`) follow the theme by themselves; a value comes from `useColors()`, never from a
+palette by name, except in what is always dark (`workout/`, the video viewer).

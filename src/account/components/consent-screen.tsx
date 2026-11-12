@@ -12,7 +12,7 @@ import { SERVER_URL } from '@/account/server';
 import { Icon } from '@/components/icon';
 import { PrimaryButton } from '@/components/primary-button';
 import { TextButton } from '@/components/text-button';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 /** What sharing means, here and when Profile's switch turns it on. */
 export const SHARING_FACTS = [
@@ -44,6 +44,7 @@ export function ConsentScreen({
   consent: ActorRefFrom<typeof consent>;
   onSignIn: () => void;
 }) {
+  const colors = useColors();
   const { top, bottom } = useSafeAreaInsets();
   const asking = useSelector(actor, (s) => s.matches('asking') || s.matches('saving'));
   const busy = useSelector(actor, (s) => s.matches('saving') || s.matches('failing'));
@@ -72,7 +73,7 @@ export function ConsentScreen({
           <PointsNotPictures />
         </View>
         <View className="gap-4">
-          <Text className="font-mono text-xs tracking-widest text-accent">ONE QUESTION</Text>
+          <Text className="font-mono text-xs tracking-widest text-mark">ONE QUESTION</Text>
           <Text
             accessibilityRole="header"
             maxFontSizeMultiplier={1.3}
@@ -87,7 +88,7 @@ export function ConsentScreen({
         </View>
         <View className="gap-6 border-t border-line pt-6">
           {SHARING_FACTS.map((fact, i) => (
-            <Point key={fact.title} {...fact} color={i === 0 ? colors.accent : undefined} />
+            <Point key={fact.title} {...fact} color={i === 0 ? colors.mark : undefined} />
           ))}
         </View>
       </ScrollView>
@@ -134,7 +135,7 @@ export const openPrivacyPolicy = () => void Linking.openURL(`${SERVER_URL}/priva
 
 function Point({
   icon,
-  color = colors.muted,
+  color: given,
   title,
   text,
 }: {
@@ -143,6 +144,8 @@ function Point({
   title: string;
   text: string;
 }) {
+  const colors = useColors();
+  const color = given ?? colors.muted;
   return (
     <View accessible className="flex-row items-start gap-4">
       <View className="pt-0.5">
@@ -158,7 +161,7 @@ function Point({
 
 /** Board 22a's drawing: only the points of a squat, never the picture; the knee in amber. */
 function PointsNotPictures() {
-  const { accent, chalk, line, muted } = colors;
+  const { accent, chalk, line, muted } = useColors();
   return (
     <Svg
       width={358}

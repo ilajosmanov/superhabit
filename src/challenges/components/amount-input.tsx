@@ -6,7 +6,7 @@ import { Text, TextInput, View } from 'react-native';
 
 import type { Amount } from '@/challenges/draft';
 import { tick } from '@/components/tick';
-import { colors } from '@/theme';
+import { useColors } from '@/components/colors';
 
 const label = 'font-mono text-xs tracking-widest text-muted';
 
@@ -32,6 +32,7 @@ export function AmountInput({
   name: string;
   onChange: (amount: Amount) => void;
 }) {
+  const colors = useColors();
   // The numeral's text while you type in it; null when the field is not focused.
   const [typing, setTyping] = useState<{ text: string; amount: Amount } | null>(null);
   const sliding = useRef<number | null>(null);
@@ -76,9 +77,9 @@ export function AmountInput({
             maxLength={3}
             returnKeyType="done"
             selectTextOnFocus
-            cursorColor={colors.accent}
+            cursorColor={colors.mark}
             selectionColor={colors.line}
-            selectionHandleColor={colors.accent}
+            selectionHandleColor={colors.mark}
             placeholder={shown}
             placeholderTextColor={colors.faint}
             // One line's height (text-9xl × leading-none), pinned, so a larger system font would clip: empty,
@@ -98,7 +99,7 @@ export function AmountInput({
         <View
           className="border-b"
           style={{
-            borderColor: typing !== null ? colors.accent : colors.edge,
+            borderColor: typing !== null ? colors.mark : colors.edge,
             borderStyle: typing !== null ? 'solid' : 'dashed',
           }}
         />

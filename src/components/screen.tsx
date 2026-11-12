@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors } from '@/theme';
+import { useColors } from './colors';
 
 /** The side padding of every screen (`px-6`): content is the window's width less two of these. */
 export const GUTTER = 24;
@@ -34,9 +34,11 @@ export function Screen({
   refresh?: { refreshing: boolean; onRefresh: () => void };
   children?: ReactNode;
 }) {
+  const colors = useColors();
   const { top, bottom } = useSafeAreaInsets();
   return (
-    <View className="flex-1 bg-ground">
+    // Under a label it is a tab: the hairline is the tab bar's top edge (Material's bar draws none).
+    <View className={`flex-1 bg-ground ${label ? 'border-b border-line' : ''}`}>
       {label && (
         <View className="px-6" style={{ paddingTop: top + 20 }}>
           <View className="h-11 flex-row items-center justify-between border-b border-line">

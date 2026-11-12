@@ -2,7 +2,7 @@ import { Text, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
 import { PhoneSetup } from './phone-setup';
-import { colors } from '@/theme';
+import { dark as colors } from '@/theme';
 import type { SessionView } from '@/workout/session/session-view';
 
 import { Clock, CloseButton, Frame, GLASS } from './controls';
