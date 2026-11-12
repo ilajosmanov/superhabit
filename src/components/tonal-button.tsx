@@ -2,7 +2,7 @@ import { FilledTonalButton, Host, RNHostView, Spacer, Text } from '@expo/ui/jetp
 import { height, width } from '@expo/ui/jetpack-compose/modifiers';
 import type { AndroidSymbol } from 'expo-symbols';
 
-import { COMPOSE_LABEL } from '@/theme';
+import { BUTTON_ICON_GAP, COMPOSE_LABEL } from '@/theme';
 import { useColors } from './colors';
 
 import { Icon } from './icon';
@@ -32,7 +32,7 @@ export function TonalButton({
             <Icon name={icon} size={20} />
           </RNHostView>
         )}
-        {icon && <Spacer modifiers={[width(8)]} />}
+        {icon && <Spacer modifiers={[width(BUTTON_ICON_GAP)]} />}
         <Text color={colors.chalk} style={{ ...COMPOSE_LABEL, fontSize: 17 }}>
           {label}
         </Text>

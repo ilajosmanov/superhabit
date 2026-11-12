@@ -13,6 +13,7 @@ import {
 import { IconButton } from './icon-button';
 import { PrimaryButton } from './primary-button';
 import { Segments } from './segments';
+import { useSnackbar } from './snackbar';
 import { Sheet } from './sheet';
 import { TextButton } from './text-button';
 import { tick } from './tick';
@@ -36,6 +37,7 @@ export function FeedbackButton({
   details?: Record<string, string>;
 }) {
   const colors = useColors();
+  const notify = useSnackbar();
   const [open, setOpen] = useState(initiallyOpen);
   const [message, setMessage] = useState('');
   const [reaction, setReaction] = useState<Reaction | null>(null);
@@ -58,6 +60,7 @@ export function FeedbackButton({
     setReaction(null);
     setAccuracy(null);
     close();
+    notify?.('Feedback sent');
   };
   const less =
     measure === 'reps' ? 'Missed reps' : measure === 'seconds' ? 'Too short' : 'Too little';
@@ -66,26 +69,25 @@ export function FeedbackButton({
 
   return (
     <>
-      <TextButton
-        wide={crash}
-        icon={crash ? undefined : 'chat_bubble_outline'}
-        label={
-          sent
-            ? workout
-              ? 'Thanks'
-              : 'Thanks for your feedback'
-            : workout
-              ? 'Feedback'
-              : crash
-                ? 'Send feedback'
-                : 'Share feedback'
-        }
-        disabled={sent && source !== 'profile'}
-        onPress={() => {
-          setSent(false);
-          setOpen(true);
-        }}
-      />
+      {workout ? (
+        <IconButton
+          icon="chat_bubble_outline"
+          label="Share workout feedback"
+          disabled={sent}
+          onPress={() => setOpen(true)}
+        />
+      ) : (
+        <TextButton
+          wide={crash}
+          icon={crash ? undefined : 'chat_bubble_outline'}
+          label={crash ? (sent ? 'Thanks for your feedback' : 'Send feedback') : 'Share feedback'}
+          disabled={sent && crash}
+          onPress={() => {
+            setSent(false);
+            setOpen(true);
+          }}
+        />
+      )}
       <Sheet open={open} onDismiss={close}>
         <View className="gap-2">
           <Text className="font-mono text-xs tracking-widest text-muted">

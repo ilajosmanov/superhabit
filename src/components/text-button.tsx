@@ -1,8 +1,15 @@
-import { Host, RNHostView, Text, TextButton as ComposeTextButton } from '@expo/ui/jetpack-compose';
-import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
+import {
+  Host,
+  RNHostView,
+  Spacer,
+  Text,
+  TextButton as ComposeTextButton,
+} from '@expo/ui/jetpack-compose';
+import { fillMaxWidth, width } from '@expo/ui/jetpack-compose/modifiers';
 import type { AndroidSymbol } from 'expo-symbols';
 import type { ViewStyle } from 'react-native';
 
+import { BUTTON_ICON_GAP } from '@/theme';
 import { useColors } from './colors';
 
 import { Icon } from './icon';
@@ -48,6 +55,7 @@ export function TextButton({
             <Icon name={icon} size={16} color={disabled ? colors.muted : color} />
           </RNHostView>
         )}
+        {icon && <Spacer modifiers={[width(BUTTON_ICON_GAP)]} />}
         <Text color={disabled ? colors.muted : color} style={{ fontFamily: 'Geist', fontSize: 16 }}>
           {label}
         </Text>

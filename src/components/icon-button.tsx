@@ -26,6 +26,7 @@ export function IconButton({
   label,
   onPress,
   checked,
+  disabled = false,
   size = 24,
   color: given,
   fill,
@@ -36,6 +37,7 @@ export function IconButton({
   label: string;
   onPress: () => void;
   checked?: boolean;
+  disabled?: boolean;
   size?: number;
   color?: string;
   fill?: string;
@@ -69,6 +71,7 @@ export function IconButton({
     <Host matchContents style={edge ? { marginRight: -12, ...style } : style}>
       {checked === undefined ? (
         <Button
+          enabled={!disabled}
           onClick={onPress}
           colors={{ containerColor, contentColor: color }}
           modifiers={modifiers}
@@ -77,6 +80,7 @@ export function IconButton({
         </Button>
       ) : (
         <Toggle
+          enabled={!disabled}
           checked={checked}
           onCheckedChange={onPress}
           colors={{

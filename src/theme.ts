@@ -51,3 +51,6 @@ export const lit = {
 
 /** A Compose button's label (`@expo/ui` Text style): Geist medium, like Material's label large. */
 export const COMPOSE_LABEL = { fontFamily: 'Geist', fontWeight: '500', fontSize: 15 } as const;
+
+/** Space in dp between a button's leading icon box and its label, for text and tonal buttons. */
+export const BUTTON_ICON_GAP = 8;

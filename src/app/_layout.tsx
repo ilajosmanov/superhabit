@@ -23,6 +23,7 @@ import { Leave } from '@/bootstrap/leave';
 import { Today } from '@/bootstrap/today';
 import { LibraryProvider } from '@/challenges/library-live';
 import { DroppedBarScene } from '@/components/illustrations';
+import { SnackbarProvider } from '@/components/snackbar';
 import { PrimaryButton } from '@/components/primary-button';
 import { GUTTER, Screen } from '@/components/screen';
 import { Waiting } from '@/components/waiting';
@@ -60,87 +61,89 @@ function RootLayout() {
   return (
     // Gesture handler's gestures (the day strip's drag) only run under this root.
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.ground }}>
-      {/* A workout left open is offered back before anything else shows. */}
-      {recovery && <RecoverPrompt recovery={recovery} />}
-      {/* No screen renders before the database is ready and read. Native stack and system back. Screens draw
+      <SnackbarProvider>
+        {/* A workout left open is offered back before anything else shows. */}
+        {recovery && <RecoverPrompt recovery={recovery} />}
+        {/* No screen renders before the database is ready and read. Native stack and system back. Screens draw
           their own headers. A pushed page slides fully over the one below: Android's default
           cross-fades the two, which ghosts one page through the other. */}
-      {(state.matches('reading') || state.matches('recovering') || state.matches('ready')) && (
-        <Leave
-          value={{
-            signOut: () => send({ type: 'signOut' }),
-            deleted: () => send({ type: 'deleted' }),
-            sessionEnded: () => send({ type: 'sessionEnded' }),
-          }}
-        >
-          <LeftOpen value={state.context.open?.id ?? null}>
-            <Today value={state.context.today}>
-              <LibraryProvider onRead={(error) => send({ type: 'dataReady', error })}>
-                <DrizzleStudio />
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: colors.ground },
-                    animation: 'ios_from_right',
-                  }}
-                >
-                  <Stack.Screen name="challenge/[id]" options={pushed} />
-                  <Stack.Screen name="create" options={pushed} />
-                  <Stack.Screen name="build" options={pushed} />
-                  <Stack.Screen name="tune" options={pushed} />
-                  {/* The camera stays dark in either theme; only its Done page wears the theme. */}
-                  <Stack.Screen
-                    name="workout/[id]"
-                    options={{ contentStyle: { backgroundColor: dark.ground } }}
-                  />
-                </Stack>
-              </LibraryProvider>
-            </Today>
-          </LeftOpen>
-        </Leave>
-      )}
-      {/* After signing in, until Home is laid out (your account may be coming back from the server):
+        {(state.matches('reading') || state.matches('recovering') || state.matches('ready')) && (
+          <Leave
+            value={{
+              signOut: () => send({ type: 'signOut' }),
+              deleted: () => send({ type: 'deleted' }),
+              sessionEnded: () => send({ type: 'sessionEnded' }),
+            }}
+          >
+            <LeftOpen value={state.context.open?.id ?? null}>
+              <Today value={state.context.today}>
+                <LibraryProvider onRead={(error) => send({ type: 'dataReady', error })}>
+                  <DrizzleStudio />
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: { backgroundColor: colors.ground },
+                      animation: 'ios_from_right',
+                    }}
+                  >
+                    <Stack.Screen name="challenge/[id]" options={pushed} />
+                    <Stack.Screen name="create" options={pushed} />
+                    <Stack.Screen name="build" options={pushed} />
+                    <Stack.Screen name="tune" options={pushed} />
+                    {/* The camera stays dark in either theme; only its Done page wears the theme. */}
+                    <Stack.Screen
+                      name="workout/[id]"
+                      options={{ contentStyle: { backgroundColor: dark.ground } }}
+                    />
+                  </Stack>
+                </LibraryProvider>
+              </Today>
+            </LeftOpen>
+          </Leave>
+        )}
+        {/* After signing in, until Home is laid out (your account may be coming back from the server):
           under the sign-in and consent screens, so they fade out onto it, and it fades out onto Home. */}
-      {state.context.splashHidden &&
-        (['seeding', 'restoring', 'checking', 'reading'] as const).some((step) =>
-          state.matches(step),
-        ) && (
-          <Animated.View style={StyleSheet.absoluteFill} exiting={FADE_OUT}>
-            <Waiting exercise="squat" text="Warming up" />
+        {state.context.splashHidden &&
+          (['seeding', 'restoring', 'checking', 'reading'] as const).some((step) =>
+            state.matches(step),
+          ) && (
+            <Animated.View style={StyleSheet.absoluteFill} exiting={FADE_OUT}>
+              <Waiting exercise="squat" text="Warming up" />
+            </Animated.View>
+          )}
+        {/* First launch, or the server ended the session: sign in before anything else. Over the screens, so
+          each fades into the next instead of cutting: the question out over the app appearing below. */}
+        {signIn && (
+          <Animated.View style={StyleSheet.absoluteFill} entering={FADE_IN} exiting={FADE_OUT}>
+            <SignInScreen signIn={signIn} />
           </Animated.View>
         )}
-      {/* First launch, or the server ended the session: sign in before anything else. Over the screens, so
-          each fades into the next instead of cutting: the question out over the app appearing below. */}
-      {signIn && (
-        <Animated.View style={StyleSheet.absoluteFill} entering={FADE_IN} exiting={FADE_OUT}>
-          <SignInScreen signIn={signIn} />
-        </Animated.View>
-      )}
-      {/* Then, when this phone has no answer for the current privacy policy: share your traces? */}
-      {consent && (
-        <Animated.View style={StyleSheet.absoluteFill} entering={FADE_IN} exiting={FADE_OUT}>
-          <ConsentScreen consent={consent} onSignIn={() => send({ type: 'sessionEnded' })} />
-        </Animated.View>
-      )}
-      {/* After a failure the error stays up, its button off while Retry runs. */}
-      {state.context.error !== '' && !state.matches('ready') && !recovery ? (
-        // Over the screens a Retry mounts again while they read.
-        <View style={StyleSheet.absoluteFill}>
-          <Screen
-            title="Couldn't open your data"
-            intro={state.context.error}
-            footer={
-              <PrimaryButton
-                label={state.matches('failed') ? 'Retry' : 'Trying again…'}
-                disabled={!state.matches('failed')}
-                onPress={() => send({ type: 'retry' })}
-              />
-            }
-          />
-        </View>
-      ) : null}
+        {/* Then, when this phone has no answer for the current privacy policy: share your traces? */}
+        {consent && (
+          <Animated.View style={StyleSheet.absoluteFill} entering={FADE_IN} exiting={FADE_OUT}>
+            <ConsentScreen consent={consent} onSignIn={() => send({ type: 'sessionEnded' })} />
+          </Animated.View>
+        )}
+        {/* After a failure the error stays up, its button off while Retry runs. */}
+        {state.context.error !== '' && !state.matches('ready') && !recovery ? (
+          // Over the screens a Retry mounts again while they read.
+          <View style={StyleSheet.absoluteFill}>
+            <Screen
+              title="Couldn't open your data"
+              intro={state.context.error}
+              footer={
+                <PrimaryButton
+                  label={state.matches('failed') ? 'Retry' : 'Trying again…'}
+                  disabled={!state.matches('failed')}
+                  onPress={() => send({ type: 'retry' })}
+                />
+              }
+            />
+          </View>
+        ) : null}
 
-      <StatusBar style="auto" />
+        <StatusBar style="auto" />
+      </SnackbarProvider>
     </GestureHandlerRootView>
   );
 }
