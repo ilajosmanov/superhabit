@@ -37,14 +37,22 @@ const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1
 export function planView({ session }: Challenge) {
   let placement: Placement | null = null;
   const parts = session.map((block, i) => {
-    const between = block.rounds > 1 ? 'BETWEEN' : 'AFTER';
     const rests = new Set(
-      block.steps.flatMap((step) => (step.exercise === 'rest' ? restLabel(step.goal) : [])),
+      block.steps.flatMap((step, s) => {
+        if (step.exercise !== 'rest') return [];
+        const where =
+          s < block.steps.length - 1
+            ? 'BETWEEN EXERCISES'
+            : block.rounds > 1
+              ? 'BETWEEN ROUNDS'
+              : 'AFTER';
+        return [`${restLabel(step.goal)} ${where}`];
+      }),
     );
     const label = [
       ...(session.length > 1 ? [`PART ${i + 1}`] : []),
       ...(block.rounds > 1 ? [`${block.rounds} ROUNDS`] : []),
-      ...[...rests].map((rest) => `${rest} ${between}`),
+      ...rests,
     ].join(' · ');
     const rows = block.steps.flatMap((step): PlanRow[] => {
       if (step.exercise === 'rest') return [];

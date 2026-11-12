@@ -11,6 +11,16 @@ function suggested(name: string) {
 }
 
 describe('suggested workout prescriptions', () => {
+  it('decreases push-ups while increasing squats in the crossover', () => {
+    const steps = expand(suggested('Push-up squat crossover').session);
+    const targets = (exercise: string) =>
+      steps
+        .filter((step) => step.exercise === exercise)
+        .map(({ goal }) => (goal.type === 'reps' ? goal.n : null));
+    expect(targets('pushup')).toEqual([10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
+    expect(targets('squat')).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  });
+
   // Independent totals from the requested routines, including the corrected four-move 800.
   it.each([
     ['Fifty all round', 5, 150, 100],

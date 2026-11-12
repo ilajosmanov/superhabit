@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vite-plus/test';
 
 import { planView, trackedSets } from './plan-view';
 import { defineChallenge, MAX, reps, seconds, type Session } from '@/workout/plan/plan';
+import { circuit as makeCircuit, exerciseSet } from '@/workout/plan/structures';
 
 const challenge = (session: Session) =>
   defineChallenge({ name: 'Test', days: 1, restartOnMiss: false, dailyTotal: false, session });
@@ -41,6 +42,24 @@ describe('trackedSets', () => {
 });
 
 describe('planView', () => {
+  it.each([
+    [1, 0, '10 S REST BETWEEN EXERCISES'],
+    [2, 60, '2 ROUNDS · 10 S REST BETWEEN EXERCISES · 60 S REST BETWEEN ROUNDS'],
+  ] as const)(
+    'distinguishes exercise rests from round rests with %s rounds',
+    (rounds, restBetweenRounds, label) => {
+      const plan = challenge(
+        makeCircuit({
+          exercises: [exerciseSet('pushup', 15), exerciseSet('plank', 30)],
+          rounds,
+          restBetweenExercises: 10,
+          restBetweenRounds,
+        }),
+      );
+      expect(planView(plan).parts[0].label).toBe(label);
+    },
+  );
+
   it('says rounds and rest once a part and puts the phone line where the phone moves', () => {
     const tenFifteen = challenge([
       {
@@ -61,12 +80,12 @@ describe('planView', () => {
     const { parts, single } = planView(tenFifteen);
     expect(parts).toEqual([
       {
-        label: 'PART 1 · 5 ROUNDS · 30 S REST BETWEEN',
+        label: 'PART 1 · 5 ROUNDS · 30 S REST BETWEEN ROUNDS',
         rounds: 5,
         rows: [{ exercise: 'pushup', goal: reps(10), move: 'Turn the phone sideways' }],
       },
       {
-        label: 'PART 2 · 5 ROUNDS · 30 S REST BETWEEN',
+        label: 'PART 2 · 5 ROUNDS · 30 S REST BETWEEN ROUNDS',
         rounds: 5,
         rows: [{ exercise: 'squat', goal: reps(15), move: 'Then stand the phone upright' }],
       },
@@ -78,7 +97,7 @@ describe('planView', () => {
     const { parts, exercises } = planView(circuit);
     expect(parts).toEqual([
       {
-        label: '3 ROUNDS · 30 S REST BETWEEN',
+        label: '3 ROUNDS · 30 S REST BETWEEN ROUNDS',
         rounds: 3,
         rows: [
           { exercise: 'pushup', goal: reps(10), move: 'Turn the phone sideways' },
