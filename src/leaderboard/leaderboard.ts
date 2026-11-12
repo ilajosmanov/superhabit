@@ -1,5 +1,5 @@
 import { AppState } from 'react-native';
-import { assign, fromCallback, fromPromise, setup } from 'xstate';
+import { assign, fromCallback, fromPromise, setup, type SnapshotFrom } from 'xstate';
 import { z } from 'zod';
 
 import { call, Refused, thrown, whyCallFailed, type CallFailure } from '@/account/call';
@@ -145,6 +145,14 @@ export const leaderboard = setup<
   // Dismissed, the question comes back the next time the tab opens.
   on: {
     opened: { actions: assign({ later: false }) },
+    // A cached board can already be asking while the focus-triggered read runs. Answering cancels
+    // that read so its stale visibility cannot overwrite the choice that is being saved.
+    show: {
+      guard: ({ context }) => context.board !== null && context.pending === null,
+      target: '.choosing',
+      actions: assign({ pending: ({ event }) => event.visible, saveFailed: null }),
+    },
+    later: { actions: assign({ later: true }) },
     seen: {
       guard: ({ context }) => !!context.board?.last,
       actions: [
@@ -200,12 +208,6 @@ export const leaderboard = setup<
     shown: {
       entry: assign({ pulled: false }),
       on: {
-        show: {
-          guard: ({ context }) => context.board !== null,
-          target: 'choosing',
-          actions: assign({ pending: ({ event }) => event.visible, saveFailed: null }),
-        },
-        later: { actions: assign({ later: true }) },
         retry: { target: 'loading', actions: assign({ pulled: true }) },
         opened: { target: 'loading', actions: assign({ later: false }) },
       },
@@ -242,6 +244,15 @@ export const leaderboard = setup<
     },
   },
 });
+
+/** The visibility question is independent of a background board refresh. */
+export function asksVisibility(snapshot: SnapshotFrom<typeof leaderboard>): boolean {
+  return (
+    snapshot.context.board?.visible === null &&
+    !snapshot.context.later &&
+    snapshot.can({ type: 'show', visible: true })
+  );
+}
 
 /** Lowest first. */
 export const LEAGUES: League[] = ['bronze', 'silver', 'gold'];

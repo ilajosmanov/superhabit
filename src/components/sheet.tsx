@@ -1,10 +1,11 @@
-import { BottomSheet, RNHostView, ScrollView } from '@expo/ui';
+import { BottomSheet, BottomSheetScrollView } from '@expo/ui/community/bottom-sheet';
 import type { ReactNode } from 'react';
-import { View } from 'react-native';
+import { useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from './colors';
 
-/** The platform bottom sheet (Material 3 on Android) with our own views inside, as tall as they are. */
+/** The platform sheet, opened at its content height, with scrolling only when it outgrows the window. */
 export function Sheet({
   open,
   onDismiss,
@@ -15,20 +16,26 @@ export function Sheet({
   children: ReactNode;
 }) {
   const colors = useColors();
+  const { height } = useWindowDimensions();
+  const { top, bottom } = useSafeAreaInsets();
   return (
     <BottomSheet
-      isPresented={open}
-      onDismiss={onDismiss}
-      containerColor={colors.surface}
-      contentPadding={0}
+      index={open ? 0 : -1}
+      onClose={onDismiss}
+      enableDynamicSizing
+      enablePanDownToClose
+      backgroundStyle={{ backgroundColor: colors.surface }}
     >
-      {/* Scrolls only when its content (large text, a long list) outgrows the screen. */}
-      <ScrollView>
-        {/* Width from the sheet, height from the views, so the text wraps and the sheet fits it. */}
-        <RNHostView matchContents={{ vertical: true }}>
-          <View className="gap-6 px-6 pb-6 pt-2">{children}</View>
-        </RNHostView>
-      </ScrollView>
+      {/* Leave room for the native handle and system bars; short sheets keep their intrinsic height. */}
+      <BottomSheetScrollView
+        style={{ flexGrow: 0, maxHeight: height - top - bottom - 56 }}
+        contentContainerClassName="gap-6 px-6 pb-4 pt-2"
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+      >
+        {children}
+      </BottomSheetScrollView>
     </BottomSheet>
   );
 }

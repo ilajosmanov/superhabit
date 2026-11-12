@@ -86,6 +86,13 @@ export function PrivacyPage() {
               videos or your workouts. If you send feedback from the app’s error screen, we receive
               what you write with the report.
             </p>
+            <p>
+              <strong>Feedback you choose to send.</strong> From Profile or after a workout, we
+              receive your message and any ratings you select through Sentry. Workout feedback also
+              includes the challenge name, exercise names and whether you finished or ended early,
+              so we can understand it. It includes no videos or body movement points, and we do not
+              attach your account name or email.
+            </p>
           </section>
 
           <section>

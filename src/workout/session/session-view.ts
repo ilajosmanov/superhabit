@@ -59,6 +59,8 @@ export function sessionView(snapshot: SnapshotFrom<typeof workoutSession>) {
     nextGoal: after?.goal ?? null,
     /** Whole seconds; ticks while counting, switching or resting. */
     elapsedS: c.elapsedS,
+    /** Ask after 10 seconds of active tracking, any attempt, or an interruption from tracking/camera failure. */
+    askFeedback: c.feedbackEligible || c.trackingS >= 10,
     muted: c.muted,
     skeleton: c.skeleton && stage !== 'resting' && stage !== 'finished',
     camera: c.camera,

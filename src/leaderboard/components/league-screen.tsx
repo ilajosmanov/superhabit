@@ -16,6 +16,7 @@ import { Standings } from '@/leaderboard/components/standings';
 import { WeekResult } from '@/leaderboard/components/week-result';
 import { YourPlace } from '@/leaderboard/components/your-place';
 import {
+  asksVisibility,
   bonusOf,
   leaderboard,
   unseenClose,
@@ -50,7 +51,7 @@ export function LeagueScreen({
 }) {
   const colors = useColors();
   const [state, send] = useMachine(leaderboard, { input: { tab } });
-  const { board, problem, readAt, later, saveFailed, pending, seen, pulled } = state.context;
+  const { board, problem, readAt, saveFailed, pending, seen, pulled } = state.context;
   const [explained, setExplained] = useState(false);
   const reading = state.matches('loading') || state.matches('failing');
   // Signed out, reading again can't help: only signing in can.
@@ -130,7 +131,7 @@ export function LeagueScreen({
           </Text>
         )}
       </View>
-      {state.matches('shown') && board.visible === null && !later && (
+      {asksVisibility(state) && (
         <ConfirmDialog
           title="Show your name?"
           text="Your league sees your name and photo next to your points. Hidden, you still compete and see your place."

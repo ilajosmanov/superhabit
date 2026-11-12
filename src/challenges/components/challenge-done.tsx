@@ -10,6 +10,7 @@ import { planView } from '@/challenges/plan-view';
 import { dayWord, type RunView } from '@/challenges/run-view';
 import { reelOf, type Clip } from '@/challenges/reel';
 import { mss } from '@/lib/duration';
+import { FeedbackButton } from '@/components/feedback-sheet';
 import { ExerciseFigure } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
@@ -78,8 +79,26 @@ export function ChallengeDone({
         </View>
       </ScrollView>
 
-      <View className="px-6 pt-3">
-        <PrimaryButton onPress={onClose} label="Done" />
+      <View className="flex-row items-center gap-3 px-6 pt-3">
+        <FeedbackButton
+          source="workout"
+          initiallyOpen={view.askFeedback}
+          measure={
+            session.exercises.every(isHold)
+              ? 'seconds'
+              : session.exercises.some(isHold)
+                ? 'mixed'
+                : 'reps'
+          }
+          details={{
+            challenge: challenge.name,
+            exercises: session.exercises.join(', '),
+            finished: view.reachedEnd ? 'yes' : 'ended early',
+          }}
+        />
+        <View className="flex-1">
+          <PrimaryButton onPress={onClose} label="Done" />
+        </View>
       </View>
     </View>
   );

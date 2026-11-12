@@ -109,6 +109,10 @@ type Context = Counting & {
   /** Ran through the last step, even with zero reps via next; `end` leaves it false. */
   reachedEnd: boolean;
   elapsedS: number;
+  /** Active tracking only: excludes setup, camera flips, pauses, countdowns and rest. */
+  trackingS: number;
+  /** A recorded attempt or tracking failure; survives restarting a set or retrying the camera. */
+  feedbackEligible: boolean;
   muted: boolean;
   /** Draw the skeleton over the camera; detection runs either way. */
   skeleton: boolean;
@@ -236,6 +240,7 @@ const session = setup<
   Actors,
   {},
   {
+    elapse: undefined;
     nextStep: undefined;
     countFrame: undefined;
     saveSet: undefined;
@@ -267,6 +272,10 @@ const session = setup<
     away: appAway,
   },
   actions: {
+    elapse: assign({
+      elapsedS: ({ context }) => context.elapsedS + 1,
+      stepS: ({ context }) => context.stepS + 1,
+    }),
     waitIdle: enqueueActions(({ context, enqueue }) => {
       enqueue.cancel('idle');
       if (!context.away) enqueue.raise({ type: 'idleEnded' }, { id: 'idle', delay: 'idle' });
@@ -297,7 +306,10 @@ const session = setup<
       enqueue.sendTo('recorder', { type: 'frame', result, phase, waiting });
       enqueue.sendTo('camcorder', { type: 'frame', timestampMs: result.timestampMs });
       c.onPose?.(result, live, c.skeleton);
-      enqueue.assign(update);
+      enqueue.assign({
+        ...update,
+        feedbackEligible: c.feedbackEligible || started({ ...c, ...update }),
+      });
       if (flash) {
         enqueue.assign({ flash });
         enqueue.cancel('flash');
@@ -389,6 +401,8 @@ export const workoutSession = session.createMachine({
       countdown: COUNTDOWN_S,
       reachedEnd: false,
       elapsedS: 0,
+      trackingS: 0,
+      feedbackEligible: false,
       muted: false,
       skeleton: true,
       camera: 'front',
@@ -435,12 +449,7 @@ export const workoutSession = session.createMachine({
     pose: {
       actions: ({ context, event }) => context.onPose?.(event.result, NOT_LIVE, context.skeleton),
     },
-    tick: {
-      actions: assign({
-        elapsedS: ({ context }) => context.elapsedS + 1,
-        stepS: ({ context }) => context.stepS + 1,
-      }),
-    },
+    tick: { actions: 'elapse' },
     // Never counting while you can't see it: a set or countdown pauses (a raised `pause` only those take),
     // and one reached meanwhile from a timed rest pauses too. Coming back leaves it paused.
     away: { actions: [assign({ away: true }), cancel('idle'), raise({ type: 'pause' })] },
@@ -450,12 +459,15 @@ export const workoutSession = session.createMachine({
       actions: [
         assign({
           broken: ({ context }) => (context.broken === 'tracking' ? 'tracking' : 'camera'),
+          feedbackEligible: true,
         }),
         raise({ type: 'pause' }),
       ],
     },
     // Once the detector failed it stays failed: a camera retry can't bring it back.
-    trackingFailed: { actions: [assign({ broken: 'tracking' }), raise({ type: 'pause' })] },
+    trackingFailed: {
+      actions: [assign({ broken: 'tracking', feedbackEligible: true }), raise({ type: 'pause' })],
+    },
     toggleVoice: { actions: assign({ muted: ({ context }) => !context.muted }) },
     toggleSkeleton: { actions: assign({ skeleton: ({ context }) => !context.skeleton }) },
     say: {
@@ -568,6 +580,20 @@ export const workoutSession = session.createMachine({
         },
       },
       on: {
+        tick: {
+          actions: [
+            'elapse',
+            assign({
+              trackingS: ({ context }) =>
+                context.trackingS +
+                (context.framed &&
+                !context.flipPending &&
+                context[lastExercise(context).exercise].phase !== 'waiting'
+                  ? 1
+                  : 0),
+            }),
+          ],
+        },
         pose: { actions: 'countFrame' },
         next: 'ending',
         pause: 'paused',

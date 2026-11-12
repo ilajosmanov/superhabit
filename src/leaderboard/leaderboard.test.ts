@@ -2,6 +2,7 @@ import { createActor, waitFor } from 'xstate';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 import {
+  asksVisibility,
   bonusOf,
   endsIn,
   lastWeekWords,
@@ -173,6 +174,46 @@ describe('the league tab', () => {
     expect(actor.getSnapshot().context.pulled).toBe(false);
     expect(reads()).toBe(2);
   });
+
+  it.each(['later', 'hidden', 'visible'] as const)(
+    'keeps the visibility prompt through a refresh and accepts %s while it runs',
+    async (answer) => {
+      server(null);
+      const actor = createActor(leaderboard, { input: tab() }).start();
+      await waitFor(actor, (s) => s.matches('shown'));
+      expect(asksVisibility(actor.getSnapshot())).toBe(true);
+      let finishRead = () => {};
+      fake.fetch.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishRead = () => resolve({ data: board(null), error: null });
+          }),
+      );
+      open();
+      expect(actor.getSnapshot().matches('loading')).toBe(true);
+      expect(asksVisibility(actor.getSnapshot())).toBe(true);
+      actor.send(
+        answer === 'later' ? { type: 'later' } : { type: 'show', visible: answer === 'visible' },
+      );
+      expect(asksVisibility(actor.getSnapshot())).toBe(false);
+      finishRead();
+      await waitFor(actor, (s) => s.matches('shown'));
+      expect(asksVisibility(actor.getSnapshot())).toBe(false);
+      if (answer === 'later') {
+        expect(actor.getSnapshot().context.later).toBe(true);
+      } else {
+        expect(actor.getSnapshot().context.board?.visible).toBe(answer === 'visible');
+        expect(fake.fetch).toHaveBeenCalledWith(
+          expect.stringMatching(/\/leaderboard\/visibility$/),
+          expect.objectContaining({
+            method: 'PUT',
+            body: { visible: answer === 'visible' },
+          }),
+        );
+      }
+      actor.stop();
+    },
+  );
 
   it('reads the board again each time the tab opens, keeping the last one on screen meanwhile', async () => {
     server(false);

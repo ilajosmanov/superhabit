@@ -6,6 +6,7 @@ import { MAX, reps, seconds } from '@/workout/plan/plan';
 import { COUNTER_VERSIONS } from '@/exercises/registry';
 
 import { plank } from '@/exercises/__fixtures__/plank';
+import { body } from '@/exercises/__fixtures__/body';
 import {
   challenge,
   halfSquat,
@@ -142,6 +143,7 @@ describe('workoutSession starts, stops, writes rows and finishes', () => {
       goalS: 2,
       target: Infinity,
       elapsedS: 0,
+      askFeedback: true,
       results: [
         {
           exercise: 'plank',
@@ -208,6 +210,7 @@ describe('workoutSession starts, stops, writes rows and finishes', () => {
     expect(view()).toMatchObject({
       stage: 'finished',
       reachedEnd: true,
+      askFeedback: true,
       flash: 'noRep',
       results: [
         {
@@ -250,7 +253,103 @@ describe('workoutSession starts, stops, writes rows and finishes', () => {
       results: [{ exercise: 'squat', reps: 0, noReps: 1 }],
       // A no-rep is something counted: back from the Done page asks before discarding it.
       counted: true,
+      askFeedback: true,
     });
     early.stop();
   });
+});
+
+describe('feedback eligibility', () => {
+  it.each([0, 60_000])('skips feedback after ending with only %i ms of setup', (setupMs) => {
+    vi.useFakeTimers({ now: NOW });
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
+    vi.advanceTimersByTime(setupMs);
+    actor.send({ type: 'end' });
+    expect(sessionView(actor.getSnapshot())).toMatchObject({
+      stage: 'finished',
+      counted: false,
+      askFeedback: false,
+    });
+    actor.stop();
+  });
+
+  it('qualifies at 10 active seconds excluding pauses', () => {
+    vi.useFakeTimers({ now: NOW });
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
+    const view = () => sessionView(actor.getSnapshot());
+    hold(1000, body({}));
+    vi.advanceTimersByTime(9000);
+    expect(view().askFeedback).toBe(false);
+    actor.send({ type: 'pause' });
+    vi.advanceTimersByTime(30_000);
+    expect(view().askFeedback).toBe(false);
+    actor.send({ type: 'resume' });
+    hold(1000, body({}));
+    vi.advanceTimersByTime(1000);
+    actor.send({ type: 'end' });
+    expect(view()).toMatchObject({ stage: 'finished', counted: false, askFeedback: true });
+    actor.stop();
+  });
+
+  it('excludes rest and countdown but accumulates active tracking across sets', () => {
+    vi.useFakeTimers({ now: NOW });
+    const actor = createActor(workoutSession, {
+      input: {
+        ...LOG,
+        challenge: plan(
+          { exercise: 'squat', goal: MAX },
+          { exercise: 'rest', goal: seconds(20) },
+          { exercise: 'squat', goal: MAX },
+        ),
+      },
+    }).start();
+    const view = () => sessionView(actor.getSnapshot());
+    hold(1000, body({}));
+    vi.advanceTimersByTime(9000);
+    actor.send({ type: 'next' });
+    expect(view().stage).toBe('resting');
+    vi.advanceTimersByTime(20_000);
+    expect(view()).toMatchObject({ stage: 'countdown', askFeedback: false });
+    vi.advanceTimersByTime(3000);
+    expect(view()).toMatchObject({ stage: 'counting', askFeedback: false });
+    hold(1000, body({}));
+    vi.advanceTimersByTime(1000);
+    actor.send({ type: 'end' });
+    expect(view()).toMatchObject({ stage: 'finished', counted: false, askFeedback: true });
+    actor.stop();
+  });
+
+  it('still asks about a short attempted set after restarting clears its counters', () => {
+    vi.useFakeTimers({ now: NOW });
+    const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();
+    squat();
+    actor.send({ type: 'pause' });
+    actor.send({ type: 'restart' });
+    actor.send({ type: 'end' });
+    expect(sessionView(actor.getSnapshot())).toMatchObject({
+      stage: 'finished',
+      counted: false,
+      askFeedback: true,
+    });
+    actor.stop();
+  });
+
+  it.each(['cameraFailed', 'trackingFailed'] as const)(
+    'asks after %s even without any activity',
+    (type) => {
+      vi.useFakeTimers({ now: NOW });
+      const actor = createActor(workoutSession, {
+        input: { ...LOG, challenge: squatTest },
+      }).start();
+      actor.send({ type });
+      actor.send({ type: 'end' });
+      expect(sessionView(actor.getSnapshot())).toMatchObject({
+        stage: 'finished',
+        counted: false,
+        elapsedS: 0,
+        askFeedback: true,
+      });
+      actor.stop();
+    },
+  );
 });
