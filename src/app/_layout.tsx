@@ -84,6 +84,7 @@ function RootLayout() {
                   <Stack.Screen name="challenge/[id]" options={pushed} />
                   <Stack.Screen name="create" options={pushed} />
                   <Stack.Screen name="build" options={pushed} />
+                  <Stack.Screen name="tune" options={pushed} />
                 </Stack>
               </LibraryProvider>
             </Today>

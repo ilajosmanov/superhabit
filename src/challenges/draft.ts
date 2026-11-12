@@ -11,6 +11,9 @@ import {
   type Goal,
 } from '@/workout/plan/plan';
 
+/** A number, or Max: as many as you can. */
+export type Amount = number | 'max';
+
 /**
  * What the builder edits: one exercise and its daily goal. `name` is null until you type one. `dailyTotal`
  * is kept as the challenge had it (the builder doesn't set it); a daily total has no Max.

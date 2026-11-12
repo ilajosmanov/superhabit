@@ -211,6 +211,8 @@ export function challengePage(library: Library, id: string, today: Day, runId?: 
     joined: mine?.challenge ? mine : null,
     ranBefore: runs.length > 0,
     editable: row.owner === library.account.id && challenge !== null && draftOf(challenge) !== null,
+    /** Ours: its numbers can change before you join (Your numbers). */
+    suggested: row.owner === OURS,
     /** The line under the title before you join. */
     status: `${row.owner === OURS ? 'SUGGESTED · ' : ''}${length}`,
   };

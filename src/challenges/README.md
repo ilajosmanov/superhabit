@@ -15,7 +15,8 @@ The challenge catalog, the challenges and runs kept on the phone, progress rules
 | `hold.ts`          | `isHold`: an exercise timed in seconds, not counted in reps                                                                |
 | `plan-view.ts`     | how a challenge's plan reads on its page: parts and rows (`planView`), sets and tracking line (`trackedSets`), `restLabel` |
 | `catalog.ts`       | a challenge as its card shows it                                                                                           |
-| `draft.ts`         | what the builder edits                                                                                                     |
+| `draft.ts`         | what the builder edits; shared `Amount` and slider ranges                                                                  |
+| `tune.ts`          | a suggested challenge's editable numbers, slider ranges, and tuned plan for joining                                        |
 | `reel.ts`          | sets with video as one reel: the session just done (`reelOf`), or a day's (`dayReel`)                                      |
 | `reel-playback.ts` | the machine that plays a reel's files back to back on two players that take turns                                          |
 
@@ -39,6 +40,8 @@ The challenge catalog, the challenges and runs kept on the phone, progress rules
 | `challenge-done.tsx`                                             | the Done page after a session: its reel, the numbers, the run                        |
 | `session-reel.tsx`, `session-viewer.tsx`, `reel-player.tsx`      | the reel on a loop, full screen like stories, and the players under both             |
 | `exercise-picker.tsx`, `builder.tsx`                             | making a challenge: pick the exercise, then name it and set its numbers              |
+| `amount-input.tsx`                                               | the shared editable numeral, dashed underline and M3 slider; optional Max stop       |
+| `tune-numbers.tsx`                                               | Your numbers: a suggested challenge's numbers, changed before you join               |
 | `swipe-row.tsx`                                                  | a row of cards that snaps card by card                                               |
 
 A run of ours is pinned to the version you joined; a run of yours follows your edits. Finished, missed

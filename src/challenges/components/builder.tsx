@@ -2,11 +2,9 @@ import {
   Host,
   SegmentedButton,
   SingleChoiceSegmentedButtonRow,
-  Slider,
   Text as ComposeText,
 } from '@expo/ui/jetpack-compose';
-import { fillMaxWidth, semantics } from '@expo/ui/jetpack-compose/modifiers';
-import { AndroidHaptics } from 'expo-haptics';
+import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import { useRef, useState } from 'react';
 import { Text, TextInput, View, type TextInputInstance } from 'react-native';
 
@@ -17,7 +15,6 @@ import {
   RANGE,
   toChallenge,
   unitOf,
-  withAmount,
   withNumber,
   type Draft,
 } from '@/challenges/draft';
@@ -29,11 +26,13 @@ import { SwitchRow } from '@/components/switch-row';
 import { tick } from '@/components/tick';
 import { EXERCISES } from '@/exercises/registry';
 import { colors, COMPOSE_LABEL } from '@/theme';
-import type { Challenge, Goal } from '@/workout/plan/plan';
+import { MAX, type Challenge } from '@/workout/plan/plan';
+
+import { AmountInput } from './amount-input';
 
 const label = 'font-mono text-xs tracking-widest text-muted';
-// The segmented row's inactive fill and the switch's off track sit just off the ground.
-const SEGMENT = {
+// The segmented row's colours (the builder's and Your numbers'): the inactive fill sits just off the ground.
+export const SEGMENT = {
   activeContainerColor: colors.line,
   inactiveContainerColor: colors.ground,
   activeBorderColor: colors.edge,
@@ -44,51 +43,6 @@ const SEGMENT = {
 
 const amountLabel = (unit: 'reps' | 'seconds') =>
   unit === 'seconds' ? 'Seconds every day' : 'Reps every day';
-
-/**
- * The daily number on the M3 slider, in fives of reps or tens of seconds, with Max one stop past the top;
- * ticks and reports only real changes. A typed number past either end sits at that end.
- */
-function AmountSlider({
-  unit,
-  goal,
-  onChange,
-}: {
-  unit: 'reps' | 'seconds';
-  goal: Goal;
-  onChange: (n: number) => void;
-}) {
-  const { min, max, step } = RANGE[unit];
-  const top = max + step;
-  const value = goal.type === 'max' ? top : Math.min(max, Math.max(min, goal.n));
-  return (
-    // shortcut: its ends sit near the back-gesture zone, so a drag to the first or last stop can take two
-    // tries; typing the number covers it. Exclude the slider from system gestures if @expo/ui exposes it.
-    <Host matchContents={{ vertical: true }}>
-      <Slider
-        modifiers={[semantics({ contentDescription: amountLabel(unit) })]}
-        value={value}
-        min={min}
-        max={top}
-        // Compose counts the stops between the ends.
-        steps={(top - min) / step - 1}
-        colors={{
-          thumbColor: colors.accent,
-          activeTrackColor: colors.accent,
-          inactiveTrackColor: colors.line,
-          activeTickColor: 'transparent',
-          inactiveTickColor: 'transparent',
-        }}
-        onValueChange={(next) => {
-          const n = Math.round(next / step) * step;
-          if (n === value) return;
-          tick(AndroidHaptics.Segment_Frequent_Tick);
-          onChange(n);
-        }}
-      />
-    </Host>
-  );
-}
 
 // shortcut: Jetpack Compose controls, so Android only; add the SwiftUI ones when iOS ships.
 /**
@@ -110,8 +64,6 @@ export function Builder({
 }) {
   const [draft, setDraft] = useState(initial);
   const [focused, setFocused] = useState(false);
-  // The numeral's text while you type in it; null when the field is not focused.
-  const [typing, setTyping] = useState<string | null>(null);
   const nameField = useRef<TextInputInstance>(null);
   const exercise = EXERCISES[draft.exercise];
   const { goal } = draft;
@@ -167,57 +119,16 @@ export function Builder({
         </Text>
       </View>
 
-      <View className="gap-5">
-        <View className="gap-1">
-          {/* Clipped so the numeral sits on its baseline, like the challenge page. */}
-          <View className="flex-row items-end justify-between overflow-hidden">
-            {/* The numeral is a field: any whole number, past the slider's range or between its stops. */}
-            <TextInput
-              accessibilityLabel={amountLabel(unitOf(draft.exercise))}
-              value={typing ?? (goal.type === 'max' ? 'Max' : String(goal.n))}
-              // Max has no number to edit: the field opens empty, Max as its placeholder.
-              onFocus={() => setTyping(goal.type === 'max' ? '' : String(goal.n))}
-              onBlur={() => setTyping(null)}
-              onChangeText={(text) => {
-                const digits = text.replace(/\D/g, '');
-                setTyping(digits);
-                // Emptied or 0, the goal keeps its last number until you type one.
-                if (Number(digits) >= 1) setDraft((d) => withNumber(d, Number(digits)));
-              }}
-              keyboardType="number-pad"
-              maxLength={3}
-              returnKeyType="done"
-              selectTextOnFocus
-              cursorColor={colors.accent}
-              selectionColor={colors.line}
-              selectionHandleColor={colors.accent}
-              placeholder={goal.type === 'max' ? 'Max' : String(goal.n)}
-              placeholderTextColor={colors.faint}
-              // One line's height (text-9xl × leading-none), pinned, so a larger system font would clip: empty,
-              // Android measures by the font's taller metrics and the field would grow.
-              maxFontSizeMultiplier={1}
-              className="-ml-1.5 h-32 flex-1 p-0 font-sans text-9xl font-extralight leading-none tracking-tighter text-chalk"
-            />
-            <View className="items-end gap-1 pb-4">
-              <Text className={label}>{isHold(draft.exercise) ? 'SECONDS' : 'CLEAN REPS'}</Text>
-              <Text className={label}>EVERY DAY</Text>
-            </View>
-          </View>
-          {/* Underlined like the name: it's editable. Focus restyles through `style`, as the name's does. */}
-          <View
-            className="border-b"
-            style={{
-              borderColor: typing !== null ? colors.accent : colors.edge,
-              borderStyle: typing !== null ? 'solid' : 'dashed',
-            }}
-          />
-        </View>
-        <AmountSlider
-          unit={unitOf(draft.exercise)}
-          goal={goal}
-          onChange={(n) => setDraft((d) => withAmount(d, n))}
-        />
-      </View>
+      <AmountInput
+        value={goal.type === 'max' ? 'max' : goal.n}
+        range={RANGE[unitOf(draft.exercise)]}
+        max={!draft.dailyTotal}
+        labels={[isHold(draft.exercise) ? 'SECONDS' : 'CLEAN REPS', 'EVERY DAY']}
+        name={amountLabel(unitOf(draft.exercise))}
+        onChange={(amount) =>
+          setDraft((d) => (amount === 'max' ? { ...d, goal: MAX } : withNumber(d, amount)))
+        }
+      />
 
       <View className="gap-3">
         <View className="flex-row justify-between">

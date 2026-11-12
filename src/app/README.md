@@ -14,4 +14,5 @@ Routes may not import `useEffect` or `useLayoutEffect` (`AGENTS.md`).
 | `(tabs)/me.tsx`           | Profile (`account/components/profile-screen.tsx`)                                                  |
 | `challenge/[id].tsx`      | a challenge's page: join, today's session, its days                                                |
 | `create.tsx`, `build.tsx` | making a challenge: pick an exercise, then set its numbers; `build` also edits one                 |
+| `tune.tsx`                | Your numbers: adjust a suggested challenge's numbers, then join                                    |
 | `workout/[id].tsx`        | the camera session for a run or a surprise                                                         |

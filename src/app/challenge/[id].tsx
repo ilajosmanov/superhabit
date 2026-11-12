@@ -1,6 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef } from 'react';
-import { Text, View } from 'react-native';
+import { Text, useWindowDimensions, View } from 'react-native';
 
 import { ChallengePreview } from '@/challenges/components/challenge-preview';
 import { HoldToStart } from '@/challenges/components/hold-to-start';
@@ -14,18 +14,22 @@ import { doneToday } from '@/challenges/run-view';
 import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
+import { TonalButton } from '@/components/tonal-button';
 import { useToday } from '@/bootstrap/today';
+import { colors } from '@/theme';
 
 /**
  * A challenge. Not running: the preview teaches it, and a tap joins it from today (again, once a run is
- * over). Running: how each day went, and hold to start today's session; the pencil in the toolbar edits
- * one you made. The red disc in the footer leaves the run. A plan from a newer app asks for an update.
+ * over), or Change numbers opens Your numbers first on a suggested one. Running: how each day went,
+ * and hold to start today's session; the pencil in the toolbar edits one you made. The red disc in the
+ * footer leaves the run. A plan from a newer app asks for an update.
  */
 export default function ChallengeDetailScreen() {
   const { id, run } = useLocalSearchParams<{ id: string; run?: string }>();
   const router = useRouter();
   const library = useLibrary();
   const day = useToday();
+  const { width, fontScale } = useWindowDimensions();
   // The run Join just started: until the live library has it, Join is still up and a second tap would
   // start another.
   const started = useRef<string | null>(null);
@@ -47,6 +51,23 @@ export default function ChallengeDetailScreen() {
       title={challenge.name}
       footer={
         <View className="flex-row gap-3">
+          {!joined &&
+            page.suggested &&
+            (page.ranBefore || fontScale > 1 || width < 360 ? (
+              <IconButton
+                icon="tune"
+                label="Change numbers"
+                fill={colors.line}
+                diameter={60}
+                onPress={() => router.push({ pathname: '/tune', params: { id } })}
+              />
+            ) : (
+              <TonalButton
+                label="Change numbers"
+                icon="tune"
+                onPress={() => router.push({ pathname: '/tune', params: { id } })}
+              />
+            ))}
           {joined && <LeaveButton runId={joined.runId} />}
           <View className="flex-1">
             {joined ? (
