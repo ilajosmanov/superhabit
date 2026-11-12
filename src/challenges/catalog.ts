@@ -4,7 +4,7 @@ import { capitalise } from '@/lib/text';
 
 import { goalLabel, type Challenge } from '@/workout/plan/plan';
 
-/** One line on a challenge card: the step's goal in its own unit ("×25", "60 s", "MAX"). */
+/** One line on a challenge card: the step's goal in its own unit ("×25", "60S", "MAX"). */
 export type CatalogStep = { exercise: ExerciseId; name: string; goal: string };
 export type CatalogEntry = {
   /** The route id: a suggested challenge or one you made. */

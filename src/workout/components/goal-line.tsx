@@ -19,7 +19,7 @@ const SIZES = {
 };
 
 /**
- * A goal for reading from across the room: the number in thin numerals and its unit ("120 s": seconds
+ * A goal for reading from across the room: the number in thin numerals and its unit ("120S": seconds
  * stay seconds, as the catalog writes them), or "Max" and what it asks. The unit wraps under the number
  * when the row is narrow. Hidden from TalkBack: the screen's own label says it. Android's font size
  * leaves it alone: it is 60–128 px already, and scaling it would only push it off the screen.
@@ -37,7 +37,7 @@ export function GoalLine({
   return (
     <View
       importantForAccessibility="no-hide-descendants"
-      className="shrink flex-row flex-wrap items-end gap-x-2.5"
+      className={`shrink flex-row items-end ${goal.type === 'seconds' ? '' : 'flex-wrap gap-x-2.5'}`}
     >
       <Text
         maxFontSizeMultiplier={1}
@@ -46,7 +46,7 @@ export function GoalLine({
         {goal.type === 'max' ? 'Max' : goal.n}
       </Text>
       <Text maxFontSizeMultiplier={1} className={`pb-1 font-sans font-light text-muted ${unit}`}>
-        {goal.type === 'max' ? maxText(exercise) : goal.type === 'seconds' ? 's' : 'reps'}
+        {goal.type === 'max' ? maxText(exercise) : goal.type === 'seconds' ? 'S' : 'reps'}
       </Text>
     </View>
   );

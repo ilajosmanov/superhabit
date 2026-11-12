@@ -43,8 +43,8 @@ describe('trackedSets', () => {
 
 describe('planView', () => {
   it.each([
-    [1, 0, '10 S REST BETWEEN EXERCISES'],
-    [2, 60, '2 ROUNDS · 10 S REST BETWEEN EXERCISES · 60 S REST BETWEEN ROUNDS'],
+    [1, 0, '10S REST BETWEEN EXERCISES'],
+    [2, 60, '2 ROUNDS · 10S REST BETWEEN EXERCISES · 60S REST BETWEEN ROUNDS'],
   ] as const)(
     'distinguishes exercise rests from round rests with %s rounds',
     (rounds, restBetweenRounds, label) => {
@@ -80,12 +80,12 @@ describe('planView', () => {
     const { parts, single } = planView(tenFifteen);
     expect(parts).toEqual([
       {
-        label: 'PART 1 · 5 ROUNDS · 30 S REST BETWEEN ROUNDS',
+        label: 'PART 1 · 5 ROUNDS · 30S REST BETWEEN ROUNDS',
         rounds: 5,
         rows: [{ exercise: 'pushup', goal: reps(10), move: 'Turn the phone sideways' }],
       },
       {
-        label: 'PART 2 · 5 ROUNDS · 30 S REST BETWEEN ROUNDS',
+        label: 'PART 2 · 5 ROUNDS · 30S REST BETWEEN ROUNDS',
         rounds: 5,
         rows: [{ exercise: 'squat', goal: reps(15), move: 'Then stand the phone upright' }],
       },
@@ -97,7 +97,7 @@ describe('planView', () => {
     const { parts, exercises } = planView(circuit);
     expect(parts).toEqual([
       {
-        label: '3 ROUNDS · 30 S REST BETWEEN ROUNDS',
+        label: '3 ROUNDS · 30S REST BETWEEN ROUNDS',
         rounds: 3,
         rows: [
           { exercise: 'pushup', goal: reps(10), move: 'Turn the phone sideways' },

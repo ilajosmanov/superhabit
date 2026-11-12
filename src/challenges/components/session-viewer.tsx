@@ -85,7 +85,7 @@ export function SessionViewer({
   const hold = isHold(result.exercise);
   const got = hold ? result.heldMs / 1000 : result.reps;
   const rounds = clips.some((clip) => clip.result.round > 1);
-  const goal = result.goal.type === 'max' ? '' : `/${result.goal.n}${hold ? ' S' : ''}`;
+  const goal = result.goal.type === 'max' ? '' : `/${result.goal.n}${hold ? 'S' : ''}`;
   return (
     <Modal
       visible

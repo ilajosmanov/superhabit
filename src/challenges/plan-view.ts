@@ -3,8 +3,8 @@ import { EXERCISES, type ExerciseId, type Placement } from '@/exercises/registry
 
 import { expand, type Challenge, type Goal } from '@/workout/plan/plan';
 
-/** A rest step in mono labels: "30 S REST". */
-export const restLabel = (goal: Goal) => (goal.type === 'seconds' ? `${goal.n} S REST` : 'REST');
+/** A rest step in mono labels: "30S REST". */
+export const restLabel = (goal: Goal) => (goal.type === 'seconds' ? `${goal.n}S REST` : 'REST');
 
 export type TrackedSets = ReturnType<typeof trackedSets>;
 

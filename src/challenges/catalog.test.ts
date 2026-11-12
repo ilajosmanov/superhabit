@@ -24,10 +24,10 @@ describe('toEntry', () => {
     });
     expect(entry.steps.map(({ name, goal }) => `${name} ${goal}`)).toEqual([
       'Push-ups ×10',
-      'Plank 30 s',
+      'Plank 30S',
       'Squats MAX',
     ]);
-    expect(entry.note).toBe('3 ROUNDS · 30 S REST');
+    expect(entry.note).toBe('3 ROUNDS · 30S REST');
   });
 
   it('says a repeated round count or rest once', () => {
@@ -46,7 +46,7 @@ describe('toEntry', () => {
         dailyTotal: false,
         session: [block, block],
       }).note,
-    ).toBe('5 ROUNDS · 30 S REST');
+    ).toBe('5 ROUNDS · 30S REST');
   });
 
   it('has no note for a single round without rest', () => {

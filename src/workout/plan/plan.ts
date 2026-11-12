@@ -25,9 +25,9 @@ export const reps = (n: number): Goal => ({ type: 'reps', n });
 export const seconds = (n: number) => ({ type: 'seconds', n }) as const;
 export const MAX = { type: 'max' } as const;
 
-/** A goal in its own unit, as cards and lists show it: "×25", "60 s", "MAX". */
+/** A goal in its own unit, as cards and lists show it: "×25", "60S", "MAX". */
 export const goalLabel = (goal: Goal) =>
-  goal.type === 'reps' ? `×${goal.n}` : goal.type === 'seconds' ? `${goal.n} s` : 'MAX';
+  goal.type === 'reps' ? `×${goal.n}` : goal.type === 'seconds' ? `${goal.n}S` : 'MAX';
 
 const positiveInteger = (n: number) => Number.isInteger(n) && n >= 1;
 

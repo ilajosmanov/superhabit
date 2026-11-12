@@ -27,12 +27,12 @@ import type { Challenge } from '@/workout/plan/plan';
 
 const label = 'font-mono text-xs tracking-widest text-muted';
 
-/** A knob's number as its tile says it: 10, 30 S, ×3, 14 D. */
+/** A knob's number as its tile says it: 10, 30S, ×3, 14 D. */
 const caption = (knob: Knob, n: Amount) =>
   n === 'max'
     ? 'MAX'
     : knob.kind === 'seconds'
-      ? `${n} S`
+      ? `${n}S`
       : knob.kind === 'rounds'
         ? `×${n}`
         : knob.kind === 'days'

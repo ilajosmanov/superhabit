@@ -82,7 +82,7 @@ export function BetweenSets({
               {view.nextGoal?.type === 'reps'
                 ? `${view.nextGoal.n} `
                 : view.nextGoal?.type === 'seconds'
-                  ? `${view.nextGoal.n} S `
+                  ? `${view.nextGoal.n}S `
                   : 'MAX '}
               {next.name.toUpperCase()}
             </Text>

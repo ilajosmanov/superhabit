@@ -39,7 +39,7 @@ export function RestView({
   const { restS, restLeftS, nextExercise, nextGoal } = view;
   if (!nextExercise || !nextGoal) return null;
   const timed = restS !== null && restLeftS !== null;
-  const amount = view.unit === 'seconds' ? `${view.heldS} S` : view.reps;
+  const amount = view.unit === 'seconds' ? `${view.heldS}S` : view.reps;
   // Landscape: the numeral and bar span the area's width less its padding. Portrait: the ring takes what
   // is left under the "done" row, and the numeral fits inside the ring.
   const barWidth = area.width - 56;

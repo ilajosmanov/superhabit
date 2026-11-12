@@ -75,7 +75,7 @@ export function PointsSheet({
               <View className="flex-row items-baseline gap-1.5">
                 <Text className="font-sans text-lg font-light text-chalk">{points.toFixed(1)}</Text>
                 <Text className="w-10 font-mono text-xs tracking-widest text-muted">
-                  {per === 'rep' ? '' : '/10 S'}
+                  {per === 'rep' ? '' : '/10S'}
                 </Text>
               </View>
             </View>
