@@ -59,6 +59,7 @@ export const challenges = sqliteTable(
     ...synced,
     visibility: text('visibility', { enum: ['private', 'public'] }).notNull(),
     currentVersionId: text('current_version_id').notNull(),
+    retiredAt: integer('retired_at'),
     ...received,
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] })],

@@ -54,6 +54,8 @@ location, and approximate.
   Facts (versions, runs, workouts with their sets, freezes) are kept as first sent, so a repeat changes
   nothing. Only the account's own rows change: a run's end once (the first leave stands), a challenge's
   current version to the newest version the server took (a resent old edit doesn't undo a newer one).
+  `archive` on a challenge stamps `retiredAt` once. It is permanent: later creates or edits cannot
+  restore it or change its current version. Offline runs and workouts still sync as history.
   Answers `{ results }`, one `{ ok: true }` or `{ ok: false, reason }` per change. Every row written moves
   to the end of the `changes` log, which pulls read; an entry can name a row that doesn't exist (an edit
   of someone else's challenge), so pulls skip it.

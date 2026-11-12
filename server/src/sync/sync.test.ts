@@ -31,6 +31,50 @@ const rows = async (table: string, userId: string) =>
   (await env.DB.prepare(`select * from ${table} where user_id = ?`).bind(userId).all()).results;
 
 describe('sync: the phone sends its outbox', () => {
+  it('archives only your challenge, syncs that archive, and keeps it through retries and offline edits', async () => {
+    const { cookie: phone, id: you } = await someone();
+    const archive = {
+      entity: 'challenge',
+      entityId: 'archived',
+      op: 'archive',
+      payload: { retiredAt: 1234, v: 1 },
+    };
+    await push(phone, [create('archived', 'a-v1'), join('a-run', 'archived')]);
+    const first = await page(phone);
+    await push((await someone()).cookie, [archive]);
+    expect(await rows('challenges', you)).toMatchObject([{ retired_at: null }]);
+
+    expect(await push(phone, [archive])).toEqual({ results: [{ ok: true }] });
+    expect((await page(phone, first.cursor)).rows).toMatchObject([
+      { entity: 'challenge', row: { id: 'archived', retiredAt: 1234 } },
+    ]);
+    await push(phone, [
+      { ...archive, payload: { retiredAt: 5678 } },
+      create('archived', 'a-v1'),
+      edit('archived', 'a-v2', 2),
+      // Another phone's offline workout remains part of history, even when it arrives after archive.
+      done('a-workout', 'a-run', ['a-set']),
+    ]);
+    expect(await rows('challenges', you)).toMatchObject([
+      { retired_at: 1234, current_version_id: 'a-v1' },
+    ]);
+    const restored = await page(phone);
+    expect(restored.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entity: 'challenge',
+          row: expect.objectContaining({ retiredAt: 1234 }),
+        }),
+        expect.objectContaining({ entity: 'run', row: expect.objectContaining({ id: 'a-run' }) }),
+        expect.objectContaining({
+          entity: 'workout',
+          row: expect.objectContaining({ id: 'a-workout' }),
+        }),
+      ]),
+    );
+    expect(await rows('sets', you)).toHaveLength(1);
+  });
+
   it('keeps each change once, however often the phone sends it', async () => {
     const { cookie: phone, id: you } = await someone();
     const outbox = [
@@ -181,6 +225,7 @@ describe('sync: the phone sends its outbox', () => {
       owner: you,
       visibility: 'private',
       currentVersionId: 'c4-v1',
+      retiredAt: null,
     });
     expect(workout?.row).toMatchObject({
       id: 'w4',

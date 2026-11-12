@@ -72,6 +72,7 @@ function joinIn(tx: Transaction, challengeId: string) {
     .findFirst({ where: { id: challengeId }, with: { current: true } })
     .sync();
   if (!challenge) throw new Error(`No challenge ${challengeId}`);
+  if (challenge.retiredAt !== null) throw new Error(`${challengeId} is archived`);
   if (!readPlan(challenge.current?.plan))
     throw new Error(`Can't run ${challengeId}: update the app`);
   const run = {
@@ -126,6 +127,7 @@ export const edit = (challengeId: string, challenge: Challenge) =>
   write((tx) => {
     const row = tx.query.challenges.findFirst({ where: { id: challengeId } }).sync();
     if (row?.owner !== userId()) throw new Error(`${challengeId} isn't yours to edit`);
+    if (row.retiredAt !== null) throw new Error(`${challengeId} is archived`);
     const number = Math.max(0, ...versionsOf(tx, challengeId).map((v) => v.number)) + 1;
     const version = versionRow(challengeId, uuid.v4(), number, challenge);
     tx.insert(challengeVersions).values(version).run();
@@ -135,4 +137,16 @@ export const edit = (challengeId: string, challenge: Challenge) =>
       .run();
     enqueue(tx, { entity: 'challenge', entityId: challengeId, op: 'edit', data: { version } });
     return version.id;
+  });
+
+/** Permanently archive your challenge. Its runs and workouts stay as history. */
+export const archive = (challengeId: string) =>
+  write((tx) => {
+    const row = tx.query.challenges.findFirst({ where: { id: challengeId } }).sync();
+    if (row?.owner !== userId()) throw new Error(`${challengeId} isn't yours to archive`);
+    if (row.retiredAt !== null) return challengeId;
+    const retiredAt = Date.now();
+    tx.update(challenges).set({ retiredAt }).where(eq(challenges.id, challengeId)).run();
+    enqueue(tx, { entity: 'challenge', entityId: challengeId, op: 'archive', data: { retiredAt } });
+    return challengeId;
   });

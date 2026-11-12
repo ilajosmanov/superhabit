@@ -214,6 +214,27 @@ describe('sync: the outbox goes up, the account comes down', () => {
     ]);
   });
 
+  it('applies an archive from another phone and never clears it on a stale pull', async () => {
+    db().insert(schema.challenges).values(challenge).run();
+    db().insert(schema.challengeVersions).values(version).run();
+    server({
+      '0': {
+        rows: [{ entity: 'challenge', row: { ...challenge, retiredAt: 1234 } }],
+        cursor: 1,
+        more: false,
+      },
+      '1': {
+        rows: [{ entity: 'challenge', row: { ...challenge, retiredAt: null } }],
+        cursor: 2,
+        more: false,
+      },
+    });
+    await sync();
+    expect(db().select().from(schema.challenges).get()?.retiredAt).toBe(1234);
+    await sync();
+    expect(db().select().from(schema.challenges).get()?.retiredAt).toBe(1234);
+  });
+
   it("sends a withdrawal of sharing made offline first, and fails the round while it can't", async () => {
     fake.fetch.mockImplementation(offline);
     vi.spyOn(console, 'warn').mockImplementation(() => {});

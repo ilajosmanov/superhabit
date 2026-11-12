@@ -1,0 +1,1 @@
+ALTER TABLE `challenges` ADD `retired_at` integer;

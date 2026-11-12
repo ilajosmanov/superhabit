@@ -123,6 +123,8 @@ function yours(
   const at = runInput({ library, ...stored }, run, during?.versionId);
   if (!at) return null;
   const { challenge, found, version, versions, input } = at;
+  // Archiving stops every run, including one synced later from an offline phone, without erasing history.
+  if (challenge.retiredAt !== null) return null;
   if (!version) {
     const name = found?.row.name ?? '';
     return run.endedOn ? null : { challengeId: challenge.id, runId: run.id, name, challenge: null };
@@ -178,7 +180,7 @@ export function catalog(library: Library, running: readonly Yours[]): CatalogEnt
   const made = library.challenges.filter(({ owner }) => owner === library.account.id);
   return [...SUGGESTED_CHALLENGES, ...made].flatMap(({ id }) => {
     const row = library.challenges.find((c) => c.id === id);
-    const version = row && !row.retiredAt && current(library, row);
+    const version = row && row.retiredAt === null && current(library, row);
     const busy = running.some(({ challengeId }) => challengeId === id);
     return version && !busy ? [toEntry(id, version)] : [];
   });
@@ -201,6 +203,7 @@ export function challengePage(library: Library, id: string, today: Day, runId?: 
       : (going.find((entry) => entry.runId === runId) ?? null);
   const challenge = mine ? mine.challenge : current(library, row);
   const length = challenge?.days === 1 ? 'ONE GO' : `${challenge?.days} DAYS · DAY 1 IS TODAY`;
+  const archived = row.retiredAt !== null;
   return {
     name: mine?.challenge
       ? mine.challenge.name
@@ -210,11 +213,17 @@ export function challengePage(library: Library, id: string, today: Day, runId?: 
     runId: mine?.runId ?? null,
     joined: mine?.challenge ? mine : null,
     ranBefore: runs.length > 0,
-    editable: row.owner === library.account.id && challenge !== null && draftOf(challenge) !== null,
+    archived,
+    archivable: row.owner === library.account.id && !archived,
+    editable:
+      row.owner === library.account.id &&
+      !archived &&
+      challenge !== null &&
+      draftOf(challenge) !== null,
     /** Ours: its numbers can change before you join (Your numbers). */
     suggested: row.owner === OURS,
     /** The line under the title before you join. */
-    status: `${row.owner === OURS ? 'SUGGESTED · ' : ''}${length}`,
+    status: archived ? 'ARCHIVED' : `${row.owner === OURS ? 'SUGGESTED · ' : ''}${length}`,
   };
 }
 

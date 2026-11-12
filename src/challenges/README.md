@@ -5,7 +5,7 @@ The challenge catalog, the challenges and runs kept on the phone, progress rules
 | File               | Holds                                                                                                                      |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------- |
 | `suggested.ts`     | ours, with fixed ids; a changed one gets a new version id                                                                  |
-| `library.ts`       | the store: seed, join, leave, create, edit with outbox rows, and challenge table queries                                   |
+| `library.ts`       | the store: seed, join, leave, create, edit, archive with outbox rows, and challenge table queries                          |
 | `library-live.tsx` | `LibraryProvider` (in the root layout) reads the tables once; `useLibrary()` shares them                                   |
 | `library-view.ts`  | what screens show from those rows: your runs, the catalog, a challenge's page, a day's log                                 |
 | `run-view.ts`      | a run in words: DONE, 64%, MISSED, IN 3 DAYS                                                                               |
@@ -21,6 +21,12 @@ The challenge catalog, the challenges and runs kept on the phone, progress rules
 | `reel-playback.ts` | the machine that plays a reel's files back to back on two players that take turns                                          |
 
 `components/` holds the UI only challenges uses:
+
+`archive-button.tsx` offers Archive on your challenge's page, after confirming that it is permanent.
+Archived challenges leave the catalog and active runs, but their details and workout history stay.
+They cannot be edited, joined or restored; doing one again means creating a new challenge. The stored
+`retiredAt` stops all its runs, including runs arriving later from an offline phone, without rewriting
+their history. Archiving syncs through the outbox like other library changes.
 
 | File                                                             | What it is                                                                           |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------ |

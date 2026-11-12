@@ -20,7 +20,8 @@ type Entity = (typeof changes.$inferInsert)['entity'];
  * Keeps a phone's changes, in order, in one transaction. Facts (challenge versions, runs, workouts with their
  * sets, freezes) are kept as first sent, so a repeat changes nothing. Only the account's own rows change: a
  * run's end, once (the first leave stands), and a challenge's current version, to the newest version the
- * server took. A log entry can name a row that doesn't exist (an edit of someone else's challenge): pulls
+ * server took, until archived. Archiving stamps `retiredAt` once; offline facts still arrive as history.
+ * A log entry can name a row that doesn't exist (an edit of someone else's challenge): pulls
  * skip it.
  */
 // shortcut: trusts the phone to make a fresh uuid per row and never change a sent one; a client that reuses ids
@@ -74,6 +75,7 @@ export async function applyChanges(db: Db, userId: string, list: Change[]) {
             .where(
               and(
                 yours(challenges, c.entityId),
+                isNull(challenges.retiredAt),
                 exists(
                   db
                     .select()
@@ -89,6 +91,14 @@ export async function applyChanges(db: Db, userId: string, list: Change[]) {
                 ),
               ),
             ),
+          ...logged('challenge', c.entityId),
+        ];
+      case 'archive':
+        return [
+          db
+            .update(challenges)
+            .set(c.payload)
+            .where(and(yours(challenges, c.entityId), isNull(challenges.retiredAt))),
           ...logged('challenge', c.entityId),
         ];
       case 'join':

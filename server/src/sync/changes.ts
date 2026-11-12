@@ -92,6 +92,12 @@ const anyChange = z.discriminatedUnion('op', [
   }),
   z.object({ entity: z.literal('run'), op: z.literal('join'), entityId: id, payload: run }),
   z.object({
+    entity: z.literal('challenge'),
+    op: z.literal('archive'),
+    entityId: id,
+    payload: z.object({ retiredAt: instant }),
+  }),
+  z.object({
     entity: z.literal('run'),
     op: z.literal('leave'),
     entityId: id,
@@ -127,6 +133,7 @@ function matches(c: Change) {
     case 'join':
       return c.payload.id === c.entityId;
     case 'leave':
+    case 'archive':
       return true;
     case 'done':
       return (

@@ -2,8 +2,15 @@ import { modules } from '@/workout/__fixtures__/session';
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
-import { create, edit, join, leave, seed } from './library';
-import { catalog, challengePage, yourRuns, type Library } from './library-view';
+import { archive, create, edit, join, leave, seed } from './library';
+import {
+  catalog,
+  challengePage,
+  dayLog,
+  sessionChallenge,
+  yourRuns,
+  type Library,
+} from './library-view';
 import { SUGGESTED_CHALLENGES } from './suggested';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
@@ -125,6 +132,62 @@ describe('seed', () => {
 });
 
 describe('writes', () => {
+  it('archives all runs permanently while keeping the challenge details and workout history', () => {
+    const id =
+      create({
+        ...squats(21),
+        name: 'Morning push-ups',
+        session: [{ steps: [{ exercise: 'pushup', goal: reps(20) }], rounds: 1 }],
+      }) ?? '';
+    const [{ runId }] = yourRuns(library(), today());
+    const other = join(id) ?? '';
+    const versionId = library().challenges.find((c) => c.id === id)?.currentVersionId ?? '';
+    pushups(runId, versionId, 20);
+    const history = library();
+
+    expect(archive(id)).toBe(id);
+
+    expect(yourRuns(library(), today())).toEqual([]);
+    expect(catalog(library(), []).some((entry) => entry.id === id)).toBe(false);
+    expect(challengePage(library(), id, today(), runId)).toMatchObject({
+      name: 'Morning push-ups',
+      archived: true,
+      archivable: false,
+      editable: false,
+      challenge: { id: versionId, days: 21 },
+      joined: null,
+      runId: null,
+      status: 'ARCHIVED',
+    });
+    for (const run of [runId, other]) {
+      expect(sessionChallenge(library(), run, today()).challenge).toBeNull();
+    }
+    expect(library()).toMatchObject({
+      runs: history.runs,
+      workouts: history.workouts,
+      sets: history.sets,
+      versions: history.versions,
+    });
+    expect(dayLog(library(), today(), today())).toMatchObject([
+      { name: 'Morning push-ups', reps: 20, runDay: { number: 1, of: 21 }, free: false },
+    ]);
+    expect(outbox().at(-1)).toMatchObject({
+      entity: 'challenge',
+      entityId: id,
+      op: 'archive',
+      payload: { retiredAt: Date.now() },
+    });
+
+    const kept = library();
+    const queued = outbox();
+    expect(join(id)).toBeNull();
+    expect(edit(id, squats(30))).toBeNull();
+    vi.setSystemTime(new Date(2026, 10, 12, 12));
+    expect(archive(id)).toBe(id);
+    expect(library()).toEqual(kept);
+    expect(outbox()).toEqual(queued);
+  });
+
   it('runs a challenge twice side by side, each with its own page, and leaves the one you pick', () => {
     const first = join(floor.id) ?? '';
     const second = join(floor.id) ?? '';
@@ -200,22 +263,28 @@ describe('writes', () => {
   });
 
   it('writes neither the change nor its outbox row when the outbox write fails', () => {
+    const id = create(squats(21)) ?? '';
+    const before = library();
+    const queued = outbox();
     db().run(
       sql`create trigger full before insert on outbox begin select raise(abort, 'disk full'); end`,
     );
     try {
       expect(join(floor.id)).toBeNull();
       expect(create(squats(21))).toBeNull();
+      expect(archive(id)).toBeNull();
     } finally {
       db().run(sql`drop trigger full`);
     }
-    expect(library().runs).toEqual([]);
-    expect(library().challenges).toHaveLength(SUGGESTED_CHALLENGES.length);
+    expect(library()).toEqual(before);
+    expect(outbox()).toEqual(queued);
   });
 
-  it("won't edit a challenge that isn't yours", () => {
+  it("won't edit or archive a challenge that isn't yours", () => {
+    theirs('theirs', squats(21).session);
     const before = library();
     expect(edit(floor.id, squats(30))).toBeNull();
+    for (const id of [floor.id, 'theirs', 'missing']) expect(archive(id)).toBeNull();
     expect(library()).toEqual(before);
     expect(outbox()).toEqual([]);
   });

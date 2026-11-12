@@ -119,10 +119,18 @@ function keepPage({ rows, cursor, more }: Page) {
       for (const { entity, row } of rows) {
         if (mine.has(`${entity}:${row.id}`)) continue;
         if (entity === 'challenge') {
-          const { currentVersionId, visibility } = row;
+          const { currentVersionId, visibility, retiredAt } = row;
           tx.insert(challenges)
             .values(row)
-            .onConflictDoUpdate({ target: challenges.id, set: { currentVersionId, visibility } })
+            .onConflictDoUpdate({
+              target: challenges.id,
+              set: {
+                currentVersionId,
+                visibility,
+                // Archiving is permanent, even if an older server's row arrives without the field.
+                retiredAt: sql`coalesce(${challenges.retiredAt}, ${retiredAt ?? null})`,
+              },
+            })
             .run();
         } else if (entity === 'challenge_version') {
           tx.insert(challengeVersions).values(row).onConflictDoNothing().run();
