@@ -6,6 +6,7 @@ The workout's plain data and calculations, shared by the runner, stores and chal
 | --------------- | ----------------------------------------------------------------------------------------------------- |
 | `plan.ts`       | `Challenge`, `Session`, goals, validation, `readPlan` and expanded steps                              |
 | `structures.ts` | code authoring: exercise sets, repeated sets, circuits, explicit ladders and composed sessions        |
+| `schedule.ts`   | calendar primitives: training/rest days, weekly patterns, resizing and schedule summaries             |
 | `results.ts`    | `Attempt`, `StepResult`, finished sets, goal shares and `countedWorkouts` for streaks and the day log |
 | `logged-set.ts` | the `LoggedSet` contract and `readSets`, mapping already-read rows into it                            |
 
@@ -49,6 +50,30 @@ const floorThenStanding = session(
 - Each constructor returning a session validates it against the stored plan contract. Pass it to
   `defineChallenge` with the name, days and challenge settings for challenge-level validation.
 
-These are session structures. Increasing targets across days, weekly schedules, and per-leg targets
+These are session structures. Increasing targets across days and per-leg targets
 need their own contracts; a rung is not a calendar day. The existing tuning flow changes the generated
 targets and rounds independently; it does not preserve a ladder formula when a single target changes.
+
+## Recovery calendars
+
+`Challenge.schedule` is an optional explicit list of `'training' | 'rest'`, one entry per calendar day.
+Training days use `challenge.session`; rest days have no session obligation. Without a schedule the
+session is due every day, preserving old plans. A calendar must include at least one training day.
+
+```ts
+import { weeklySchedule } from '@/workout/plan/schedule';
+
+const schedule = weeklySchedule(28, [1, 3, 5]); // 12 workouts, 16 rest days
+// Or author any ordering directly, including a rest day at either end:
+const shorter = ['training', 'rest', 'training'] as const;
+```
+
+Day 1 is the join date, not Monday. `resizeSchedule` truncates the list when shortened and repeats the
+original list when extended. The tuning screen explains this and previews the changed calendar.
+This is ready for a future builder to author; the current one-exercise builder does not edit schedules.
+Different sessions or changing goals per calendar day remain separate future work.
+
+`storedPlan` writes old daily plans as the existing session array, and schedules as
+`{ type: 'scheduled', session, schedule }`. `readChallengePlan` validates both and checks schedule length
+against `days`. `readPlan` remains the session-only reader: older apps reject the envelope and ask for
+an update rather than ignoring recovery. The server stores the envelope as JSON; no migration is needed.

@@ -174,7 +174,7 @@ export function YourPlace({
         {bonus > 0 && (
           <View
             accessible
-            accessibilityLabel={`Streak bonus: plus ${bonus} percent, ${streak} days in a row`}
+            accessibilityLabel={`Streak bonus: plus ${bonus} percent, ${streak} streak days`}
             className="h-14 flex-row items-center justify-between border-y border-line"
           >
             <Text className="font-mono text-xs tracking-widest text-muted">STREAK BONUS</Text>

@@ -16,10 +16,12 @@ const STATUS: Record<Streak['status'], string> = {
   done: 'Today counts. See you tomorrow.',
   slipped: 'Yesterday slipped. Any set today starts again.',
   start: 'Any set today starts your streak.',
+  rest: 'Rest day. Your streak is protected.',
 };
 
 const CELL: Record<DayKind, string> = {
   alive: 'bg-accent',
+  rest: 'border border-muted',
   frozen: 'border border-soft',
   missed: 'bg-line',
   open: 'border-accent',
@@ -140,6 +142,7 @@ function Grid({
                     outlineStyle: 'solid',
                   }}
                 >
+                  {kind(day) === 'rest' && <View className="h-px w-1.5 bg-muted" />}
                   {kind(day) === 'frozen' && <Icon name="ac_unit" size={12} color={colors.soft} />}
                 </View>
               ))}
@@ -151,6 +154,7 @@ function Grid({
         {(
           [
             ['DONE', 'bg-accent'],
+            ['REST', 'border border-muted'],
             ['FROZEN', 'border border-soft'],
             ['MISSED', 'bg-line'],
           ] as const
@@ -193,7 +197,7 @@ export function StreakPanel({
       <View className="gap-2">
         <View
           accessible
-          accessibilityLabel={`${current} ${current === 1 ? 'day' : 'days'} in a row${best > current ? `, best ${best}` : ''}`}
+          accessibilityLabel={`${current} ${current === 1 ? 'day' : 'days'} in your streak${best > current ? `, best ${best}` : ''}`}
           className="flex-row items-baseline gap-3"
         >
           <Text
@@ -205,13 +209,17 @@ export function StreakPanel({
             {current}
           </Text>
           <Text className="font-mono text-xs tracking-widest text-muted">
-            {current === 1 ? 'DAY IN A ROW' : 'DAYS IN A ROW'}
+            DAY STREAK
             {best > current ? ` · BEST ${best}` : ''}
           </Text>
         </View>
         <View className="mt-2 flex-row items-center gap-2.5">
-          {status !== 'done' && <RiskDot />}
-          <Text className="shrink font-sans text-base text-soft">{STATUS[status]}</Text>
+          {status === 'atRisk' && <RiskDot />}
+          <Text className="shrink font-sans text-base text-soft">
+            {status === 'rest' && current === 0
+              ? 'Rest day. Your next workout starts your streak.'
+              : STATUS[status]}
+          </Text>
         </View>
       </View>
 

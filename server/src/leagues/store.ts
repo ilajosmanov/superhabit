@@ -10,11 +10,18 @@ import {
   isNull,
   lt,
   notInArray,
-  or,
 } from 'drizzle-orm';
+
+import { restDays } from '@/challenges/rest-days';
+import { SUGGESTED_CHALLENGES, SUGGESTED_HISTORY } from '@/challenges/suggested';
+import { storedPlan } from '@/workout/plan/plan';
+import { aliveDays } from '@/streak/streak';
 
 import type { Db } from '../db/db';
 import {
+  challenges,
+  challengeVersions,
+  runs,
   deletions,
   leaderboardChoices,
   leagueCloses,
@@ -83,9 +90,7 @@ async function pointsOf(db: Db, { week, league, cohort }: Board, members: string
       ),
     );
   const from = startOf(week);
-  // A local day can start up to a day before its UTC one.
-  const since = addDays(week, -STREAK_CAP - 1);
-  const [scored, trained, frozen] = await db.batch([
+  const [scored, recorded, historySets, frozen, custom, versions, participations] = await db.batch([
     db
       .select({
         userId: sets.userId,
@@ -104,41 +109,106 @@ async function pointsOf(db: Db, { week, league, cohort }: Board, members: string
           lt(sets.endedAt, from + WEEK_MS),
         ),
       ),
-    // A trained day is the phone's alive day: a done workout with a counted rep or hold.
+    // Recovery can separate training days by more than the bonus cap's calendar lookback.
     db
-      .selectDistinct({ userId: workouts.userId, day: workouts.day })
+      .select({
+        userId: workouts.userId,
+        id: workouts.id,
+        runId: workouts.runId,
+        versionId: workouts.versionId,
+        day: workouts.day,
+        startedAt: workouts.startedAt,
+        tz: workouts.tz,
+      })
       .from(workouts)
-      .innerJoin(sets, and(eq(sets.userId, workouts.userId), eq(sets.workoutId, workouts.id)))
-      .where(
-        and(
-          inArray(workouts.userId, onBoard),
-          gte(workouts.day, since),
-          or(gt(sets.reps, 0), gt(sets.heldMs, 0)),
-        ),
-      ),
+      .where(inArray(workouts.userId, onBoard)),
+    db
+      .select({
+        userId: sets.userId,
+        id: sets.id,
+        workoutId: sets.workoutId,
+        planStep: sets.planStep,
+        exercise: sets.exercise,
+        goal: sets.goal,
+        reps: sets.reps,
+        heldMs: sets.heldMs,
+        startedAt: sets.startedAt,
+        endedAt: sets.endedAt,
+      })
+      .from(sets)
+      .where(inArray(sets.userId, onBoard)),
     db
       .select({ userId: streakEvents.userId, day: streakEvents.day })
       .from(streakEvents)
-      .where(
-        and(
-          inArray(streakEvents.userId, onBoard),
-          eq(streakEvents.kind, 'used'),
-          gte(streakEvents.day, since),
-        ),
-      ),
+      .where(and(inArray(streakEvents.userId, onBoard), eq(streakEvents.kind, 'used'))),
+    db.select().from(challenges).where(inArray(challenges.userId, onBoard)),
+    db.select().from(challengeVersions).where(inArray(challengeVersions.userId, onBoard)),
+    db.select().from(runs).where(inArray(runs.userId, onBoard)),
   ]);
   return new Map(
     members.map((id) => {
-      const kept = new Set(
-        [...trained, ...frozen].filter((r) => r.userId === id).map((r) => r.day),
+      const scoredSets = scored.filter((set) => set.userId === id);
+      if (scoredSets.length === 0) return [id, 0] as const;
+      const workouts = recorded
+        .filter((row) => row.userId === id)
+        .map((row) => ({ ...row, status: 'done' as const }));
+      const sets = historySets.filter((row) => row.userId === id);
+      const latest = workouts.reduce<(typeof workouts)[number] | undefined>(
+        (last, row) => (!last || row.startedAt > last.startedAt ? row : last),
+        undefined,
       );
-      return [
-        id,
-        weekPoints(
-          scored.filter((s) => s.userId === id),
-          kept,
+      // Match the phone's local date for archive/version timestamps. Workout calendar dates are already stored.
+      let dateFormat: Intl.DateTimeFormat;
+      try {
+        dateFormat = new Intl.DateTimeFormat('en-CA', {
+          timeZone: latest?.tz ?? 'UTC',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        });
+      } catch {
+        dateFormat = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'UTC',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        });
+      }
+      const rest = new Set(
+        restDays(
+          {
+            challenges: [
+              ...SUGGESTED_CHALLENGES.map((entry) => ({
+                id: entry.id,
+                currentVersionId: entry.versionId,
+                retiredAt: null,
+              })),
+              ...custom.filter((row) => row.userId === id),
+            ],
+            versions: [
+              ...[...SUGGESTED_HISTORY, ...SUGGESTED_CHALLENGES].map((entry, number) => ({
+                id: entry.versionId,
+                challengeId: entry.id,
+                number,
+                createdAt: 0,
+                ...entry.challenge,
+                plan: storedPlan(entry.challenge),
+              })),
+              ...versions.filter((row) => row.userId === id),
+            ],
+            runs: participations.filter((row) => row.userId === id),
+            workouts,
+            sets,
+          },
+          addDays(week, 7),
+          (timestamp) => dateFormat.format(timestamp),
         ),
-      ] as const;
+      );
+      const kept = new Set([
+        ...aliveDays(workouts, sets),
+        ...frozen.filter((row) => row.userId === id && !rest.has(row.day)).map((row) => row.day),
+      ]);
+      return [id, weekPoints(scoredSets, kept, rest)] as const;
     }),
   );
 }

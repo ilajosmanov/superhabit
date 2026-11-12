@@ -10,6 +10,14 @@ const reps = (exercise: string, goal: object, n: number) => ({
 });
 
 describe('points', () => {
+  it('bridges rest without increasing the bonus and still counts optional training on rest', () => {
+    const work = { day: '2026-11-20', ...reps('squat', { type: 'reps', n: 100 }, 100) };
+    const kept = new Set(['2026-11-18', '2026-11-20']);
+    const rest = new Set(['2026-11-19']);
+    expect(weekPoints([work], kept, rest)).toBe(105);
+    expect(weekPoints([work], new Set([...kept, '2026-11-19']), rest)).toBe(110);
+    expect(weekPoints([work], kept)).toBe(100);
+  });
   it('scores the work done, up to the goal, weighted by how hard the exercise is', () => {
     const squats = (n: number) => setPoints(reps('squat', { type: 'reps', n: 10 }, n));
     expect(squats(10)).toBeCloseTo(10);

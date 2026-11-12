@@ -1,13 +1,18 @@
 import { eq } from 'drizzle-orm';
 import { uuid } from 'expo';
 
-import { OURS, SUGGESTED_CHALLENGES } from './suggested';
+import { OURS, SUGGESTED_CHALLENGES, SUGGESTED_HISTORY } from './suggested';
 import { userId } from '@/storage/account';
 import { db, type Transaction } from '@/storage/database';
 import { enqueue } from '@/storage/outbox';
 import { challenges, challengeVersions, runs } from '@/storage/schema';
 import { today } from '@/lib/day';
-import { readPlan, type Challenge } from '@/workout/plan/plan';
+import {
+  defineChallenge,
+  readChallengePlan,
+  storedPlan,
+  type Challenge,
+} from '@/workout/plan/plan';
 
 /** Whole tables for the library's live subscriptions. */
 export const challengeRows = () => db().query.challenges.findMany();
@@ -23,7 +28,7 @@ const versionRow = (challengeId: string, id: string, number: number, challenge: 
   days: challenge.days,
   dailyTotal: challenge.dailyTotal,
   restartOnMiss: challenge.restartOnMiss,
-  plan: challenge.session,
+  plan: storedPlan(defineChallenge(challenge)),
   createdAt: Date.now(),
 });
 
@@ -41,11 +46,16 @@ export function seed() {
         .values({ id, owner: OURS, visibility: 'public', currentVersionId: versionId })
         .onConflictDoNothing()
         .run();
-      const versions = versionsOf(tx, id);
-      if (!versions.some((version) => version.id === versionId)) {
-        tx.insert(challengeVersions)
-          .values(versionRow(id, versionId, versions.length + 1, challenge))
-          .run();
+      for (const entry of [
+        ...SUGGESTED_HISTORY.filter((entry) => entry.id === id),
+        { id, versionId, challenge },
+      ]) {
+        const versions = versionsOf(tx, id);
+        if (!versions.some((version) => version.id === entry.versionId)) {
+          tx.insert(challengeVersions)
+            .values(versionRow(id, entry.versionId, versions.length + 1, entry.challenge))
+            .run();
+        }
       }
       tx.update(challenges).set({ currentVersionId: versionId }).where(eq(challenges.id, id)).run();
     }
@@ -73,12 +83,13 @@ function joinIn(tx: Transaction, challengeId: string) {
     .sync();
   if (!challenge) throw new Error(`No challenge ${challengeId}`);
   if (challenge.retiredAt !== null) throw new Error(`${challengeId} is archived`);
-  if (!readPlan(challenge.current?.plan))
-    throw new Error(`Can't run ${challengeId}: update the app`);
+  const plan = readChallengePlan(challenge.current?.plan, challenge.current?.days ?? 0);
+  if (!plan) throw new Error(`Can't run ${challengeId}: update the app`);
   const run = {
     id: uuid.v4(),
     challengeId,
-    pinnedVersionId: challenge.owner === userId() ? null : challenge.currentVersionId,
+    pinnedVersionId:
+      challenge.owner === userId() && !plan.schedule ? null : challenge.currentVersionId,
     groupChallengeId: null,
     startedOn: today(),
     endedOn: null,
@@ -128,7 +139,11 @@ export const edit = (challengeId: string, challenge: Challenge) =>
     const row = tx.query.challenges.findFirst({ where: { id: challengeId } }).sync();
     if (row?.owner !== userId()) throw new Error(`${challengeId} isn't yours to edit`);
     if (row.retiredAt !== null) throw new Error(`${challengeId} is archived`);
-    const number = Math.max(0, ...versionsOf(tx, challengeId).map((v) => v.number)) + 1;
+    const versions = versionsOf(tx, challengeId);
+    if (challenge.schedule && versions.some((v) => !readChallengePlan(v.plan, v.days)?.schedule)) {
+      throw new Error('Create a new challenge to add a calendar to a daily plan');
+    }
+    const number = Math.max(0, ...versions.map((v) => v.number)) + 1;
     const version = versionRow(challengeId, uuid.v4(), number, challenge);
     tx.insert(challengeVersions).values(version).run();
     tx.update(challenges)

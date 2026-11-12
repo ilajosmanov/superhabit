@@ -6,7 +6,7 @@ import { Icon } from '@/components/icon';
 import { TextButton } from '@/components/text-button';
 import { useColors } from '@/components/colors';
 import type { CatalogEntry } from '@/challenges/catalog';
-import { SUGGESTED_CHALLENGES } from '@/challenges/suggested';
+import { SUGGESTED_CHALLENGES, SUGGESTED_GROUPS } from '@/challenges/suggested';
 
 const suggestedIds = new Set(SUGGESTED_CHALLENGES.map(({ id }) => id));
 
@@ -16,22 +16,23 @@ const suggestedIds = new Set(SUGGESTED_CHALLENGES.map(({ id }) => id));
  */
 function ChallengeCard({ entry }: { entry: CatalogEntry }) {
   const single = entry.steps.length === 1 ? entry.steps[0] : null;
+  const frequency = entry.days === 1 ? 'in one go' : entry.schedule ? 'on training days' : 'a day';
   const line = single
-    ? `${single.goal.toUpperCase()} A DAY`
-    : (entry.note ?? `${entry.steps.length} STEPS`);
+    ? `${single.goal.toUpperCase()} ${frequency.toUpperCase()}`
+    : (entry.schedule ?? entry.note ?? `${entry.steps.length} STEPS`);
   const what = single
-    ? `${single.name} ${single.goal} a day`
+    ? `${single.name} ${single.goal} ${frequency}`
     : entry.steps.map((step) => step.name).join(', ');
   return (
     <Link href={{ pathname: '/challenge/[id]', params: { id: entry.id } }} asChild>
       <ExerciseRow
         accessibilityRole="link"
-        accessibilityLabel={`${entry.name}: ${what}, ${entry.days} days`}
+        accessibilityLabel={`${entry.name}: ${what}, ${entry.days} ${entry.days === 1 ? 'day' : 'days'}${entry.schedule ? `, ${entry.schedule}` : ''}`}
         name={entry.name}
         line={line}
         steps={entry.steps}
-        amount={entry.days}
-        unit={entry.days === 1 ? 'DAY' : 'DAYS'}
+        amount={entry.workload?.amount ?? entry.days}
+        unit={entry.workload?.unit ?? (entry.days === 1 ? 'DAY' : 'DAYS')}
       />
     </Link>
   );
@@ -75,12 +76,22 @@ export function Catalog({ entries }: { entries: readonly CatalogEntry[] }) {
           edge
         />
       </View>
-      <View className="gap-2.5">
-        {suggested.map((entry) => (
-          <ChallengeCard key={entry.id} entry={entry} />
-        ))}
-        <ComingSoon />
-      </View>
+      {SUGGESTED_GROUPS.map((group) => {
+        const grouped = suggested.filter((entry) =>
+          SUGGESTED_CHALLENGES.some((item) => item.id === entry.id && item.group === group),
+        );
+        return grouped.length > 0 ? (
+          <View key={group} className="mb-4 gap-2.5">
+            <Text className="py-2 font-mono text-xs tracking-widest text-muted">
+              {group.toUpperCase()}
+            </Text>
+            {grouped.map((entry) => (
+              <ChallengeCard key={entry.id} entry={entry} />
+            ))}
+          </View>
+        ) : null;
+      })}
+      <ComingSoon />
       {yours.length > 0 && (
         <>
           <View className="mt-4 h-12 justify-center">

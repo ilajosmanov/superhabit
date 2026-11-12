@@ -11,7 +11,7 @@ import { saveFailed } from '@/components/save-failed';
 import { join } from '@/challenges/library';
 import { useLibrary } from '@/challenges/library-live';
 import { challengePage } from '@/challenges/library-view';
-import { doneToday } from '@/challenges/run-view';
+import { doneToday, restingToday } from '@/challenges/run-view';
 import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
@@ -102,7 +102,11 @@ export default function ChallengeDetailScreen() {
           )}
           {joined && <LeaveButton runId={joined.runId} />}
           <View className="flex-1">
-            {joined ? (
+            {joined && restingToday(joined.run) ? (
+              <View className="h-15 items-center justify-center">
+                <Text className="font-sans text-base text-muted">Rest day · no workout due</Text>
+              </View>
+            ) : joined ? (
               <HoldToStart
                 again={doneToday(joined.run)}
                 onStart={() =>
@@ -136,6 +140,14 @@ export default function ChallengeDetailScreen() {
       ) : (
         <>
           <Text className="-mt-5 font-mono text-xs tracking-widest text-muted">{page.status}</Text>
+          {page.guidance && (
+            <View className="gap-2">
+              <Text className="font-mono text-xs tracking-widest text-muted">
+                {page.guidance.group.toUpperCase()}
+              </Text>
+              <Text className="font-sans text-base text-muted">{page.guidance.description}</Text>
+            </View>
+          )}
           <ChallengePreview challenge={challenge} />
         </>
       )}

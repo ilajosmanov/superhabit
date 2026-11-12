@@ -167,11 +167,20 @@ describe('sync: the outbox goes up, the account comes down', () => {
   });
 
   it('pulls the account back page by page, children before their parents; a cut-off pull resumes', async () => {
+    const scheduled = {
+      ...version,
+      days: 3,
+      plan: {
+        type: 'scheduled',
+        session: version.plan,
+        schedule: ['training', 'rest', 'training'],
+      },
+    };
     // The challenge was edited later, so its row comes after its run and workout, a page later.
     const first = {
       rows: [
-        { entity: 'challenge_version', row: version },
-        { entity: 'run', row: run },
+        { entity: 'challenge_version', row: scheduled },
+        { entity: 'run', row: { ...run, pinnedVersionId: version.id } },
         { entity: 'workout', row: workout },
       ],
       cursor: 3,
@@ -192,6 +201,8 @@ describe('sync: the outbox goes up, the account comes down', () => {
       expect.objectContaining({ id: 'w1', status: 'done', runId: 'r1' }),
     ]);
     expect(restored()).toBe(true);
+    expect(db().select().from(schema.challengeVersions).get()?.plan).toEqual(scheduled.plan);
+    expect(db().select().from(schema.runs).get()?.pinnedVersionId).toBe(version.id);
     // Every reference holds once the pull is whole.
     expect(db().all(sql`PRAGMA foreign_key_check`)).toEqual([]);
   });

@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { planView, trackedSets } from '@/challenges/plan-view';
 import { HowItCounts } from './how-it-counts';
 import { SessionPlan } from './session-plan';
+import { SchedulePreview } from './schedule-preview';
 import type { Challenge } from '@/workout/plan/plan';
 
 /**
@@ -15,7 +16,8 @@ export function ChallengePreview({ challenge }: { challenge: Challenge }) {
   return (
     <>
       <View className="gap-6">
-        <SessionPlan plan={session} days={challenge.days} />
+        <SchedulePreview challenge={challenge} />
+        <SessionPlan plan={session} days={challenge.days} scheduled={!!challenge.schedule} />
         <Text className="font-sans text-sm text-muted">{tracking}</Text>
       </View>
 

@@ -11,6 +11,38 @@ const span = (from: number, to: number) =>
   Array.from({ length: from - to + 1 }, (_, i) => ago(from - i));
 
 describe('streak', () => {
+  it('bridges recovery without increasing the count, earning or spending a freeze', () => {
+    const alive = span(9, 3); // seven training days, then two recovery days
+    const resting = streak(alive, TODAY, true, span(2, 0));
+    expect(resting).toMatchObject({ current: 7, best: 7, held: 1, toNext: 7, status: 'rest' });
+    expect([resting.kind(ago(2)), resting.kind(TODAY)]).toEqual(['rest', 'rest']);
+    expect(resting.events).toEqual([{ id: `earned:${ago(3)}`, day: ago(3), kind: 'earned' }]);
+    const trained = streak([...alive, TODAY], TODAY, true, span(2, 0));
+    expect(trained).toMatchObject({ current: 8, status: 'done', toNext: 6 });
+    expect(trained.kind(TODAY)).toBe('alive');
+  });
+
+  it('does not start a streak from rest or revive a streak broken before recovery', () => {
+    expect(streak([], TODAY, false, span(2, 0))).toMatchObject({
+      current: 0,
+      best: 0,
+      trained: false,
+      status: 'rest',
+    });
+    expect(streak([ago(3)], TODAY, false, span(1, 0))).toMatchObject({
+      current: 0,
+      best: 1,
+      status: 'rest',
+    });
+    // A workout still due in another challenge means today is not an eligible rest day.
+    expect(streak([ago(2)], TODAY, false, [])).toMatchObject({ current: 0, status: 'slipped' });
+  });
+
+  it('pauses progress toward a freeze during recovery and earns it on the seventh training day', () => {
+    const result = streak([...span(8, 3), TODAY], TODAY, true, span(2, 1));
+    expect(result).toMatchObject({ current: 7, held: 1, toNext: 7, status: 'done' });
+    expect(result.events).toEqual([]); // Today's earned freeze is recorded only after midnight.
+  });
   it('starts empty: nothing to lose, every past day before you started', () => {
     const s = streak([], TODAY);
 

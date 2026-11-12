@@ -1,6 +1,10 @@
 /** Local YYYY-MM-DD; UTC arithmetic keeps calendar days independent of DST. */
 export type Day = string;
 
+/** Nonnegative epoch milliseconds that JavaScript can convert to a date. */
+export const isTimestamp = (value: number) =>
+  Number.isSafeInteger(value) && value >= 0 && value <= 8_640_000_000_000_000;
+
 const DAY_MS = 86_400_000;
 const dayNumber = (day: Day) =>
   Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10))) / DAY_MS;

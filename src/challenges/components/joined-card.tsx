@@ -5,13 +5,13 @@ import { ExerciseStack, StepsButton } from './exercise-stack';
 import { Icon } from '@/components/icon';
 import { useColors } from '@/components/colors';
 import type { CatalogEntry } from '@/challenges/catalog';
-import { doneToday, percent, type RunView } from '@/challenges/run-view';
+import { doneToday, restingToday, percent, type RunView } from '@/challenges/run-view';
 
 /**
  * One square per day: amber = done, filled from the bottom by the share of a partial try, amber outline =
  * today, hairline = no try or still ahead.
  */
-function DayGrid({ run: { day, days, progress } }: { run: RunView }) {
+function DayGrid({ run: { day, days, progress, restDays } }: { run: RunView }) {
   const colors = useColors();
   return (
     // 176 wide fits ten 12px squares with 6px gaps, so the grid wraps at ten a row.
@@ -23,9 +23,16 @@ function DayGrid({ run: { day, days, progress } }: { run: RunView }) {
           <View
             key={i}
             // Colours by style: swapping classes remounts the view (NativeWind).
-            style={{ borderColor: share > 0 || today ? colors.accent : colors.line }}
+            style={{
+              borderColor: restDays?.includes(i)
+                ? colors.muted
+                : share > 0 || today
+                  ? colors.accent
+                  : colors.line,
+            }}
             className="size-3 justify-end overflow-hidden rounded-sm border"
           >
+            {restDays?.includes(i) && <View className="mx-0.5 mb-1 h-px bg-muted" />}
             {share > 0 && (
               <View className="bg-accent" style={{ height: `${Math.round(share * 100)}%` }} />
             )}
@@ -51,8 +58,15 @@ export function JoinedCard({
 }) {
   const colors = useColors();
   const done = doneToday(run);
+  const resting = restingToday(run);
   const share = run.progress[run.day - 1];
-  const status = done ? 'DONE TODAY' : share > 0 ? `TODAY ${percent(share)}` : 'DUE TODAY';
+  const status = resting
+    ? 'REST DAY'
+    : done
+      ? 'DONE TODAY'
+      : share > 0
+        ? `TODAY ${percent(share)}`
+        : 'DUE TODAY';
   const body = (
     <Pressable
       accessibilityRole="link"
@@ -62,7 +76,9 @@ export function JoinedCard({
     >
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-2">
-          {done ? (
+          {resting ? (
+            <Text className="text-muted">—</Text>
+          ) : done ? (
             <Icon name="check" size={16} />
           ) : (
             <View className="size-1.5 rounded-full bg-accent" />

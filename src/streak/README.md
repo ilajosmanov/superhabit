@@ -1,6 +1,16 @@
 # Streak
 
-One personal streak across the whole app, shown on Home (the first tab).
+One personal streak across the whole app, shown on Home (the first tab). Any saved workout with counted
+activity increases it; completing all challenges is not required. Individual challenge progress stays separate.
+
+Scheduled rest preserves the number without increasing it: 5 → rest → 5 → workout → 6. It does not
+start or revive a streak, earn activity credit, or earn/spend a freeze. Progress toward the next freeze
+pauses. A workout on rest still counts normally. Home uses a distinct REST marker and protected status.
+
+Recovery dates come from `challenges/rest-days.ts`, not from the absence of a workout: at least one
+challenge must be active, and all active challenges must prescribe rest. One resting plan cannot
+excuse an obligation in another. The live view and freeze writer use this same projection. The server
+also uses it for the leaderboard bonus, including the bundled current and historical suggestions.
 
 | File                          | Holds                                                                                        |
 | ----------------------------- | -------------------------------------------------------------------------------------------- |

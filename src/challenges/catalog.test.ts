@@ -4,6 +4,31 @@ import { toEntry } from './catalog';
 import { MAX, reps, seconds } from '@/workout/plan/plan';
 
 describe('toEntry', () => {
+  it('leads a one-off circuit with its total reps, and summarizes a calendar with recovery', () => {
+    const challenge = {
+      name: 'Benchmark',
+      days: 1,
+      dailyTotal: false,
+      restartOnMiss: false,
+      session: [
+        {
+          rounds: 10,
+          steps: [
+            { exercise: 'squat', goal: reps(20) },
+            { exercise: 'pushup', goal: reps(20) },
+          ],
+        },
+      ],
+    } as const;
+    expect(toEntry('benchmark', challenge).workload).toEqual({ amount: 400, unit: 'REPS' });
+    const scheduled = toEntry('calendar', {
+      ...challenge,
+      days: 3,
+      schedule: ['training', 'rest', 'training'],
+    });
+    expect(scheduled.schedule).toBe('2 WORKOUTS · 1 REST DAY');
+    expect(scheduled.workload).toBeUndefined();
+  });
   it('lists each exercise step once and folds rounds and rest into the note', () => {
     const entry = toEntry('c', {
       name: 'C',

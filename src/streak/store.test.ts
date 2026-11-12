@@ -5,8 +5,10 @@ import { keepFreezes } from './store';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
 import { reps } from '@/workout/plan/plan';
+import { create } from '@/challenges/library';
 import { logSet, saveWorkout, workoutStart } from '@/workout/store';
 
+vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
@@ -49,9 +51,38 @@ beforeEach(() => {
   db().delete(schema.workouts).run();
   db().delete(schema.streakEvents).run();
   db().delete(schema.outbox).run();
+  db().delete(schema.runs).run();
+  db().delete(schema.challengeVersions).run();
+  db().delete(schema.challenges).run();
 });
 
 describe('keepFreezes', () => {
+  it('does not spend a freeze on scheduled recovery, but spends it on the next missed training day', () => {
+    vi.useFakeTimers({ now: new Date('2026-11-01T12:00:00') });
+    create({
+      name: 'Recovery week',
+      days: 10,
+      dailyTotal: false,
+      restartOnMiss: false,
+      session: [{ rounds: 1, steps: [{ exercise: 'squat', goal: reps(10) }] }],
+      schedule: [
+        'training',
+        'training',
+        'training',
+        'training',
+        'training',
+        'training',
+        'training',
+        'rest',
+        'training',
+        'rest',
+      ],
+    });
+    vi.useRealTimers();
+    for (let day = 1; day <= 7; day += 1) train(`2026-11-0${day}`);
+    keepFreezes('2026-11-10', true);
+    expect(events().map(({ id }) => id)).toEqual(['earned:2026-11-07', 'used:2026-11-09']);
+  });
   it('writes the freeze earned and the one spent once the days are over, each queued once', () => {
     for (let day = 1; day <= 7; day += 1) train(`2026-11-0${day}`);
 

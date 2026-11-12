@@ -67,10 +67,15 @@ export function setPoints({ exercise, goal: raw, reps, heldMs }: Omit<ScoredSet,
 
 /**
  * A week's points: each set's points times the streak bonus of its day. `kept` holds the days that keep a
- * streak (trained, or saved by a freeze), from `STREAK_CAP` days before the week's first.
+ * streak (trained, or saved by a freeze). `rest` bridges gaps without increasing the bonus;
+ * history must reach back through recovery to the previous counted training days.
  */
-export function weekPoints(scored: readonly ScoredSet[], kept: ReadonlySet<string>) {
-  const total = scored.reduce((sum, set) => sum + bonused(set, kept), 0);
+export function weekPoints(
+  scored: readonly ScoredSet[],
+  kept: ReadonlySet<string>,
+  rest: ReadonlySet<string> = new Set(),
+) {
+  const total = scored.reduce((sum, set) => sum + bonused(set, kept, rest), 0);
   return Math.round(total);
 }
 
@@ -78,18 +83,21 @@ export function weekPoints(scored: readonly ScoredSet[], kept: ReadonlySet<strin
  * A set's points with its streak bonus. A row an older server kept that can't be scored (a day that isn't
  * one) counts 0, so it never breaks its board or the week's close for everyone else.
  */
-function bonused(set: ScoredSet, kept: ReadonlySet<string>) {
+function bonused(set: ScoredSet, kept: ReadonlySet<string>, rest: ReadonlySet<string>) {
   try {
-    return setPoints(set) * (1 + STREAK_BONUS * (streakOn(set.day, kept) - 1));
+    return setPoints(set) * (1 + STREAK_BONUS * (streakOn(set.day, kept, rest) - 1));
   } catch {
     return 0;
   }
 }
 
 /** Days in a row up to `day` that keep the streak, `day` counted though not in `kept`; at most `STREAK_CAP`. */
-function streakOn(day: string, kept: ReadonlySet<string>) {
+function streakOn(day: string, kept: ReadonlySet<string>, rest: ReadonlySet<string>) {
   let count = 1;
-  while (count < STREAK_CAP && kept.has(addDays(day, -count))) count++;
+  for (let previous = addDays(day, -1); count < STREAK_CAP; previous = addDays(previous, -1)) {
+    if (kept.has(previous)) count++;
+    else if (!rest.has(previous)) break;
+  }
   return count;
 }
 

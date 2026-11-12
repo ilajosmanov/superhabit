@@ -2,6 +2,7 @@ import { modules } from '@/workout/__fixtures__/session';
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
+import { restDays } from './rest-days';
 import { archive, create, edit, join, leave, seed } from './library';
 import {
   catalog,
@@ -11,12 +12,14 @@ import {
   yourRuns,
   type Library,
 } from './library-view';
-import { SUGGESTED_CHALLENGES } from './suggested';
+import { SUGGESTED_CHALLENGES, SUGGESTED_HISTORY } from './suggested';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
+import { weeklySchedule } from '@/workout/plan/schedule';
+import { aliveDays, streak } from '@/streak/streak';
 import { addDays, today } from '@/lib/day';
 import { logSet, saveWorkout, workoutStart } from '@/workout/store';
-import { defineChallenge, readPlan, reps, type Challenge } from '@/workout/plan/plan';
+import { defineChallenge, readChallengePlan, reps, type Challenge } from '@/workout/plan/plan';
 
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
@@ -95,13 +98,36 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('seed', () => {
+  it('restores a run pinned to the pre-calendar suggestion without changing its daily obligations', () => {
+    const old = SUGGESTED_HISTORY.find((entry) => entry.id === floor.id);
+    if (!old) throw new Error('missing previous floor circuit');
+    db()
+      .insert(schema.runs)
+      .values({
+        id: 'restored',
+        challengeId: floor.id,
+        pinnedVersionId: old.versionId,
+        startedOn: today(),
+      })
+      .run();
+    const tomorrow = addDays(today(), 1);
+    expect(challengePage(library(), floor.id, tomorrow, 'restored')?.challenge).toMatchObject(
+      old.challenge,
+    );
+    expect(challengePage(library(), floor.id, tomorrow, 'restored')?.guidance).toBeUndefined();
+    expect(restDays(library(), tomorrow)).toEqual([]);
+    expect(sessionChallenge(library(), 'restored', tomorrow).challenge).not.toBeNull();
+  });
   it('stores every suggested challenge so this app can read it back, and changes nothing the second time', () => {
     const { challenges, versions } = library();
     expect(challenges.map(({ id }) => id)).toEqual(SUGGESTED_CHALLENGES.map(({ id }) => id));
     for (const { id, versionId, challenge } of SUGGESTED_CHALLENGES) {
       const version = versions.find((v) => v.id === versionId);
       expect(version?.challengeId).toBe(id);
-      expect(readPlan(version?.plan)).toEqual(challenge.session);
+      expect(readChallengePlan(version?.plan, challenge.days)).toEqual({
+        session: challenge.session,
+        ...(challenge.schedule && { schedule: challenge.schedule }),
+      });
     }
 
     seed();
@@ -112,9 +138,13 @@ describe('seed', () => {
   });
 
   it('adds a changed suggestion as a new current version; a run pinned to the old one keeps it', () => {
+    const before = library().versions.filter((v) => v.challengeId === floor.id);
     const pinned = join(floor.id);
     const original = { ...floor };
-    Object.assign(floor, { versionId: 'floor-v2', challenge: { ...floor.challenge, days: 21 } });
+    Object.assign(floor, {
+      versionId: 'floor-v2',
+      challenge: { ...floor.challenge, days: 21, schedule: weeklySchedule(21) },
+    });
     try {
       seed();
     } finally {
@@ -122,12 +152,125 @@ describe('seed', () => {
     }
 
     const { versions, challenges } = library();
-    expect(versions.filter((v) => v.challengeId === floor.id).map((v) => v.number)).toEqual([1, 2]);
+    const after = versions.filter((v) => v.challengeId === floor.id);
+    expect(after.slice(0, -1)).toEqual(before);
+    expect(after.at(-1)).toMatchObject({ id: 'floor-v2', number: before.length + 1 });
     expect(challenges.find((c) => c.id === floor.id)?.currentVersionId).toBe('floor-v2');
     const [run] = yourRuns(library(), today());
     expect(run.runId).toBe(pinned);
     expect(run.challenge).toMatchObject({ id: floor.versionId, days: 14 });
     expect(challengePage(library(), floor.id, today())?.joined?.run.days).toBe(14);
+  });
+});
+
+describe('scheduled recovery', () => {
+  const scheduled = (): Challenge => ({ ...squats(7), schedule: weeklySchedule(7) });
+  const moveTo = (day: string) => vi.setSystemTime(new Date(`${day}T12:00:00`));
+
+  it('keeps the personal streak with any counted workout while tracking each challenge separately', () => {
+    create(scheduled());
+    pushups(null, null, 1);
+    const personal = (day: string) => {
+      const data = library();
+      return streak(aliveDays(data.workouts, data.sets), day, false, restDays(data, day));
+    };
+    expect(personal('2026-11-12')).toMatchObject({ current: 1, status: 'rest' });
+    const dailyId = create(squats(7)) ?? '';
+    expect(personal('2026-11-13')).toMatchObject({ current: 0, status: 'slipped' });
+    // A saved standalone set protects the personal streak, even without finishing the daily challenge.
+    pushups(null, null, 1, new Date('2026-11-12T12:00:00'));
+    expect(personal('2026-11-13')).toMatchObject({ current: 2, status: 'atRisk' });
+    expect(challengePage(library(), dailyId, '2026-11-13')?.joined?.run.progress).toEqual([
+      0, 0, 0,
+    ]);
+  });
+
+  it('pins a custom calendar, shows rest in the run, and prevents starting a workout on rest', () => {
+    const id = create(scheduled()) ?? '';
+    const [run] = library().runs;
+    expect(run.pinnedVersionId).not.toBeNull();
+    expect(sessionChallenge(library(), run.id, '2026-11-11').challenge).not.toBeNull();
+    const page = challengePage(library(), id, '2026-11-12');
+    expect(page?.joined?.run).toMatchObject({ day: 2, restDays: [1, 3, 5, 6], progress: [0, 0] });
+    expect(page?.editable).toBe(false);
+    expect(sessionChallenge(library(), run.id, '2026-11-12').challenge).toBeNull();
+    expect(restDays(library(), '2026-11-12')).toEqual(['2026-11-12']);
+    expect(sessionChallenge(library(), run.id, '2026-11-13').challenge).not.toBeNull();
+    expect(sessionChallenge(library(), run.id, '2026-11-18').challenge).toBeNull();
+    // Rest days are part of the persisted JSON, including the queued sync payload.
+    expect(outbox().find((row) => row.op === 'create')?.payload).toMatchObject({
+      version: {
+        plan: {
+          type: 'scheduled',
+          schedule: ['training', 'rest', 'training', 'rest', 'training', 'rest', 'rest'],
+        },
+      },
+    });
+  });
+
+  it('requires every active challenge to rest, including two overlapping schedules', () => {
+    create(scheduled());
+    create({ ...squats(7), schedule: weeklySchedule(7, [1, 4]) });
+    // Both rest on day 2; A trains on day 3, B on day 4; both rest on days 6–7.
+    expect(restDays(library(), '2026-11-18')).toEqual(['2026-11-12', '2026-11-16', '2026-11-17']);
+  });
+
+  it.each(['leave', 'archive'] as const)(
+    'keeps a daily obligation in history after %s, including the closing date',
+    (action) => {
+      create(scheduled());
+      const dailyId = create(squats(7)) ?? '';
+      const daily = library().runs.find((run) => run.challengeId === dailyId);
+      if (!daily) throw new Error('missing daily run');
+      expect(restDays(library(), '2026-11-12')).toEqual([]);
+      moveTo('2026-11-12');
+      if (action === 'leave') leave(daily.id);
+      else archive(dailyId);
+      expect(restDays(library(), '2026-11-14')).toEqual(['2026-11-14']);
+    },
+  );
+
+  it('preserves a pinned schedule after editing and leaving; no rest credit after the run ends', () => {
+    const id = create(scheduled()) ?? '';
+    const [run] = library().runs;
+    moveTo('2026-11-13');
+    edit(id, { ...squats(7), schedule: weeklySchedule(7, [1, 2, 3, 4, 5, 6, 7]) });
+    expect(restDays(library(), '2026-11-14')).toEqual(['2026-11-12', '2026-11-14']);
+    leave(run.id);
+    expect(restDays(library(), '2026-11-18')).toEqual(['2026-11-12']);
+  });
+
+  it('does not rewrite old misses when an unpinned daily challenge is shortened later', () => {
+    create(scheduled());
+    const dailyId = create(squats(7)) ?? '';
+    moveTo('2026-11-13');
+    edit(dailyId, squats(1));
+    expect(restDays(library(), '2026-11-14')).toEqual(['2026-11-14']);
+    expect(edit(dailyId, scheduled())).toBeNull();
+    expect(restDays(library(), '2026-11-14')).toEqual(['2026-11-14']);
+  });
+
+  it('resumes an unpinned obligation at a later extension without filling the finished gap', () => {
+    create(scheduled());
+    const dailyId = create(squats(1)) ?? '';
+    moveTo('2026-11-14');
+    edit(dailyId, squats(7));
+    expect(restDays(library(), '2026-11-17')).toEqual(['2026-11-12']);
+  });
+
+  it('does not grant rest when an active synced run has an unreadable plan', () => {
+    create(scheduled());
+    theirs('future', NEWER);
+    db()
+      .insert(schema.runs)
+      .values({
+        id: 'unknown-run',
+        challengeId: 'future',
+        pinnedVersionId: 'future-1',
+        startedOn: today(),
+      })
+      .run();
+    expect(restDays(library(), '2026-11-12')).toEqual([]);
   });
 });
 

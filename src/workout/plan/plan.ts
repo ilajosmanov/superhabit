@@ -9,6 +9,8 @@ type RestStep = { exercise: 'rest'; goal: RestGoal };
 export type Step = ExerciseStep | RestStep;
 export type Block = { steps: readonly [Step, ...Step[]]; rounds: number };
 export type Session = readonly [Block, ...Block[]];
+/** Calendar days, distinct from timed rests inside a session. */
+export type ScheduledDay = 'training' | 'rest';
 export type Challenge = {
   name: string;
   days: number;
@@ -16,6 +18,8 @@ export type Challenge = {
   /** Every done workout of the day adds up toward the one set's target. */
   dailyTotal: boolean;
   session: Session;
+  /** Explicit calendar, one entry per day. Absent means the session is due every day. */
+  schedule?: readonly ScheduledDay[];
 };
 /** Block and round numbers are 1-based. */
 type FlatStep = Step & { block: number; round: number; rounds: number };
@@ -59,6 +63,34 @@ export function readPlan(json: unknown): Session | null {
   if (!parsed.success || validate(parsed.data).length > 0) return null;
   return parsed.data;
 }
+
+const scheduledPlanSchema = z.strictObject({
+  type: z.literal('scheduled'),
+  session: sessionSchema,
+  schedule: z.array(z.enum(['training', 'rest'])).min(1),
+});
+
+/** Old apps reject the object envelope rather than silently treating recovery as a workout day. */
+export function readChallengePlan(
+  json: unknown,
+  days: number,
+): Pick<Challenge, 'session' | 'schedule'> | null {
+  const session = readPlan(json);
+  if (session) return { session };
+  const parsed = scheduledPlanSchema.safeParse(json);
+  if (!parsed.success) return null;
+  const plan = parsed.data;
+  if (
+    plan.schedule.length !== days ||
+    !plan.schedule.includes('training') ||
+    validate(plan.session).length > 0
+  )
+    return null;
+  return { session: plan.session, schedule: plan.schedule };
+}
+
+export const storedPlan = ({ session, schedule }: Pick<Challenge, 'session' | 'schedule'>) =>
+  schedule ? { type: 'scheduled' as const, session, schedule } : session;
 
 function flatten(session: Session): FlatStep[] {
   const steps: FlatStep[] = [];
@@ -126,6 +158,16 @@ export function expand(session: Session): FlatSteps {
 export function defineChallenge(c: Challenge): Challenge {
   const problems = validate(c.session);
   if (!positiveInteger(c.days)) problems.push('days must be an integer >= 1');
+  if (
+    c.schedule &&
+    (c.schedule.length !== c.days ||
+      !c.schedule.includes('training') ||
+      c.schedule.some((day) => day !== 'training' && day !== 'rest'))
+  ) {
+    problems.push(
+      'schedule needs one training or rest entry per day and at least one training day',
+    );
+  }
   if (c.dailyTotal) {
     const sets = flatten(c.session).filter((step) => step.exercise !== 'rest');
     if (sets.length !== 1) problems.push('daily total needs exactly one exercise set');

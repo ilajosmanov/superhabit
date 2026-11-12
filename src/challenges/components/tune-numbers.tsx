@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { SchedulePreview } from './schedule-preview';
 import { AmountInput } from './amount-input';
 import type { Amount } from '@/challenges/draft';
 import {
@@ -31,7 +32,7 @@ const label = 'font-mono text-xs tracking-widest text-muted';
 const caption = (knob: Knob, n: Amount) =>
   n === 'max'
     ? 'MAX'
-    : knob.kind === 'seconds'
+    : knob.kind === 'seconds' || knob.kind === 'rest'
       ? `${n}S`
       : knob.kind === 'rounds'
         ? `×${n}`
@@ -39,13 +40,28 @@ const caption = (knob: Knob, n: Amount) =>
           ? `${n} D`
           : String(n);
 
-const UNIT = { reps: 'CLEAN REPS', seconds: 'SECONDS', rounds: 'ROUNDS', days: 'DAYS' } as const;
-const SPOKEN = { reps: 'reps', seconds: 'seconds', rounds: 'rounds', days: 'days' } as const;
+const UNIT = {
+  reps: 'CLEAN REPS',
+  seconds: 'SECONDS',
+  rest: 'REST SECONDS',
+  rounds: 'ROUNDS',
+  days: 'DAYS',
+} as const;
+const SPOKEN = {
+  reps: 'reps',
+  seconds: 'seconds',
+  rest: 'seconds',
+  rounds: 'rounds',
+  days: 'days',
+} as const;
 
 /** What a knob is called, and the words beside its numeral. */
-function names(knob: Knob, knobs: readonly Knob[], values: Values) {
+function names(knob: Knob, knobs: readonly Knob[], values: Values, scheduled = false) {
   const parts = Math.max(...knobs.map((k) => (k.kind === 'days' ? 0 : k.block + 1)));
   if (knob.kind === 'days') return { name: 'Days', note: 'DAY 1 IS TODAY' };
+  if (knob.kind === 'rest') {
+    return { name: parts > 1 ? `Rest in part ${knob.block + 1}` : 'Rest', note: 'BETWEEN EFFORTS' };
+  }
   if (knob.kind === 'rounds') {
     const moves = knobs.flatMap((k) =>
       k.kind !== 'reps' && k.kind !== 'seconds' ? [] : k.block === knob.block ? [k.exercise] : [],
@@ -62,7 +78,13 @@ function names(knob: Knob, knobs: readonly Knob[], values: Values) {
   const many = typeof roundCount === 'number' && roundCount > 1;
   return {
     name: capitalise(EXERCISES[knob.exercise].name),
-    note: many ? 'EACH ROUND' : 'EVERY DAY',
+    note: many
+      ? 'EACH ROUND'
+      : (values.days ?? knobs.find((k) => k.kind === 'days')?.ours) === 1
+        ? 'THIS SESSION'
+        : scheduled
+          ? 'TRAINING DAYS'
+          : 'EVERY DAY',
   };
 }
 
@@ -87,13 +109,13 @@ export function TuneNumbers({
   const knob = knobs[Math.min(picked, knobs.length - 1)];
   const value = valueOf(knob, values);
   const changed = knobs.some((k) => valueOf(k, values) !== k.ours);
-  const { name, note } = names(knob, knobs, values);
+  const { name, note } = names(knob, knobs, values, !!challenge.schedule);
   const set = (n: Amount) => setValues((v) => ({ ...v, [knob.key]: n }));
 
   return (
     <Screen
       title="Your numbers"
-      intro="Pick what you can finish on a tired day. Missing one costs more than an easy one."
+      intro="Choose targets and recovery that let you keep good form. You can lower reps or rounds."
       footer={
         <PrimaryButton
           label={changed ? 'Join with these numbers' : 'Join'}
@@ -119,6 +141,13 @@ export function TuneNumbers({
         }}
       />
 
+      <SchedulePreview challenge={tuned(challenge, values)} />
+      {challenge.schedule && (
+        <Text className="font-sans text-sm text-muted">
+          Changing days shortens this calendar or repeats its pattern.
+        </Text>
+      )}
+
       {/* Every number you can change, in session order; the picked one is the numeral below. */}
       <ScrollView
         horizontal
@@ -136,7 +165,7 @@ export function TuneNumbers({
               key={k.key}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
-              accessibilityLabel={`${names(k, knobs, values).name}, ${n} ${SPOKEN[k.kind]}${
+              accessibilityLabel={`${names(k, knobs, values, !!challenge.schedule).name}, ${n} ${SPOKEN[k.kind]}${
                 moved ? `, suggested ${k.ours}` : ''
               }`}
               onPress={() => {
@@ -157,7 +186,13 @@ export function TuneNumbers({
                   <ExerciseFigure exercise={k.exercise} size={30} />
                 ) : (
                   <Icon
-                    name={k.kind === 'rounds' ? 'repeat' : 'calendar_today'}
+                    name={
+                      k.kind === 'rounds'
+                        ? 'repeat'
+                        : k.kind === 'rest'
+                          ? 'timer'
+                          : 'calendar_today'
+                    }
                     size={26}
                     color={colors.soft}
                   />
@@ -209,7 +244,7 @@ export function TuneNumbers({
             key={`${knob.key}:${reset}`}
             value={value}
             range={rangeOf(knob)}
-            max={knob.kind !== 'rounds' && !challenge.dailyTotal}
+            max={(knob.kind === 'reps' || knob.kind === 'seconds') && !challenge.dailyTotal}
             labels={knob.kind === 'rounds' ? [UNIT[knob.kind]] : [UNIT[knob.kind], note]}
             name={name}
             onChange={set}

@@ -1,6 +1,7 @@
 import { addDays, type Day } from '@/lib/day';
 import type { LoggedSet } from '@/workout/plan/logged-set';
-import { expand, type Session } from '@/workout/plan/plan';
+import { expand, type Session, type ScheduledDay } from '@/workout/plan/plan';
+import { isRestDay } from '@/workout/plan/schedule';
 import { setShare, shareDone, workoutResults } from '@/workout/plan/results';
 
 export type Workout = {
@@ -24,6 +25,7 @@ export type Version = {
   dailyTotal: boolean;
   restartOnMiss: boolean;
   session: Session;
+  schedule?: readonly ScheduledDay[];
 };
 export type ProgressInput = {
   run: Run;
@@ -34,6 +36,8 @@ export type ProgressInput = {
   sets: readonly LoggedSet[];
 };
 export type DayResult = {
+  /** Recovery is neutral: never exercise credit or a missed obligation. */
+  rest?: true;
   done: boolean;
   share: number;
   shown: Workout | null;
@@ -141,9 +145,10 @@ export function runCalendar(input: ProgressInput, today: Day): { days: RunDay[];
     }
     number += 1;
     const result = dayResult(input, day);
+    if (isRestDay(version, number)) result.rest = true;
     days.push({ day, number, from, result });
     // Only a closed calendar day can be missed. A leave freezes the run on its final day.
-    if (day < until && version.restartOnMiss && !result.done) {
+    if (day < until && version.restartOnMiss && !result.done && !result.rest) {
       from = addDays(day, 1);
       number = 0;
     }

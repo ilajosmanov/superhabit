@@ -7,7 +7,7 @@ import { SessionPlan } from './session-plan';
 import { WatchDay } from './watch-day';
 import { planView, trackedSets } from '@/challenges/plan-view';
 import type { Joined } from '@/challenges/library-view';
-import { doneToday, percent } from '@/challenges/run-view';
+import { doneToday, restingToday, percent } from '@/challenges/run-view';
 import { expand } from '@/workout/plan/plan';
 import { setShare } from '@/workout/plan/results';
 
@@ -29,16 +29,20 @@ export function JoinedChallenge({ joined: { challenge, run, amounts } }: { joine
   const next =
     selected === today && done ? done.findIndex((n, i) => setShare(sets[i].goal, n) < 1) : -1;
 
+  const resting = restingToday(run);
+  const selectedRest = run.restDays?.includes(selected) ?? false;
   const todayShare = run.progress[today];
-  const status = doneToday(run)
-    ? 'DONE TODAY'
-    : todayShare > 0
-      ? `TODAY ${percent(todayShare)}`
-      : 'DUE TODAY';
+  const status = resting
+    ? 'REST DAY'
+    : doneToday(run)
+      ? 'DONE TODAY'
+      : todayShare > 0
+        ? `TODAY ${percent(todayShare)}`
+        : 'DUE TODAY';
   return (
     <>
       <View className="-mt-5 flex-row items-center gap-2">
-        {!doneToday(run) && <View className="size-1.5 rounded-full bg-accent" />}
+        {!resting && !doneToday(run) && <View className="size-1.5 rounded-full bg-accent" />}
         <Text className="font-mono text-xs tracking-widest text-muted">
           {`DAY ${run.day} OF ${run.days} · ${status}`}
         </Text>
@@ -46,9 +50,23 @@ export function JoinedChallenge({ joined: { challenge, run, amounts } }: { joine
 
       <DayStrip run={run} selected={selected} onSelect={setPicked} />
 
-      <SessionPlan plan={session} days={shown.days} day={done && { done, next }} />
+      {selectedRest ? (
+        <View className="gap-2 rounded-3xl bg-surface p-6">
+          <Text className="font-sans text-3xl font-light text-chalk">Rest day</Text>
+          <Text className="font-sans text-base text-soft">
+            No workout is due for this challenge. Your next training day continues the plan.
+          </Text>
+        </View>
+      ) : (
+        <SessionPlan
+          plan={session}
+          days={shown.days}
+          scheduled={!!shown.schedule}
+          day={done && { done, next }}
+        />
+      )}
 
-      {day && (
+      {day && !selectedRest && (
         <WatchDay
           // Its videos are listed as it mounts: again for another day, or once a new try is saved.
           key={day.sets.map(({ id }) => id).join()}
@@ -61,7 +79,7 @@ export function JoinedChallenge({ joined: { challenge, run, amounts } }: { joine
         />
       )}
 
-      <HowItCounts exercises={session.exercises} />
+      {!selectedRest && <HowItCounts exercises={session.exercises} />}
     </>
   );
 }

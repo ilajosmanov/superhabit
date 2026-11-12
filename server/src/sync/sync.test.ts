@@ -31,6 +31,62 @@ const rows = async (table: string, userId: string) =>
   (await env.DB.prepare(`select * from ${table} where user_id = ?`).bind(userId).all()).results;
 
 describe('sync: the phone sends its outbox', () => {
+  it('rejects unrepresentable creation and archive timestamps', async () => {
+    const { cookie } = await someone();
+    const authored = create('invalid-date', 'invalid-date-v1');
+    for (const timestamp of [9000000000000000, Number.MAX_SAFE_INTEGER]) {
+      const response = await call('/sync', {
+        method: 'POST',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          changes: [
+            {
+              ...authored,
+              payload: {
+                ...authored.payload,
+                version: { ...authored.payload.version, createdAt: timestamp },
+              },
+            },
+            {
+              entity: 'challenge',
+              entityId: 'invalid-date',
+              op: 'archive',
+              payload: { retiredAt: timestamp },
+            },
+          ],
+        }),
+      });
+      expect(await response.json()).toMatchObject({ results: [{ ok: false }, { ok: false }] });
+    }
+  });
+
+  it('round-trips a scheduled plan and its pinned run without flattening the recovery calendar', async () => {
+    const { cookie } = await someone();
+    const authored = create('scheduled', 'scheduled-v1');
+    const plan = {
+      type: 'scheduled',
+      session: authored.payload.version.plan,
+      schedule: ['training', 'rest', 'training'],
+    };
+    const joined = join('scheduled-run', 'scheduled');
+    expect(
+      await push(cookie, [
+        {
+          ...authored,
+          payload: { ...authored.payload, version: { ...authored.payload.version, days: 3, plan } },
+        },
+        { ...joined, payload: { ...joined.payload, pinnedVersionId: 'scheduled-v1' } },
+      ]),
+    ).toEqual({ results: [{ ok: true }, { ok: true }] });
+    const restored = await page(cookie);
+    expect(restored.rows.find((row) => row.entity === 'challenge_version')?.row).toMatchObject({
+      days: 3,
+      plan,
+    });
+    expect(restored.rows.find((row) => row.entity === 'run')?.row.pinnedVersionId).toBe(
+      'scheduled-v1',
+    );
+  });
   it('archives only your challenge, syncs that archive, and keeps it through retries and offline edits', async () => {
     const { cookie: phone, id: you } = await someone();
     const archive = {

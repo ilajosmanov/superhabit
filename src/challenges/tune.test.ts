@@ -3,6 +3,32 @@ import { describe, expect, it } from 'vite-plus/test';
 import { SUGGESTED_CHALLENGES } from './suggested';
 import { dayChoices, knobsOf, rangeOf, tuned, valueOf } from './tune';
 import { defineChallenge, MAX, reps, seconds, type Session } from '@/workout/plan/plan';
+import { weeklySchedule } from '@/workout/plan/schedule';
+
+it('changes workload and duration while preserving recovery positions', () => {
+  const plan = defineChallenge({
+    name: 'Weekly',
+    days: 7,
+    restartOnMiss: false,
+    dailyTotal: false,
+    schedule: weeklySchedule(7, [1, 4]),
+    session: [{ rounds: 1, steps: [{ exercise: 'squat', goal: reps(20) }] }],
+  });
+  const changed = tuned(plan, { [knobsOf(plan)[0].key]: 5, days: 9 });
+  expect(changed.schedule).toEqual([
+    'training',
+    'rest',
+    'rest',
+    'training',
+    'rest',
+    'rest',
+    'rest',
+    'training',
+    'rest',
+  ]);
+  expect(changed.session[0].steps[0].goal).toEqual(reps(5));
+  expect(tuned(plan, { days: 2 }).schedule).toEqual(['training', 'rest']);
+});
 
 const challenge = (session: Session) =>
   defineChallenge({ name: 'Morning', days: 14, restartOnMiss: true, dailyTotal: false, session });
@@ -25,12 +51,27 @@ const twoBlocks = challenge([
 ]);
 
 describe('tuning a plan', () => {
-  it('offers circuit exercise numbers and rounds once, then days, leaving out rests', () => {
+  it('lets recovery change independently of the exercise targets and rounds', () => {
+    const recovery = knobsOf(circuit).find(({ kind }) => kind === 'rest');
+    expect(recovery).toBeDefined();
+    if (!recovery) throw new Error('Recovery control missing');
+    const changed = tuned(circuit, { [recovery.key]: 90 });
+    expect(changed.session[0].steps).toEqual([
+      ...circuit.session[0].steps.slice(0, -1),
+      { exercise: 'rest', goal: seconds(90) },
+    ]);
+    expect(changed.session[0].rounds).toBe(3);
+    expect(circuit.session[0].steps.at(-1)).toEqual(rest);
+    expect(() => tuned(circuit, { [recovery.key]: 'max' })).toThrow();
+  });
+
+  it('offers circuit exercise numbers and rounds once, including recovery, then days', () => {
     expect(knobsOf(circuit)).toMatchObject([
       { kind: 'reps', exercise: 'pushup', block: 0, ours: 10 },
       { kind: 'reps', exercise: 'situp', block: 0, ours: 15 },
       { kind: 'reps', exercise: 'glute-bridge', block: 0, ours: 15 },
       { kind: 'seconds', exercise: 'plank', block: 0, ours: 30 },
+      { kind: 'rest', block: 0, ours: 30 },
       { kind: 'rounds', block: 0, ours: 3 },
       { key: 'days', kind: 'days', ours: 14 },
     ]);
@@ -40,12 +81,14 @@ describe('tuning a plan', () => {
     const knobs = knobsOf(twoBlocks);
     expect(knobs).toMatchObject([
       { kind: 'reps', exercise: 'pushup', block: 0, ours: 10 },
+      { kind: 'rest', block: 0, ours: 30 },
       { kind: 'rounds', block: 0, ours: 5 },
       { kind: 'reps', exercise: 'squat', block: 1, ours: 15 },
+      { kind: 'rest', block: 1, ours: 30 },
       { kind: 'rounds', block: 1, ours: 5 },
       { kind: 'days', ours: 14 },
     ]);
-    expect(new Set(knobs.map(({ key }) => key)).size).toBe(5);
+    expect(new Set(knobs.map(({ key }) => key)).size).toBe(7);
   });
 
   it('swaps numbers independently, keeping omitted values, rests, MAX and metadata', () => {
@@ -68,12 +111,12 @@ describe('tuning a plan', () => {
     ]);
     const before = structuredClone(original);
     const knobs = knobsOf(original);
-    expect(knobs).toHaveLength(7);
+    expect(knobs).toHaveLength(8);
     const values = {
       [knobs[0].key]: 7,
-      [knobs[1].key]: 25,
-      [knobs[2].key]: 4,
-      [knobs[5].key]: 2,
+      '0:step:2': 25,
+      '0:rounds': 4,
+      '1:rounds': 2,
       days: 21,
     };
     const result = tuned(original, values);
@@ -100,7 +143,7 @@ describe('tuning a plan', () => {
         },
       ],
     });
-    expect(knobs.map((knob) => valueOf(knob, values))).toEqual([7, 25, 4, 1, 'max', 2, 21]);
+    expect(knobs.map((knob) => valueOf(knob, values))).toEqual([7, 30, 25, 4, 1, 'max', 2, 21]);
     expect(knobsOf(result).map(({ key }) => key)).toEqual(knobs.map(({ key }) => key));
     expect(original).toEqual(before);
     expect(() => tuned(original, { [knobs[0].key]: 0 })).toThrow('reps must be an integer >= 1');
@@ -136,7 +179,8 @@ describe('tuning a plan', () => {
   });
 
   it('drops the closing rest when the last block is cut to one round', () => {
-    const rounds = knobsOf(circuit)[4];
+    const rounds = knobsOf(circuit).find(({ kind }) => kind === 'rounds');
+    if (!rounds) throw new Error('Rounds control missing');
     expect(tuned(circuit, { [rounds.key]: 1 }).session).toEqual([
       { steps: circuit.session[0].steps.slice(0, -1), rounds: 1 },
     ]);

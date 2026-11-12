@@ -5,6 +5,41 @@ import { input, set, workout } from './__fixtures__/progress';
 import { today } from '@/lib/day';
 
 describe('run calendar', () => {
+  it('advances through rest without credit or restarting, but still restarts after missed training', () => {
+    const scheduled: ProgressInput = {
+      ...input,
+      version: {
+        ...input.version,
+        days: 5,
+        schedule: ['training', 'rest', 'training', 'rest', 'training'],
+      },
+      workouts: [workout('first', 1)],
+      sets: [set('first', 500)],
+    };
+    const rested = runCalendar(scheduled, '2026-11-03');
+    expect(rested.state).toEqual({ state: 'active', day: 3, from: '2026-11-01' });
+    expect(rested.days[1].result).toMatchObject({ rest: true, done: false, share: 0, sets: [] });
+    expect(runCalendar(scheduled, '2026-11-04').state).toEqual({
+      state: 'active',
+      day: 1,
+      from: '2026-11-04',
+    });
+  });
+
+  it('finishes on a final rest day and handles a calendar beginning with recovery', () => {
+    const scheduled: ProgressInput = {
+      ...input,
+      version: { ...input.version, schedule: ['rest', 'training', 'rest'] },
+      workouts: [workout('second', 1, { day: '2026-11-02' })],
+      sets: [set('second', 500)],
+    };
+    expect(runCalendar(scheduled, '2026-11-02').state.day).toBe(2);
+    expect(runCalendar(scheduled, '2026-11-04').state).toEqual({
+      state: 'finished',
+      day: 3,
+      from: '2026-11-01',
+    });
+  });
   const tried: ProgressInput = {
     ...input,
     workouts: [workout('first', 1), workout('partial', 2, { day: '2026-11-02' })],

@@ -1,11 +1,13 @@
 import { DAY_CHOICES, RANGE, unitOf, type Amount } from './draft';
 import { isHold } from './hold';
+import { resizeSchedule } from '@/workout/plan/schedule';
 import type { ExerciseId } from '@/exercises/registry';
 import { defineChallenge, MAX, reps, seconds, type Challenge } from '@/workout/plan/plan';
 
 /** One number you can change. Keys follow positions, so changing numbers keeps them stable. */
 export type Knob =
   | { key: string; kind: 'reps' | 'seconds'; exercise: ExerciseId; block: number; ours: Amount }
+  | { key: string; kind: 'rest'; block: number; ours: number }
   | { key: string; kind: 'rounds'; block: number; ours: number }
   | { key: 'days'; kind: 'days'; ours: number };
 export type Values = Readonly<Record<string, Amount>>;
@@ -13,12 +15,14 @@ export type Values = Readonly<Record<string, Amount>>;
 const stepKey = (block: number, step: number) => `${block}:step:${step}`;
 const roundsKey = (block: number) => `${block}:rounds`;
 
-/** Exercise amounts, then rounds for each block; days last. Rests stay fixed. */
+/** Exercise and timed recovery amounts, then rounds for each block; days last. */
 export function knobsOf(challenge: Challenge): Knob[] {
   const knobs: Knob[] = [];
   challenge.session.forEach((block, b) => {
     block.steps.forEach(({ exercise, goal }, s) => {
-      if (exercise !== 'rest') {
+      if (exercise === 'rest' && goal.type === 'seconds') {
+        knobs.push({ key: stepKey(b, s), kind: 'rest', block: b, ours: goal.n });
+      } else if (exercise !== 'rest') {
         knobs.push({
           key: stepKey(b, s),
           kind: unitOf(exercise),
@@ -49,7 +53,7 @@ export function rangeOf(knob: Knob): { min: number; max: number; step: number } 
   if (knob.kind === 'rounds' || knob.kind === 'days') {
     return { min: 1, max: Math.max(knob.kind === 'rounds' ? 10 : 30, knob.ours), step: 1 };
   }
-  const range = RANGE[knob.kind];
+  const range = RANGE[knob.kind === 'rest' ? 'seconds' : knob.kind];
   if (knob.ours === 'max') return range;
   if (
     knob.ours >= range.min &&
@@ -82,7 +86,11 @@ export function tuned(challenge: Challenge, values: Values): Challenge {
     rounds: count(values[roundsKey(b)] ?? block.rounds),
     steps: mapNonempty(block.steps, (step, s) => {
       const amount = values[stepKey(b, s)];
-      if (step.exercise === 'rest' || amount === undefined) return step;
+      if (amount === undefined) return step;
+      if (step.exercise === 'rest') {
+        if (amount === 'max') throw new Error('timed recovery cannot be Max');
+        return { ...step, goal: seconds(amount) };
+      }
       const goal = amount === 'max' ? MAX : isHold(step.exercise) ? seconds(amount) : reps(amount);
       return { ...step, goal };
     }),
@@ -92,5 +100,11 @@ export function tuned(challenge: Challenge, values: Values): Challenge {
     const [first, ...steps] = last.steps.slice(0, -1);
     if (first) session[session.length - 1] = { ...last, steps: [first, ...steps] };
   }
-  return defineChallenge({ ...challenge, days: count(values.days ?? challenge.days), session });
+  const days = count(values.days ?? challenge.days);
+  return defineChallenge({
+    ...challenge,
+    days,
+    session,
+    ...(challenge.schedule && { schedule: resizeSchedule(challenge.schedule, days) }),
+  });
 }

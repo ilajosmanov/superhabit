@@ -87,7 +87,7 @@ export function DayStrip({
                   style={{
                     width: on ? 6 : 4,
                     // Days still ahead are stubs: nothing can fill them yet.
-                    height: i < run.day ? 28 : 10,
+                    height: run.restDays?.includes(i) ? 4 : i < run.day ? 28 : 10,
                     backgroundColor: on ? colors.faint : colors.line,
                   }}
                 >

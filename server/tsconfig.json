@@ -6,6 +6,7 @@
     "lib": ["es2024"],
     "types": ["./worker-configuration.d.ts", "node"],
     "strict": true,
+    "paths": { "@/*": ["../src/*"] },
     "noEmit": true,
     "skipLibCheck": true,
     "jsx": "react-jsx",

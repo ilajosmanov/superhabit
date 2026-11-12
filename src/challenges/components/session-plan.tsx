@@ -30,15 +30,17 @@ export function SessionPlan({
   plan: { parts, single },
   days,
   day,
+  scheduled = false,
 }: {
   plan: PlanView;
   days: number;
   day?: DayDone;
+  scheduled?: boolean;
 }) {
   if (single) {
     const got = day?.done[0] ?? 0;
     const share = setShare(single.goal, got);
-    const labels = numeralLabels(single, got, days);
+    const labels = numeralLabels(single, got, days, scheduled);
     const numeral = got === 0 ? amount(single.goal) : String(Math.floor(got));
     return (
       <View className="gap-5">
@@ -91,9 +93,9 @@ export function SessionPlan({
 }
 
 /** The two words beside a one-exercise session's numeral: its unit and what the number is. */
-export function numeralLabels(row: PlanRow, got: number, days: number) {
+export function numeralLabels(row: PlanRow, got: number, days: number, scheduled = false) {
   const unit = isHold(row.exercise) ? 'SECONDS' : 'CLEAN REPS';
-  if (got === 0) return [unit, days > 1 ? 'EVERY DAY' : 'IN ONE GO'];
+  if (got === 0) return [unit, scheduled ? 'TRAINING DAYS' : days > 1 ? 'EVERY DAY' : 'IN ONE GO'];
   return row.goal.type === 'max' ? [unit, 'YOUR MAX'] : [`OF ${row.goal.n}`, unit];
 }
 
@@ -177,8 +179,12 @@ function Row({ row, got, live }: { row: PlanRow; got?: readonly number[]; live: 
           </Text>
         )}
       </View>
-      <View className="w-16 items-end gap-1">
-        <Text className="font-sans text-5xl font-extralight leading-none tracking-tighter text-chalk">
+      <View className="w-24 shrink-0 items-end gap-1">
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          className="w-full text-right font-sans text-5xl font-extralight leading-none tracking-tighter text-chalk"
+        >
           {amount(row.goal)}
         </Text>
         <Text className="font-mono text-xs tracking-widest text-muted">{unit}</Text>

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isTimestamp } from '@/lib/day';
 
 // The phone's outbox rows (`src/storage/outbox.ts`), as it sends them: `{ entity, entityId, op, payload }`.
 // Fields the server doesn't know are dropped, so a newer phone's additions don't refuse its changes.
@@ -6,7 +7,7 @@ import { z } from 'zod';
 const id = z.string().min(1).max(64);
 // A real calendar date (`2026-02-30` is refused): the leagues count streaks from it.
 const day = z.iso.date();
-const instant = z.int().nonnegative();
+const instant = z.int().nonnegative().refine(isTimestamp, 'must be a representable timestamp');
 const count = z.int().nonnegative();
 const label = z.string().max(100);
 // JSON kept as the phone wrote it; the columns for these can't hold null.

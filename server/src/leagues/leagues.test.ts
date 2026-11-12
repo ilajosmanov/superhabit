@@ -1,9 +1,11 @@
+import { addDays } from '@/lib/day';
 import { is } from 'drizzle-orm';
 import { SQLiteUpdateBase } from 'drizzle-orm/sqlite-core';
 import { describe, expect, it, vi } from 'vite-plus/test';
 
 import { open } from '../db/db';
-import { push } from '../__fixtures__/outbox';
+import { push, create, join } from '../__fixtures__/outbox';
+import { SUGGESTED_CHALLENGES } from '@/challenges/suggested';
 import { call, env, passedBeforeLimit, someone } from '../__fixtures__/worker';
 import { board, closeWeek, weekOf } from './store';
 
@@ -81,6 +83,106 @@ const show = (cookie: string, visible: unknown) =>
   });
 
 describe('leagues', () => {
+  it.each(['created_at', 'retired_at'])(
+    'keeps a cohort readable and closable with an invalid stored %s',
+    async (column) => {
+      const week = column === 'created_at' ? '2031-01-06' : '2031-01-20';
+      const now = Date.parse(`${week}T10:00:00Z`);
+      await closeWeek(db, addDays(week, -7));
+      const member = await someone();
+      const peer = await someone();
+      const authored = create('invalid-date', 'invalid-date-v1');
+      const joined = join('invalid-date-run', 'invalid-date');
+      await push(member.cookie, [
+        authored,
+        { ...joined, payload: { ...joined.payload, startedOn: week } },
+      ]);
+      await squats(member.cookie, [10], now, week);
+      await squats(peer.cookie, [10], now, week);
+      await board(db, member.id, now);
+      // Simulate data accepted before timestamp validation was tightened.
+      const table = column === 'created_at' ? 'challenge_versions' : 'challenges';
+      await env.DB.prepare(`update ${table} set ${column} = ? where user_id = ?`)
+        .bind(Number.MAX_SAFE_INTEGER, member.id)
+        .run();
+      const result = await board(db, peer.id, now);
+      expect(result?.rows.filter((row) => row.points > 0).map((row) => row.points)).toEqual([
+        10, 10,
+      ]);
+      await closeWeek(db, week);
+      expect((await places(week, [member, peer])).map((row) => row[2])).toEqual([10, 10]);
+    },
+  );
+
+  it.each(['custom', 'suggested'])(
+    'preserves the bonus across %s recovery, unless another run requires training',
+    async (origin) => {
+      await closeWeek(db, '2030-01-28');
+      const person = await someone();
+      const suggested = SUGGESTED_CHALLENGES.find(
+        (entry) => entry.challenge.name === 'Floor circuit',
+      );
+      if (!suggested) throw new Error('missing floor circuit');
+      const authored = create('recovery', 'recovery-v1');
+      const joined = join('recovery-run', origin === 'custom' ? 'recovery' : suggested.id);
+      await push(person.cookie, [
+        ...(origin === 'custom'
+          ? [
+              {
+                ...authored,
+                payload: {
+                  ...authored.payload,
+                  version: {
+                    ...authored.payload.version,
+                    days: 3,
+                    restartOnMiss: false,
+                    plan: {
+                      type: 'scheduled',
+                      session: authored.payload.version.plan,
+                      schedule: ['training', 'rest', 'training'],
+                    },
+                  },
+                },
+              },
+            ]
+          : []),
+        {
+          ...joined,
+          payload: {
+            ...joined.payload,
+            startedOn: '2030-02-04',
+            pinnedVersionId: origin === 'custom' ? 'recovery-v1' : suggested.versionId,
+          },
+        },
+      ]);
+      await squats(person.cookie, [10, 10], Date.parse('2030-02-04T10:00:00Z'), '2030-02-04');
+      await squats(person.cookie, [10, 10], Date.parse('2030-02-06T10:00:00Z'), '2030-02-06');
+      // Monday = 20, Wednesday = 20 + 5%; Tuesday protects, but doesn't increase, the bonus.
+      expect(
+        (await board(db, person.id, Date.parse('2030-02-06T10:00:00Z')))?.rows.find(
+          (row) => row.you,
+        )?.points,
+      ).toBe(41);
+      const daily = create('daily', 'daily-v1');
+      const dailyRun = join('daily-run', 'daily');
+      await push(person.cookie, [
+        {
+          ...daily,
+          payload: {
+            ...daily.payload,
+            version: { ...daily.payload.version, createdAt: Date.parse('2030-02-03T12:00:00Z') },
+          },
+        },
+        { ...dailyRun, payload: { ...dailyRun.payload, startedOn: '2030-02-04' } },
+      ]);
+      // Late sync brings a second obligation: a rest in one plan can't excuse the missed Tuesday.
+      expect(
+        (await board(db, person.id, Date.parse('2030-02-06T10:00:00Z')))?.rows.find(
+          (row) => row.you,
+        )?.points,
+      ).toBe(40);
+    },
+  );
   it('shows your board with live points; others are nameless until they choose to be seen', async () => {
     await closeWeek(db, '2026-10-26');
     const ann = await someone('Ann Marie Lee');

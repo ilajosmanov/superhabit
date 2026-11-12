@@ -2,7 +2,7 @@ import { addDays, type Day } from '@/lib/day';
 import { countedWorkouts } from '@/workout/plan/results';
 
 /** How a day looks on the grid. `open` is today with nothing done yet; `before` is before your first set. */
-export type DayKind = 'alive' | 'frozen' | 'missed' | 'open' | 'before' | 'future';
+export type DayKind = 'alive' | 'rest' | 'frozen' | 'missed' | 'open' | 'before' | 'future';
 
 type FreezeEvent = { id: string; day: Day; kind: 'earned' | 'used' };
 
@@ -16,7 +16,7 @@ export const HOLD = 2;
 export const FREEZES: boolean = false;
 
 export type Streak = {
-  /** Alive or frozen days in a row, up to today (today counts once it is alive). */
+  /** Alive or frozen days in the current streak; scheduled recovery bridges without adding. */
   current: number;
   best: number;
   /** Any alive day ever, even one after today (the phone's clock went back): not your first time. */
@@ -26,7 +26,7 @@ export type Streak = {
   /** Alive days still to do for the next freeze; null while both are held. */
   toNext: number | null;
   /** Today: done, keeping a streak, broken yesterday, or nothing to lose. */
-  status: 'done' | 'atRisk' | 'slipped' | 'start';
+  status: 'done' | 'rest' | 'atRisk' | 'slipped' | 'start';
   kind: (day: Day) => DayKind;
   /** What the rules decided for days already over; the store writes them as freeze events. */
   events: FreezeEvent[];
@@ -46,10 +46,17 @@ export function aliveDays(
 /**
  * Your streak from the days you trained (alive days) and today. Computed in full every time: freeze
  * events are only its record, so a day another phone later makes alive is simply alive, its freeze kept.
- * Without `freezes` none is earned: every missed day breaks the streak.
+ * Recovery is neutral, regardless of freezes: it bridges without earning or spending one.
+ * Without `freezes` none is earned: every missed training day breaks the streak.
  */
-export function streak(alive: Iterable<Day>, today: Day, freezes = FREEZES): Streak {
+export function streak(
+  alive: Iterable<Day>,
+  today: Day,
+  freezes = FREEZES,
+  rest: Iterable<Day> = [],
+): Streak {
   const done = new Set(alive);
+  const recovery = new Set(rest);
   const kinds = new Map<Day, DayKind>();
   const events: FreezeEvent[] = [];
   const record = (kind: FreezeEvent['kind'], day: Day) => {
@@ -75,6 +82,9 @@ export function streak(alive: Iterable<Day>, today: Day, freezes = FREEZES): Str
           record('earned', day);
         }
       }
+    } else if (recovery.has(day)) {
+      kinds.set(day, 'rest');
+      // Preserve the streak and freeze progress without granting activity or spending a freeze.
     } else if (day === today) {
       kinds.set(day, 'open');
     } else if (held > 0) {
@@ -92,16 +102,20 @@ export function streak(alive: Iterable<Day>, today: Day, freezes = FREEZES): Str
   }
 
   const kind = (day: Day): DayKind =>
-    day > today ? 'future' : (kinds.get(day) ?? (day === today ? 'open' : 'before'));
-  const kept = (day: Day) => ['alive', 'frozen'].includes(kind(day));
+    day > today
+      ? 'future'
+      : (kinds.get(day) ?? (recovery.has(day) ? 'rest' : day === today ? 'open' : 'before'));
+  const kept = (day: Day) => ['alive', 'frozen', 'rest'].includes(kind(day));
   const status =
     kind(today) === 'alive'
       ? 'done'
-      : current > 0
-        ? 'atRisk'
-        : kind(addDays(today, -1)) === 'missed' && kept(addDays(today, -2))
-          ? 'slipped'
-          : 'start';
+      : kind(today) === 'rest'
+        ? 'rest'
+        : current > 0
+          ? 'atRisk'
+          : kind(addDays(today, -1)) === 'missed' && kept(addDays(today, -2))
+            ? 'slipped'
+            : 'start';
   return {
     current,
     best,

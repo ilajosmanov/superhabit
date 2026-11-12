@@ -67,7 +67,9 @@ export function draftOf({
   restartOnMiss,
   dailyTotal,
   session,
+  schedule,
 }: Challenge): Draft | null {
+  if (schedule) return null;
   const [block, ...more] = session;
   const [step, ...others] = block.steps;
   if (more.length > 0 || others.length > 0 || block.rounds !== 1 || step.exercise === 'rest') {

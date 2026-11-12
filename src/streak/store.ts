@@ -4,6 +4,8 @@ import { enqueue } from '@/storage/outbox';
 import { streakEvents } from '@/storage/schema';
 import type { Day } from '@/lib/day';
 import { findOpenWorkout, setRows, workoutRows } from '@/workout/store';
+import { challengeRows, versionRows, runRows } from '@/challenges/library';
+import { restDays } from '@/challenges/rest-days';
 
 /**
  * Writes the freezes the rules gave days already over, each new one with its outbox row. Run at launch and
@@ -13,7 +15,19 @@ import { findOpenWorkout, setRows, workoutRows } from '@/workout/store';
  */
 export function keepFreezes(today: Day, freezes = FREEZES) {
   if (findOpenWorkout()) return;
-  const { events } = streak(aliveDays(workoutRows().sync(), setRows().sync()), today, freezes);
+  const library = {
+    challenges: challengeRows().sync(),
+    versions: versionRows().sync(),
+    runs: runRows().sync(),
+    workouts: workoutRows().sync(),
+    sets: setRows().sync(),
+  };
+  const { events } = streak(
+    aliveDays(library.workouts, library.sets),
+    today,
+    freezes,
+    restDays(library, today),
+  );
   if (events.length === 0) return;
   const createdAt = Date.now();
   db().transaction((tx) => {

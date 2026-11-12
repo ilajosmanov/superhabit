@@ -4,6 +4,18 @@ The Cloudflare Worker the app talks to: Hono on Workers, D1 (placed in eastern N
 US and the UK), Better Auth through Drizzle. See the Data architecture doc, section 4, and "The server"
 in CODING_STANDARDS.md for the layers.
 
+The leaderboard shares the framework-free recovery projection (`src/challenges/rest-days.ts`) and
+current/historical suggested catalog with the phone, via the root `@/` alias. Scheduled rest preserves
+the streak bonus without increasing it or earning points. A second active challenge with training due
+blocks recovery. Custom calendars and pinned versions sync as the existing plan JSON; no new database
+columns are required. Suggested versions are bundled, not written to the server's challenge tables.
+Deploy the Worker alongside the app when updating these schedules or rules.
+
+Bonus calculation reads historical workout amounts and calendars (not videos or pose traces), because
+recovery can stretch the 11 counted days across more than 11 calendar days. Archive/version instants
+use the latest synced workout's timezone, falling back to UTC when unavailable; workout and run dates
+are already stored as local dates. Closed league standings remain frozen by the existing weekly close.
+
 | Folder / file       | Holds                                                                                                                     |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `src/index.ts`      | the Worker: mounts the routes, runs the hourly Cron, reports both to Sentry                                               |

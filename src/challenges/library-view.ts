@@ -3,7 +3,7 @@ import { ONE_GO, oneGo } from './one-go';
 import { draftOf } from './draft';
 import { isHold } from './hold';
 import { counting, runCalendar, versionOf, type DayResult, type Version } from './progress';
-import { doneToday, type RunView } from './run-view';
+import { doneToday, restingToday, type RunView } from './run-view';
 import { OURS, SUGGESTED_CHALLENGES } from './suggested';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
@@ -11,9 +11,10 @@ import type { Account } from '@/storage/account';
 import type { Sharing } from '@/storage/consent';
 import type * as schema from '@/storage/schema';
 import type { Day } from '@/lib/day';
+import { isRestDay } from '@/workout/plan/schedule';
 import { readSets, type LoggedSet } from '@/workout/plan/logged-set';
 import type { LogTarget } from '@/workout/store';
-import { expand, readPlan, type FlatSteps } from '@/workout/plan/plan';
+import { expand, readChallengePlan, type FlatSteps } from '@/workout/plan/plan';
 import { countedWorkouts, setAmounts, workoutResults } from '@/workout/plan/results';
 
 /** The library's rows as the screens read them. */
@@ -51,9 +52,9 @@ export type Yours = Joined | Unavailable;
 
 /** Null for a plan from a newer app (an exercise or shape this one doesn't know). */
 function readVersion(row: Library['versions'][number]): Readable | null {
-  const session = readPlan(row.plan);
+  const plan = readChallengePlan(row.plan, row.days);
   const { id, name, days, dailyTotal, restartOnMiss } = row;
-  return session && { id, name, days, dailyTotal, restartOnMiss, session };
+  return plan && { id, name, days, dailyTotal, restartOnMiss, ...plan };
 }
 
 function amountsOn(
@@ -146,6 +147,9 @@ function yours(
       days: version.days,
       from: state.from,
       progress: stretch.map(({ result }) => result.share),
+      ...(version.schedule && {
+        restDays: version.schedule.flatMap((day, i) => (day === 'rest' ? [i] : [])),
+      }),
     },
     amounts: stretch.map(({ result }) => amountsOn(versions, version, result, sets)),
   };
@@ -157,7 +161,8 @@ function runById(library: Library, runId: string, today: Day, during?: During) {
   return run ? yours(read(library), run, today, during) : null;
 }
 
-const order = (entry: Yours) => (!entry.challenge ? 2 : doneToday(entry.run) ? 1 : 0);
+const order = (entry: Yours) =>
+  !entry.challenge ? 2 : doneToday(entry.run) || restingToday(entry.run) ? 1 : 0;
 
 /** Every run still going: due today first, then done today, then those needing an app update. */
 export function yourRuns(library: Library, today: Day) {
@@ -209,6 +214,7 @@ export function challengePage(library: Library, id: string, today: Day, runId?: 
       ? mine.challenge.name
       : (mine?.name ?? library.versions.find(({ id }) => id === row.currentVersionId)?.name ?? ''),
     challenge,
+    guidance: SUGGESTED_CHALLENGES.find(({ versionId }) => versionId === challenge?.id),
     /** Your run on this page; with `challenge` null it needs an app update. */
     runId: mine?.runId ?? null,
     joined: mine?.challenge ? mine : null,
@@ -240,7 +246,7 @@ export function sessionChallenge(library: Library, id: string, day: Day, during?
   const entry = runById(library, id, day, during);
   const joined = entry?.challenge ? entry : null;
   return {
-    challenge: joined?.challenge ?? null,
+    challenge: joined && !isRestDay(joined.challenge, joined.run.day) ? joined.challenge : null,
     run: joined?.run ?? null,
     target: { runId: id, versionId: joined?.challenge.id ?? null },
   };

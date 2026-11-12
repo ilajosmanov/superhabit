@@ -12,7 +12,14 @@ export function weeks(today: Day): Day[][] {
 
 /** A picked day in words: "TODAY · TUE 10 NOV", "THU 5 NOV · FROZEN", "WED 28 OCT · MISSED". */
 export function dayWords(day: Day, kind: DayKind, today: Day) {
-  const suffix = kind === 'frozen' ? ' · FROZEN' : kind === 'missed' ? ' · MISSED' : '';
+  const suffix =
+    kind === 'rest'
+      ? ' · REST DAY'
+      : kind === 'frozen'
+        ? ' · FROZEN'
+        : kind === 'missed'
+          ? ' · MISSED'
+          : '';
   return `${day === today ? 'TODAY · ' : ''}${dayLabel(day)}${suffix}`;
 }
 
