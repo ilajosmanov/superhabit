@@ -74,6 +74,86 @@ const SAD =
 /** Someone hunched over their knees under a rain cloud: a day with no sets. */
 export const SadFigure = (p: FigureProps) => <Figure d={SAD} {...p} />;
 
+// A body seen from the front on a 40 × 52 grid: shoulders, elbows, wrists, hips, knees, ankles.
+const JOINTS = [
+  [13, 15],
+  [27, 15],
+  [10, 23],
+  [30, 23],
+  [9, 30],
+  [31, 30],
+  [16, 29],
+  [24, 29],
+  [15, 39],
+  [25, 39],
+  [14, 48],
+  [26, 48],
+];
+const BONES =
+  ring(20, 7, 4.5) +
+  'M20 11.5V15' +
+  [
+    [0, 1],
+    [0, 2],
+    [2, 4],
+    [1, 3],
+    [3, 5],
+    [0, 6],
+    [1, 7],
+    [6, 7],
+    [6, 8],
+    [8, 10],
+    [7, 9],
+    [9, 11],
+  ]
+    .map(([a, b]) => `M${JOINTS[a].join(' ')}L${JOINTS[b].join(' ')}`)
+    .join('');
+// How far each joint's dot lands from the joint.
+export type Fit = 'lost' | 'close' | 'on';
+const MISSES: Record<Fit, Partial<Record<number, number[]>>> = {
+  lost: [
+    [3, -3],
+    [-3, 2],
+    [4, 3],
+    [-4, -3],
+    [3, 3],
+    [-4, 2],
+    [3, 4],
+    [-3, -2],
+    [5, -1],
+    [-3, 3],
+    [4, 2],
+    [-4, -3],
+  ],
+  close: { 3: [2.5, -2], 4: [-2.5, 2], 8: [-3, 1.5] },
+  on: {},
+};
+
+/**
+ * A body with the camera's joint dots on it, `fit` saying how well they landed: scattered (`lost`), a few
+ * off (`close`), every dot on its joint in amber (`on`). The workout check-in's three answers.
+ */
+export function TrackedFigure({ fit, width = 48 }: { fit: Fit; width?: number }) {
+  const colors = useColors();
+  const dot = { lost: colors.faint, close: colors.chalk, on: colors.accent }[fit];
+  return (
+    <Svg width={width} height={(width * 52) / 40} viewBox="0 0 40 52" pointerEvents="none">
+      <Path
+        d={BONES}
+        fill="none"
+        stroke={colors.faint}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {JOINTS.map(([x, y], i) => {
+        const [dx, dy] = MISSES[fit][i] ?? [0, 0];
+        return <Circle key={i} cx={x + dx} cy={y + dy} r={1.9} fill={dot} />;
+      })}
+    </Svg>
+  );
+}
+
 /**
  * The session's set-up, drawn wide (358 × 230): a phone leaning on the wall, its camera's view reaching
  * someone squatting. `off`: the camera is dark (no view, the lens struck through, everything dimmed).
