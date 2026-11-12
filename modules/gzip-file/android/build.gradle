@@ -9,7 +9,7 @@ apply from: '../nitrogen/generated/android/superhabitgzipfile+autolinking.gradle
 apply plugin: "com.facebook.react"
 
 android {
-  namespace "com.margelo.nitro.superhabitgzipfile"
+  namespace = "com.margelo.nitro.superhabitgzipfile"
   compileSdkVersion 37
 
   defaultConfig {
@@ -52,7 +52,7 @@ android {
   }
 
   buildFeatures {
-    prefab true
+    prefab = true
   }
 }
 

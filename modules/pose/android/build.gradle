@@ -9,7 +9,7 @@ apply from: '../nitrogen/generated/android/superhabitpose+autolinking.gradle'
 apply plugin: "com.facebook.react"
 
 android {
-  namespace "com.margelo.nitro.superhabitpose"
+  namespace = "com.margelo.nitro.superhabitpose"
   compileSdkVersion 37
 
   defaultConfig {
@@ -52,7 +52,7 @@ android {
   }
 
   buildFeatures {
-    prefab true
+    prefab = true
   }
 
   // The .task model is a zip; compressing it again would force a copy at load time.

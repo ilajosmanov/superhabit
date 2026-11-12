@@ -5,7 +5,8 @@
   "compatibility_date": "2026-11-01",
   // Better Auth needs AsyncLocalStorage.
   "compatibility_flags": ["nodejs_compat"],
-  // Secrets, set with `wrangler secret put`: BETTER_AUTH_SECRET, GOOGLE_CLIENT_SECRET, SENTRY_DSN. Locally: .dev.vars.
+  // Secrets, set with `wrangler secret put`: BETTER_AUTH_SECRET, GOOGLE_CLIENT_SECRET, SENTRY_DSN.
+  // Local development: `vp run dev` from server/ loads the root .env.
   "vars": {
     "BETTER_AUTH_URL": "https://superhabit.cloudflare-putt001.workers.dev",
     // The Web client in Google Cloud: the audience of the ID tokens Google's sign-in gives the phone.

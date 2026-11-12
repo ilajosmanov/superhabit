@@ -106,6 +106,7 @@
       ],
       "expo-web-browser",
       "./plugins/backup-rules.js",
+      "./plugins/sentry-gradle-order.js",
       [
         "@sentry/react-native/expo",
         {

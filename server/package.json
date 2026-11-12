@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --env-file ../.env",
     "deploy": "wrangler deploy --dry-run --outdir dist --upload-source-maps && SENTRY_ORG=superhabit SENTRY_PROJECT=superhabit-server sentry sourcemap inject dist && SENTRY_ORG=superhabit SENTRY_PROJECT=superhabit-server sentry sourcemap upload dist && wrangler deploy --no-bundle --upload-source-maps dist/index.js",
     "typecheck": "wrangler types && tsc --noEmit"
   },

@@ -85,10 +85,20 @@ CI (`.github/workflows/ci.yml`) runs the typecheck, `vp check`, ktlint, a dev bu
 
 The app talks to the Worker at the address in `src/account/server.ts`: production, unless `EXPO_PUBLIC_SERVER_URL` is set when Metro starts or the release is built. Point a dev build at your own Worker rather than at production: `EXPO_PUBLIC_SERVER_URL=<your Worker's address> vp run start` (see `server/README.md` for running one).
 
-Two git-ignored files in the repo root hold the secrets; ask the owner for them, never commit them:
+One git-ignored `.env` in the repo root holds local credentials; ask the owner for the values, never commit them:
 
-- `cloudflare.env`: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, for deploying the Worker and migrating its database.
-- `google.env`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, the Web client the Worker checks sign-ins against.
+- `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`: deploying the Worker and migrating its database.
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: the Web OAuth client.
+- `SENTRY_AUTH_TOKEN` (and `SENTRY_SETUP_CODE` while setting up Sentry): build/upload tooling.
+- Only for running the backend locally: `BETTER_AUTH_SECRET` (generate with `openssl rand -base64 32`)
+  and `BETTER_AUTH_URL=http://localhost:8787`.
+- Optional `SENTRY_DSN`: the server project's DSN, to report errors from the local Worker.
+
+Expo loads `.env` automatically; only `EXPO_PUBLIC_` variables are inlined into the app, so never give
+credentials that prefix. `vp run android` connects to the deployed backend by default.
+For optional local backend development, `vp run dev` from `server/` loads the same file. Deployment and
+migration commands are in `server/README.md`. Production Worker secrets stay in Cloudflare: changing
+`.env` does not update them.
 
 Sign-in with Google needs two OAuth clients in one Google Cloud project:
 

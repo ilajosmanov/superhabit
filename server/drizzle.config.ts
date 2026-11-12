@@ -1,7 +1,7 @@
 import { defineConfig } from 'drizzle-kit';
 
 // `vp exec drizzle-kit generate` writes a migration for each schema change; commit them.
-// `vp exec drizzle-kit migrate` applies them to the D1 in Cloudflare (reads ../cloudflare.env's variables).
+// `vp exec drizzle-kit migrate` applies them to the D1 in Cloudflare (load ../.env first; see README.md).
 export default defineConfig({
   dialect: 'sqlite',
   driver: 'd1-http',
