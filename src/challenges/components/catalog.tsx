@@ -1,9 +1,8 @@
 import { Link, useRouter } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
-import { ExerciseStack } from './exercise-stack';
+import { ExerciseRow } from './exercise-row';
 import { Icon } from '@/components/icon';
-import { ExerciseFigure } from '@/components/illustrations';
 import { TextButton } from '@/components/text-button';
 import { colors } from '@/theme';
 import type { CatalogEntry } from '@/challenges/catalog';
@@ -23,39 +22,18 @@ function ChallengeCard({ entry }: { entry: CatalogEntry }) {
   const what = single
     ? `${single.name} ${single.goal} a day`
     : entry.steps.map((step) => step.name).join(', ');
-  const body = (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={`${entry.name}: ${what}, ${entry.days} days`}
-      android_ripple={{ color: colors.surface }}
-      className="flex-row items-center gap-4 py-4 pl-4 pr-5"
-    >
-      {single ? (
-        <View className="size-11 items-center justify-center rounded-xl border border-line">
-          <ExerciseFigure exercise={single.exercise} size={24} />
-        </View>
-      ) : (
-        <ExerciseStack steps={entry.steps} />
-      )}
-      <View className="flex-1 gap-1">
-        <Text className="font-sans text-lg tracking-tight text-chalk">{entry.name}</Text>
-        <Text className="font-mono text-xs tracking-wide text-muted">{line}</Text>
-      </View>
-      <View className="items-end gap-1">
-        <Text className="font-sans text-5xl font-extralight leading-none tracking-tighter text-chalk">
-          {entry.days}
-        </Text>
-        <Text className="font-mono text-xs tracking-widest text-muted">DAYS</Text>
-      </View>
-    </Pressable>
-  );
-
   return (
-    <View className="overflow-hidden rounded-2xl border border-line">
-      <Link href={{ pathname: '/challenge/[id]', params: { id: entry.id } }} asChild>
-        {body}
-      </Link>
-    </View>
+    <Link href={{ pathname: '/challenge/[id]', params: { id: entry.id } }} asChild>
+      <ExerciseRow
+        accessibilityRole="link"
+        accessibilityLabel={`${entry.name}: ${what}, ${entry.days} days`}
+        name={entry.name}
+        line={line}
+        steps={entry.steps}
+        amount={entry.days}
+        unit={entry.days === 1 ? 'DAY' : 'DAYS'}
+      />
+    </Link>
   );
 }
 

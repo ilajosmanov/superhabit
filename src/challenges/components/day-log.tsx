@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
-import { ExerciseStack } from './exercise-stack';
+import { ExerciseRow } from './exercise-row';
 import { SessionViewer } from './session-viewer';
 import type { LogRow } from '@/challenges/library-view';
 import { dayReel, type Clip } from '@/challenges/reel';
 import { mss } from '@/lib/duration';
-import { Icon } from '@/components/icon';
 import { SadFigure } from '@/components/illustrations';
 import { RollingLines } from './rolling-lines';
 import { EXERCISES } from '@/exercises/registry';
@@ -85,35 +84,18 @@ function Row({ row, onPress }: { row: LogRow; onPress?: () => void }) {
   const amount = row.held ? mss(Math.floor(row.heldMs / 1000)) : String(row.reps);
   const unit = row.held ? 'HELD' : 'REPS';
   return (
-    <View className="overflow-hidden rounded-2xl border border-line">
-      <Pressable
-        accessibilityRole={onPress && 'button'}
-        accessibilityLabel={`${row.name}, ${note.toLowerCase()}, ${amount} ${unit.toLowerCase()}`}
-        accessibilityHint={onPress && 'Plays its sets'}
-        disabled={!onPress}
-        onPress={onPress}
-        android_ripple={{ color: colors.surface }}
-        className="flex-row items-center gap-4 py-4 pl-4 pr-5"
-      >
-        <ExerciseStack
-          steps={row.exercises.map((exercise) => ({ exercise, name: EXERCISES[exercise].name }))}
-        />
-        <View className="flex-1 gap-1">
-          <Text numberOfLines={1} className="font-sans text-lg tracking-tight text-chalk">
-            {row.name}
-          </Text>
-          <View className="flex-row items-center gap-1.5">
-            {onPress && <Icon name="play_arrow" size={14} color={colors.muted} />}
-            <Text className="font-mono text-xs tracking-wide text-muted">{note}</Text>
-          </View>
-        </View>
-        <View className="items-end gap-1">
-          <Text className="font-sans text-5xl font-extralight leading-none tracking-tighter text-chalk">
-            {amount}
-          </Text>
-          <Text className="font-mono text-xs tracking-widest text-muted">{unit}</Text>
-        </View>
-      </Pressable>
-    </View>
+    <ExerciseRow
+      accessibilityRole={onPress && 'button'}
+      accessibilityLabel={`${row.name}, ${note.toLowerCase()}, ${amount} ${unit.toLowerCase()}`}
+      accessibilityHint={onPress && 'Plays its sets'}
+      disabled={!onPress}
+      onPress={onPress}
+      name={row.name}
+      line={note}
+      icon={onPress && 'play_arrow'}
+      steps={row.exercises.map((exercise) => ({ exercise, name: EXERCISES[exercise].name }))}
+      amount={amount}
+      unit={unit}
+    />
   );
 }

@@ -42,6 +42,7 @@ their history. Archiving syncs through the outbox like other library changes.
 | `rolling-lines.tsx`                                              | lines that take turns, for the day log's empty state                                 |
 | `how-it-counts.tsx`                                              | a card per exercise: the figure doing a rep, and the rep in steps                    |
 | `exercise-stack.tsx`                                             | a challenge's exercise figures in a row, and (i) for all its steps                   |
+| `exercise-row.tsx`                                               | the outlined row of the catalog and the day log: name, exercises under it, a number  |
 | `hold-to-start.tsx`, `leave-button.tsx`                          | the footer: hold to start today's session; leave the run, after asking               |
 | `challenge-done.tsx`                                             | the Done page after a session: its reel, the numbers, the run                        |
 | `session-reel.tsx`, `session-viewer.tsx`, `reel-player.tsx`      | the reel on a loop, full screen like stories, and the players under both             |
