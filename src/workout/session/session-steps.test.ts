@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { createActor } from 'xstate';
 
 import { defineChallenge, MAX, reps, seconds, type Step } from '@/workout/plan/plan';
+import { exerciseSet, ladder, session, sets as repeatedSets } from '@/workout/plan/structures';
 import { EXERCISES } from '@/exercises/registry';
 
 import { body } from '@/exercises/__fixtures__/body';
@@ -221,14 +222,14 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     vi.useFakeTimers({ now: NOW });
     const repeated = defineChallenge({
       ...plan({ exercise: 'squat', goal: reps(1) }),
-      session: [
-        { steps: [{ exercise: 'squat', goal: reps(1) }], rounds: 2 },
-        { steps: [{ exercise: 'pushup', goal: reps(2) }], rounds: 1 },
-      ],
+      session: session(
+        repeatedSets({ exercise: exerciseSet('squat', 1), rounds: 2 }),
+        ladder({ rungs: [2, 1], exercises: (n) => [exerciseSet('pushup', n)] }),
+      ),
     });
     const actor = createActor(workoutSession, { input: { ...LOG, challenge: repeated } }).start();
     const view = () => sessionView(actor.getSnapshot());
-    expect(view()).toMatchObject({ set: 1, sets: 3, target: 1 });
+    expect(view()).toMatchObject({ set: 1, sets: 4, target: 1 });
     squat();
     expect(view()).toMatchObject({ stage: 'countdown', set: 2, reps: 0 });
     vi.advanceTimersByTime(3000);
@@ -240,6 +241,9 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
     pushup();
     expect(view()).toMatchObject({ stage: 'counting', reps: 1 });
     pushup();
+    expect(view()).toMatchObject({ stage: 'countdown', set: 4, target: 1, reps: 0 });
+    actor.send({ type: 'next' });
+    pushup();
     expect(view()).toMatchObject({
       stage: 'finished',
       next: null,
@@ -247,6 +251,7 @@ describe('workoutSession moves between steps: sets, rests, countdowns, phone pla
         { exercise: 'squat', goal: reps(1), reps: 1, round: 1 },
         { exercise: 'squat', goal: reps(1), reps: 1, round: 2 },
         { exercise: 'pushup', goal: reps(2), reps: 2, round: 1 },
+        { exercise: 'pushup', goal: reps(1), reps: 1, round: 1 },
       ],
     });
     actor.stop();

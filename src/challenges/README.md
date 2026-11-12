@@ -44,6 +44,19 @@ The challenge catalog, the challenges and runs kept on the phone, progress rules
 | `tune-numbers.tsx`                                               | Your numbers: a suggested challenge's numbers, changed before you join               |
 | `swipe-row.tsx`                                                  | a row of cards that snaps card by card                                               |
 
+Suggested workouts are authored in `suggested.ts` using `workout/plan/structures.ts`. Keep ids and
+version ids stable; changing a shipped prescription needs a new version, retaining the old one for
+pinned runs. The four existing testing prescriptions are unchanged. New suggestions include sets,
+circuits, crossover/descending/up-and-down ladders and daily single-exercise totals. All use Your
+numbers before joining. Standalone workouts default to one day (repeat by joining again); the daily
+favourites have longer runs. A one-day workout does not imply a weekly schedule.
+
+Catalog adaptations: the four-move “1000” totals 800 and is named accordingly; the shortened circuit
+has no seven-minute guarantee. Side plank is omitted pending tuning. Burpee routines use the existing
+counter, whose timing still needs device validation. Lunges count individual reps on either leg:
+Lunges and squats uses 40 total, without enforcing 20 per side. The 100/100/100 session uses push-ups,
+squats and sit-ups; only single-exercise daily totals accumulate across separate workouts.
+
 A run of ours is pinned to the version you joined; a run of yours follows your edits. Finished, missed
 and restarted are worked out from done workouts (`progress.ts`), never stored. A day you did plays its
 sets' videos (`watch-day.tsx`): the sets the day shows, their files listed once as the day is picked. Home's

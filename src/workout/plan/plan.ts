@@ -4,10 +4,10 @@ import { EXERCISES, isExerciseId, type ExerciseId, type Progress } from '@/exerc
 
 export type Goal = { type: 'reps'; n: number } | { type: 'seconds'; n: number } | { type: 'max' };
 type RestGoal = Extract<Goal, { type: 'seconds' | 'max' }>;
-type ExerciseStep = { exercise: ExerciseId; goal: Goal };
+export type ExerciseStep = { exercise: ExerciseId; goal: Goal };
 type RestStep = { exercise: 'rest'; goal: RestGoal };
 export type Step = ExerciseStep | RestStep;
-type Block = { steps: readonly [Step, ...Step[]]; rounds: number };
+export type Block = { steps: readonly [Step, ...Step[]]; rounds: number };
 export type Session = readonly [Block, ...Block[]];
 export type Challenge = {
   name: string;
