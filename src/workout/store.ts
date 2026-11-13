@@ -1,4 +1,4 @@
-import { and, eq, lt, notExists } from 'drizzle-orm';
+import { and, eq, inArray, lt, notExists } from 'drizzle-orm';
 import Constants from 'expo-constants';
 
 import { db } from '@/storage/database';
@@ -8,7 +8,7 @@ import { deleteTraces, deleteVideos, listVideos, removeVideo } from '@/storage/s
 import { discardTraceWrites } from '@/workout/capture/recorder-file';
 import { discardVideoWrites } from '@/workout/capture/camcorder';
 import { addDays, today, type Day } from '@/lib/day';
-import type { StepResult } from '@/workout/plan/results';
+import { readAttempts, type StepResult } from '@/workout/plan/results';
 
 /** The run and version a workout counts toward; both null for a free log (one go at an exercise). */
 export type LogTarget = { runId: string | null; versionId: string | null };
@@ -127,6 +127,27 @@ export function saveOpenWorkout(id: string) {
 export const workoutRows = () => db().query.workouts.findMany();
 export const setRows = () =>
   db().query.sets.findMany({ columns: { attempts: false, metrics: false, counterVersion: false } });
+
+/**
+ * Sets up close, oldest first, with what `setRows` leaves out: every attempt. Read once, when a set's
+ * detail opens; an attempt list this app can't read comes back empty.
+ */
+export function setDetails(ids: readonly string[]) {
+  return db()
+    .select({
+      id: sets.id,
+      reps: sets.reps,
+      noReps: sets.noReps,
+      heldMs: sets.heldMs,
+      startedAt: sets.startedAt,
+      attempts: sets.attempts,
+    })
+    .from(sets)
+    .where(inArray(sets.id, [...ids]))
+    .orderBy(sets.startedAt)
+    .all()
+    .map((row) => ({ ...row, attempts: readAttempts(row.attempts) }));
+}
 
 /** The set's workout is done and on the server: nothing of it waits in the outbox, sent or parked. */
 export const setIsSynced = (setId: string): boolean =>

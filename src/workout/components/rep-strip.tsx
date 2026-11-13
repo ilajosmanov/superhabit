@@ -3,7 +3,7 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import { dark as colors } from '@/theme';
 import type { Attempt } from '@/workout/plan/results';
 
-import { depthAt, depthText, type Gauge } from './depth';
+import { depthAt, depthText, type Gauge } from '@/lib/depth';
 
 const H = 28;
 const GAP = 6;

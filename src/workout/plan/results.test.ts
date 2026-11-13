@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vite-plus/test';
 
 import type { ExerciseId } from '@/exercises/registry';
 
-import { countedWorkouts, setAmounts, shareDone, type StepResult } from './results';
+import { countedWorkouts, readAttempts, setAmounts, shareDone, type StepResult } from './results';
 import { expand, MAX, reps, seconds } from './plan';
 
 const set = (exercise: ExerciseId): StepResult => ({
@@ -79,4 +79,16 @@ it('counts only done workouts with a positive rep or hold, matching sets by work
       ({ id }) => id,
     ),
   ).toEqual(['rep', 'hold']);
+});
+
+describe('readAttempts', () => {
+  const attempt = { startMs: 100, bottomMs: 900, endMs: 1700, counted: true, depth: 92, cue: null };
+
+  it("reads a set synced from a newer app, whose attempts carry fields this one doesn't know", () => {
+    expect(readAttempts([{ ...attempt, wrist: 12 }])).toEqual([attempt]);
+  });
+
+  it('drops the attempts of a damaged row whose times run backwards', () => {
+    expect(readAttempts([attempt, { ...attempt, startMs: 2000 }])).toEqual([]);
+  });
 });

@@ -1,7 +1,8 @@
 import type { Joints } from '@/exercises/body/geometry';
 import type { Detector, Progress } from '@/exercises/kinds/progress';
 
-export { fmtMs, type Gauge } from '@/exercises/kinds/progress';
+export { fmtMs } from '@/exercises/kinds/progress';
+export type { Gauge } from '@/lib/depth';
 
 export type Placement = 'front-upright' | 'side-floor' | 'side-upright';
 export type Orientation = 'portrait' | 'landscape';

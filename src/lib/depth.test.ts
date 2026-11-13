@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { depthAt, depthText } from './depth';
+import { countsAt, depthAt, depthText } from './depth';
 
 describe('depthAt', () => {
   it('falls with a squat: up at the top, down at 80 %, 25 % past down at the bottom', () => {
@@ -22,5 +22,12 @@ describe('depthAt', () => {
 describe('depthText', () => {
   it('rounds angles and adds a degree sign', () => {
     expect(depthText(99.6)).toBe('100°');
+  });
+});
+
+describe('countsAt', () => {
+  it('says which way a rep counts: at or under a falling angle, at or over a rising one', () => {
+    expect(countsAt({ down: 100, up: 150 })).toBe('≤ 100°');
+    expect(countsAt({ down: 18, up: 3 })).toBe('≥ 18°');
   });
 });

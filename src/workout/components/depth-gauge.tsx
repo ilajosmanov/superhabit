@@ -7,7 +7,7 @@ import Animated, {
 
 import { dark as colors } from '@/theme';
 
-import { depthAt, depthText, type Gauge } from './depth';
+import { depthAt, depthText, type Gauge } from '@/lib/depth';
 
 const pct = (x: number): `${number}%` => {
   'worklet';

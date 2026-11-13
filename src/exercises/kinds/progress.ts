@@ -1,4 +1,5 @@
 import type { BodyPart, Pose } from '@/exercises/body/geometry';
+import type { Gauge } from '@/lib/depth';
 
 export type Kind = 'cycle' | 'hold' | 'sequence';
 /** 'waiting' = start position not seen since starting, pausing or losing tracking; nothing counts. */
@@ -41,9 +42,6 @@ export type Counter<S extends Progress, M> = {
   /** Per-frame overlay readout; never goes into React state. */
   live(s: S): { signal: number | null; lowest: number | null };
 };
-
-/** A depth gauge: `up` is the start position, `down` deep enough; either may be the larger. */
-export type Gauge = { down: number; up: number };
 
 /** A kind filled in with a position (and a measure): everything an exercise needs but its labels. */
 export type Detector<S extends Progress, M> = Counter<S, M> & {

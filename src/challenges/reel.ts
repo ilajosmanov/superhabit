@@ -18,6 +18,10 @@ export const reelOf = (results: readonly StepResult[]): Clip[] =>
     result.takes.length ? [{ set, result, takes: result.takes }] : [],
   );
 
+/** Which exercise set of the session a plan step is: rests don't count. */
+export const setIndex = (steps: FlatSteps, planStep: number) =>
+  steps.slice(0, planStep).filter((s) => s.exercise !== 'rest').length;
+
 /**
  * A day on the challenge page as one video: its kept sets (`sets`, of the plan `steps`) that have files in
  * `videos` (set id → files in order), in the order you did them. A daily total's tries are all its one set.
@@ -33,7 +37,7 @@ export const dayReel = (
       const takes = videos.get(result.id) ?? [];
       const step = steps[result.planStep];
       if (!takes.length || step?.exercise !== result.exercise) return [];
-      const set = steps.slice(0, result.planStep).filter((s) => s.exercise !== 'rest').length;
+      const set = setIndex(steps, result.planStep);
       return [{ set, result: { ...result, round: step.round }, takes }];
     });
 

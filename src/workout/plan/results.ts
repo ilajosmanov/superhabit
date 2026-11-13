@@ -1,17 +1,33 @@
+import { z } from 'zod';
+
 import { COUNTER_VERSIONS, EXERCISES, type Counters, type ExerciseId } from '@/exercises/registry';
 import type { LoggedSet } from './logged-set';
 import type { FlatSteps, Goal } from './plan';
 
-/** `cue`: the first form cue, if any. */
-export type Attempt = {
-  /** Detector-clock timestamps, not Unix time. */
-  startMs: number;
-  bottomMs: number | null;
-  endMs: number;
-  counted: boolean;
-  depth: number | null;
-  cue: string | null;
-};
+const attemptSchema = z
+  .object({
+    /** Detector-clock timestamps, not Unix time. */
+    startMs: z.number(),
+    bottomMs: z.number().nullable(),
+    endMs: z.number(),
+    counted: z.boolean(),
+    depth: z.number().nullable(),
+    /** The first form cue, if any. */
+    cue: z.string().nullable(),
+  })
+  // Times run start → bottom → end; a row from another phone that doesn't is damaged.
+  .refine(
+    ({ startMs, bottomMs, endMs }) =>
+      startMs <= endMs && (bottomMs === null || (startMs <= bottomMs && bottomMs <= endMs)),
+  );
+/** One rep tried in a set, counted or not. */
+export type Attempt = z.infer<typeof attemptSchema>;
+
+/** A stored set's attempts; none when they don't parse (a newer app's shape, or a damaged row). */
+// shortcut: a set's attempts aren't capped; one with thousands draws a bar and row each. Cap if one turns up.
+export const readAttempts = (json: unknown): Attempt[] =>
+  z.array(attemptSchema).safeParse(json).data ?? [];
+
 /** A finished exercise set, including everything needed for a sets row. */
 export type StepResult = {
   id: string;

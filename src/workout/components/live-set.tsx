@@ -5,7 +5,7 @@ import { EXERCISES, type BodyPart } from '@/exercises/registry';
 import { CHIP_FILL, SecondaryButton } from './controls';
 import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
-import { depthText, type Gauge } from './depth';
+import { depthText, type Gauge } from '@/lib/depth';
 import { DepthGauge } from './depth-gauge';
 import { Header, type PlatterProps } from './platter-header';
 import { PART_LABEL } from './position-check';

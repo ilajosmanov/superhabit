@@ -14,12 +14,12 @@ UI owned by workout. Routes compose these screens with other features; workout l
 | `live-set.tsx`, `paused-set.tsx`, `position-check.tsx` | each platter state                                                    |
 | `phone-setup.tsx`, `controls.tsx`                      | phone placement and shared workout controls                           |
 | `rep-count.tsx`, `rep-strip.tsx`                       | counts and attempt history                                            |
-| `depth-gauge.tsx`, `depth.ts`                          | the gauge and its pure depth calculations                             |
+| `depth-gauge.tsx`                                      | the live depth gauge (its maths is `lib/depth.ts`)                    |
 
 Screens you see mid-workout have two reading distances: the far layer (the clock, the exercise and its
 goal) is big enough to read from the start position; instructions and buttons are for leaning in.
 
-`depth.test.ts` checks the gauge calculations; `controls.test.ts` checks the caption’s TalkBack policy.
+`controls.test.ts` checks the caption’s TalkBack policy.
 Native interaction tests need their own test setup.
 
 The route keys `SessionGate` by its route id so each session gets a fresh workout id. Permission pages
