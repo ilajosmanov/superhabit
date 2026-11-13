@@ -11,7 +11,12 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "infoPlist": {
-        "NSCameraUsageDescription": "RepRepGo uses the camera to count your reps and check your form."
+        "NSCameraUsageDescription": "RepRepGo uses the camera to count your reps and check your form.",
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ]
       },
       "bundleIdentifier": "app.reprepgo"
     },
@@ -36,6 +41,7 @@
     },
     "plugins": [
       "expo-router",
+      ["expo-screen-orientation", { "initialOrientation": "PORTRAIT_UP" }],
       [
         "expo-splash-screen",
         {
@@ -50,6 +56,12 @@
           "android": {
             "minSdkVersion": 26,
             "kotlinVersion": "2.2.10"
+          },
+          "ios": {
+            "extraPods": [
+              { "name": "GoogleUtilities", "modular_headers": true },
+              { "name": "RecaptchaInterop", "modular_headers": true }
+            ]
           }
         }
       ],
@@ -106,7 +118,14 @@
         }
       ],
       "expo-web-browser",
+      [
+        "react-native-nitro-google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.408762936395-7elgs938chpm5fiurtm07j87jdaq2r3c"
+        }
+      ],
       "./plugins/backup-rules.js",
+      "./plugins/mediapipe-gtm.js",
       "./plugins/sentry-gradle-order.js",
       [
         "@sentry/react-native/expo",

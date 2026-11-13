@@ -1,7 +1,7 @@
 # gzip-file
 
 Gzips bytes into a file on a background thread, so a set's trace is compressed and written without
-blocking the JS thread. A Nitro module; Android only. The recorder (`src/workout/capture/recorder-file.ts`) is its
+blocking the JS thread. A Nitro module, in Kotlin on Android and Swift (zlib) on iOS. The recorder (`src/workout/capture/recorder-file.ts`) is its
 one caller.
 
 | File                          | Does                                                                      |

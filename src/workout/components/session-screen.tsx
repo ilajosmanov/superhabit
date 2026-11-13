@@ -3,7 +3,7 @@ import { uuid } from 'expo';
 import { usePreventRemove } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState, type ReactNode } from 'react';
-import { Linking, Platform, Text, useWindowDimensions, View } from 'react-native';
+import { Linking, Text, useWindowDimensions, View } from 'react-native';
 import {
   CommonResolutions,
   useCameraPermission,
@@ -74,7 +74,6 @@ export function SessionGate({
       </Night>
     );
   }
-  if (Platform.OS !== 'android') return <Centered text="Pose tracking is available on Android." />;
   // Before the session: its clock and orientation lock would run during the prompt.
   if (!hasPermission) {
     return (

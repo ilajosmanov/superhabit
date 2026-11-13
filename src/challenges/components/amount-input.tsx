@@ -1,5 +1,3 @@
-import { Host, Slider } from '@expo/ui/jetpack-compose';
-import { semantics } from '@expo/ui/jetpack-compose/modifiers';
 import { AndroidHaptics } from 'expo-haptics';
 import { useRef, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
@@ -7,6 +5,8 @@ import { Text, TextInput, View } from 'react-native';
 import type { Amount } from '@/challenges/draft';
 import { tick } from '@/components/tick';
 import { useColors } from '@/components/colors';
+
+import { AmountSlider } from './amount-slider';
 
 const label = 'font-mono text-xs tracking-widest text-muted';
 
@@ -112,32 +112,22 @@ export function AmountInput({
       </View>
       {/* shortcut: its ends sit near the back-gesture zone, so a drag to the first or last stop can take two
           tries; typing the number covers it. Exclude the slider from system gestures if @expo/ui exposes it. */}
-      <Host matchContents={{ vertical: true }}>
-        <Slider
-          modifiers={[semantics({ contentDescription: name })]}
-          value={at}
-          min={min}
-          max={top}
-          // Compose counts the stops between the ends.
-          steps={Math.max(0, (top - min) / step - 1)}
-          colors={{
-            thumbColor: colors.accent,
-            activeTrackColor: colors.accent,
-            inactiveTrackColor: colors.line,
-            activeTickColor: 'transparent',
-            inactiveTickColor: 'transparent',
-          }}
-          onValueChange={(next) => {
-            sliding.current = next;
-            selectStop(next);
-          }}
-          onValueChangeFinished={() => {
-            // Tapping the already-clamped endpoint may finish without a value-change event.
-            selectStop(sliding.current ?? at);
-            sliding.current = null;
-          }}
-        />
-      </Host>
+      <AmountSlider
+        name={name}
+        value={at}
+        min={min}
+        max={top}
+        step={step}
+        onValueChange={(next) => {
+          sliding.current = next;
+          selectStop(next);
+        }}
+        onValueChangeFinished={() => {
+          // Tapping the already-clamped endpoint may finish without a value-change event.
+          selectStop(sliding.current ?? at);
+          sliding.current = null;
+        }}
+      />
     </View>
   );
 }

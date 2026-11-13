@@ -1,7 +1,7 @@
 # pose
 
 The native pose detector: MediaPipe Pose Landmarker (tasks-vision 1.2.2, BlazePose GHUM full) as a Nitro
-module that VisionCamera frame processors call. Android only.
+module that VisionCamera frame processors call, on Android (Kotlin) and iOS (Swift, MediaPipeTasksVision 1.0.1).
 
 | File                                | Does                                                                    |
 | ----------------------------------- | ----------------------------------------------------------------------- |
@@ -25,3 +25,11 @@ them (`PoseDelegate`). Then rebuild the app (`vp run android`).
 
 On the phone, `adb logcat -s PoseLandmarker` prints every 5 s: fps, ms per frame, delegate, inference ms,
 brightness, the nose's presence and `down`.
+
+On iOS (`ios/HybridPoseLandmarker.swift`), MediaPipe answers in the raw buffer as on Android, so the
+same `upright` turn applies. The turn comes from the back camera's mount and the interface orientation,
+not VisionCamera's `frame.orientation`, which flips between 90 and 270 in a portrait-locked workout; the
+preview conversion still gets the point turned by VisionCamera's value. Gravity comes from CoreMotion,
+negated to Android's "up". Measured on an iPhone 13 with the back camera upright: points, `down` and the
+skeleton match Android. Unmeasured: the front camera's turn and mirroring, and landscape. Read the
+5-second log line in Console.app (category `PoseLandmarker`).

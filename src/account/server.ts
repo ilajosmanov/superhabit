@@ -9,5 +9,9 @@ export const SERVER_URL =
 export const GOOGLE_WEB_CLIENT_ID =
   '408762936395-b66qcgf9a751gcv04p1jiorrier10amd.apps.googleusercontent.com';
 
+/** Our iOS client in Google Cloud: Google's sign-in SDK on iPhone needs it to start (Android doesn't use it). */
+export const GOOGLE_IOS_CLIENT_ID =
+  '408762936395-7elgs938chpm5fiurtm07j87jdaq2r3c.apps.googleusercontent.com';
+
 /** The server answered that the session is gone: nothing goes up or down until you sign in again. */
 export class SessionGone extends Error {}

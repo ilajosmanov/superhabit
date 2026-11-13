@@ -9,7 +9,7 @@ import {
   type SkPoint,
 } from '@shopify/react-native-skia';
 import type { RefObject } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
 import {
   Camera,
@@ -173,6 +173,9 @@ export function PoseCamera({
   return (
     <View style={StyleSheet.absoluteFill}>
       <Camera
+        // iOS keeps one preview layer across a flip, so it never reports a new start and the session would
+        // wait in 'flipping' for good; a fresh view per camera restarts the preview as Android's does.
+        key={Platform.OS === 'ios' ? camera : undefined}
         ref={cameraRef}
         // Bottom only: the top-left origin stays the Canvas's, so view points still line up.
         style={[StyleSheet.absoluteFill, relayout && { bottom: -1 }]}
