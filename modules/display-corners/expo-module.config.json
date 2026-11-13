@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["DisplayCornersModule"]
+  },
+  "android": {
+    "modules": ["com.ilajosmanov.superhabit.displaycorners.DisplayCornersModule"]
+  }
+}

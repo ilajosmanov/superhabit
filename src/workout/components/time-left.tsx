@@ -1,7 +1,8 @@
 import { Canvas, Path, Skia, useClock, type SkPath } from '@shopify/react-native-skia';
-import { useState, type ReactNode } from 'react';
+import { Suspense, use, useState, type ReactNode } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { useDerivedValue } from 'react-native-reanimated';
+import { displayCorners, type Corners } from 'superhabit-display-corners';
 
 import { dark as colors } from '@/theme';
 
@@ -46,12 +47,39 @@ function Drain({
 
 type Clock = { totalS: number; leftS: number };
 
+const EDGE_INSET = 5;
+
 /** Board 18b: the screen's own edge is the countdown, drawn round the display's corners. */
 export function EdgeClock(props: Clock) {
+  // Read once per countdown (it is keyed by the set): a 180° turn keeps the window's size but swaps
+  // its corners. Held here, outside the Suspense, so a suspended first render doesn't read again.
+  // shortcut: a turn during one countdown keeps its old corners; listen for orientation if a phone with
+  // uneven top and bottom corners shows it.
+  const [read] = useState(displayCorners);
+  // The read takes a frame; the edge waits for it rather than redrawing its corners.
+  return (
+    <Suspense fallback={null}>
+      <Edge read={read} {...props} />
+    </Suspense>
+  );
+}
+
+function Edge({ read, ...props }: Clock & { read: Promise<Corners | null> }) {
   const { width, height } = useWindowDimensions();
-  // shortcut: one corner radius for every phone; read the display's real corners if it looks off on one.
+  const corners = use(read);
+  // Concentric with the glass; 30 where the system doesn't report its corners.
+  const at = (display: number | undefined) => {
+    const r = display === undefined ? 30 : Math.max(0, display - EDGE_INSET);
+    return { x: r, y: r };
+  };
   const path = Skia.PathBuilder.Make()
-    .addRRect(Skia.RRectXY(Skia.XYWHRect(5, 5, width - 10, height - 10), 30, 30))
+    .addRRect({
+      rect: Skia.XYWHRect(EDGE_INSET, EDGE_INSET, width - 2 * EDGE_INSET, height - 2 * EDGE_INSET),
+      topLeft: at(corners?.topLeft),
+      topRight: at(corners?.topRight),
+      bottomRight: at(corners?.bottomRight),
+      bottomLeft: at(corners?.bottomLeft),
+    })
     .detach();
   return (
     <View className="absolute inset-0" pointerEvents="none">

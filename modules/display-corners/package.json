@@ -1,0 +1,16 @@
+{
+  "name": "superhabit-display-corners",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reads the display's rounded-corner radii (Expo module).",
+  "license": "UNLICENSED",
+  "main": "src/display-corners.ts",
+  "types": "src/display-corners.ts",
+  "exports": {
+    ".": "./src/display-corners.ts",
+    "./package.json": "./package.json"
+  },
+  "peerDependencies": {
+    "expo": "*"
+  }
+}
