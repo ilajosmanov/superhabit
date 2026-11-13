@@ -16,7 +16,7 @@ also uses it for the leaderboard bonus, including the bundled current and histor
 | ----------------------------- | -------------------------------------------------------------------------------------------- |
 | `streak.ts`                   | the rules: alive, frozen and missed days, freezes earned and used                            |
 | `store.ts`                    | `keepFreezes`: writes the freezes of days that are over, with outbox rows                    |
-| `streak-live.ts`              | `useStreak(today)`: the streak, re-read as workouts are saved                                |
+| `streak-live.tsx`             | `StreakProvider` derives the daily streak once; `useStreak()` reads it                       |
 | `components/streak-panel.tsx` | the Home panel: days in a row, today's status, 13 weeks of squares to pick a day on, freezes |
 | `components/streak-grid.ts`   | the 13-week grid layout, picked-day wording and the day under a tap                          |
 
@@ -26,13 +26,16 @@ the rules below stay, tested with the switch on.
 
 A day is alive when a done workout started on it has a counted rep or hold, from any challenge or a free
 log. Every 7 alive days in a row earn a freeze (hold 2); a missed day with one held is frozen. The streak
-is computed from alive days every time it is shown. Freeze events are only its record for the server:
+is computed once per shared library snapshot and day. Freeze events are only its record for the server:
 nothing reads them back, so a day another phone later makes alive is simply alive. They are written at
 launch and at each new day (`bootstrap/startup.ts`), never for today, and not while a workout is open,
 because one started before midnight may still make yesterday alive.
 
-Alive days are `aliveDays` in `streak.ts`, over the shared snapshot on Home and over the rows
+Alive days are `aliveDays` in `streak.ts`, over the shared indexed library snapshot in `StreakProvider` and over the rows
 `workout/store.ts` reads (`workoutRows`, `setRows`) in `keepFreezes`. Tests: `streak.test.ts` works the
 rules by hand; `store.test.ts` writes real workouts to Node SQLite.
 `aliveDays` uses `workout/plan/results.ts`'s `countedWorkouts`, also used by the challenge day log.
 `components/streak-grid.test.ts` covers the layout, wording and taps independently of the streak rules.
+
+The root layout mounts `StreakProvider` directly under `LibraryProvider`. It reads that snapshot and
+`useToday()`; Home and League consume the same streak without repeating its derivation.

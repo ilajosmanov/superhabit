@@ -14,7 +14,7 @@ import { dark } from '@/theme';
  * players, and picks up where full screen left off.
  */
 export function SessionLoop({
-  clips,
+  clips: available,
   sets,
   expand,
   className,
@@ -26,6 +26,7 @@ export function SessionLoop({
   className: string;
   children: (clip: Clip) => ReactNode;
 }) {
+  const [clips] = useState(() => available);
   const [watching, setWatching] = useState<Spot | null>(null);
   const [from, setFrom] = useState<Spot>({ clip: 0, part: 0 });
   if (watching)
@@ -51,7 +52,7 @@ export function SessionLoop({
 }
 
 function Loop({
-  clips,
+  clips: available,
   start,
   expand,
   className,
@@ -65,7 +66,9 @@ function Loop({
   onWatch: (at: Spot) => void;
   children: (clip: Clip) => ReactNode;
 }) {
-  const { players, front, spot } = useReel(clips, start);
+  const [unavailable, setUnavailable] = useState(false);
+  const { clips, players, front, spot } = useReel(available, start, () => setUnavailable(true));
+  if (unavailable) return null;
   return (
     // Tap anywhere for sight; TalkBack gets the button below and still reads the text over the video.
     <Pressable onPress={() => onWatch(spot)} accessible={false} className={className}>

@@ -115,3 +115,14 @@ describe('keepFreezes', () => {
     expect(events()).toEqual([]);
   });
 });
+
+it('does no database work while freezes are off, even before startup has migrated storage', () => {
+  const prepare = vi.spyOn(db().$client, 'prepare').mockImplementation(() => {
+    throw new Error('storage must stay idle while freezes are off');
+  });
+  try {
+    expect(() => keepFreezes('2026-11-10')).not.toThrow();
+  } finally {
+    prepare.mockRestore();
+  }
+});

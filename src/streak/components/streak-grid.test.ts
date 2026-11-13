@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { dayAt, dayWords, weeks } from './streak-grid';
+import { dayAt, dayWords, emptyDayWords, weeks } from './streak-grid';
 
 const TODAY = '2026-11-10';
 
@@ -43,4 +43,12 @@ describe('dayAt', () => {
     expect(at(-1, 10)).toBeNull();
     expect(at(10, 7 * 23 + 1)).toBeNull();
   });
+});
+
+it('gives an empty recovery day a calm line and keeps nudges for today when training is due', () => {
+  expect(emptyDayWords(TODAY, 'rest', TODAY)).toBe('Rest day. Take it easy.');
+  expect(emptyDayWords(TODAY, 'open', TODAY)).toContain(
+    'The couch is winning today. One set and it loses.',
+  );
+  expect(emptyDayWords('2026-11-09', 'rest', TODAY)).toBe('Rest day. Take it easy.');
 });

@@ -37,3 +37,16 @@ export function dayAt(today: Day, x: number, y: number, width: number, height: n
   const day = columns[column]?.[row];
   return x >= 0 && y >= 0 && day !== undefined && day <= today ? day : null;
 }
+
+const NUDGES = [
+  'The couch is winning today. One set and it loses.',
+  'Your muscles are bored. Give them one set.',
+  'Zero reps so far. Every legend starts with one.',
+];
+
+/** Home's empty-day line: recovery asks for no work, an open training day gets a nudge. */
+export function emptyDayWords(day: Day, kind: DayKind, today: Day): string | readonly string[] {
+  if (kind === 'rest') return 'Rest day. Take it easy.';
+  if (day === today) return NUDGES;
+  return kind === 'frozen' ? 'No sets. A freeze kept your streak going.' : 'No sets on this day.';
+}

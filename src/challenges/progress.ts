@@ -1,5 +1,5 @@
 import { addDays, type Day } from '@/lib/day';
-import type { LoggedSet } from '@/workout/plan/logged-set';
+import { type LoggedSet } from '@/workout/plan/logged-set';
 import { expand, type Session, type ScheduledDay } from '@/workout/plan/plan';
 import { isRestDay } from '@/workout/plan/schedule';
 import { setShare, shareDone, workoutResults } from '@/workout/plan/results';
@@ -33,7 +33,7 @@ export type ProgressInput = {
   version: Version;
   versions: readonly Version[];
   workouts: readonly Workout[];
-  sets: readonly LoggedSet[];
+  sets: ReadonlyMap<string, readonly LoggedSet[]>;
 };
 export type DayResult = {
   /** Recovery is neutral: never exercise credit or a missed obligation. */
@@ -63,9 +63,9 @@ function workoutVersion(input: ProgressInput, workout: Workout) {
   return version;
 }
 
-function workoutShare(input: ProgressInput, workout: Workout) {
+function workoutShare(input: ProgressInput, workout: Workout, sets: readonly LoggedSet[]) {
   const steps = expand(workoutVersion(input, workout).session);
-  return shareDone(steps, workoutResults(steps, workout.id, input.sets));
+  return shareDone(steps, workoutResults(steps, sets));
 }
 
 /**
@@ -81,6 +81,7 @@ export const counting = (input: ProgressInput, workoutId: string): ProgressInput
 
 /** Only saved (Done) workouts count. A completed try survives a later partial redo. */
 export function dayResult(input: ProgressInput, day: Day): DayResult {
+  const grouped = input.sets;
   const tries = input.workouts
     .filter((w) => w.runId === input.run.id && w.day === day && w.status === 'done')
     .sort((a, b) => a.startedAt - b.startedAt || a.id.localeCompare(b.id));
@@ -97,14 +98,9 @@ export function dayResult(input: ProgressInput, day: Day): DayResult {
     for (const workout of tries) {
       const steps = expand(workoutVersion(input, workout).session);
       const target = steps[0];
-      for (const set of input.sets) {
+      for (const set of grouped.get(workout.id) ?? []) {
         const step = steps[set.planStep];
-        if (
-          set.workoutId !== workout.id ||
-          set.exercise !== target.exercise ||
-          step?.exercise !== set.exercise
-        )
-          continue;
+        if (set.exercise !== target.exercise || step?.exercise !== set.exercise) continue;
         amount += target.goal.type === 'seconds' ? set.heldMs / 1000 : set.reps;
         counted.push(set);
       }
@@ -115,13 +111,16 @@ export function dayResult(input: ProgressInput, day: Day): DayResult {
     return { done, share: done ? 1 : finalShare, shown: latest, total: amount, sets: counted };
   }
 
-  const results = tries.map((workout) => ({ workout, share: workoutShare(input, workout) }));
+  const results = tries.map((workout) => ({
+    workout,
+    share: workoutShare(input, workout, grouped.get(workout.id) ?? []),
+  }));
   const shown = results.findLast(({ share }) => share >= 1) ?? results[results.length - 1];
   return {
     done: shown.share >= 1,
     share: shown.share,
     shown: shown.workout,
-    sets: input.sets.filter((set) => set.workoutId === shown.workout.id),
+    sets: grouped.get(shown.workout.id) ?? [],
   };
 }
 
@@ -131,6 +130,12 @@ export function dayResult(input: ProgressInput, day: Day): DayResult {
  */
 export function runCalendar(input: ProgressInput, today: Day): { days: RunDay[]; state: RunState } {
   const { run, version } = input;
+  const workoutsByDay = new Map<Day, Workout[]>();
+  for (const workout of input.workouts) {
+    const kept = workoutsByDay.get(workout.day);
+    if (kept) kept.push(workout);
+    else workoutsByDay.set(workout.day, [workout]);
+  }
   const left = run.endReason === 'left' && run.endedOn !== null && run.endedOn <= today;
   const until = left && run.endedOn !== null ? run.endedOn : today;
   const days: RunDay[] = [];
@@ -144,7 +149,7 @@ export function runCalendar(input: ProgressInput, today: Day): { days: RunDay[];
       break;
     }
     number += 1;
-    const result = dayResult(input, day);
+    const result = dayResult({ ...input, workouts: workoutsByDay.get(day) ?? [] }, day);
     if (isRestDay(version, number)) result.rest = true;
     days.push({ day, number, from, result });
     // Only a closed calendar day can be missed. A leave freezes the run on its final day.

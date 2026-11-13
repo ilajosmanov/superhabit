@@ -1,29 +1,39 @@
 import { z } from 'zod';
 import { isTimestamp } from '@/lib/day';
+import { MAX_DAYS, MAX_SETS, readChallengePlan } from '@/workout/plan/plan';
 
 // The phone's outbox rows (`src/storage/outbox.ts`), as it sends them: `{ entity, entityId, op, payload }`.
 // Fields the server doesn't know are dropped, so a newer phone's additions don't refuse its changes.
 
 const id = z.string().min(1).max(64);
-// A real calendar date (`2026-02-30` is refused): the leagues count streaks from it.
-const day = z.iso.date();
+// No Superhabit day is older than this.
+const FIRST_DAY = '2026-01-01';
+// A real calendar date (`2026-02-30` is refused) the app could have lived: the leagues walk every day from
+// a run's start, so a run dated year 0100 would cost seconds per board read. Later days cost nothing.
+const day = z.iso.date().refine((value) => value >= FIRST_DAY, `must be ${FIRST_DAY} or later`);
 const instant = z.int().nonnegative().refine(isTimestamp, 'must be a representable timestamp');
 const count = z.int().nonnegative();
 const label = z.string().max(100);
 // JSON kept as the phone wrote it; the columns for these can't hold null.
 const filled = z.json().refine((value) => value !== null, 'must not be null');
 
-const version = z.object({
-  id,
-  challengeId: id,
-  number: z.int().positive(),
-  name: z.string().max(200),
-  days: z.int().positive(),
-  dailyTotal: z.boolean(),
-  restartOnMiss: z.boolean(),
-  plan: filled,
-  createdAt: instant,
-});
+// The leagues score from the plan, so it must be one this app reads (which caps its sets at MAX_SETS).
+const version = z
+  .object({
+    id,
+    challengeId: id,
+    number: z.int().positive(),
+    name: z.string().max(200),
+    days: z.int().positive().max(MAX_DAYS),
+    dailyTotal: z.boolean(),
+    restartOnMiss: z.boolean(),
+    plan: filled,
+    createdAt: instant,
+  })
+  .refine(
+    (v) => readChallengePlan(v.plan, v.days) !== null,
+    `plan must be a valid session of at most ${MAX_SETS} sets`,
+  );
 
 const run = z.object({
   id,
@@ -62,7 +72,7 @@ const workout = z.object({
   tzOffsetMin: z.int().min(-840).max(840),
   tz: label,
   appVersion: label,
-  sets: z.array(set).max(200),
+  sets: z.array(set).max(MAX_SETS),
 });
 
 const streakEvent = z.object({

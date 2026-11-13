@@ -1,6 +1,6 @@
-import { addDays, isTimestamp, today as localDay, type Day } from '@/lib/day';
+import { addDays, isTimestamp, type Day } from '@/lib/day';
 import { readChallengePlan } from '@/workout/plan/plan';
-import { readSets } from '@/workout/plan/logged-set';
+import type { LoggedSet } from '@/workout/plan/logged-set';
 import { runCalendar, type Run, type Version, type Workout } from './progress';
 
 /** Only the persisted facts needed for recovery; usable by both phone and server. */
@@ -17,9 +17,35 @@ export type RestLibrary = {
     plan: unknown;
   }[];
   runs: readonly (Run & { challengeId: string })[];
-  workouts: readonly Workout[];
-  sets: Parameters<typeof readSets>[0];
+  workouts: readonly (Workout & { tz?: string | null })[];
+  sets: ReadonlyMap<string, readonly LoggedSet[]>;
 };
+
+/** Archive and publication dates follow the latest saved workout's zone, even after travel: the server
+ * never sees an open one. No workout uses the runtime's zone (phone locally, UTC on the server); bad
+ * stored zones use UTC on both.
+ */
+function dateInWorkoutZone(workouts: RestLibrary['workouts']) {
+  const latest = workouts.reduce<RestLibrary['workouts'][number] | undefined>(
+    // Ties go to the larger id: the phone and the server read rows in no shared order.
+    (last, row) =>
+      row.status === 'done' &&
+      (!last ||
+        row.startedAt > last.startedAt ||
+        (row.startedAt === last.startedAt && row.id > last.id))
+        ? row
+        : last,
+    undefined,
+  );
+  const options = { year: 'numeric', month: '2-digit', day: '2-digit' } as const;
+  let format: Intl.DateTimeFormat;
+  try {
+    format = new Intl.DateTimeFormat('en-CA', { ...options, timeZone: latest?.tz ?? undefined });
+  } catch {
+    format = new Intl.DateTimeFormat('en-CA', { ...options, timeZone: 'UTC' });
+  }
+  return (timestamp: number) => format.format(timestamp);
+}
 
 /**
  * Dates where every active run prescribed recovery. A missing/unreadable plan never grants a rest.
@@ -27,12 +53,9 @@ export type RestLibrary = {
  * Scheduled runs are pinned. Legacy own runs follow edits, so their historical duration uses only
  * versions already published on that date, never a later shortened plan.
  */
-export function restDays(
-  library: RestLibrary,
-  today: Day,
-  dayOf = (timestamp: number) => localDay(new Date(timestamp)),
-): Day[] {
+export function restDays(library: RestLibrary, today: Day): Day[] {
   if (library.runs.length === 0) return [];
+  const dayOf = dateInWorkoutZone(library.workouts);
   const challengeIds = new Set(library.runs.map((run) => run.challengeId));
   // Older sync validation accepted safe integers beyond Date's range. Unknown chronology cannot
   // establish recovery: keep workout points, but grant no recovery credit for this library.
@@ -43,7 +66,7 @@ export function restDays(
     library.versions.some((row) => challengeIds.has(row.challengeId) && !isTimestamp(row.createdAt))
   )
     return [];
-  const sets = readSets(library.sets);
+  const sets = library.sets;
   const storedVersions = library.versions
     .filter((row) => challengeIds.has(row.challengeId))
     .map((row) => {

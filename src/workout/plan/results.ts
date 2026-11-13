@@ -42,12 +42,13 @@ export type StepResult = {
 /** Done workouts with a counted rep or hold; an empty Done does not count. */
 export function countedWorkouts<T extends { id: string; status: string }>(
   workouts: readonly T[],
-  sets: readonly Pick<LoggedSet, 'workoutId' | 'reps' | 'heldMs'>[],
+  sets: ReadonlyMap<string, readonly Pick<LoggedSet, 'reps' | 'heldMs'>[]>,
 ): T[] {
-  const counted = new Set(
-    sets.filter(({ reps, heldMs }) => reps > 0 || heldMs > 0).map(({ workoutId }) => workoutId),
+  return workouts.filter(
+    (workout) =>
+      workout.status === 'done' &&
+      sets.get(workout.id)?.some(({ reps, heldMs }) => reps > 0 || heldMs > 0),
   );
-  return workouts.filter((workout) => workout.status === 'done' && counted.has(workout.id));
 }
 
 /** Metrics and cues of the last rep, or null before the first rep. */
@@ -116,15 +117,17 @@ export function shareDone(steps: FlatSteps, results: readonly SetAmount[]) {
   return sets.reduce((sum, { goal }, i) => sum + setShare(goal, amounts[i]), 0) / sets.length;
 }
 
-/** A kept workout's sets in plan order, one per exercise step; a step with no set got nothing. */
-export function workoutResults(steps: FlatSteps, workoutId: string, sets: readonly LoggedSet[]) {
-  // planStep indexes the expanded plan, including rests. Preserve gaps instead of shifting sets left.
+/** One workout's kept sets in plan order; an exercise step with no set got nothing. */
+export function workoutResults(steps: FlatSteps, sets: readonly LoggedSet[]) {
+  // planStep includes rests. Index once, preserving gaps and the first matching recorded set.
+  const byStep = new Map<number, LoggedSet>();
+  for (const set of sets) {
+    if (steps[set.planStep]?.exercise === set.exercise && !byStep.has(set.planStep))
+      byStep.set(set.planStep, set);
+  }
   return steps.flatMap((step, planStep) => {
     if (step.exercise === 'rest') return [];
-    const set = sets.find(
-      (set) =>
-        set.workoutId === workoutId && set.planStep === planStep && set.exercise === step.exercise,
-    );
+    const set = byStep.get(planStep);
     return [{ exercise: step.exercise, reps: set?.reps ?? 0, heldMs: set?.heldMs ?? 0 }];
   });
 }

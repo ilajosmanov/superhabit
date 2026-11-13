@@ -1,3 +1,4 @@
+import { readSets } from '@/workout/plan/logged-set';
 import { describe, expect, it } from 'vite-plus/test';
 
 import { runCalendar, type ProgressInput } from './progress';
@@ -14,7 +15,7 @@ describe('run calendar', () => {
         schedule: ['training', 'rest', 'training', 'rest', 'training'],
       },
       workouts: [workout('first', 1)],
-      sets: [set('first', 500)],
+      sets: readSets([set('first', 500)]),
     };
     const rested = runCalendar(scheduled, '2026-11-03');
     expect(rested.state).toEqual({ state: 'active', day: 3, from: '2026-11-01' });
@@ -31,7 +32,7 @@ describe('run calendar', () => {
       ...input,
       version: { ...input.version, schedule: ['rest', 'training', 'rest'] },
       workouts: [workout('second', 1, { day: '2026-11-02' })],
-      sets: [set('second', 500)],
+      sets: readSets([set('second', 500)]),
     };
     expect(runCalendar(scheduled, '2026-11-02').state.day).toBe(2);
     expect(runCalendar(scheduled, '2026-11-04').state).toEqual({
@@ -43,7 +44,7 @@ describe('run calendar', () => {
   const tried: ProgressInput = {
     ...input,
     workouts: [workout('first', 1), workout('partial', 2, { day: '2026-11-02' })],
-    sets: [set('first', 500), set('partial', 250)],
+    sets: readSets([set('first', 500), set('partial', 250)]),
   };
 
   it('restarts after an incomplete past day and preserves the missed stretch', () => {
@@ -60,7 +61,7 @@ describe('run calendar', () => {
     const offline = {
       ...tried,
       workouts: [...tried.workouts, workout('back', 3, { day: '2026-11-06' })],
-      sets: [...tried.sets, set('back', 500)],
+      sets: readSets([...Array.from(tried.sets.values()).flat(), set('back', 500)]),
     };
     const { days, state } = runCalendar(offline, '2026-11-07');
     expect(state).toEqual({
@@ -95,7 +96,7 @@ describe('run calendar', () => {
         workout('b', 2, { day: '2026-11-02' }),
         workout('c', 3, { day: '2026-11-03' }),
       ],
-      sets: [set('a', 500), set('b', 500), set('c', 500)],
+      sets: readSets([set('a', 500), set('b', 500), set('c', 500)]),
     };
     expect(runCalendar(finished, '2026-11-03').state).toEqual({
       state: 'active',
@@ -121,7 +122,7 @@ describe('run calendar', () => {
     // The last day itself must be complete when restarting is enabled.
     expect(
       runCalendar(
-        { ...finished, sets: [set('a', 500), set('b', 500), set('c', 499)] },
+        { ...finished, sets: readSets([set('a', 500), set('b', 500), set('c', 499)]) },
         '2026-11-04',
       ).state,
     ).toEqual({ state: 'active', day: 1, from: '2026-11-04' });

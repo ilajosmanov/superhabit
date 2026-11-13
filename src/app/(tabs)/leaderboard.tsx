@@ -1,7 +1,6 @@
 import { useNavigation } from 'expo-router';
 
 import { useLeave } from '@/bootstrap/leave';
-import { useToday } from '@/bootstrap/today';
 import { useSurprise } from '@/challenges/components/surprise-sheet';
 import { LeagueScreen } from '@/leaderboard/components/league-screen';
 import { useStreak } from '@/streak/streak-live';
@@ -13,7 +12,7 @@ import { useStreak } from '@/streak/streak-live';
 export default function LeaderboardRoute() {
   const navigation = useNavigation();
   const { sessionEnded } = useLeave();
-  const streak = useStreak(useToday());
+  const streak = useStreak();
   const surprise = useSurprise();
   return (
     <LeagueScreen

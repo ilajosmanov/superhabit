@@ -7,7 +7,10 @@ import { AmountInput } from './amount-input';
 import type { Amount } from '@/challenges/draft';
 import {
   dayChoices,
+  flipDay,
   knobsOf,
+  limitOf,
+  withValue,
   rangeOf,
   tuned,
   valueOf,
@@ -24,7 +27,7 @@ import { tick } from '@/components/tick';
 import { EXERCISES } from '@/exercises/registry';
 import { capitalise } from '@/lib/text';
 import { useColors } from '@/components/colors';
-import type { Challenge } from '@/workout/plan/plan';
+import { MAX_DAYS, MAX_SETS, type Challenge, type ScheduledDay } from '@/workout/plan/plan';
 
 const label = 'font-mono text-xs tracking-widest text-muted';
 
@@ -104,13 +107,18 @@ export function TuneNumbers({
   const colors = useColors();
   const knobs = knobsOf(challenge);
   const [values, setValues] = useState<Values>({});
+  // Your workout and rest days, as shown when last tapped; null keeps ours.
+  const [pattern, setPattern] = useState<ScheduledDay[] | null>(null);
   const [reset, setReset] = useState(0);
   const [picked, setPicked] = useState(0);
   const knob = knobs[Math.min(picked, knobs.length - 1)];
   const value = valueOf(knob, values);
-  const changed = knobs.some((k) => valueOf(k, values) !== k.ours);
+  const changed = pattern !== null || knobs.some((k) => valueOf(k, values) !== k.ours);
+  const yours = tuned(challenge, values, pattern);
   const { name, note } = names(knob, knobs, values, !!challenge.schedule);
-  const set = (n: Amount) => setValues((v) => ({ ...v, [knob.key]: n }));
+  const limit = limitOf(challenge, knob, values);
+  const range = rangeOf(knob);
+  const set = (n: Amount) => setValues((v) => withValue(challenge, v, knob, n));
 
   return (
     <Screen
@@ -119,7 +127,7 @@ export function TuneNumbers({
       footer={
         <PrimaryButton
           label={changed ? 'Join with these numbers' : 'Join'}
-          onPress={() => onJoin(changed ? tuned(challenge, values) : null)}
+          onPress={() => onJoin(changed ? yours : null)}
         />
       }
     >
@@ -132,6 +140,7 @@ export function TuneNumbers({
                   color={colors.soft}
                   onPress={() => {
                     setValues({});
+                    setPattern(null);
                     setReset((n) => n + 1);
                   }}
                   edge
@@ -141,7 +150,10 @@ export function TuneNumbers({
         }}
       />
 
-      <SchedulePreview challenge={tuned(challenge, values)} />
+      <SchedulePreview
+        challenge={yours}
+        onFlip={(day) => yours.schedule && setPattern(flipDay(challenge, yours.schedule, day))}
+      />
       {challenge.schedule && (
         <Text className="font-sans text-sm text-muted">
           Changing days shortens this calendar or repeats its pattern.
@@ -223,19 +235,15 @@ export function TuneNumbers({
         </View>
         {knob.kind === 'days' ? (
           <>
-            <View
-              accessible
-              accessibilityLabel={`${value} days`}
-              className="-ml-1.5 flex-row items-end justify-between"
-            >
-              <Text
-                maxFontSizeMultiplier={1}
-                className="font-sans text-9xl font-extralight leading-none tracking-tighter text-chalk"
-              >
-                {value}
-              </Text>
-              <Text className={`pb-4 ${label}`}>DAYS</Text>
-            </View>
+            <AmountInput
+              key={`${knob.key}:${reset}`}
+              value={value}
+              range={range}
+              limit={limit}
+              labels={['DAYS']}
+              name={name}
+              onChange={set}
+            />
             <Segments choices={dayChoices(knob.ours)} value={value} onChange={set} />
           </>
         ) : (
@@ -243,12 +251,20 @@ export function TuneNumbers({
           <AmountInput
             key={`${knob.key}:${reset}`}
             value={value}
-            range={rangeOf(knob)}
+            range={{ ...range, max: Math.min(range.max, limit) }}
+            limit={limit}
             max={(knob.kind === 'reps' || knob.kind === 'seconds') && !challenge.dailyTotal}
             labels={knob.kind === 'rounds' ? [UNIT[knob.kind]] : [UNIT[knob.kind], note]}
             name={name}
             onChange={set}
           />
+        )}
+        {value === limit && (
+          <Text className="font-sans text-sm text-muted">
+            {knob.kind === 'days'
+              ? `Up to ${MAX_DAYS} days per challenge.`
+              : `Up to ${MAX_SETS} sets per workout.`}
+          </Text>
         )}
         <View className="h-12 flex-row items-center justify-between">
           <Text className={label}>SUGGESTED {knob.ours === 'max' ? 'MAX' : knob.ours}</Text>

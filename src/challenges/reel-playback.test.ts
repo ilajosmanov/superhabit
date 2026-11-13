@@ -1,11 +1,19 @@
-import { describe, expect, it, vi } from 'vite-plus/test';
+import { files, modules } from '@/workout/__fixtures__/session';
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import { createActor } from 'xstate';
 import type { VideoPlayerEvents, VideoPlayerStatus, VideoSource } from 'expo-video';
 
 import { reps } from '@/workout/plan/plan';
-import { reelOf } from './reel';
-import { reelPlayback } from './reel-playback';
+import { deleteVideos, videoIndex } from '@/storage/set-files';
+import { set as keptSet } from '@/challenges/__fixtures__/progress';
+import { expand } from '@/workout/plan/plan';
+import { dayReel, reelOf } from './reel';
+import { openReel, reelPlayback } from './reel-playback';
 import type { StepResult } from '@/workout/plan/results';
+
+vi.mock('expo-file-system', () => modules['expo-file-system']);
+vi.mock('@/storage/account', () => ({ userId: () => 'local' }));
+afterEach(() => files.clear());
 
 const set = (takes: string[]): StepResult => ({
   id: 'set',
@@ -94,11 +102,19 @@ function reel(missing: readonly string[] = []) {
   // Files deleted since the reel was listed fail as the players are made, before the reel listens.
   for (const player of players) if (missing.includes(player.file)) player.status = 'error';
   const onProgress = vi.fn<(along: number, glide: boolean) => void>();
+  const onUnavailable = vi.fn();
   const actor = createActor(reelPlayback, {
-    input: { clips, players, start: { clip: 0, part: 0 }, onProgress },
+    input: { clips, players, start: { clip: 0, part: 0 }, onProgress, onUnavailable },
   }).start();
   const on = () => players.map(({ file, playing }) => (playing ? file : `(${file})`)).join(' ');
-  return { players, actor, onProgress, on, spot: () => actor.getSnapshot().context.spot };
+  return {
+    players,
+    actor,
+    onProgress,
+    onUnavailable,
+    on,
+    spot: () => actor.getSnapshot().context.spot,
+  };
 }
 
 describe('the reel playback', () => {
@@ -202,4 +218,85 @@ describe('the reel playback', () => {
     actor.stop();
     expect(players.map((player) => player.listening())).toEqual([[], []]);
   });
+});
+
+it('closes safely when retention deletes the last clip during viewing', () => {
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const path = 'document/local/videos/saved-0.mp4';
+  files.add(path);
+  const steps = expand([{ rounds: 1, steps: [{ exercise: 'pushup', goal: reps(10) }] }]);
+  const kept = [keptSet('workout', 10, { id: 'saved' })];
+  const source = openReel(dayReel(steps, kept, videoIndex()), { clip: 0, part: 0 });
+  const players = [fake(source.first), fake(source.next)] as const;
+  const onUnavailable = vi.fn();
+  const actor = createActor(reelPlayback, {
+    input: {
+      clips: source.clips,
+      start: source.start,
+      players,
+      onProgress: () => {},
+      onUnavailable,
+    },
+  }).start();
+  try {
+    players[0].play();
+    players[0].load();
+    // The live catalog loses every video; playback still owns the sources from when it opened.
+    deleteVideos(['saved']);
+    expect(dayReel(steps, kept, videoIndex())).toEqual([]);
+    // The same source calculation used by useReel still resolves the opened list, not the live one.
+    expect(openReel(source.clips, source.start).first).toBe(path);
+    players[0].fail();
+    players[1].fail();
+    expect(actor.getSnapshot().status).toBe('done');
+    expect(onUnavailable).toHaveBeenCalledExactlyOnceWith({ clip: 0, part: 0 });
+    expect(players.some(({ playing }) => playing)).toBe(false);
+  } finally {
+    actor.stop();
+  }
+});
+
+it('keeps playback positions when new clips arrive and skips a deleted waiting source', () => {
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const folder = 'document/local/videos';
+  files.add(`${folder}/first-0.mp4`);
+  files.add(`${folder}/second-0.mp4`);
+  const steps = expand([{ rounds: 3, steps: [{ exercise: 'pushup', goal: reps(10) }] }]);
+  const kept = [
+    keptSet('workout', 10, { id: 'new', planStep: 0 }),
+    keptSet('workout', 10, { id: 'first', planStep: 1, startedAt: 1 }),
+    keptSet('workout', 10, { id: 'second', planStep: 2, startedAt: 2 }),
+  ];
+  const source = openReel(dayReel(steps, kept, videoIndex()), { clip: 0, part: 0 });
+  const players = [fake(source.first), fake(source.next)] as const;
+  const onUnavailable = vi.fn();
+  const actor = createActor(reelPlayback, {
+    input: {
+      clips: source.clips,
+      start: source.start,
+      players,
+      onProgress: () => {},
+      onUnavailable,
+    },
+  }).start();
+  try {
+    players[0].play();
+    players[0].load();
+    expect(players.map((player) => player.file)).toEqual([
+      `${folder}/first-0.mp4`,
+      `${folder}/second-0.mp4`,
+    ]);
+    files.add(`${folder}/new-0.mp4`);
+    deleteVideos(['second']);
+    expect(dayReel(steps, kept, videoIndex()).map((clip) => clip.set)).toEqual([0, 1]);
+    players[1].fail();
+    players[0].end();
+    // The missing second file is passed over, and the original first clip keeps its position.
+    expect(actor.getSnapshot().context.spot).toEqual({ clip: 0, part: 0 });
+    expect(players[0].file).toBe(`${folder}/first-0.mp4`);
+    expect(actor.getSnapshot().context.clips[0].set).toBe(1);
+    expect(onUnavailable).not.toHaveBeenCalled();
+  } finally {
+    actor.stop();
+  }
 });

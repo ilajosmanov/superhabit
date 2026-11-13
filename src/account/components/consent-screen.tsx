@@ -130,7 +130,7 @@ export function ConsentScreen({
   );
 }
 
-/** Opens our privacy policy in the browser: here and on Profile. */
+/** Opens our privacy policy in the browser: on sign-in and on Profile. */
 export const openPrivacyPolicy = () => void Linking.openURL(`${SERVER_URL}/privacy`);
 
 function Point({

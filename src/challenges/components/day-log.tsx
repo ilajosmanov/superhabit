@@ -9,7 +9,6 @@ import { mss } from '@/lib/duration';
 import { SadFigure } from '@/components/illustrations';
 import { RollingLines } from './rolling-lines';
 import { EXERCISES } from '@/exercises/registry';
-import { videosOf } from '@/storage/set-files';
 import { useColors } from '@/components/colors';
 import { pad } from '@/lib/day';
 
@@ -22,23 +21,21 @@ function clock({ startedAt, tzOffsetMin }: LogRow) {
 /**
  * The workouts saved on a day, a row each, oldest first; `empty` when there are none. A row whose sets
  * have videos plays them full screen, a challenge's try too: its page shows only the try that counts. Its
- * files are listed once, as it mounts: key it by the rows' workout ids.
+ * video index belongs to the root provider. An opened viewer keeps the clips captured by its row.
  */
 export function DayLog({
   label,
   rows,
   empty,
+  videos,
 }: {
   label: string;
   rows: readonly LogRow[];
+  videos: ReadonlyMap<string, readonly string[]>;
   /** Said when there are no rows; several take turns. */
   empty: string | readonly string[];
 }) {
   const colors = useColors();
-  // shortcut: a workout saved while its last file was still finalizing misses that set until the list
-  // remounts (another day picked, or another workout saved); list again when the camcorder wraps if that
-  // shows up on the phone.
-  const [videos] = useState(() => videosOf(rows.flatMap((row) => row.sets.map(({ id }) => id))));
   const [watching, setWatching] = useState<{ clips: Clip[]; sets: number } | null>(null);
   return (
     <View className="gap-3">

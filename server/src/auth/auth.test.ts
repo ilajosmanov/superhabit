@@ -46,6 +46,21 @@ describe('sign-in', () => {
     expect(await me(cookie)).toBe(401);
   });
 
+  it("keeps Better Auth's other endpoints closed: a member can't rename themselves for the board", async () => {
+    const cookie = await signIn(ann);
+    const post = (path: string, body: object) =>
+      call(`/api/auth/${path}`, {
+        method: 'POST',
+        headers: { cookie, 'expo-origin': 'superhabit://', 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    expect(
+      (await post('update-user', { name: 'Admin', image: 'https://evil.example/a.png' })).status,
+    ).toBe(404);
+    expect((await post('delete-user', {})).status).toBe(404);
+    expect(await me(cookie)).toMatchObject({ name: 'Ann Lee' });
+  });
+
   it('takes 30 posts a minute from one IP; another IP still signs in', async () => {
     const post = () =>
       call('/api/auth/sign-in/social', {

@@ -9,6 +9,7 @@ import {
   toChallenge,
   unitOf,
   withNumber,
+  withDays,
   type Draft,
 } from '@/challenges/draft';
 import { isHold } from '@/challenges/hold';
@@ -19,7 +20,7 @@ import { Segments } from '@/components/segments';
 import { SwitchRow } from '@/components/switch-row';
 import { EXERCISES } from '@/exercises/registry';
 import { useColors } from '@/components/colors';
-import { MAX, type Challenge } from '@/workout/plan/plan';
+import { MAX, MAX_DAYS, type Challenge } from '@/workout/plan/plan';
 
 import { AmountInput } from './amount-input';
 
@@ -119,10 +120,23 @@ export function Builder({
           <Text className={label}>DAYS</Text>
           <Text className={label}>ENDS {dayLabel(addDays(from, draft.days - 1))}</Text>
         </View>
+        <AmountInput
+          value={draft.days}
+          range={{ min: 1, max: 30, step: 1 }}
+          limit={MAX_DAYS}
+          labels={['DAYS']}
+          name="Days"
+          onChange={(days) => {
+            if (days !== 'max') setDraft((d) => withDays(d, days));
+          }}
+        />
+        {draft.days === MAX_DAYS && (
+          <Text className="font-sans text-sm text-muted">Up to {MAX_DAYS} days per challenge.</Text>
+        )}
         <Segments
           choices={DAY_CHOICES}
           value={draft.days}
-          onChange={(days) => setDraft((d) => ({ ...d, days }))}
+          onChange={(days) => setDraft((d) => withDays(d, days))}
         />
       </View>
 

@@ -20,7 +20,9 @@ import { FeedbackButton } from '@/components/feedback-sheet';
 import { startup } from '@/bootstrap/startup';
 import { LeftOpen } from '@/bootstrap/left-open';
 import { Leave } from '@/bootstrap/leave';
-import { Today } from '@/bootstrap/today';
+import { Today } from '@/components/today';
+import { StreakProvider } from '@/streak/streak-live';
+import { VideosProvider } from '@/challenges/videos-live';
 import { LibraryProvider } from '@/challenges/library-live';
 import { DroppedBarScene } from '@/components/illustrations';
 import { SnackbarProvider } from '@/components/snackbar';
@@ -78,24 +80,28 @@ function RootLayout() {
             <LeftOpen value={state.context.open?.id ?? null}>
               <Today value={state.context.today}>
                 <LibraryProvider onRead={(error) => send({ type: 'dataReady', error })}>
-                  <DrizzleStudio />
-                  <Stack
-                    screenOptions={{
-                      headerShown: false,
-                      contentStyle: { backgroundColor: colors.ground },
-                      animation: 'ios_from_right',
-                    }}
-                  >
-                    <Stack.Screen name="challenge/[id]" options={pushed} />
-                    <Stack.Screen name="create" options={pushed} />
-                    <Stack.Screen name="build" options={pushed} />
-                    <Stack.Screen name="tune" options={pushed} />
-                    {/* The camera stays dark in either theme; only its Done page wears the theme. */}
-                    <Stack.Screen
-                      name="workout/[id]"
-                      options={{ contentStyle: { backgroundColor: dark.ground } }}
-                    />
-                  </Stack>
+                  <StreakProvider>
+                    <VideosProvider>
+                      <DrizzleStudio />
+                      <Stack
+                        screenOptions={{
+                          headerShown: false,
+                          contentStyle: { backgroundColor: colors.ground },
+                          animation: 'ios_from_right',
+                        }}
+                      >
+                        <Stack.Screen name="challenge/[id]" options={pushed} />
+                        <Stack.Screen name="create" options={pushed} />
+                        <Stack.Screen name="build" options={pushed} />
+                        <Stack.Screen name="tune" options={pushed} />
+                        {/* The camera stays dark in either theme; only its Done page wears the theme. */}
+                        <Stack.Screen
+                          name="workout/[id]"
+                          options={{ contentStyle: { backgroundColor: dark.ground } }}
+                        />
+                      </Stack>
+                    </VideosProvider>
+                  </StreakProvider>
                 </LibraryProvider>
               </Today>
             </LeftOpen>

@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from 'vite-plus/test';
 import { createActor, setup } from 'xstate';
 
 import { camcorder, videoFile, type VideoOutput } from './camcorder';
-import { videosOf } from '@/storage/set-files';
+import { videoIndex } from '@/storage/set-files';
 
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 
@@ -19,19 +19,17 @@ it("lists a set's videos in take order, keeping a gap a failed take left", () =>
   // Take 1 failed; take 10 sorts after 2 by number, not by name.
   for (const name of ['a-10', 'a-0', 'a-2', 'b-0', 'ab-0']) files.add(`${dir}/${name}.mp4`);
 
-  expect(videosOf(['a', 'c'])).toEqual(
-    new Map([['a', [`${dir}/a-0.mp4`, `${dir}/a-2.mp4`, `${dir}/a-10.mp4`]]]),
-  );
+  expect(videoIndex().get('a')).toEqual([`${dir}/a-0.mp4`, `${dir}/a-2.mp4`, `${dir}/a-10.mp4`]);
 });
 
 it('leaves out a set whose take is still being written', () => {
   const take = videoFile('a', 1);
   files.add(`${dir}/a-0.mp4`);
   files.add(`${dir}/a-1.mp4`);
-  expect(videosOf(['a'])).toEqual(new Map());
+  expect(videoIndex().has('a')).toBe(false);
 
   take.finish(true);
-  expect(videosOf(['a']).get('a')).toHaveLength(2);
+  expect(videoIndex().get('a')).toHaveLength(2);
 });
 
 const tick = async () => {
@@ -85,7 +83,7 @@ it('lists a started file when cut while native start is still in flight', async 
 
   expect(events).toEqual(['rolling', 'taken', 'wrapped']);
   expect(messages[0]).toEqual({ type: 'rolling', setId: 'cut', uri: `${dir}/cut-0.mp4` });
-  expect(videosOf(['cut']).get('cut')).toEqual([`${dir}/cut-0.mp4`]);
+  expect(videoIndex().get('cut')).toEqual([`${dir}/cut-0.mp4`]);
   actor.stop();
 });
 
@@ -113,11 +111,11 @@ it.each([false, true])(
     await tick();
     if (queued) camera?.send({ type: 'roll', setId: 'stalled' });
     files.add(`${dir}/stalled-0.mp4`);
-    expect(videosOf(['stalled']).size).toBe(0);
+    expect(videoIndex().has('stalled')).toBe(false);
     actor.stop();
     expect(files.size).toBe(0);
     files.add(`${dir}/stalled-9.mp4`);
-    expect(videosOf(['stalled']).get('stalled')).toEqual([`${dir}/stalled-9.mp4`]);
+    expect(videoIndex().get('stalled')).toEqual([`${dir}/stalled-9.mp4`]);
     start();
     await tick();
     expect(files).toEqual(new Set([`${dir}/stalled-9.mp4`]));
@@ -168,7 +166,7 @@ it.each([false, true])(
     try {
       camera?.send({ type: 'roll', setId: 'completed' });
       await tick();
-      expect(videosOf(['completed']).size).toBe(0);
+      expect(videoIndex().size).toBe(0);
       camera?.send({ type: 'logged', setId: 'completed' });
       camera?.send({ type: 'wrap' });
       finish();
@@ -181,7 +179,7 @@ it.each([false, true])(
         { type: 'rolling', setId: 'completed', uri: `${dir}/completed-0.mp4` },
         { type: 'taken', uri: `${dir}/completed-0.mp4`, ok: true },
       ]);
-      expect(videosOf(['completed']).get('completed')).toEqual([`${dir}/completed-0.mp4`]);
+      expect(videoIndex().get('completed')).toEqual([`${dir}/completed-0.mp4`]);
     } finally {
       actor.stop();
     }

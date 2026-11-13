@@ -15,12 +15,17 @@ export type LoggedSet = {
   endedAt: number;
 };
 
-/** Stored set rows this app can read; a set of an exercise it doesn't know (a newer app's) is left out. */
+/** Parse and group stored sets by workout; an exercise from a newer app is left out. */
 export function readSets(
   rows: readonly (Omit<LoggedSet, 'exercise' | 'goal'> & { exercise: string; goal: unknown })[],
-): LoggedSet[] {
-  return rows.flatMap((set) => {
+): ReadonlyMap<string, readonly LoggedSet[]> {
+  const grouped = new Map<string, LoggedSet[]>();
+  for (const set of rows) {
     const goal = readGoal(set.goal);
-    return isExerciseId(set.exercise) && goal ? [{ ...set, exercise: set.exercise, goal }] : [];
-  });
+    if (!isExerciseId(set.exercise) || !goal) continue;
+    const group = grouped.get(set.workoutId) ?? [];
+    group.push({ ...set, exercise: set.exercise, goal });
+    grouped.set(set.workoutId, group);
+  }
+  return grouped;
 }

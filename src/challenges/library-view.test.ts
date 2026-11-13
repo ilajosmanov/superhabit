@@ -1,3 +1,4 @@
+import { readSets } from '@/workout/plan/logged-set';
 import { expect, it } from 'vite-plus/test';
 
 import { dayLog, sessionChallenge, type Library } from './library-view';
@@ -36,7 +37,7 @@ it('keeps the Done page on the version the session started on when the challenge
       },
     ],
     workouts: [],
-    sets: [],
+    sets: readSets([]),
   };
   const during = { workoutId: 'w', versionId: 'v1' };
 
@@ -122,7 +123,7 @@ it("lists a day's saved workouts oldest first, with their names, run days and th
       { ...workout('short', 'strict', '2026-11-09', 6000), versionId: 'v2' },
       { ...workout('newer', 'newer', '2026-11-09', 7000), versionId: 'v3' },
     ],
-    sets: [
+    sets: readSets([
       set('pushups', 'pushup', 8),
       set('plank', 'plank', 0, 65_000),
       set('nothing', 'squat', 0),
@@ -131,7 +132,7 @@ it("lists a day's saved workouts oldest first, with their names, run days and th
       set('before', 'squat', 9),
       set('short', 'pushup', 4),
       set('newer', 'pushup', 3),
-    ],
+    ]),
   };
 
   const rows = dayLog(library, '2026-11-09', '2026-11-10');

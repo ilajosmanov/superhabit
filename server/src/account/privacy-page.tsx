@@ -1,13 +1,11 @@
 /** @jsxImportSource hono/jsx */
 
-// OWNER: review this wording before release. It must say only what the code does; change it with the code.
-
 /**
  * The privacy policy (`GET /privacy`; Google Play asks for its URL), rendered on the server like the delete
  * page: plain HTML, no script. The app records consent against this version (`POLICY_VERSION` in
  * src/account/consent.ts): a new version there needs one here.
  */
-export const PRIVACY_POLICY_VERSION = '2026-11-12';
+export const PRIVACY_POLICY_VERSION = '2026-11-13';
 
 export const PRIVACY_PAGE_POLICY = [
   "default-src 'none'",
@@ -45,6 +43,16 @@ export function PrivacyPage() {
             what information we collect, why we collect it, and the choices you have. We do not sell
             your information and we do not use it for advertising.
           </p>
+
+          <section>
+            <h2>Who we are</h2>
+            <p>
+              Superhabit is made by Superfeedback OÜ (registry code 17386133), Telliskivi tn 60a/5,
+              10412 Tallinn, Estonia. We are responsible for the information described here. For any
+              question about your privacy, write to{' '}
+              <a href="mailto:ceo@superfeedback.ai">ceo@superfeedback.ai</a>.
+            </p>
+          </section>
 
           <section>
             <h2>Information we collect</h2>
@@ -121,6 +129,26 @@ export function PrivacyPage() {
           </section>
 
           <section>
+            <h2>Our legal grounds</h2>
+            <p>European data protection law (the GDPR) asks us to say what allows each use.</p>
+            <ul>
+              <li>
+                <strong>Our agreement with you.</strong> Your account, your workouts, challenges and
+                streak, saving them and bringing them back, and the weekly leagues: we need this
+                information to provide the app you signed up for.
+              </li>
+              <li>
+                <strong>Your consent.</strong> Movement data is shared only if you agree, and you
+                can take that back at any time.
+              </li>
+              <li>
+                <strong>Our legitimate interests.</strong> Sign-in records that keep accounts safe,
+                crash and error reports that let us fix the app, and reading the feedback you send.
+              </li>
+            </ul>
+          </section>
+
+          <section>
             <h2>Who can see your information</h2>
             <p>
               <strong>Other people in your league.</strong> Each week you are placed on a board with
@@ -134,6 +162,12 @@ export function PrivacyPage() {
               America. Sentry receives our crash and error reports and keeps them in the United
               States; it is set not to keep your IP address. So your information may be kept outside
               your own country.
+            </p>
+            <p>
+              <strong>Outside Europe.</strong> When these companies keep your information outside
+              the European Economic Area, it is protected by safeguards approved by the European
+              Commission: the EU–US Data Privacy Framework or standard contractual clauses. Write to
+              us if you would like to know more about them.
             </p>
             <p>We do not share your information with anyone else.</p>
           </section>
@@ -163,6 +197,26 @@ export function PrivacyPage() {
               <strong>Delete your account.</strong> Open your profile in the app and choose “Delete
               account”. If you no longer have the app, use our{' '}
               <a href="/delete">account deletion page</a>.
+            </p>
+          </section>
+
+          <section>
+            <h2>Your rights</h2>
+            <p>
+              You can ask us for a copy of the information we hold about you, in a form you can take
+              elsewhere. You can ask us to correct it, to delete it, or to stop or limit a use you
+              object to. You can take back your consent to share movement data at any time; that
+              does not affect what was done before.
+            </p>
+            <p>
+              To use any of these rights, write to{' '}
+              <a href="mailto:ceo@superfeedback.ai">ceo@superfeedback.ai</a>. We answer within one
+              month and it costs nothing.
+            </p>
+            <p>
+              If you think we have handled your information wrongly, you can complain to the
+              Estonian Data Protection Inspectorate (Andmekaitse Inspektsioon, www.aki.ee) or to the
+              data protection authority where you live.
             </p>
           </section>
 

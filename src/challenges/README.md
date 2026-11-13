@@ -57,8 +57,9 @@ Suggested workouts are authored in `suggested.ts` using `workout/plan/structures
 Changing a prescription needs a new version; `SUGGESTED_HISTORY` keeps replaced versions seeded for
 pinned runs restored onto another phone. `suggested-history.ts` keeps earlier payloads unchanged,
 including testing workloads. The original four now have release workloads. Your numbers edits
-exercise targets, rounds, existing timed recovery intervals and calendar length before joining.
-It does not add new rests or change exercise order. Catalog groups separate Training, Advanced
+exercise targets, rounds, existing timed recovery intervals, calendar length and, on a scheduled
+plan, which days are workouts or rest (tap a day) before joining. It does not add new rests within a
+session or change exercise order. Catalog groups separate Training, Advanced
 challenges and Daily goals. Preview guidance is matched by version, so a pinned old plan never
 receives instructions for a newer prescription.
 
@@ -126,10 +127,18 @@ existing rests; it does not introduce unvalidated exercise variants or a persona
 
 A run of ours is pinned to the version you joined; a run of yours follows your edits. Finished, missed
 and restarted are worked out from done workouts (`progress.ts`), never stored. A day you did plays its
-sets' videos (`watch-day.tsx`): the sets the day shows, their files listed once as the day is picked. Home's
-day log (`day-log.tsx`) lists the day's files once the same way, and offers play only on a row whose videos
-are still on the phone (kept 30 days, never synced).
-The day reel lists files directly through `storage/set-files.ts`; workout's store supplies its row queries.
+sets' videos (`watch-day.tsx`): both it and Home's day log read the account's shared video index.
+`VideosProvider` in `videos-live.tsx` is mounted once under `LibraryProvider` in the root layout. It
+subscribes to storage's availability revision and uses `videos.ts` to build one folder index per
+account/revision. Pushed pages and day changes only do synchronous set-id lookups. A pending set is
+excluded by `storage/set-files.ts` until its final native write releases; retention, discard and account
+file removal invalidate the same shared index.
+
+An opened viewer captures its clips, start and set count. `useReel` keeps the initial native sources
+and returns those same clips for display; neither a refreshed index nor added clips repositions the
+playback actor. Missing files are skipped, and exhausting every source closes the viewer (or hides a
+loop preview). Tests drive real folder availability changes and the playback actor's native error
+boundary; `videos.test.ts` also guards one listing across repeated consumers at the same revision.
 Once you leave or finish a challenge you made, the catalog lists it after ours, to join again. Pages and workouts are addressed by run id, so several runs of one challenge stay apart. A plan from a newer app (`readPlan`
 is null) can't be joined, and a run on one shows "Update the app", never another version.
 
@@ -137,6 +146,15 @@ Tests that write use real SQL: `library.test.ts` mocks `@/storage/database` with
 
 `LibraryProvider` (root layout) is the app's one live reader: a query per table, each re-run only when
 its own table changes. Screens render once every table has first read; its first layout tells startup
-to hide the splash, and a first read that failed shows startup's error with Retry. Screens and pushed
-pages read the snapshot synchronously (`useLibrary`) and derive what they show in pure functions: your
-runs, a challenge's page, Home's streak and a day's workouts (`dayLog`).
+to hide the splash, and a first read that failed shows startup's error with Retry. The provider parses
+and groups sets by workout once, and derives current runs once per snapshot/day. It reads the day
+from `components/today.ts`; Challenges reads the shared runs. Streak derivation belongs to the separate
+`streak/StreakProvider`, composed directly below this provider by the root layout.
+Screens and pushed pages read the indexed snapshot synchronously (`useLibrary`); pure functions derive
+a challenge's page and a day's workouts (`dayLog`). SQLite still rereads a whole changed table per row
+notification; batching those notifications and incremental reads remain future work.
+
+`rest-days.ts` owns the shared phone/server date rule: archive and publication timestamps use the
+latest workout's IANA zone. Without a workout they use the runtime zone (phone locally, server UTC);
+an invalid stored zone falls back to UTC on both. Tuning budgets each block's rounds from `setsIn`
+and `MAX_SETS`; builder and tuning durations obey `MAX_DAYS`, including typed input.

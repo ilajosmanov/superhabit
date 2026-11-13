@@ -38,7 +38,7 @@ export type Streak = {
  */
 export function aliveDays(
   workouts: readonly { id: string; day: Day; status: string }[],
-  sets: readonly { workoutId: string; reps: number; heldMs: number }[],
+  sets: ReadonlyMap<string, readonly { reps: number; heldMs: number }[]>,
 ): Day[] {
   return countedWorkouts(workouts, sets).map((workout) => workout.day);
 }

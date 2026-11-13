@@ -5,7 +5,7 @@ import { SessionViewer } from './session-viewer';
 import { SwipeRow } from './swipe-row';
 import { isHold } from '@/challenges/hold';
 import type { TrackedSets } from '@/challenges/plan-view';
-import { dayReel, type Spot } from '@/challenges/reel';
+import { dayReel, type Clip, type Spot } from '@/challenges/reel';
 import { IconButton } from '@/components/icon-button';
 import { ExerciseFigure } from '@/components/illustrations';
 import { EXERCISES } from '@/exercises/registry';
@@ -13,7 +13,6 @@ import { capitalise } from '@/lib/text';
 import { useColors } from '@/components/colors';
 import type { LoggedSet } from '@/workout/plan/logged-set';
 import type { FlatSteps } from '@/workout/plan/plan';
-import { videosOf } from '@/storage/set-files';
 
 const CARD = 152;
 
@@ -23,7 +22,7 @@ type Step = TrackedSets['sets'][number];
  * Under a day you tried: a frame per set you did, in session order, to swipe through like a reel. `done`
  * is what each set got (`setAmounts`); sets left at nothing were never filmed, so they are left out. A
  * frame with video plays the day's sets full screen from that set; `kept` are the day's sets (of the plan
- * `steps`). Its files are listed once, as it mounts: key it by the day's set ids.
+ * `steps`). Availability comes from the shared video index; an opened viewer keeps its captured clips.
  */
 export function WatchDay({
   label,
@@ -31,17 +30,20 @@ export function WatchDay({
   done,
   steps,
   kept,
+  videos,
 }: {
   label: string;
   sets: readonly Step[];
   done: readonly number[];
   steps: FlatSteps;
   kept: readonly LoggedSet[];
+  videos: ReadonlyMap<string, readonly string[]>;
 }) {
-  // shortcut: a try saved while its last file was still finalizing has no play until another day is
-  // picked and this one again; list again when the camcorder wraps if that shows up on the phone.
-  const [videos] = useState(() => videosOf(kept.map(({ id }) => id)));
-  const [watching, setWatching] = useState<Spot | null>(null);
+  const [watching, setWatching] = useState<{
+    clips: readonly Clip[];
+    start: Spot;
+    sets: number;
+  } | null>(null);
   const clips = dayReel(steps, kept, videos);
   const filmed = sets.flatMap((set, i) => (done[i] > 0 ? [{ set, got: done[i], i }] : []));
   if (filmed.length === 0) return null;
@@ -57,16 +59,20 @@ export function WatchDay({
               set={set}
               got={got}
               n={i + 1}
-              onPress={clip < 0 ? undefined : () => setWatching({ clip, part: 0 })}
+              onPress={
+                clip < 0
+                  ? undefined
+                  : () => setWatching({ clips, start: { clip, part: 0 }, sets: sets.length })
+              }
             />
           );
         })}
       </SwipeRow>
       {watching && (
         <SessionViewer
-          clips={clips}
-          sets={sets.length}
-          start={watching}
+          clips={watching.clips}
+          sets={watching.sets}
+          start={watching.start}
           onClose={() => setWatching(null)}
         />
       )}

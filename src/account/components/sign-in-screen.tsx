@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, G, Path, Rect, Text as SvgText } from 'react-native-svg';
 import type { ActorRefFrom } from 'xstate';
 
+import { openPrivacyPolicy } from '@/account/components/consent-screen';
 import type { signIn } from '@/account/sign-in';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Icon } from '@/components/icon';
@@ -91,7 +92,10 @@ export function SignInScreen({ signIn: actor }: { signIn: ActorRefFrom<typeof si
           />
         )}
         <Text className="text-center font-sans text-sm leading-normal text-muted">
-          {'Your name and photo come from Google.\nVideos of you stay on this phone.'}
+          {'Videos of you stay on this phone.\n'}
+          <Text accessibilityRole="link" onPress={openPrivacyPolicy} className="text-mark">
+            Privacy policy
+          </Text>
         </Text>
       </View>
     </View>

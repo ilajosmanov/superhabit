@@ -30,6 +30,8 @@ type Input = {
   start: Spot;
   /** How far through the clip on screen, 0 to 1; `glide`: ease there over one time report. */
   onProgress: (along: number, glide: boolean) => void;
+  /** All sources failed: close the viewer or hide the preview. */
+  onUnavailable: (at: Spot) => void;
 };
 
 type Context = Omit<Input, 'start'> & {
@@ -46,6 +48,11 @@ type Context = Omit<Input, 'start'> & {
 
 const same = (a: Spot, b: Spot) => a.clip === b.clip && a.part === b.part;
 const uri = (clips: readonly Clip[], { clip, part }: Spot) => clips[clip].takes[part];
+/** Capture the sources when playback opens; later catalog changes cannot shift its positions. */
+export function openReel(clips: readonly Clip[], start: Spot) {
+  return { clips, start, first: uri(clips, start), next: uri(clips, after(clips, start)) };
+}
+
 const share = (clips: readonly Clip[], at: Spot, along: number) =>
   (at.part + along) / clips[at.clip].takes.length;
 /** Missing files to pass over on `event`: the one on screen if it failed, and the waiting one if it did. */
@@ -83,7 +90,7 @@ const listen = fromCallback<Events, readonly Player[], Events>(({ input: players
  * turns: while one plays, the other holds the next file, so a file ends straight into the next one with
  * no blank player between them. `go` jumps; `loading` is a jumped-to file whose `currentTime` and
  * `duration` still belong to the old one. A file that fails to load (deleted since the reel was listed) is
- * passed over; once every file has been, the reel stops where it is.
+ * passed over; once every file has been, playback closes through `onUnavailable`.
  */
 // Positional generics up to TInput (no type assertions allowed): children, actions, guards, delays, tags.
 export const reelPlayback = setup<
@@ -175,9 +182,10 @@ export const reelPlayback = setup<
     }),
     count: assign({ skipped: ({ context }) => context.skipped + 1 }),
     loadedOne: assign({ skipped: 0 }),
-    giveUp: ({ context: { players, front } }) => {
+    giveUp: ({ context: { players, spot, onUnavailable } }) => {
       console.warn('[reel] no file left to play');
-      players[front].pause();
+      for (const player of players) player.pause();
+      onUnavailable(spot);
     },
     seek: ({ context: { players, front }, event }) => {
       const shown = players[front];
@@ -215,15 +223,15 @@ export const reelPlayback = setup<
     ],
     ended: [
       { guard: not('front') },
-      { guard: 'spent', actions: 'giveUp' },
+      { guard: 'spent', target: '.unavailable', actions: 'giveUp' },
       { guard: 'nextBroken', target: '.loading', actions: 'passOver' },
       { target: '.playing', actions: 'advance' },
     ],
-    // shortcut: a drag held over a missing file reloads it on every move; fine while files go missing only
-    // by hand. Remember the missing one if `[reel] a file is missing` ever shows in logs.
+    // shortcut: scrubbing onto a missing file retries it. Remember failed sources if retention during
+    // long viewers makes repeated failed scrubs noticeable.
     failed: [
       { guard: not('front'), actions: 'mark' },
-      { guard: 'spent', actions: 'giveUp' },
+      { guard: 'spent', target: '.unavailable', actions: 'giveUp' },
       { guard: 'nextBroken', target: '.loading', actions: 'passOver' },
       {
         target: '.playing',
@@ -234,6 +242,7 @@ export const reelPlayback = setup<
     played: { guard: 'front', actions: 'played' },
   },
   states: {
+    unavailable: { type: 'final' },
     playing: {
       on: { go: { guard: 'here', actions: ['seek', 'went'] } },
     },

@@ -136,6 +136,8 @@ export const sets = sqliteTable(
     primaryKey({ columns: [t.userId, t.id] }),
     // One set per planned step, as on the phone: a resent workout can't count a step twice.
     uniqueIndex('sets_workout_step').on(t.userId, t.workoutId, t.planStep),
+    // The hourly week close finds who trained in a week by when their sets ended, across all accounts.
+    index('sets_ended').on(t.endedAt),
   ],
 );
 

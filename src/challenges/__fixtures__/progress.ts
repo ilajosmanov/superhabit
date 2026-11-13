@@ -1,3 +1,4 @@
+import { readSets } from '@/workout/plan/logged-set';
 import type { ProgressInput, Workout } from '@/challenges/progress';
 import type { LoggedSet } from '@/workout/plan/logged-set';
 import { reps } from '@/workout/plan/plan';
@@ -19,7 +20,7 @@ export const input: ProgressInput = {
   },
   versions: [],
   workouts: [],
-  sets: [],
+  sets: readSets([]),
 };
 export const workout = (
   id: string,

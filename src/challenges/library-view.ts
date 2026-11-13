@@ -12,7 +12,7 @@ import type { Sharing } from '@/storage/consent';
 import type * as schema from '@/storage/schema';
 import type { Day } from '@/lib/day';
 import { isRestDay } from '@/workout/plan/schedule';
-import { readSets, type LoggedSet } from '@/workout/plan/logged-set';
+import type { LoggedSet } from '@/workout/plan/logged-set';
 import type { LogTarget } from '@/workout/store';
 import { expand, readChallengePlan, type FlatSteps } from '@/workout/plan/plan';
 import { countedWorkouts, setAmounts, workoutResults } from '@/workout/plan/results';
@@ -27,7 +27,7 @@ export type Library = {
   versions: readonly (typeof schema.challengeVersions.$inferSelect)[];
   runs: readonly (typeof schema.runs.$inferSelect)[];
   workouts: readonly (typeof schema.workouts.$inferSelect)[];
-  sets: readonly Omit<typeof schema.sets.$inferSelect, 'attempts' | 'metrics' | 'counterVersion'>[];
+  sets: ReadonlyMap<string, readonly LoggedSet[]>;
 };
 
 /** A version this app can run; it is also the `Challenge` the plan, cards and session take. */
@@ -61,21 +61,20 @@ function amountsOn(
   versions: readonly Readable[],
   version: Readable,
   { shown, total, sets: day }: DayResult,
-  sets: readonly LoggedSet[],
 ) {
   // An edit never rescores a try: it reads against the version it was done on.
   const at = versions.find(({ id }) => id === shown?.versionId) ?? version;
   if (total !== undefined) return { version: at, done: [total], sets: day };
   const steps = expand(at.session);
-  const done = setAmounts(steps, workoutResults(steps, shown?.id ?? '', sets));
+  const done = setAmounts(steps, workoutResults(steps, day));
   return { version: at, done, sets: day };
 }
 
-/** The library with its stored JSON read once: every version's plan, every set. */
+/** Readable versions over the snapshot's already parsed set index. */
 const read = (library: Library) => ({
   library,
   versions: library.versions.map((row) => ({ row, version: readVersion(row) })),
-  sets: readSets(library.sets),
+  sets: library.sets,
 });
 type Read = ReturnType<typeof read>;
 
@@ -130,7 +129,6 @@ function yours(
     const name = found?.row.name ?? '';
     return run.endedOn ? null : { challengeId: challenge.id, runId: run.id, name, challenge: null };
   }
-  const { sets } = stored;
   const { days, state } = runCalendar(
     during ? counting({ ...input, version }, during.workoutId) : { ...input, version },
     today,
@@ -151,7 +149,7 @@ function yours(
         restDays: version.schedule.flatMap((day, i) => (day === 'rest' ? [i] : [])),
       }),
     },
-    amounts: stretch.map(({ result }) => amountsOn(versions, version, result, sets)),
+    amounts: stretch.map(({ result }) => amountsOn(versions, version, result)),
   };
 }
 
@@ -283,17 +281,7 @@ export function dayLog(library: Library, day: Day, today: Day): LogRow[] {
     .filter((w) => w.day === day)
     .sort((a, b) => a.startedAt - b.startedAt);
   if (shown.length === 0) return [];
-  // Read only what the rows need: their own sets, and every set of their runs for the runs' calendars.
-  const runIds = new Set(shown.flatMap(({ runId }) => runId ?? []));
-  const needed = new Set(
-    library.workouts
-      .filter((w) => shown.includes(w) || (w.runId !== null && runIds.has(w.runId)))
-      .map(({ id }) => id),
-  );
-  const stored = read({
-    ...library,
-    sets: library.sets.filter((set) => needed.has(set.workoutId)),
-  });
+  const stored = read(library);
   // One calendar per run, numbered as the run's page numbers it: on the run's version, restarts included.
   const calendars = new Map<string, ReturnType<typeof runCalendar> | null>();
   const calendarOf = (run: Library['runs'][number]) => {
@@ -307,9 +295,7 @@ export function dayLog(library: Library, day: Day, today: Day): LogRow[] {
     return calendars.get(run.id) ?? null;
   };
   return shown.map((workout) => {
-    const sets = stored.sets
-      .filter((set) => set.workoutId === workout.id)
-      .sort((a, b) => a.startedAt - b.startedAt);
+    const sets = [...(stored.sets.get(workout.id) ?? [])].sort((a, b) => a.startedAt - b.startedAt);
     const exercises = [...new Set(sets.map((set) => set.exercise))];
     const base = {
       workoutId: workout.id,

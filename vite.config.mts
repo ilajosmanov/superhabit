@@ -204,7 +204,7 @@ export default defineConfig({
         [NO_EFFECTS],
       ),
       layer(
-        ['src/streak/*.ts'],
+        ['src/streak/*.{ts,tsx}'],
         [
           '@/app/**',
           '@/bootstrap/**',

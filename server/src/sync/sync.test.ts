@@ -207,6 +207,38 @@ describe('sync: the phone sends its outbox', () => {
     ]);
   });
 
+  it('refuses a history the leagues would have to walk for seconds', async () => {
+    const { cookie: phone } = await someone();
+    const big = (rounds: number) => ({
+      ...create('c-big', 'c-big-v1'),
+      payload: {
+        ...create('c-big', 'c-big-v1').payload,
+        version: {
+          ...version('c-big', 'c-big-v1', 1),
+          plan: [{ steps: [{ exercise: 'squat', goal: { type: 'reps', n: 10 } }], rounds }],
+        },
+      },
+    });
+    const long = {
+      ...create('c-long', 'c-long-v1'),
+      payload: {
+        ...create('c-long', 'c-long-v1').payload,
+        version: { ...version('c-long', 'c-long-v1', 1), days: 366 },
+      },
+    };
+    const ancient = { ...join('r-old', 'c-big'), payload: { ...join('r-old', 'c-big').payload } };
+    ancient.payload.startedOn = '0100-01-01';
+    const answer = await push(phone, [big(201), long, ancient, big(200)]);
+    expect(answer).toMatchObject({
+      results: [
+        { ok: false, reason: expect.stringContaining('200 sets') },
+        { ok: false, reason: expect.stringContaining('days') },
+        { ok: false, reason: expect.stringContaining('2026-01-01') },
+        { ok: true },
+      ],
+    });
+  });
+
   it("refuses a change it can't read and keeps the others", async () => {
     const { cookie: phone, id: you } = await someone();
     const broken = done('w-bad', null, ['s-bad']);
@@ -309,7 +341,7 @@ describe('sync: the phone sends its outbox', () => {
 
     // A long history comes in pages, each resuming where the last stopped.
     const days = Array.from({ length: 60 }, (_, i) =>
-      freeze(`2025-0${1 + Math.floor(i / 28)}-${String(1 + (i % 28)).padStart(2, '0')}`),
+      freeze(`2026-0${1 + Math.floor(i / 28)}-${String(1 + (i % 28)).padStart(2, '0')}`),
     );
     await push(phone, days.slice(0, 50));
     await push(phone, days.slice(50));

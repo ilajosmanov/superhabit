@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vite-plus/test';
 
 import { SUGGESTED_CHALLENGES } from './suggested';
-import { dayChoices, knobsOf, rangeOf, tuned, valueOf } from './tune';
-import { defineChallenge, MAX, reps, seconds, type Session } from '@/workout/plan/plan';
+import { dayChoices, flipDay, knobsOf, rangeOf, tuned, valueOf, limitOf, withValue } from './tune';
+import { defineChallenge, MAX, reps, seconds, setsIn, type Session } from '@/workout/plan/plan';
 import { weeklySchedule } from '@/workout/plan/schedule';
 
 it('changes workload and duration while preserving recovery positions', () => {
@@ -28,6 +28,29 @@ it('changes workload and duration while preserving recovery positions', () => {
   ]);
   expect(changed.session[0].steps[0].goal).toEqual(reps(5));
   expect(tuned(plan, { days: 2 }).schedule).toEqual(['training', 'rest']);
+});
+
+it('flips days between workout and rest, keeps one workout, and repeats your pattern when extended', () => {
+  const plan = defineChallenge({
+    name: 'Weekly',
+    days: 3,
+    restartOnMiss: false,
+    dailyTotal: false,
+    schedule: ['training', 'rest', 'rest'],
+    session: [{ rounds: 1, steps: [{ exercise: 'squat', goal: reps(20) }] }],
+  });
+  const yours = flipDay(plan, ['training', 'rest', 'rest'], 1);
+  expect(yours).toEqual(['training', 'training', 'rest']);
+  expect(tuned(plan, { days: 5 }, yours).schedule).toEqual([
+    'training',
+    'training',
+    'rest',
+    'training',
+    'training',
+  ]);
+  // The only workout stays one; flipping back to ours forgets your pattern.
+  expect(flipDay(plan, ['training', 'rest', 'rest'], 0)).toEqual(['training', 'rest', 'rest']);
+  expect(flipDay(plan, ['training', 'training', 'rest'], 1)).toBeNull();
 });
 
 const challenge = (session: Session) =>
@@ -228,3 +251,34 @@ describe('slider stops', () => {
     expect(dayChoices(14)).toEqual([7, 14, 21, 30]);
   });
 });
+
+it('caps a typed circuit at 50 rounds, counting exercises and leaving recovery out of the budget', () => {
+  const rounds = knobsOf(circuit).find((knob) => knob.kind === 'rounds');
+  if (!rounds) throw new Error('missing rounds');
+  const values = withValue(circuit, {}, rounds, 51);
+  expect(values[rounds.key]).toBe(50);
+  expect(setsIn(tuned(circuit, values).session)).toBe(200);
+});
+
+it('reserves the other blocks current rounds and returns capacity when they are lowered', () => {
+  const [first, second] = knobsOf(twoBlocks).filter((knob) => knob.kind === 'rounds');
+  let values = withValue(twoBlocks, {}, first, 190);
+  values = withValue(twoBlocks, values, second, 999);
+  expect(values[second.key]).toBe(10);
+  expect(setsIn(tuned(twoBlocks, values).session)).toBe(200);
+  values = withValue(twoBlocks, values, first, 1);
+  expect(limitOf(twoBlocks, second, values)).toBe(199);
+});
+
+it.each(SUGGESTED_CHALLENGES.map(({ challenge: c }) => [c.name, c] as const))(
+  '%s can be tuned to its largest counts and still saved',
+  (_, c) => {
+    let values = {};
+    for (const knob of knobsOf(c)) {
+      if (knob.kind === 'rounds' || knob.kind === 'days') values = withValue(c, values, knob, 999);
+    }
+    const result = tuned(c, values);
+    expect(result.days).toBe(365);
+    expect(setsIn(result.session)).toBeLessThanOrEqual(200);
+  },
+);

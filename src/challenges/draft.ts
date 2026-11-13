@@ -5,6 +5,7 @@ import { capitalise } from '@/lib/text';
 import {
   defineChallenge,
   MAX,
+  MAX_DAYS,
   reps,
   seconds,
   type Challenge,
@@ -52,6 +53,12 @@ export const withNumber = (draft: Draft, n: number): Draft => ({
   goal: isHold(draft.exercise) ? seconds(n) : reps(n),
 });
 
+/** Typed durations stop at the longest challenge the phone and backup accept. */
+export const withDays = (draft: Draft, days: number): Draft => ({
+  ...draft,
+  days: Math.min(days, MAX_DAYS),
+});
+
 export const newDraft = (exercise: ExerciseId) =>
   withAmount(
     { exercise, goal: MAX, days: 21, restartOnMiss: false, dailyTotal: false, name: null },
@@ -85,7 +92,7 @@ export const autoName = ({ exercise }: Pick<Draft, 'exercise'>) =>
 export const toChallenge = (draft: Draft): Challenge =>
   defineChallenge({
     name: draft.name?.trim() || autoName(draft),
-    days: draft.days,
+    days: withDays(draft, draft.days).days,
     restartOnMiss: draft.restartOnMiss,
     dailyTotal: draft.dailyTotal,
     session: [{ steps: [{ exercise: draft.exercise, goal: draft.goal }], rounds: 1 }],

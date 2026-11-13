@@ -2,7 +2,17 @@ import { DAY_CHOICES, RANGE, unitOf, type Amount } from './draft';
 import { isHold } from './hold';
 import { resizeSchedule } from '@/workout/plan/schedule';
 import type { ExerciseId } from '@/exercises/registry';
-import { defineChallenge, MAX, reps, seconds, type Challenge } from '@/workout/plan/plan';
+import {
+  defineChallenge,
+  MAX,
+  MAX_DAYS,
+  MAX_SETS,
+  reps,
+  seconds,
+  setsIn,
+  type Challenge,
+  type ScheduledDay,
+} from '@/workout/plan/plan';
 
 /** One number you can change. Keys follow positions, so changing numbers keeps them stable. */
 export type Knob =
@@ -42,6 +52,32 @@ export function knobsOf(challenge: Challenge): Knob[] {
 
 export const valueOf = (knob: Knob, values: Values): Amount => values[knob.key] ?? knob.ours;
 
+/** The remaining workout capacity belongs to this block; rests never log sets. */
+export function limitOf(challenge: Challenge, knob: Knob, values: Values): number {
+  if (knob.kind === 'days') return MAX_DAYS;
+  if (knob.kind !== 'rounds') return Infinity;
+  const session = mapNonempty(challenge.session, (block, b) => ({
+    ...block,
+    rounds: b === knob.block ? 0 : count(values[roundsKey(b)] ?? block.rounds),
+  }));
+  const exercises = setsIn([{ ...challenge.session[knob.block], rounds: 1 }]);
+  return Math.floor((MAX_SETS - setsIn(session)) / exercises);
+}
+
+/** Apply slider and typed edits through the same limits before a preview or save can run. */
+export function withValue(
+  challenge: Challenge,
+  values: Values,
+  knob: Knob,
+  amount: Amount,
+): Values {
+  const value =
+    knob.kind === 'rounds' || knob.kind === 'days'
+      ? Math.min(count(amount), limitOf(challenge, knob, values))
+      : amount;
+  return { ...values, [knob.key]: value };
+}
+
 /** Days and rounds are counts, never open-ended goals. */
 function count(value: Amount): number {
   if (value === 'max') throw new Error('days and rounds cannot be Max');
@@ -80,7 +116,11 @@ function mapNonempty<T>(
  * Swap only numbers, preserving the plan's shape and validating the resulting challenge. A last block
  * cut to one round drops its closing rest: the run never takes it, and validate rejects a plan that ends on one.
  */
-export function tuned(challenge: Challenge, values: Values): Challenge {
+export function tuned(
+  challenge: Challenge,
+  values: Values,
+  pattern: readonly ScheduledDay[] | null = null,
+): Challenge {
   const session = mapNonempty(challenge.session, (block, b) => ({
     ...block,
     rounds: count(values[roundsKey(b)] ?? block.rounds),
@@ -105,6 +145,23 @@ export function tuned(challenge: Challenge, values: Values): Challenge {
     ...challenge,
     days,
     session,
-    ...(challenge.schedule && { schedule: resizeSchedule(challenge.schedule, days) }),
+    ...(challenge.schedule && { schedule: resizeSchedule(pattern ?? challenge.schedule, days) }),
   });
+}
+
+/**
+ * Flip one day of the calendar as shown between workout and rest: your pattern, or null when it is ours
+ * again. The last workout day stays one, since a calendar needs a workout.
+ */
+export function flipDay(
+  challenge: Challenge,
+  shown: readonly ScheduledDay[],
+  day: number,
+): ScheduledDay[] | null {
+  const next = shown.map((d, i): ScheduledDay =>
+    i !== day ? d : d === 'rest' ? 'training' : 'rest',
+  );
+  if (!next.includes('training')) return [...shown];
+  const ours = challenge.schedule && resizeSchedule(challenge.schedule, next.length);
+  return ours?.every((d, i) => d === next[i]) ? null : next;
 }

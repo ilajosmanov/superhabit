@@ -1,3 +1,4 @@
+import { readSets } from '@/workout/plan/logged-set';
 import { modules } from '@/workout/__fixtures__/session';
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
@@ -34,7 +35,7 @@ const library = (): Library => ({
   versions: db().select().from(schema.challengeVersions).all(),
   runs: db().select().from(schema.runs).all(),
   workouts: db().select().from(schema.workouts).all(),
-  sets: db().select().from(schema.sets).all(),
+  sets: readSets(db().select().from(schema.sets).all()),
 });
 const outbox = () =>
   db()
@@ -183,6 +184,67 @@ describe('scheduled recovery', () => {
     expect(challengePage(library(), dailyId, '2026-11-13')?.joined?.run.progress).toEqual([
       0, 0, 0,
     ]);
+  });
+
+  it('uses the latest workout zone for archive dates after travel, preserving the recovery bridge', () => {
+    create(scheduled());
+    const dailyId = create(squats(7)) ?? '';
+    pushups(null, null, 1, new Date('2026-11-11T12:00:00Z'));
+    db().update(schema.workouts).set({ tz: 'Pacific/Honolulu' }).run();
+    // Still Nov 11 where the last workout happened, already Nov 12 on the phone.
+    vi.setSystemTime(new Date('2026-11-12T00:30:00Z'));
+    archive(dailyId);
+    const data = library();
+    expect(restDays(data, '2026-11-12')).toContain('2026-11-12');
+    // A newer workout still open (the server never sees it) doesn't move the archive day.
+    const [saved] = data.workouts;
+    const opened = { ...saved, id: 'open', status: 'open' as const, tz: 'Europe/Tallinn' };
+    expect(
+      restDays(
+        { ...data, workouts: [...data.workouts, { ...opened, startedAt: Date.now() }] },
+        '2026-11-12',
+      ),
+    ).toContain('2026-11-12');
+    // Two saved workouts started at once: the same one sets the zone whatever order the rows come in.
+    const twin = { ...saved, id: `${saved.id}~`, tz: 'Europe/Tallinn' };
+    for (const workouts of [
+      [saved, twin],
+      [twin, saved],
+    ])
+      expect(restDays({ ...data, workouts }, '2026-11-12')).not.toContain('2026-11-12');
+    expect(
+      streak(
+        aliveDays(data.workouts, data.sets),
+        '2026-11-13',
+        false,
+        restDays(data, '2026-11-13'),
+      ),
+    ).toMatchObject({ current: 1, status: 'atRisk' });
+  });
+
+  it('applies a longer edited version on its publication day in the latest workout zone', () => {
+    moveTo('2026-11-10');
+    create(scheduled());
+    const dailyId = create(squats(1)) ?? '';
+    pushups(null, null, 1);
+    db().update(schema.workouts).set({ tz: 'Pacific/Honolulu' }).run();
+    vi.setSystemTime(new Date('2026-11-12T00:30:00Z'));
+    edit(dailyId, squats(7));
+    // The new daily obligation was published Nov 11 in Honolulu, so it blocks that rest day.
+    expect(restDays(library(), '2026-11-12')).not.toContain('2026-11-11');
+  });
+
+  it('uses UTC for a corrupt workout zone and the phone zone when there is no workout', () => {
+    create(scheduled());
+    const dailyId = create(squats(7)) ?? '';
+    pushups(null, null, 1);
+    db().update(schema.workouts).set({ tz: 'Invalid/Zone' }).run();
+    // Nov 11 in UTC, Nov 12 on the phone: only the UTC archive date excuses Nov 12.
+    vi.setSystemTime(new Date('2026-11-11T22:30:00Z'));
+    archive(dailyId);
+    const data = library();
+    expect(restDays(data, '2026-11-12')).toContain('2026-11-12');
+    expect(restDays({ ...data, workouts: [] }, '2026-11-12')).not.toContain('2026-11-12');
   });
 
   it('pins a custom calendar, shows rest in the run, and prevents starting a workout on rest', () => {

@@ -131,3 +131,9 @@ describe('streak', () => {
     expect(s.kind(TODAY)).toBe('open');
   });
 });
+
+it('says slipped after missing the training day following scheduled recovery', () => {
+  const result = streak([ago(3)], TODAY, false, [ago(2)]);
+  expect(result).toMatchObject({ current: 0, best: 1, status: 'slipped' });
+  expect([result.kind(ago(2)), result.kind(ago(1))]).toEqual(['rest', 'missed']);
+});

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { forgetAccount, keepAccount, markSignedOut } from './store';
 import { account, userId } from '@/storage/account';
 import { db, migrateDatabase } from '@/storage/__fixtures__/database';
+import { subscribeVideos } from '@/storage/set-files';
 import { clearDatabase } from '@/storage/clear';
 import { db as database } from '@/storage/database';
 import * as schema from '@/storage/schema';
@@ -138,7 +139,16 @@ describe('deleting the account', () => {
   it('clears the phone: every table, the kept account, and its folder', () => {
     keepAccount(ann);
     train();
-    forgetAccount();
+    let videosRemoved = false;
+    const unsubscribe = subscribeVideos(() => {
+      videosRemoved = folders.deleted.includes('documents/ann');
+    });
+    try {
+      forgetAccount();
+    } finally {
+      unsubscribe();
+    }
+    expect(videosRemoved).toBe(true);
     expect(rowsLeft().every((n) => n === 0)).toBe(true);
     expect(account()).toBeNull();
     expect(folders.deleted).toEqual(['documents/ann']);

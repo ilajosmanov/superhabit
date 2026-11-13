@@ -15,7 +15,7 @@ pending traces to `sent/`, or `unread/` if the server cannot read them. The 30-d
 old saved sets' videos and traces in `private/`, `sent/` and `unread/`, keeping `pending/` uploads.
 Videos live at `documents/<userId()>/videos/<setId>-<take>.mp4` (720p, silent). Every roll reserves an
 index, including failures, so take indices keep gaps. Storage leaves sets with pending files out of
-`videosOf` until the camcorder releases them.
+`videoIndex` until the camcorder releases them.
 
 The video anchor is the median of `pose timestampMs − 1000 × recordedDuration` from at least three
 positive samples, closed at cut and kept in file time. A kept set's file jobs outlive its session.

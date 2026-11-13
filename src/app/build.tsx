@@ -8,7 +8,7 @@ import { draftOf, newDraft } from '@/challenges/draft';
 import { create, edit } from '@/challenges/library';
 import { useLibrary } from '@/challenges/library-live';
 import { challengePage } from '@/challenges/library-view';
-import { useToday } from '@/bootstrap/today';
+import { useToday } from '@/components/today';
 
 /**
  * The builder: `?exercise=squat` makes a new challenge, which you join from today;

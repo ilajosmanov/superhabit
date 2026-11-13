@@ -66,8 +66,12 @@ sent yet), `sent/`, `unread/` (the server couldn't read it) and `private/` (neve
 `roomToFilm` is false under 1 GB free: sets are then counted without filming.
 It knows no workout rules: callers choose which set ids to delete. `deleteTraces` removes final and
 temporary files from all four trace folders on discard. A saved set's trace is never deleted: the
-workout's 30-day sweep removes videos only, and traces go when the account does. `videosOf` lists
-existing files in numeric take order, preserving gaps, and omits sets whose native files are still reserved for writing.
+workout's 30-day sweep removes videos only, and traces go when the account does. `videoIndex` groups
+all existing files once in numeric take order, preserving gaps, and excludes sets whose files are
+still reserved for writing. `VideosProvider` owns the account's shared index: storage publishes
+`videoRevision` through `subscribeVideos` when a reservation starts, its last pending take releases,
+or a video is removed. Retention, discard, failed takes and orphan cleanup use `removeVideo`; account
+deletion uses `deleteAccountFiles` for its whole folder. Storage has no React dependency.
 
 Optional `stretches: [{ kind, startMs, endMs }]` use file-relative milliseconds and ordered, non-overlapping
 `countdown` / `waiting` / `counting` / `paused` spans; earlier clips omit them.

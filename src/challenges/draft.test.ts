@@ -1,6 +1,6 @@
 import { expect, it } from 'vite-plus/test';
 
-import { draftOf, newDraft, toChallenge, withAmount, withNumber } from './draft';
+import { draftOf, newDraft, toChallenge, withAmount, withNumber, withDays } from './draft';
 import { MAX, reps, seconds } from '@/workout/plan/plan';
 
 it('names a draft after its exercise until you type a name', () => {
@@ -70,4 +70,11 @@ it.each([
   expect(
     draftOf({ name: 'x', days: 1, restartOnMiss: false, dailyTotal: false, session }),
   ).toBeNull();
+});
+
+it('caps a typed builder duration at 365 days before previewing or saving', () => {
+  const draft = withDays(newDraft('squat'), 999);
+  expect(draft.days).toBe(365);
+  expect(toChallenge(draft).days).toBe(365);
+  expect(withDays(draft, 14).days).toBe(14);
 });

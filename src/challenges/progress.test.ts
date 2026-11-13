@@ -1,3 +1,4 @@
+import { readSets } from '@/workout/plan/logged-set';
 import { describe, expect, it } from 'vite-plus/test';
 
 import { counting, dayResult, type ProgressInput } from './progress';
@@ -24,18 +25,18 @@ const circuit: ProgressInput = {
     ],
   },
   workouts: [workout('partial', 30), workout('full', 20), workout('earlier-full', 10)],
-  sets: [
+  sets: readSets([
     set('partial', 5, { goal: reps(10) }),
     set('full', 10, { goal: reps(10) }),
     set('full', 0, { planStep: 2, exercise: 'plank', goal: seconds(30), heldMs: 30_000 }),
     set('earlier-full', 15, { goal: reps(10) }),
     set('earlier-full', 0, { planStep: 2, exercise: 'plank', goal: seconds(30), heldMs: 40_000 }),
-  ],
+  ]),
 };
 
 describe('dayResult', () => {
   it('adds 250 + 250 toward 500, then caps extra reps at one complete day', () => {
-    const first = { ...daily, workouts: [workout('a', 1)], sets: [set('a', 250)] };
+    const first = { ...daily, workouts: [workout('a', 1)], sets: readSets([set('a', 250)]) };
     expect(dayResult(first, '2026-11-01')).toMatchObject({
       done: false,
       share: 0.5,
@@ -44,7 +45,7 @@ describe('dayResult', () => {
     const both = {
       ...first,
       workouts: [...first.workouts, workout('b', 2)],
-      sets: [...first.sets, set('b', 250)],
+      sets: readSets([...Array.from(first.sets.values()).flat(), set('b', 250)]),
     };
     expect(dayResult(both, '2026-11-01')).toMatchObject({
       done: true,
@@ -53,9 +54,9 @@ describe('dayResult', () => {
       // The page plays every try's sets: they all counted.
       sets: [{ workoutId: 'a' }, { workoutId: 'b' }],
     });
-    expect(dayResult({ ...both, sets: [set('a', 750), set('b', 250)] }, '2026-11-01').share).toBe(
-      1,
-    );
+    expect(
+      dayResult({ ...both, sets: readSets([set('a', 750), set('b', 250)]) }, '2026-11-01').share,
+    ).toBe(1);
   });
 
   it('ignores free logs, other runs, open workouts, other dates and unrelated sets', () => {
@@ -68,7 +69,7 @@ describe('dayResult', () => {
         workout('open', 4, { status: 'open' }),
         workout('tomorrow', 5, { day: '2026-11-02' }),
       ],
-      sets: [
+      sets: readSets([
         set('mine', 100),
         set('free', 500),
         set('other', 500),
@@ -77,7 +78,7 @@ describe('dayResult', () => {
         set('unknown-workout', 500),
         set('mine', 500, { planStep: 99 }),
         set('mine', 500, { exercise: 'squat' }),
-      ],
+      ]),
     };
     expect(dayResult(data, '2026-11-01')).toMatchObject({
       done: false,
@@ -99,10 +100,10 @@ describe('dayResult', () => {
         ],
       },
       workouts: [workout('a', 1), workout('b', 2)],
-      sets: [
+      sets: readSets([
         set('a', 0, { exercise: 'plank', goal: seconds(30), heldMs: 15_000 }),
         set('b', 0, { exercise: 'plank', goal: seconds(30), heldMs: 15_000 }),
-      ],
+      ]),
     };
     expect(dayResult({ ...data, workouts: [workout('a', 1)] }, '2026-11-01')).toMatchObject({
       done: false,
@@ -135,7 +136,7 @@ describe('dayResult', () => {
         ],
       },
       workouts: [workout('a', 1)],
-      sets: [set('a', 10, { planStep: 2, goal: reps(40) })],
+      sets: readSets([set('a', 10, { planStep: 2, goal: reps(40) })]),
     };
     expect(dayResult(data, '2026-11-01')).toMatchObject({ done: false, share: 0.125 });
   });
@@ -144,11 +145,11 @@ describe('dayResult', () => {
     const data: ProgressInput = {
       ...circuit,
       workouts: [workout('older', 10), workout('latest', 20)],
-      sets: [
+      sets: readSets([
         set('older', 10, { goal: reps(10) }),
         set('older', 0, { planStep: 2, exercise: 'plank', goal: seconds(30), heldMs: 15_000 }),
         set('latest', 0, { planStep: 2, exercise: 'plank', goal: seconds(30), heldMs: 30_000 }),
-      ],
+      ]),
     };
     expect(dayResult(data, '2026-11-01')).toMatchObject({
       done: false,
@@ -173,10 +174,10 @@ describe('dayResult', () => {
         ],
       },
       workouts: [workout('a', 1)],
-      sets: [set('a', 0, { exercise: 'plank', goal: MAX, heldMs: 500 })],
+      sets: readSets([set('a', 0, { exercise: 'plank', goal: MAX, heldMs: 500 })]),
     };
     expect(dayResult(data, '2026-11-01').done).toBe(true);
-    expect(dayResult({ ...data, sets: [] }, '2026-11-01').done).toBe(false);
+    expect(dayResult({ ...data, sets: readSets([]) }, '2026-11-01').done).toBe(false);
   });
 
   it('keeps a workout against its recorded version and preserves a completed daily total after an edit', () => {
@@ -194,7 +195,7 @@ describe('dayResult', () => {
       },
       versions: [input.version],
       workouts: [workout('old', new Date(2026, 10, 1, 8).getTime())],
-      sets: [set('old', 500)],
+      sets: readSets([set('old', 500)]),
     };
     expect(dayResult(data, '2026-11-01')).toMatchObject({
       done: true,
@@ -215,7 +216,10 @@ describe('dayResult', () => {
             ...total.workouts,
             workout('new', new Date(2026, 10, 1, 18).getTime(), { versionId: 'v2' }),
           ],
-          sets: [...total.sets, set('new', 100, { goal: reps(1000) })],
+          sets: readSets([
+            ...Array.from(total.sets.values()).flat(),
+            set('new', 100, { goal: reps(1000) }),
+          ]),
         },
         '2026-11-01',
       ),
@@ -226,7 +230,7 @@ describe('dayResult', () => {
     const data: ProgressInput = {
       ...input,
       workouts: [workout('b', 1), workout('a', 1)],
-      sets: [set('a', 400), set('b', 100)],
+      sets: readSets([set('a', 400), set('b', 100)]),
     };
     expect(dayResult(data, '2026-11-01')).toMatchObject({ share: 0.2, shown: { id: 'b' } });
   });
@@ -237,7 +241,7 @@ describe('counting an open try as if it were Done', () => {
   const tries = (base: ProgressInput, earlier: number, now: number) => ({
     ...base,
     workouts: [workout('earlier', 1), workout('now', 2, { status: 'open' })],
-    sets: [set('earlier', earlier), set('now', now)],
+    sets: readSets([set('earlier', earlier), set('now', now)]),
   });
 
   it('adds it to a daily total: 250 saved and 250 now make 500 of 500', () => {

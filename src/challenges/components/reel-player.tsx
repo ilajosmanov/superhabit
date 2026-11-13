@@ -3,8 +3,10 @@ import { useVideoPlayer, VideoView, type VideoPlayer } from 'expo-video';
 import { StyleSheet } from 'react-native';
 import { Easing, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { after, type Clip, type Spot } from '@/challenges/reel';
-import { reelPlayback } from '@/challenges/reel-playback';
+import { useState } from 'react';
+
+import type { Clip, Spot } from '@/challenges/reel';
+import { openReel, reelPlayback } from '@/challenges/reel-playback';
 
 /** Ground at 70 %: buttons over the playing video. */
 export const OVER_VIDEO = 'rgba(13,14,11,0.7)';
@@ -17,8 +19,8 @@ const REPORT_S = 0.1;
  * `progress` is how far through the clip on screen, 0 to 1, kept off React state because it moves ten
  * times a second.
  */
-export function useReel(clips: readonly Clip[], start: Spot) {
-  const uri = ({ clip, part }: Spot) => clips[clip].takes[part];
+export function useReel(clips: readonly Clip[], start: Spot, onUnavailable: (at: Spot) => void) {
+  const [source] = useState(() => openReel(clips, start));
   const setup = (play: boolean) => (p: VideoPlayer) => {
     p.muted = true;
     p.timeUpdateEventInterval = REPORT_S;
@@ -26,15 +28,16 @@ export function useReel(clips: readonly Clip[], start: Spot) {
   };
   // Sources fixed at mount: a changed source would make the hook replace it behind the machine's back.
   const players = [
-    useVideoPlayer(uri(start), setup(true)),
-    useVideoPlayer(uri(after(clips, start)), setup(false)),
+    useVideoPlayer(source.first, setup(true)),
+    useVideoPlayer(source.next, setup(false)),
   ] as const;
   const progress = useSharedValue(0);
   const reel = useActorRef(reelPlayback, {
     input: {
-      clips,
+      clips: source.clips,
       players,
-      start,
+      start: source.start,
+      onUnavailable,
       // Glides to the reported time over one report, instead of stepping ten times a second.
       onProgress: (along, glide) =>
         progress.set(
@@ -45,7 +48,7 @@ export function useReel(clips: readonly Clip[], start: Spot) {
   const spot = useSelector(reel, (s) => s.context.spot);
   const front = useSelector(reel, (s) => s.context.front);
   const go = (to: Spot, along = 0) => reel.send({ type: 'go', to, along });
-  return { players, front, shown: players[front], spot, go, progress };
+  return { clips: source.clips, players, front, shown: players[front], spot, go, progress };
 }
 
 /** Both players' views, stacked; only the one playing shows. */

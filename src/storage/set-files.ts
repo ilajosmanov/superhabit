@@ -22,6 +22,22 @@ const videoPath = (setId: string, take: number) => new File(videoFolder(), `${se
 
 // File availability only: the capture owner keeps the native jobs and decides when to release them.
 const writingVideos = new Map<string, Set<object>>();
+let revision = 0;
+const videoListeners = new Set<() => void>();
+
+/** Video availability, including native finalization and deletion without a database change. */
+export const videoRevision = () => revision;
+export function subscribeVideos(listener: () => void) {
+  videoListeners.add(listener);
+  return () => {
+    videoListeners.delete(listener);
+  };
+}
+
+function videosChanged() {
+  revision += 1;
+  for (const listener of videoListeners) listener();
+}
 
 /** Reserves a file until native has finalized it; a set with a reserved file isn't playable yet. */
 export function reserveVideo(setId: string, take: number) {
@@ -29,21 +45,29 @@ export function reserveVideo(setId: string, take: number) {
   directory.create({ intermediates: true, idempotent: true });
   const file = videoPath(setId, take);
   const token = {};
+  const first = !writingVideos.has(setId);
   const pending = writingVideos.get(setId) ?? new Set();
   writingVideos.set(setId, pending);
   pending.add(token);
+  if (first) videosChanged();
   return {
     file,
     release() {
-      pending.delete(token);
-      if (pending.size === 0) writingVideos.delete(setId);
+      if (!pending.delete(token)) return;
+      if (pending.size === 0) {
+        writingVideos.delete(setId);
+        videosChanged();
+      }
     },
   };
 }
 
 export function removeVideo(file: File) {
   try {
-    if (file.exists) file.delete();
+    if (file.exists) {
+      file.delete();
+      videosChanged();
+    }
   } catch (error) {
     console.warn('[camcorder] could not delete a recording', error);
   }
@@ -67,20 +91,17 @@ export function listVideos() {
   }
 }
 
-/**
- * Each of `setIds`' videos, as uris in take order. A failed take leaves a gap in the indices, so this lists
- * what exists rather than counting up. A set still filming or finalizing is left out: its file isn't
- * playable yet.
- */
-// Lists the whole videos folder, once per day shown: retention keeps it to 30 days of videos.
-export function videosOf(setIds: readonly string[]) {
-  const ids = new Set(setIds.filter((setId) => !writingVideos.has(setId)));
+/** All playable videos in take order. Pending sets stay hidden until their last native write releases. */
+export function videoIndex(): ReadonlyMap<string, readonly string[]> {
   const videos = new Map<string, string[]>();
-  if (ids.size === 0) return videos;
   const found = listVideos()
-    .filter(({ setId }) => ids.has(setId))
+    .filter(({ setId }) => !writingVideos.has(setId))
     .sort((a, b) => a.take - b.take);
-  for (const { setId, file } of found) videos.set(setId, [...(videos.get(setId) ?? []), file.uri]);
+  for (const { setId, file } of found) {
+    const takes = videos.get(setId) ?? [];
+    takes.push(file.uri);
+    videos.set(setId, takes);
+  }
   return videos;
 }
 
@@ -89,6 +110,15 @@ export function deleteVideos(setIds: readonly string[]) {
   if (setIds.length === 0) return;
   const ids = new Set(setIds);
   for (const { setId, file } of listVideos()) if (ids.has(setId)) removeVideo(file);
+}
+
+/** Delete an account's videos and traces together, before its database identity is cleared. */
+export function deleteAccountFiles(accountId: string) {
+  const folder = new Directory(Paths.document, accountId);
+  if (folder.exists) {
+    folder.delete();
+    videosChanged();
+  }
 }
 
 /** Discard removes every final and temporary copy, including pending uploads. */

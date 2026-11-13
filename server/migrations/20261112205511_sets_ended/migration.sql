@@ -1,0 +1,1 @@
+CREATE INDEX `sets_ended` ON `sets` (`ended_at`);

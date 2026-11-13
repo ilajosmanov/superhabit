@@ -33,7 +33,7 @@ import { setShare } from '@/workout/plan/results';
  * or ✕) closes it, handing back where it was.
  */
 export function SessionViewer({
-  clips,
+  clips: available,
   sets,
   start,
   onClose,
@@ -45,7 +45,7 @@ export function SessionViewer({
 }) {
   const { top, bottom } = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
-  const { players, front, shown, spot, go, progress } = useReel(clips, start);
+  const { clips, players, front, shown, spot, go, progress } = useReel(available, start, onClose);
   const close = () => onClose(spot);
   // Stories: the next set, or the one before; on the first set, back to its start.
   const step = (by: 1 | -1) => {

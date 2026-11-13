@@ -15,7 +15,7 @@ import { doneToday, restingToday } from '@/challenges/run-view';
 import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
-import { useToday } from '@/bootstrap/today';
+import { useToday } from '@/components/today';
 import { useColors } from '@/components/colors';
 
 /**

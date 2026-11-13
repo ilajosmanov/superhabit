@@ -19,6 +19,7 @@ export function AmountInput({
   value,
   range: { min, max, step },
   max: offersMax = false,
+  limit = Infinity,
   labels,
   name,
   onChange,
@@ -26,6 +27,8 @@ export function AmountInput({
   value: Amount;
   range: { min: number; max: number; step: number };
   max?: boolean;
+  /** Hard limit for typed counts, independent of the slider range. */
+  limit?: number;
   /** The words beside the numeral: its unit, then what it counts ("EVERY DAY"). */
   labels: readonly string[];
   /** What TalkBack calls the field and the slider. */
@@ -68,8 +71,11 @@ export function AmountInput({
             onBlur={() => setTyping(null)}
             onChangeText={(text) => {
               const digits = text.replace(/\D/g, '');
-              const n = Number(digits);
-              setTyping({ text: digits, amount: n >= 1 ? n : value });
+              const n = Math.min(Number(digits), limit);
+              setTyping({
+                text: Number(digits) > limit ? String(n) : digits,
+                amount: n >= 1 ? n : value,
+              });
               // Emptied or 0, the number stays until you type one.
               if (n >= 1) onChange(n);
             }}

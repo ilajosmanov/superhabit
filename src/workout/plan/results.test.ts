@@ -74,5 +74,9 @@ it('counts only done workouts with a positive rep or hold, matching sets by work
     { workoutId: 'discarded', reps: 10, heldMs: 0 },
   ];
 
-  expect(countedWorkouts(workouts, sets).map(({ id }) => id)).toEqual(['rep', 'hold']);
+  expect(
+    countedWorkouts(workouts, new Map(sets.map((set) => [set.workoutId, [set]]))).map(
+      ({ id }) => id,
+    ),
+  ).toEqual(['rep', 'hold']);
 });

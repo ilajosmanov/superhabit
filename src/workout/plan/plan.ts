@@ -35,6 +35,18 @@ export const goalLabel = (goal: Goal) =>
 
 const positiveInteger = (n: number) => Number.isInteger(n) && n >= 1;
 
+/** The most sets (exercise steps) one workout may hold; the server refuses a bigger workout. */
+export const MAX_SETS = 200;
+/** The longest challenge; the server refuses a longer one, so a run's calendar stays cheap to walk. */
+export const MAX_DAYS = 365;
+
+/** Sets one workout of the session logs (rests log none), counted without expanding the rounds. */
+export const setsIn = (session: Session) =>
+  session.reduce(
+    (sum, block) => sum + block.rounds * block.steps.filter((s) => s.exercise !== 'rest').length,
+    0,
+  );
+
 const maxGoal = z.strictObject({ type: z.literal('max') });
 const secondsGoal = z.strictObject({ type: z.literal('seconds'), n: z.number().int().positive() });
 const goalSchema = z.union([
@@ -108,6 +120,12 @@ function flatten(session: Session): FlatStep[] {
 
 /** Report every invalid goal, round count and rest join in a session. */
 export function validate(session: Session): string[] {
+  // Checked before flattening: a synced plan of 1000 rounds of many steps must not be expanded. Rests
+  // never sit side by side, so a valid workout has at most one per set.
+  const steps = session.reduce((sum, block) => sum + block.rounds * block.steps.length, 0);
+  if (setsIn(session) > MAX_SETS || steps > 2 * MAX_SETS) {
+    return [`a workout holds at most ${MAX_SETS} sets`];
+  }
   const problems: string[] = [];
   session.forEach((block, blockIndex) => {
     if (!positiveInteger(block.rounds)) {
@@ -157,7 +175,9 @@ export function expand(session: Session): FlatSteps {
 
 export function defineChallenge(c: Challenge): Challenge {
   const problems = validate(c.session);
-  if (!positiveInteger(c.days)) problems.push('days must be an integer >= 1');
+  if (!positiveInteger(c.days) || c.days > MAX_DAYS) {
+    problems.push(`days must be an integer from 1 to ${MAX_DAYS}`);
+  }
   if (
     c.schedule &&
     (c.schedule.length !== c.days ||

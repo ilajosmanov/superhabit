@@ -12,6 +12,7 @@ import {
   notInArray,
 } from 'drizzle-orm';
 
+import { readSets } from '@/workout/plan/logged-set';
 import { restDays } from '@/challenges/rest-days';
 import { SUGGESTED_CHALLENGES, SUGGESTED_HISTORY } from '@/challenges/suggested';
 import { storedPlan } from '@/workout/plan/plan';
@@ -110,6 +111,8 @@ async function pointsOf(db: Db, { week, league, cohort }: Board, members: string
         ),
       ),
     // Recovery can separate training days by more than the bonus cap's calendar lookback.
+    // shortcut: every member's whole history on each board read (~30 people); bound it by the runs that
+    // overlap the week once histories reach years, which needs the rest-day lookback spelled out first.
     db
       .select({
         userId: workouts.userId,
@@ -152,58 +155,42 @@ async function pointsOf(db: Db, { week, league, cohort }: Board, members: string
       const workouts = recorded
         .filter((row) => row.userId === id)
         .map((row) => ({ ...row, status: 'done' as const }));
-      const sets = historySets.filter((row) => row.userId === id);
-      const latest = workouts.reduce<(typeof workouts)[number] | undefined>(
-        (last, row) => (!last || row.startedAt > last.startedAt ? row : last),
-        undefined,
-      );
-      // Match the phone's local date for archive/version timestamps. Workout calendar dates are already stored.
-      let dateFormat: Intl.DateTimeFormat;
+      const sets = readSets(historySets.filter((row) => row.userId === id));
+      let rest = new Set<string>();
       try {
-        dateFormat = new Intl.DateTimeFormat('en-CA', {
-          timeZone: latest?.tz ?? 'UTC',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        });
-      } catch {
-        dateFormat = new Intl.DateTimeFormat('en-CA', {
-          timeZone: 'UTC',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        });
+        rest = new Set(
+          restDays(
+            {
+              challenges: [
+                ...SUGGESTED_CHALLENGES.map((entry) => ({
+                  id: entry.id,
+                  currentVersionId: entry.versionId,
+                  retiredAt: null,
+                })),
+                ...custom.filter((row) => row.userId === id),
+              ],
+              versions: [
+                ...[...SUGGESTED_HISTORY, ...SUGGESTED_CHALLENGES].map((entry, number) => ({
+                  id: entry.versionId,
+                  challengeId: entry.id,
+                  number,
+                  createdAt: 0,
+                  ...entry.challenge,
+                  plan: storedPlan(entry.challenge),
+                })),
+                ...versions.filter((row) => row.userId === id),
+              ],
+              runs: participations.filter((row) => row.userId === id),
+              workouts,
+              sets,
+            },
+            addDays(week, 7),
+          ),
+        );
+      } catch (error) {
+        // One member's unreadable history must not fail the board: score them without recovery credit.
+        console.error('rest days failed for a board member', error);
       }
-      const rest = new Set(
-        restDays(
-          {
-            challenges: [
-              ...SUGGESTED_CHALLENGES.map((entry) => ({
-                id: entry.id,
-                currentVersionId: entry.versionId,
-                retiredAt: null,
-              })),
-              ...custom.filter((row) => row.userId === id),
-            ],
-            versions: [
-              ...[...SUGGESTED_HISTORY, ...SUGGESTED_CHALLENGES].map((entry, number) => ({
-                id: entry.versionId,
-                challengeId: entry.id,
-                number,
-                createdAt: 0,
-                ...entry.challenge,
-                plan: storedPlan(entry.challenge),
-              })),
-              ...versions.filter((row) => row.userId === id),
-            ],
-            runs: participations.filter((row) => row.userId === id),
-            workouts,
-            sets,
-          },
-          addDays(week, 7),
-          (timestamp) => dateFormat.format(timestamp),
-        ),
-      );
       const kept = new Set([
         ...aliveDays(workouts, sets),
         ...frozen.filter((row) => row.userId === id && !rest.has(row.day)).map((row) => row.day),

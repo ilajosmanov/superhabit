@@ -88,7 +88,7 @@ describe('validate', () => {
     ]);
   });
 
-  it.each([0, -1, 1.5, Infinity, NaN])('rejects %s rounds', (rounds) => {
+  it.each([0, -1, 1.5, NaN])('rejects %s rounds', (rounds) => {
     expect(validate([{ steps: [{ exercise: 'squat', goal: reps(3) }], rounds }])).toContain(
       'block 1: rounds must be an integer >= 1',
     );
@@ -240,7 +240,7 @@ describe('defineChallenge', () => {
         dailyTotal: false,
         session: floorCircuit,
       }),
-    ).toThrow('days must be an integer >= 1');
+    ).toThrow('days must be an integer from 1 to 365');
   });
 
   it('lists every problem in one error', () => {
@@ -267,7 +267,7 @@ describe('defineChallenge', () => {
         'block 1 step 1: squat takes reps or max, not seconds',
         'block 1 step 2: reps must be an integer >= 1',
         'block 1 step 2: plank takes seconds or max, not reps',
-        'days must be an integer >= 1',
+        'days must be an integer from 1 to 365',
       ].join('\n'),
     );
   });
@@ -323,4 +323,22 @@ describe('daily total validation', () => {
       }),
     ).toThrow('daily total cannot have a MAX goal');
   });
+});
+
+it('rejects unbounded rounds before trying to expand the workout', () => {
+  expect(validate([{ steps: [{ exercise: 'squat', goal: reps(3) }], rounds: Infinity }])).toEqual([
+    'a workout holds at most 200 sets',
+  ]);
+});
+
+it('rejects a plan padded with rests before expanding it', () => {
+  const rest = { exercise: 'rest', goal: seconds(10) } as const;
+  const padded: Session = [
+    {
+      steps: [{ exercise: 'squat', goal: reps(3) }, ...Array.from({ length: 100 }, () => rest)],
+      // 200 sets, within the limit, but 20,200 steps.
+      rounds: 200,
+    },
+  ];
+  expect(validate(padded)).toEqual(['a workout holds at most 200 sets']);
 });

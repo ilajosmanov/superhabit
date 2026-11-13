@@ -6,7 +6,7 @@ import { create, join } from '@/challenges/library';
 import { useLibrary } from '@/challenges/library-live';
 import { challengePage } from '@/challenges/library-view';
 import { saveFailed } from '@/components/save-failed';
-import { useToday } from '@/bootstrap/today';
+import { useToday } from '@/components/today';
 
 /**
  * `?id=…`, a suggested challenge you aren't in: change its numbers, then join. Ours as they are joins

@@ -9,6 +9,7 @@ import { planView, trackedSets } from '@/challenges/plan-view';
 import type { Joined } from '@/challenges/library-view';
 import { doneToday, restingToday, percent } from '@/challenges/run-view';
 import { expand } from '@/workout/plan/plan';
+import { useVideos } from '@/challenges/videos-live';
 import { setShare } from '@/workout/plan/results';
 
 /**
@@ -16,6 +17,7 @@ import { setShare } from '@/workout/plan/results';
  * for and what each of its sets got, and how each exercise counts.
  */
 export function JoinedChallenge({ joined: { challenge, run, amounts } }: { joined: Joined }) {
+  const videos = useVideos();
   const today = run.day - 1;
   // Today until you pick another day.
   const [picked, setPicked] = useState<number | null>(null);
@@ -68,7 +70,7 @@ export function JoinedChallenge({ joined: { challenge, run, amounts } }: { joine
 
       {day && !selectedRest && (
         <WatchDay
-          // Its videos are listed as it mounts: again for another day, or once a new try is saved.
+          // A different day closes its player; the folder snapshot stays with this screen.
           key={day.sets.map(({ id }) => id).join()}
           // The day shows one try (the latest that met the goal, else the latest); a daily total, all.
           label={`${selected === today ? 'TODAY' : `DAY ${selected + 1}`} · ${shown.dailyTotal ? 'EVERY TRY' : 'THE TRY THAT COUNTS'}`}
@@ -76,6 +78,7 @@ export function JoinedChallenge({ joined: { challenge, run, amounts } }: { joine
           done={day.done}
           steps={expand(shown.session)}
           kept={day.sets}
+          videos={videos}
         />
       )}
 

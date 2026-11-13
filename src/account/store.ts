@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
-import { Directory, Paths } from 'expo-file-system';
 
 import { account, writeAccount, type Account } from '@/storage/account';
+import { deleteAccountFiles } from '@/storage/set-files';
 import { clearDatabase } from '@/storage/clear';
 import { writeSharing, type Sharing } from '@/storage/consent';
 import { db } from '@/storage/database';
@@ -85,10 +85,7 @@ export function clearSignedOut() {
 export function forgetAccount() {
   const kept = account();
   // The folder first: once the account row is gone, nothing would know whose folder it was.
-  if (kept) {
-    const folder = new Directory(Paths.document, kept.id);
-    if (folder.exists) folder.delete();
-  }
+  if (kept) deleteAccountFiles(kept.id);
   db().transaction((tx) => clearDatabase(tx));
 }
 

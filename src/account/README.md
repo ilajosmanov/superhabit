@@ -54,7 +54,7 @@ workout feature's `setIsSynced`, handed in by `bootstrap/keep-synced.ts`), one a
 Turning sharing off stops them; the server deletes what was shared when it hears the withdrawal.
 
 Delete account (Profile) needs the server: once it has deleted the account, startup clears the
-database and the account's folder (`forgetAccount`) and shows the sign-in screen, which ends the old
+database and the account's folder (`forgetAccount`, through `storage/set-files.ts`) and shows the sign-in screen, which ends the old
 session first. A retry whose answer is a 401 (the first try's answer was lost, and the session went with
 the account) says you've been signed out instead of "Couldn't reach", and offers Sign in again. The same
 deletion runs from a browser at the server's `/delete` page. Profile and the consent screen link to the
