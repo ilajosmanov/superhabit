@@ -83,13 +83,8 @@ export function ChallengeDone({
         <FeedbackButton
           source="workout"
           initiallyOpen={view.askFeedback}
-          measure={
-            session.exercises.every(isHold)
-              ? 'seconds'
-              : session.exercises.some(isHold)
-                ? 'mixed'
-                : 'reps'
-          }
+          reps={!session.exercises.every(isHold)}
+          holds={session.exercises.some(isHold)}
           details={{
             challenge: challenge.name,
             exercises: session.exercises.join(', '),

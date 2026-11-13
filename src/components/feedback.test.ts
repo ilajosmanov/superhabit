@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/react-native';
 import { beforeEach, expect, it, vi } from 'vite-plus/test';
 
-import { sendFeedback, type FeedbackDraft } from './feedback';
+import { countAnswers, pickAccuracy, sendFeedback, type FeedbackDraft } from './feedback';
 
 vi.mock('@sentry/react-native', () => ({
   getClient: vi.fn(() => ({})),
@@ -82,4 +82,14 @@ it('does not report success without an initialized Sentry client', () => {
   vi.mocked(Sentry.getClient).mockReturnValueOnce(undefined);
   expect(sendFeedback({ ...empty, reaction: 'Good' })).toBe(false);
   expect(Sentry.captureFeedback).not.toHaveBeenCalled();
+});
+
+it('combines count problems in chip order but keeps Right and Not sure on their own', () => {
+  const answers = countAnswers(true, true);
+  const pick = (picked: string[], answer: string) => pickAccuracy(answers, picked, answer);
+  // Tapped holds-first, sent reps-first: either order is one answer.
+  const both = pick(pick(['Right'], 'Time too short'), 'Missed reps');
+  expect(both).toEqual(['Missed reps', 'Time too short']);
+  expect(pick(both, 'Not sure')).toEqual(['Not sure']);
+  expect(pick(both, 'Missed reps')).toEqual(['Time too short']);
 });

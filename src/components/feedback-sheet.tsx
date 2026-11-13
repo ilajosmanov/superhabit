@@ -1,19 +1,14 @@
-import {
-  FilterChip,
-  FlowRow,
-  Host,
-  RNHostView,
-  Text as ComposeText,
-} from '@expo/ui/jetpack-compose';
+import { FlowRow, Host } from '@expo/ui/jetpack-compose';
 import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
-import { COMPOSE_LABEL } from '@/theme';
-
+import { Chip } from './chip';
 import { useColors } from './colors';
 import {
   canSendFeedback,
+  countAnswers,
+  pickAccuracy,
   REACTIONS,
   sendFeedback,
   type FeedbackSource,
@@ -28,44 +23,11 @@ import { Sheet } from './sheet';
 import { TextButton } from './text-button';
 import { tick } from './tick';
 
-type Measure = 'reps' | 'seconds' | 'mixed';
-
 /** Each answer as the camera's dots landing on a body. What's sent stays Bad / Okay / Good. */
 const LOOKS: Record<Reaction, { label: string; fit: Fit }> = {
   Bad: { label: 'Lost me', fit: 'lost' },
   Okay: { label: 'Mostly', fit: 'close' },
   Good: { label: 'Spot on', fit: 'on' },
-};
-
-/** The follow-up for what the session measured: [what's sent, what the chip says]. */
-const COUNTING: Record<Measure, { question: string; answers: [string, string][] }> = {
-  reps: {
-    question: 'DID IT COUNT EVERY REP?',
-    answers: [
-      ['Accurate', 'Every rep'],
-      ['Missed reps', 'Missed some'],
-      ['Counted extra', 'Counted extra'],
-      ['Not sure', 'Not sure'],
-    ],
-  },
-  seconds: {
-    question: 'WAS THE TIME RIGHT?',
-    answers: [
-      ['Accurate', 'Right'],
-      ['Too short', 'Too short'],
-      ['Too long', 'Too long'],
-      ['Not sure', 'Not sure'],
-    ],
-  },
-  mixed: {
-    question: 'DID IT COUNT RIGHT?',
-    answers: [
-      ['Accurate', 'Right'],
-      ['Too little', 'Too little'],
-      ['Too much', 'Too much'],
-      ['Not sure', 'Not sure'],
-    ],
-  },
 };
 
 const WORDS: Record<
@@ -95,12 +57,15 @@ const WORDS: Record<
 export function FeedbackButton({
   source,
   initiallyOpen = false,
-  measure = 'reps',
+  reps = true,
+  holds = false,
   details,
 }: {
   source: FeedbackSource;
   initiallyOpen?: boolean;
-  measure?: Measure;
+  /** What the workout had, so only answers that apply show. */
+  reps?: boolean;
+  holds?: boolean;
   details?: Record<string, string>;
 }) {
   const colors = useColors();
@@ -108,25 +73,31 @@ export function FeedbackButton({
   const [open, setOpen] = useState(initiallyOpen);
   const [message, setMessage] = useState('');
   const [reaction, setReaction] = useState<Reaction | null>(null);
-  const [accuracy, setAccuracy] = useState<string | null>(null);
+  const [accuracy, setAccuracy] = useState<string[]>([]);
   const [focused, setFocused] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [failed, setFailed] = useState(false);
+  // The last send: none yet, failed (the draft stays), or sent (the crash screen's button then thanks you).
+  const [status, setStatus] = useState<'idle' | 'failed' | 'sent'>('idle');
   const workout = source === 'workout';
   const crash = source === 'crash';
   const words = WORDS[source];
-  const draft = { source, message, reaction, accuracy, details };
-  const close = () => setOpen(false);
+  const answers = countAnswers(reps, holds);
+  const draft = { source, message, reaction, accuracy: accuracy.join(', ') || null, details };
+  const sent = status === 'sent';
+  const failed = status === 'failed';
+  // Closing unmounts the field before its blur arrives, so focus is cleared here.
+  const close = () => {
+    setOpen(false);
+    setFocused(false);
+  };
   const send = () => {
     if (!sendFeedback(draft)) {
-      setFailed(true);
+      setStatus('failed');
       return;
     }
-    setSent(true);
-    setFailed(false);
+    setStatus('sent');
     setMessage('');
     setReaction(null);
-    setAccuracy(null);
+    setAccuracy([]);
     close();
     notify?.('Thanks, feedback sent');
   };
@@ -149,12 +120,30 @@ export function FeedbackButton({
           label={crash ? (sent ? 'Thanks for your feedback' : 'Send feedback') : 'Share feedback'}
           disabled={sent && crash}
           onPress={() => {
-            setSent(false);
+            if (sent) setStatus('idle');
             setOpen(true);
           }}
         />
       )}
-      <Sheet open={open} onDismiss={close}>
+      <Sheet
+        open={open}
+        onDismiss={close}
+        // Pinned while typing, so the keyboard can't cover Send.
+        pinFooter={focused}
+        footer={
+          <View className="flex-row items-center gap-3">
+            <TextButton label="Not now" onPress={close} color={colors.muted} />
+            <View className="flex-1">
+              <PrimaryButton
+                label={failed ? 'Try again' : 'Send'}
+                accessibilityLabel={failed ? 'Try sending again' : 'Send feedback'}
+                disabled={!canSendFeedback(draft)}
+                onPress={send}
+              />
+            </View>
+          </View>
+        }
+      >
         <View className="gap-2.5">
           <Text className="font-mono text-xs tracking-widest text-muted">{words.kicker}</Text>
           <Text
@@ -207,7 +196,7 @@ export function FeedbackButton({
         {workout && reaction && (
           <View className="gap-3">
             <Text className="font-mono text-xs tracking-widest text-muted">
-              {COUNTING[measure].question}
+              DID IT COUNT RIGHT?
             </Text>
             <Host matchContents={{ vertical: true }}>
               <FlowRow
@@ -215,33 +204,16 @@ export function FeedbackButton({
                 verticalArrangement={{ spacedBy: 0 }}
                 modifiers={[fillMaxWidth()]}
               >
-                {COUNTING[measure].answers.map(([value, label]) => (
-                  <FilterChip
-                    key={value}
-                    selected={accuracy === value}
-                    onClick={() => {
+                {answers.map((answer) => (
+                  <Chip
+                    key={answer}
+                    label={answer}
+                    selected={accuracy.includes(answer)}
+                    onPress={() => {
                       tick();
-                      setAccuracy(value);
+                      setAccuracy(pickAccuracy(answers, accuracy, answer));
                     }}
-                    border={{ color: accuracy === value ? colors.line : colors.edge }}
-                    colors={{
-                      containerColor: 'transparent',
-                      labelColor: colors.soft,
-                      selectedContainerColor: colors.line,
-                      selectedLabelColor: colors.chalk,
-                    }}
-                  >
-                    <FilterChip.Label>
-                      <ComposeText style={COMPOSE_LABEL}>{label}</ComposeText>
-                    </FilterChip.Label>
-                    {accuracy === value && (
-                      <FilterChip.LeadingIcon>
-                        <RNHostView matchContents>
-                          <Icon name="check" size={18} color={colors.mark} />
-                        </RNHostView>
-                      </FilterChip.LeadingIcon>
-                    )}
-                  </FilterChip>
+                  />
                 ))}
               </FlowRow>
             </Host>
@@ -298,18 +270,6 @@ export function FeedbackButton({
             </Text>
           </View>
         )}
-
-        <View className="flex-row items-center gap-3">
-          <TextButton label="Not now" onPress={close} color={colors.muted} />
-          <View className="flex-1">
-            <PrimaryButton
-              label={failed ? 'Try again' : 'Send'}
-              accessibilityLabel={failed ? 'Try sending again' : 'Send feedback'}
-              disabled={!canSendFeedback(draft)}
-              onPress={send}
-            />
-          </View>
-        </View>
       </Sheet>
     </>
   );
