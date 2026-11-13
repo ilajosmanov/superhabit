@@ -1,19 +1,15 @@
-import { createContext, use, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, use, useSyncExternalStore, type ReactNode } from 'react';
 
 import { useLibrary } from './library-live';
-import { videoSnapshot } from './videos';
-import { subscribeVideos, videoRevision } from '@/storage/set-files';
+import { sharedVideos, subscribeVideos } from '@/storage/set-files';
 
 const Shared = createContext<ReadonlyMap<string, readonly string[]> | null>(null);
 
-/** Read the video folder once per account/revision, before any pushed screen needs its files. */
+/** The video folder, listed once per account and again when a video changes, before any pushed screen needs it. */
 export function VideosProvider({ children }: { children: ReactNode }) {
   const { account } = useLibrary();
-  const revision = useSyncExternalStore(subscribeVideos, videoRevision);
-  const [snapshot, setSnapshot] = useState(() => videoSnapshot(account.id, revision, null));
-  const current = videoSnapshot(account.id, revision, snapshot);
-  if (current !== snapshot) setSnapshot(current);
-  return <Shared value={current.videos}>{children}</Shared>;
+  const videos = useSyncExternalStore(subscribeVideos, () => sharedVideos(account.id));
+  return <Shared value={videos}>{children}</Shared>;
 }
 
 /** Synchronous lookup only: the reel selects its own set ids from this shared index. */

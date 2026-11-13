@@ -52,10 +52,16 @@ export type Yours = Joined | Unavailable;
 
 /** Null for a plan from a newer app (an exercise or shape this one doesn't know). */
 function readVersion(row: Library['versions'][number]): Readable | null {
+  // Parsed once per row: a snapshot's rows live until their table changes, and every screen reads them.
+  const kept = parsed.get(row);
+  if (kept !== undefined) return kept;
   const plan = readChallengePlan(row.plan, row.days);
   const { id, name, days, dailyTotal, restartOnMiss } = row;
-  return plan && { id, name, days, dailyTotal, restartOnMiss, ...plan };
+  const version = plan && { id, name, days, dailyTotal, restartOnMiss, ...plan };
+  parsed.set(row, version);
+  return version;
 }
+const parsed = new WeakMap<Library['versions'][number], Readable | null>();
 
 function amountsOn(
   versions: readonly Readable[],

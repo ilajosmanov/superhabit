@@ -22,11 +22,10 @@ const videoPath = (setId: string, take: number) => new File(videoFolder(), `${se
 
 // File availability only: the capture owner keeps the native jobs and decides when to release them.
 const writingVideos = new Map<string, Set<object>>();
-let revision = 0;
 const videoListeners = new Set<() => void>();
+/** The folder as last listed, until a video is finalized or deleted (no database row changes then). */
+let listed: { accountId: string; videos: ReadonlyMap<string, readonly string[]> } | null = null;
 
-/** Video availability, including native finalization and deletion without a database change. */
-export const videoRevision = () => revision;
 export function subscribeVideos(listener: () => void) {
   videoListeners.add(listener);
   return () => {
@@ -35,7 +34,7 @@ export function subscribeVideos(listener: () => void) {
 }
 
 function videosChanged() {
-  revision += 1;
+  listed = null;
   for (const listener of videoListeners) listener();
 }
 
@@ -49,7 +48,8 @@ export function reserveVideo(setId: string, take: number) {
   const pending = writingVideos.get(setId) ?? new Set();
   writingVideos.set(setId, pending);
   pending.add(token);
-  if (first) videosChanged();
+  // Hiding a set matters only if it was listed as playable (a retake).
+  if (first && listed?.videos.has(setId)) videosChanged();
   return {
     file,
     release() {
@@ -62,15 +62,20 @@ export function reserveVideo(setId: string, take: number) {
   };
 }
 
-export function removeVideo(file: File) {
+/** Deletes one file; false when it wasn't there or couldn't be deleted. Tells nobody. */
+function remove(file: File) {
   try {
-    if (file.exists) {
-      file.delete();
-      videosChanged();
-    }
+    if (!file.exists) return false;
+    file.delete();
+    return true;
   } catch (error) {
     console.warn('[camcorder] could not delete a recording', error);
+    return false;
   }
+}
+
+export function removeVideo(file: File) {
+  if (remove(file)) videosChanged();
 }
 
 /** The videos folder's `<setId>-<take>.mp4` files; none when it can't be read. */
@@ -109,7 +114,19 @@ export function videoIndex(): ReadonlyMap<string, readonly string[]> {
 export function deleteVideos(setIds: readonly string[]) {
   if (setIds.length === 0) return;
   const ids = new Set(setIds);
-  for (const { setId, file } of listVideos()) if (ids.has(setId)) removeVideo(file);
+  // Told once for the lot: each telling makes the shared index list the folder again.
+  const gone = listVideos().filter(({ setId, file }) => ids.has(setId) && remove(file));
+  if (gone.length > 0) videosChanged();
+}
+
+/**
+ * `videoIndex()` for the kept account (`accountId`), listed once and shared until a video changes or
+ * the account does. The same map comes back while nothing changed, so it works as an external store's
+ * snapshot.
+ */
+export function sharedVideos(accountId: string) {
+  if (listed?.accountId !== accountId) listed = { accountId, videos: videoIndex() };
+  return listed.videos;
 }
 
 /** Delete an account's videos and traces together, before its database identity is cleared. */

@@ -48,16 +48,22 @@ export function SchedulePreview({
       {heading}
       <View className="-m-0.5 flex-row flex-wrap">
         {challenge.schedule.map((day, i) => (
-          // A seventh of the row each, so a row is a week from day 1.
-          <View key={i} className="aspect-square p-0.5" style={{ width: `${100 / 7}%` }}>
-            <Pressable
-              accessibilityRole="switch"
-              accessibilityLabel={`Day ${i + 1} workout`}
-              accessibilityState={{ checked: day === 'training' }}
-              onPress={() => {
-                tick();
-                onFlip(i);
-              }}
+          // A seventh of the row each, so a row is a week from day 1. The whole cell takes the tap
+          // (48dp tall; a seventh of a 360dp screen is 45 wide), the square is drawn inside it.
+          <Pressable
+            key={i}
+            accessibilityRole="switch"
+            accessibilityLabel={`Day ${i + 1} workout`}
+            accessibilityState={{ checked: day === 'training' }}
+            android_ripple={{ color: colors.line }}
+            onPress={() => {
+              tick();
+              onFlip(i);
+            }}
+            className="h-12 p-0.5"
+            style={{ width: `${100 / 7}%` }}
+          >
+            <View
               // Colours through `style`: a changing class list remounts the view (react-native-css).
               className="flex-1 items-center justify-center rounded-lg border"
               style={{
@@ -71,8 +77,8 @@ export function SchedulePreview({
               >
                 {i + 1}
               </Text>
-            </Pressable>
-          </View>
+            </View>
+          </Pressable>
         ))}
       </View>
       <Text className="font-sans text-sm text-muted">

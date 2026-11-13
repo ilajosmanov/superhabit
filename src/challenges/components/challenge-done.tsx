@@ -4,13 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Numeral } from './numeral';
 import { OVER_VIDEO } from './reel-player';
 import { SessionLoop } from './session-reel';
+import { WorkoutFeedback } from './workout-feedback';
 import { numeralLabels, SessionPlan } from './session-plan';
 import { isHold } from '@/challenges/hold';
 import { planView } from '@/challenges/plan-view';
 import { dayWord, type RunView } from '@/challenges/run-view';
 import { reelOf, type Clip } from '@/challenges/reel';
 import { mss } from '@/lib/duration';
-import { FeedbackButton } from '@/components/feedback-sheet';
 import { ExerciseFigure } from '@/components/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
 import { EXERCISES, type ExerciseId } from '@/exercises/registry';
@@ -80,8 +80,7 @@ export function ChallengeDone({
       </ScrollView>
 
       <View className="flex-row items-center gap-3 px-6 pt-3">
-        <FeedbackButton
-          source="workout"
+        <WorkoutFeedback
           initiallyOpen={view.askFeedback}
           reps={!session.exercises.every(isHold)}
           holds={session.exercises.some(isHold)}

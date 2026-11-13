@@ -148,14 +148,26 @@ async function pointsOf(db: Db, { week, league, cohort }: Board, members: string
     db.select().from(challengeVersions).where(inArray(challengeVersions.userId, onBoard)),
     db.select().from(runs).where(inArray(runs.userId, onBoard)),
   ]);
+  // Each table split by member once, not filtered again per member.
+  const of = <T extends { userId: string }>(rows: T[]) => {
+    const grouped = Map.groupBy(rows, (row) => row.userId);
+    return (id: string) => grouped.get(id) ?? [];
+  };
+  const [scoredOf, recordedOf, setsOf, frozenOf, customOf, versionsOf, runsOf] = [
+    of(scored),
+    of(recorded),
+    of(historySets),
+    of(frozen),
+    of(custom),
+    of(versions),
+    of(participations),
+  ] as const;
   return new Map(
     members.map((id) => {
-      const scoredSets = scored.filter((set) => set.userId === id);
+      const scoredSets = scoredOf(id);
       if (scoredSets.length === 0) return [id, 0] as const;
-      const workouts = recorded
-        .filter((row) => row.userId === id)
-        .map((row) => ({ ...row, status: 'done' as const }));
-      const sets = readSets(historySets.filter((row) => row.userId === id));
+      const workouts = recordedOf(id).map((row) => ({ ...row, status: 'done' as const }));
+      const sets = readSets(setsOf(id));
       let rest = new Set<string>();
       try {
         rest = new Set(
@@ -167,7 +179,7 @@ async function pointsOf(db: Db, { week, league, cohort }: Board, members: string
                   currentVersionId: entry.versionId,
                   retiredAt: null,
                 })),
-                ...custom.filter((row) => row.userId === id),
+                ...customOf(id),
               ],
               versions: [
                 ...[...SUGGESTED_HISTORY, ...SUGGESTED_CHALLENGES].map((entry, number) => ({
@@ -178,9 +190,9 @@ async function pointsOf(db: Db, { week, league, cohort }: Board, members: string
                   ...entry.challenge,
                   plan: storedPlan(entry.challenge),
                 })),
-                ...versions.filter((row) => row.userId === id),
+                ...versionsOf(id),
               ],
-              runs: participations.filter((row) => row.userId === id),
+              runs: runsOf(id),
               workouts,
               sets,
             },
@@ -193,7 +205,7 @@ async function pointsOf(db: Db, { week, league, cohort }: Board, members: string
       }
       const kept = new Set([
         ...aliveDays(workouts, sets),
-        ...frozen.filter((row) => row.userId === id && !rest.has(row.day)).map((row) => row.day),
+        ...frozenOf(id).flatMap(({ day }) => (rest.has(day) ? [] : [day])),
       ]);
       return [id, weekPoints(scoredSets, kept, rest)] as const;
     }),

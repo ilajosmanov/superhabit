@@ -51,6 +51,8 @@ it('flips days between workout and rest, keeps one workout, and repeats your pat
   // The only workout stays one; flipping back to ours forgets your pattern.
   expect(flipDay(plan, ['training', 'rest', 'rest'], 0)).toEqual(['training', 'rest', 'rest']);
   expect(flipDay(plan, ['training', 'training', 'rest'], 1)).toBeNull();
+  // Shortened to days that all rest, the calendar still has a workout instead of throwing.
+  expect(tuned(plan, { days: 1 }, ['rest', 'training', 'rest']).schedule).toEqual(['training']);
 });
 
 const challenge = (session: Session) =>

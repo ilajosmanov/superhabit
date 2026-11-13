@@ -2,22 +2,23 @@
 
 Signing in with Google, once, before anything else; the session with our server (`server/`).
 
-| File                            | Holds                                                                                                    |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `server.ts`                     | the server's address (`EXPO_PUBLIC_SERVER_URL`), our Google Web client ID, `SessionGone`                 |
-| `call.ts`                       | `call`: every call to our server; `sessionEnded` (a 401); `whyCallFailed`, its words                     |
-| `auth-client.ts`                | Better Auth's client: the session cookie in secure storage, sent with each call                          |
-| `sign-in.ts`                    | `signIn`: the button's machine. Google's sheet, the server's session, the account kept                   |
-| `session.ts`                    | `checkSession` at launch (renews; name and photo); `signOut`, from Profile                               |
-| `consent.ts`                    | `consent`: the question while this phone has no answer; `setSharing`, `shares` (in force)                |
-| `me.ts`                         | `me`: Profile's sharing switch (`sharingShown`), Sign out and Delete account                             |
-| `sync.ts`                       | `send` the outbox, `sync` (send, then pull), `restored`; what sign-out would lose                        |
-| `one-at-a-time.ts`              | `oneAtATime()`: async jobs run in turn; sync rounds and consent calls each queue on one                  |
-| `share-traces.ts`               | `shareTraces`: traces recorded while sharing was on go up once their workout has synced                  |
-| `store.ts`                      | its tables: the kept account, marked signed out or forgotten, its session; the sharing answer; old files |
-| `components/sign-in-screen.tsx` | the first launch (canvas board 21a): why the app, Google's dark button                                   |
-| `components/consent-screen.tsx` | the consent question (board 22b): what you share, what stays, how to stop                                |
-| `components/profile-screen.tsx` | Profile (board 23): your name and photo, the sharing switch, Sign out, Delete account                    |
+| File                              | Holds                                                                                                    |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `server.ts`                       | the server's address (`EXPO_PUBLIC_SERVER_URL`), our Google Web client ID, `SessionGone`                 |
+| `call.ts`                         | `call`: every call to our server; `sessionEnded` (a 401); `whyCallFailed`, its words                     |
+| `auth-client.ts`                  | Better Auth's client: the session cookie in secure storage, sent with each call                          |
+| `sign-in.ts`                      | `signIn`: the button's machine. Google's sheet, the server's session, the account kept                   |
+| `session.ts`                      | `checkSession` at launch (renews; name and photo); `signOut`, from Profile                               |
+| `consent.ts`                      | `consent`: the question while this phone has no answer; `setSharing`, `shares` (in force)                |
+| `me.ts`                           | `me`: Profile's sharing switch (`sharingShown`), Sign out and Delete account                             |
+| `sync.ts`                         | `send` the outbox, `sync` (send, then pull), `restored`; what sign-out would lose                        |
+| `one-at-a-time.ts`                | `oneAtATime()`: async jobs run in turn; sync rounds and consent calls each queue on one                  |
+| `share-traces.ts`                 | `shareTraces`: traces recorded while sharing was on go up once their workout has synced                  |
+| `store.ts`                        | its tables: the kept account, marked signed out or forgotten, its session; the sharing answer; old files |
+| `components/sign-in-screen.tsx`   | the first launch (canvas board 21a): why the app, Google's dark button                                   |
+| `components/consent-screen.tsx`   | the consent question (board 22b): what you share, what stays, how to stop                                |
+| `components/profile-screen.tsx`   | Profile (board 23): your name and photo, the sharing switch, Sign out, Delete account                    |
+| `components/profile-feedback.tsx` | Profile's Share feedback: its button and the shared feedback form                                        |
 
 Google's sheet (Credential Manager, `react-native-nitro-google-signin`) gives an ID token for our Web
 client; the server checks it and starts a year-long session. The account (id, name, photo) is kept in the

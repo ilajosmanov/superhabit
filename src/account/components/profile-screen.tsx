@@ -7,7 +7,7 @@ import { openPrivacyPolicy, SHARING_FACTS } from '@/account/components/consent-s
 import { me, notSent, refusedText, sharingShown } from '@/account/me';
 import { Avatar } from '@/components/avatar';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { FeedbackButton } from '@/components/feedback-sheet';
+import { ProfileFeedback } from './profile-feedback';
 import { Icon } from '@/components/icon';
 import { Screen } from '@/components/screen';
 import { Segments } from '@/components/segments';
@@ -96,7 +96,7 @@ export function ProfileScreen({
         />
       </View>
       <View className="items-start border-t border-line pt-2">
-        <FeedbackButton source="profile" />
+        <ProfileFeedback />
         <TextButton label="Privacy policy" icon="policy" onPress={openPrivacyPolicy} />
         {/* One call at a time: while the switch's call runs, these wait too. */}
         <TextButton

@@ -16,7 +16,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { ConsentScreen } from '@/account/components/consent-screen';
 import { SignInScreen } from '@/account/components/sign-in-screen';
-import { FeedbackButton } from '@/components/feedback-sheet';
+import { CrashFeedback } from '@/bootstrap/components/crash-feedback';
 import { startup } from '@/bootstrap/startup';
 import { LeftOpen } from '@/bootstrap/left-open';
 import { Leave } from '@/bootstrap/leave';
@@ -171,7 +171,7 @@ function DroppedBar({ retry }: ErrorBoundaryProps) {
         footer={
           <View className="gap-2">
             <PrimaryButton label="Try again" onPress={() => void retry()} />
-            <FeedbackButton source="crash" />
+            <CrashFeedback />
           </View>
         }
       >

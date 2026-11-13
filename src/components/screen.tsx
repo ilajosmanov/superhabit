@@ -40,14 +40,8 @@ export function Screen({
    * element, or the index lands on the wrong child.
    */
   pin?: number;
-  /**
-   * For a screen that scrolls itself (back to a list's start): the scroll view, its offset as it moves
-   * (keep it in a ref, never React state).
-   */
-  scroll?: {
-    ref: RefObject<ScrollViewInstance | null>;
-    onY: (y: number) => void;
-  };
+  /** For a screen that scrolls itself (back to a list's start): the scroll view. */
+  scroll?: RefObject<ScrollViewInstance | null>;
   children?: ReactNode;
 }) {
   const colors = useColors();
@@ -65,9 +59,7 @@ export function Screen({
       )}
 
       <ScrollView
-        ref={scroll?.ref}
-        scrollEventThrottle={scroll && 16}
-        onScroll={scroll && ((event) => scroll.onY(event.nativeEvent.contentOffset.y))}
+        ref={scroll}
         className="flex-1"
         showsVerticalScrollIndicator={false}
         // The title, when there is one, is the scroll's first child.

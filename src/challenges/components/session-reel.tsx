@@ -29,6 +29,9 @@ export function SessionLoop({
   const [clips] = useState(() => available);
   const [watching, setWatching] = useState<Spot | null>(null);
   const [from, setFrom] = useState<Spot>({ clip: 0, part: 0 });
+  // Every file failed: the loop unmounts, which lets go of its players.
+  const [unavailable, setUnavailable] = useState(false);
+  if (unavailable) return null;
   if (watching)
     return (
       <>
@@ -45,7 +48,14 @@ export function SessionLoop({
       </>
     );
   return (
-    <Loop clips={clips} start={from} expand={expand} className={className} onWatch={setWatching}>
+    <Loop
+      clips={clips}
+      start={from}
+      expand={expand}
+      className={className}
+      onWatch={setWatching}
+      onUnavailable={() => setUnavailable(true)}
+    >
       {children}
     </Loop>
   );
@@ -57,6 +67,7 @@ function Loop({
   expand,
   className,
   onWatch,
+  onUnavailable,
   children,
 }: {
   clips: readonly Clip[];
@@ -64,11 +75,10 @@ function Loop({
   expand: Pick<ViewStyle, 'top' | 'right' | 'bottom'>;
   className: string;
   onWatch: (at: Spot) => void;
+  onUnavailable: () => void;
   children: (clip: Clip) => ReactNode;
 }) {
-  const [unavailable, setUnavailable] = useState(false);
-  const { clips, players, front, spot } = useReel(available, start, () => setUnavailable(true));
-  if (unavailable) return null;
+  const { clips, players, front, spot } = useReel(available, start, onUnavailable);
   return (
     // Tap anywhere for sight; TalkBack gets the button below and still reads the text over the video.
     <Pressable onPress={() => onWatch(spot)} accessible={false} className={className}>

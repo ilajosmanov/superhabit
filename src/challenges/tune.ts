@@ -141,12 +141,10 @@ export function tuned(
     if (first) session[session.length - 1] = { ...last, steps: [first, ...steps] };
   }
   const days = count(values.days ?? challenge.days);
-  return defineChallenge({
-    ...challenge,
-    days,
-    session,
-    ...(challenge.schedule && { schedule: resizeSchedule(pattern ?? challenge.schedule, days) }),
-  });
+  const schedule = challenge.schedule && resizeSchedule(pattern ?? challenge.schedule, days);
+  // Cut down to its rest days, a calendar keeps a workout: its last day, as `flipDay` keeps one.
+  if (schedule && !schedule.includes('training')) schedule[days - 1] = 'training';
+  return defineChallenge({ ...challenge, days, session, ...(schedule && { schedule }) });
 }
 
 /**

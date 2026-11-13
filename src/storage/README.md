@@ -68,9 +68,9 @@ It knows no workout rules: callers choose which set ids to delete. `deleteTraces
 temporary files from all four trace folders on discard. A saved set's trace is never deleted: the
 workout's 30-day sweep removes videos only, and traces go when the account does. `videoIndex` groups
 all existing files once in numeric take order, preserving gaps, and excludes sets whose files are
-still reserved for writing. `VideosProvider` owns the account's shared index: storage publishes
-`videoRevision` through `subscribeVideos` when a reservation starts, its last pending take releases,
-or a video is removed. Retention, discard, failed takes and orphan cleanup use `removeVideo`; account
+still reserved for writing. `sharedVideos` keeps one listing per account for `VideosProvider`: storage
+drops it and tells `subscribeVideos` listeners when a retake hides a playable set, a set's last pending
+take releases, or a video is removed. Retention, discard, failed takes and orphan cleanup use `removeVideo`; account
 deletion uses `deleteAccountFiles` for its whole folder. Storage has no React dependency.
 
 Optional `stretches: [{ kind, startMs, endMs }]` use file-relative milliseconds and ordered, non-overlapping

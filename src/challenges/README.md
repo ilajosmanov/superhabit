@@ -21,6 +21,7 @@ The challenge catalog, the challenges and runs kept on the phone, progress rules
 | `tune.ts`              | a suggested challenge's editable numbers, slider ranges, and tuned plan for joining                                        |
 | `reel.ts`              | sets with video as one reel: the session just done (`reelOf`), or a day's (`dayReel`)                                      |
 | `reel-playback.ts`     | the machine that plays a reel's files back to back on two players that take turns                                          |
+| `set-detail.ts`        | a set up close (`setDetail`): totals, every attempt, deepest clean rep, median tempo, each no-rep by number                |
 
 `components/` holds the UI only challenges uses:
 
@@ -30,28 +31,30 @@ They cannot be edited, joined or restored; doing one again means creating a new 
 `retiredAt` stops all its runs, including runs arriving later from an offline phone, without rewriting
 their history. Archiving syncs through the outbox like other library changes.
 
-| File                                                             | What it is                                                                           |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `catalog.tsx`                                                    | the catalog: Create and a filter chip per kind (pinned), then a card each            |
-| `your-challenges.tsx`, `joined-card.tsx`, `unavailable-card.tsx` | the swipe row of your runs and their cards                                           |
-| `surprise-card.tsx`, `surprise-button.tsx`, `surprise-sheet.tsx` | a random one go: the card, Home's die, the sheet before the camera                   |
-| `challenge-preview.tsx`                                          | a challenge's page before you join: its plan and how it counts                       |
-| `joined-challenge.tsx`                                           | a challenge's page while you are in: today, the day strip, the day's plan and videos |
-| `session-plan.tsx`, `numeral.tsx`                                | what a day asks for and got; a one-exercise day as the giant numeral                 |
-| `day-strip.tsx`                                                  | every day of a run as a bar to pick a day on                                         |
-| `watch-day.tsx`                                                  | a picked day's sets as frames that play their videos                                 |
-| `day-log.tsx`                                                    | Home's list of a day's saved workouts; a row with videos plays them                  |
-| `rolling-lines.tsx`                                              | lines that take turns, for the day log's empty state                                 |
-| `how-it-counts.tsx`                                              | a card per exercise: the figure doing a rep, and the rep in steps                    |
-| `exercise-stack.tsx`                                             | a challenge's exercise figures in a row, and (i) for all its steps                   |
-| `exercise-row.tsx`                                               | the outlined row of the catalog and the day log: name, exercises under it, a number  |
-| `hold-to-start.tsx`, `leave-button.tsx`                          | the footer: hold to start today's session; leave the run, after asking               |
-| `challenge-done.tsx`                                             | the Done page after a session: its reel, the numbers, the run                        |
-| `session-reel.tsx`, `session-viewer.tsx`, `reel-player.tsx`      | the reel on a loop, full screen like stories, and the players under both             |
-| `exercise-picker.tsx`, `builder.tsx`                             | making a challenge: pick the exercise, then name it and set its numbers              |
-| `amount-input.tsx`                                               | the shared editable numeral, dashed underline and M3 slider; optional Max stop       |
-| `tune-numbers.tsx`                                               | Your numbers: a suggested challenge's numbers, changed before you join               |
-| `swipe-row.tsx`                                                  | a row of cards that snaps card by card                                               |
+| File                                                             | What it is                                                                                           |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `catalog.tsx`                                                    | the catalog: Create and a filter chip per kind (pinned), then a card each                            |
+| `your-challenges.tsx`, `joined-card.tsx`, `unavailable-card.tsx` | the swipe row of your runs and their cards                                                           |
+| `surprise-card.tsx`, `surprise-button.tsx`, `surprise-sheet.tsx` | a random one go: the card, Home's die, the sheet before the camera                                   |
+| `challenge-preview.tsx`                                          | a challenge's page before you join: its plan and how it counts                                       |
+| `joined-challenge.tsx`                                           | a challenge's page while you are in: today, the day strip, the day's plan and videos                 |
+| `session-plan.tsx`, `numeral.tsx`                                | what a day asks for and got; a one-exercise day as the giant numeral                                 |
+| `day-strip.tsx`                                                  | every day of a run as a bar to pick a day on                                                         |
+| `watch-day.tsx`                                                  | a picked day's sets as frames: a tap opens the set, the disc plays its video                         |
+| `set-sheet.tsx`, `rep-chart.tsx`                                 | one set up close (32b): a bar per rep to tap for that rep, tempo, each no-rep's call                 |
+| `day-log.tsx`                                                    | Home's list of a day's saved workouts; a row with videos plays them                                  |
+| `rolling-lines.tsx`                                              | lines that take turns, for the day log's empty state                                                 |
+| `how-it-counts.tsx`                                              | a card per exercise: the figure doing a rep, and the rep in steps                                    |
+| `exercise-stack.tsx`                                             | a challenge's exercise figures in a row, and (i) for all its steps                                   |
+| `exercise-row.tsx`                                               | the outlined row of the catalog and the day log: name, exercises under it, a number                  |
+| `hold-to-start.tsx`, `leave-button.tsx`                          | the footer: hold to start today's session; leave the run, after asking                               |
+| `challenge-done.tsx`                                             | the Done page after a session: its reel, the numbers, the run                                        |
+| `workout-feedback.tsx` (`workout-feedback.ts`)                   | Done's check-in: how well it tracked you, whether it counted right (which answers apply and combine) |
+| `session-reel.tsx`, `session-viewer.tsx`, `reel-player.tsx`      | the reel on a loop, full screen like stories, and the players under both                             |
+| `exercise-picker.tsx`, `builder.tsx`                             | making a challenge: pick the exercise, then name it and set its numbers                              |
+| `amount-input.tsx`                                               | the shared editable numeral, dashed underline and M3 slider; optional Max stop                       |
+| `tune-numbers.tsx`                                               | Your numbers: a suggested challenge's numbers, changed before you join                               |
+| `swipe-row.tsx`                                                  | a row of cards that snaps card by card                                                               |
 
 Suggested workouts are authored in `suggested.ts` using `workout/plan/structures.ts` and `schedule.ts`.
 Changing a prescription needs a new version; `SUGGESTED_HISTORY` keeps replaced versions seeded for
@@ -127,10 +130,12 @@ existing rests; it does not introduce unvalidated exercise variants or a persona
 
 A run of ours is pinned to the version you joined; a run of yours follows your edits. Finished, missed
 and restarted are worked out from done workouts (`progress.ts`), never stored. A day you did plays its
-sets' videos (`watch-day.tsx`): both it and Home's day log read the account's shared video index.
+sets' videos (`watch-day.tsx`): both it and Home's day log read the account's shared video index. A
+set's frame opens its close-up (`set-sheet.tsx`), which reads that set's attempts once, on the tap
+(`setDetails` in `workout/store.ts`): the library's live tables leave attempts out, so the list stays light.
 `VideosProvider` in `videos-live.tsx` is mounted once under `LibraryProvider` in the root layout. It
-subscribes to storage's availability revision and uses `videos.ts` to build one folder index per
-account/revision. Pushed pages and day changes only do synchronous set-id lookups. A pending set is
+subscribes to storage's video changes (`subscribeVideos`) and reads `sharedVideos`: one folder listing
+per account, kept until a video changes. Pushed pages and day changes only do synchronous set-id lookups. A pending set is
 excluded by `storage/set-files.ts` until its final native write releases; retention, discard and account
 file removal invalidate the same shared index.
 

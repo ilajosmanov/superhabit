@@ -90,17 +90,12 @@ export function useCatalogFilter(entries: readonly CatalogEntry[]) {
   const view = filterCatalog(entries, kind);
   // A picked chip that emptied shows All. Forget it, or it would come back with its entries.
   if (view.shown !== kind) setKind(view.shown);
-  const ref = useRef<ScrollViewInstance>(null);
-  // The scroll offset, the chip row's height and the list's top: read on a tap, never drawn.
-  const at = useRef({ y: 0, chips: 0, list: 0 });
+  const scroll = useRef<ScrollViewInstance>(null);
+  // The chip row's height and the list's top: read on a tap, never drawn.
+  const at = useRef({ chips: 0, list: 0 });
   return {
     view,
-    scroll: {
-      ref,
-      onY: (y: number) => {
-        at.current.y = y;
-      },
-    },
+    scroll,
     onChipsHeight: (chips: number) => {
       at.current.chips = chips;
     },
@@ -113,7 +108,9 @@ export function useCatalogFilter(entries: readonly CatalogEntry[]) {
       setKind(next);
       // Where the chips pin, with the first card under them.
       const start = at.current.list - at.current.chips - UNDER_CHIPS;
-      if (at.current.y > start) ref.current?.scrollTo({ y: start, animated: false });
+      // The offset is asked for on the tap (`scrollTop`), so no scroll events reach JS.
+      if ((scroll.current?.scrollTop ?? 0) > start)
+        scroll.current?.scrollTo({ y: start, animated: false });
     },
   };
 }
