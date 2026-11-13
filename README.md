@@ -116,9 +116,9 @@ The counters are tested against real recorded sets in `src/exercises/__fixtures_
 ## Publishing to Google Play
 
 ```bash
-bash -ac '. ./.env && eas build --platform android --profile production --local --output dist/reprepgo.aab'
+EAS_LOCAL_BUILD_WORKINGDIR=~/.cache/eas-build bash -ac '. ./.env && eas build --platform android --profile production --local --output dist/reprepgo.aab'
 ```
 
-EAS Build (`eas.json`) builds the store app's `.aab` from a clean prebuild, signs it with the upload key it keeps on Expo's servers (`eas credentials` to back it up) and raises `versionCode` itself. Raise `version` in `app.json` for a release people should tell apart: every workout is stamped with it. `--local` builds on this machine (Expo's free cloud queue can take half an hour) with the same key; `.env` supplies `SENTRY_AUTH_TOKEN` for the source-map upload, which cloud builds read from the EAS environment instead.
+EAS Build (`eas.json`) builds the store app's `.aab` from a clean prebuild, signs it with the upload key it keeps on Expo's servers (`eas credentials` to back it up) and raises `versionCode` itself. Raise `version` in `app.json` for a release people should tell apart: every workout is stamped with it. `--local` builds on this machine (Expo's free cloud queue can take half an hour) with the same key, on disk rather than in `/tmp`, which is RAM here and too small for Skia's native libraries; `.env` supplies `SENTRY_AUTH_TOKEN` for the source-map upload, which cloud builds read from the EAS environment instead.
 
 Google sign-in needs one Android OAuth client per package and signing key: `app.reprepgo.dev` with the debug key's SHA-1, and `app.reprepgo` with the SHA-1 Play Console shows under App signing.
