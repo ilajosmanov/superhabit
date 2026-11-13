@@ -1,24 +1,14 @@
-import {
-  AssistChip,
-  Box,
-  Host,
-  RNHostView,
-  Row,
-  Text as ComposeText,
-} from '@expo/ui/jetpack-compose';
-import { background, horizontalScroll, padding, size } from '@expo/ui/jetpack-compose/modifiers';
 import { Link, useRouter } from 'expo-router';
 import { useRef, useState, type ReactNode } from 'react';
 import { Text, View, type ScrollViewInstance, type ViewStyle } from 'react-native';
 
 import { ExerciseRow } from './exercise-row';
-import { Chip } from '@/components/chip';
+import { ActionChip, Chip, ChipDivider, ChipRow } from '@/components/chip';
 import { Icon } from '@/components/icon';
 import { useColors } from '@/components/colors';
 import { GUTTER } from '@/components/screen';
 import { tick } from '@/components/tick';
 import { filterCatalog, type CatalogEntry, type Kind } from '@/challenges/catalog';
-import { COMPOSE_LABEL } from '@/theme';
 
 /**
  * A soft fill, no outline or glow: those mean you joined it. The exercise and its daily goal in its own
@@ -139,44 +129,21 @@ export function CatalogFilters({ filter, style }: { filter: Filter; style?: View
         onLayout={(event) => filter.onChipsHeight(event.nativeEvent.layout.height)}
         style={{ paddingVertical: 8, backgroundColor: colors.ground }}
       >
-        <Host matchContents={{ vertical: true }}>
-          <Row
-            horizontalArrangement={{ spacedBy: 8 }}
-            verticalAlignment="center"
-            modifiers={[horizontalScroll(), padding(GUTTER, 0, GUTTER, 0)]}
-          >
-            <AssistChip
-              onClick={() => router.push('/create')}
-              border={{ width: 0 }}
-              colors={{
-                containerColor: colors.line,
-                labelColor: colors.chalk,
-                leadingIconContentColor: colors.chalk,
-              }}
-            >
-              <AssistChip.LeadingIcon>
-                <RNHostView matchContents>
-                  <Icon name="add" size={18} />
-                </RNHostView>
-              </AssistChip.LeadingIcon>
-              <AssistChip.Label>
-                <ComposeText style={COMPOSE_LABEL}>Create</ComposeText>
-              </AssistChip.Label>
-            </AssistChip>
-            <Box modifiers={[size(1, 20), background(colors.line)]} />
-            {filter.view.chips.map(({ kind, count }) => (
-              <Chip
-                key={kind}
-                label={LABELS[kind]}
-                count={count}
-                selected={filter.view.shown === kind}
-                // You joined every one of ours in it: nothing to show. All stays live, even empty.
-                enabled={kind === 'all' || count > 0}
-                onPress={() => filter.pick(kind)}
-              />
-            ))}
-          </Row>
-        </Host>
+        <ChipRow scroll inset={GUTTER}>
+          <ActionChip label="Create" icon="add" onPress={() => router.push('/create')} />
+          <ChipDivider />
+          {filter.view.chips.map(({ kind, count }) => (
+            <Chip
+              key={kind}
+              label={LABELS[kind]}
+              count={count}
+              selected={filter.view.shown === kind}
+              // You joined every one of ours in it: nothing to show. All stays live, even empty.
+              enabled={kind === 'all' || count > 0}
+              onPress={() => filter.pick(kind)}
+            />
+          ))}
+        </ChipRow>
       </View>
     </View>
   );

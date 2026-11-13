@@ -1,5 +1,12 @@
 import { Button, Host } from '@expo/ui/swift-ui';
-import { buttonStyle, controlSize, font, foregroundStyle, tint } from '@expo/ui/swift-ui/modifiers';
+import {
+  buttonStyle,
+  controlSize,
+  font,
+  foregroundStyle,
+  frame,
+  tint,
+} from '@expo/ui/swift-ui/modifiers';
 import type { AndroidSymbol } from 'expo-symbols';
 
 import { useColors } from './colors';
@@ -10,15 +17,18 @@ export function TonalButton({
   label,
   icon,
   onPress,
+  wide = false,
 }: {
   label: string;
   /** A leading symbol, by its Material name. */
   icon?: AndroidSymbol;
   onPress: () => void;
+  /** Fills the row, for a footer where it is the only action. */
+  wide?: boolean;
 }) {
   const colors = useColors();
   return (
-    <Host matchContents>
+    <Host matchContents={wide ? { vertical: true } : true}>
       <Button
         label={label}
         systemImage={icon && sfSymbol(icon)}
@@ -29,6 +39,7 @@ export function TonalButton({
           tint(colors.line),
           foregroundStyle(colors.chalk),
           font({ family: 'Geist', size: 17, weight: 'medium' }),
+          ...(wide ? [frame({ maxWidth: 10_000 })] : []),
         ]}
       />
     </Host>
