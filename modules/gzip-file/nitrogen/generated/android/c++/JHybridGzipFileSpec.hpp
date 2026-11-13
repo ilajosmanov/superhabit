@@ -14,18 +14,18 @@
 
 
 
-namespace margelo::nitro::superhabitgzipfile {
+namespace margelo::nitro::reprepgogzipfile {
 
   using namespace facebook;
 
   class JHybridGzipFileSpec: public virtual HybridGzipFileSpec, public virtual JHybridObject {
   public:
     struct JavaPart: public jni::JavaClass<JavaPart, JHybridObject::JavaPart> {
-      static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/superhabitgzipfile/HybridGzipFileSpec;";
+      static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/reprepgogzipfile/HybridGzipFileSpec;";
       std::shared_ptr<JHybridGzipFileSpec> getJHybridGzipFileSpec();
     };
     struct CxxPart: public jni::HybridClass<CxxPart, JHybridObject::CxxPart> {
-      static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/superhabitgzipfile/HybridGzipFileSpec$CxxPart;";
+      static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/reprepgogzipfile/HybridGzipFileSpec$CxxPart;";
       static jni::local_ref<jhybriddata> initHybrid(jni::alias_ref<jhybridobject> jThis);
       static void registerNatives();
       using HybridBase::HybridBase;
@@ -60,4 +60,4 @@ namespace margelo::nitro::superhabitgzipfile {
     jni::global_ref<JHybridGzipFileSpec::JavaPart> _javaPart;
   };
 
-} // namespace margelo::nitro::superhabitgzipfile
+} // namespace margelo::nitro::reprepgogzipfile

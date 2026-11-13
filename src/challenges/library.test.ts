@@ -23,7 +23,7 @@ import { logSet, saveWorkout, workoutStart } from '@/workout/store';
 import { defineChallenge, readChallengePlan, reps, type Challenge } from '@/workout/plan/plan';
 
 vi.mock('expo-file-system', () => modules['expo-file-system']);
-vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
+vi.mock('reprepgo-gzip-file', () => modules['reprepgo-gzip-file']);
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
 vi.mock('expo-constants', () => ({ default: { expoConfig: { version: '1.0.0' } } }));

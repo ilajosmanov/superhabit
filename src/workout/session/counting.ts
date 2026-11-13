@@ -1,4 +1,4 @@
-import type { PoseDetection } from 'superhabit-pose';
+import type { PoseDetection } from 'reprepgo-pose';
 
 import { settle, type Framing } from './framing';
 import { repPhrase, startPhrase } from '@/workout/coach/phrase';

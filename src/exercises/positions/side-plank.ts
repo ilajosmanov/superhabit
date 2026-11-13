@@ -1,5 +1,5 @@
 // The side plank: on one forearm, facing the phone, judged by the phone's gravity.
-import { SIDE } from 'superhabit-pose/joints';
+import { SIDE } from 'reprepgo-pose/joints';
 
 import {
   angle,

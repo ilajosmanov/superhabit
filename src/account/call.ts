@@ -57,6 +57,6 @@ export const thrown = ({ event }: { event: { type: string } }) =>
 /** What a screen says when a call failed. */
 export const FAILURE_TEXT: Record<CallFailure, string> = {
   offline: 'No internet. Connect and try again.',
-  failed: "Couldn't reach Superhabit. Try again.",
+  failed: "Couldn't reach RepRepGo. Try again.",
   signedOut: "You've been signed out. Sign in again; what isn't sent yet stays on this phone.",
 };

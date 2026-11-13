@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/react-native';
 
 /**
- * Crashes and errors go to Sentry (project superhabit-app): JavaScript errors, Android's native crashes and
+ * Crashes and errors go to Sentry (project reprepgo-app): JavaScript errors, Android's native crashes and
  * ANRs, and a tenth of navigations as traces. Imported first by the root layout, so it starts before anything
  * else runs. Nothing about the person goes: no IP, no account, no console output, no screen.
  */

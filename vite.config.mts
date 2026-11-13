@@ -48,7 +48,7 @@ const EXERCISES_BANS = [
   '@/storage/**',
 ];
 const POSE_TYPES_ONLY = {
-  name: 'superhabit-pose',
+  name: 'reprepgo-pose',
   allowTypeImports: true,
   message: 'Pose types only: the detector is native.',
 };

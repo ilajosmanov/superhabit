@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.version        = '0.1.0'
   s.summary        = "Reads the display's rounded-corner radii."
   s.license        = 'UNLICENSED'
-  s.author         = 'Superhabit'
+  s.author         = 'RepRepGo'
   s.homepage       = 'https://github.com/ilajosmanov/superhabit'
   s.platforms      = { :ios => '16.4' }
   s.swift_version  = '5.9'

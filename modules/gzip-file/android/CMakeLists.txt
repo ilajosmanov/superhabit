@@ -1,12 +1,12 @@
-project(superhabitgzipfile)
+project(reprepgogzipfile)
 cmake_minimum_required(VERSION 3.9.0)
 
-set(PACKAGE_NAME superhabitgzipfile)
+set(PACKAGE_NAME reprepgogzipfile)
 set(CMAKE_CXX_STANDARD 20)
 
 add_library(${PACKAGE_NAME} SHARED src/main/cpp/cpp-adapter.cpp)
 
-include(${CMAKE_SOURCE_DIR}/../nitrogen/generated/android/superhabitgzipfile+autolinking.cmake)
+include(${CMAKE_SOURCE_DIR}/../nitrogen/generated/android/reprepgogzipfile+autolinking.cmake)
 
 include_directories("src/main/cpp")
 

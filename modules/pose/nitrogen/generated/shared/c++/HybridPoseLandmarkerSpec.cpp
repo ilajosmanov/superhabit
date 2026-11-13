@@ -7,7 +7,7 @@
 
 #include "HybridPoseLandmarkerSpec.hpp"
 
-namespace margelo::nitro::superhabitpose {
+namespace margelo::nitro::reprepgopose {
 
   void HybridPoseLandmarkerSpec::loadHybridMethods() {
     // load base methods/properties
@@ -23,4 +23,4 @@ namespace margelo::nitro::superhabitpose {
     });
   }
 
-} // namespace margelo::nitro::superhabitpose
+} // namespace margelo::nitro::reprepgopose

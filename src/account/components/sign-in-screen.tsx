@@ -33,7 +33,7 @@ export function SignInScreen({ signIn: actor }: { signIn: ActorRefFrom<typeof si
     <View className="flex-1 bg-ground">
       <View className="px-6" style={{ paddingTop: top + 20 }}>
         <View className="h-11 flex-row items-center border-b border-line">
-          <Text className="font-mono text-xs tracking-widest text-muted">SUPERHABIT</Text>
+          <Text className="font-mono text-xs tracking-widest text-muted">REPREPGO</Text>
         </View>
       </View>
 

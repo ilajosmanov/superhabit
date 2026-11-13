@@ -30,24 +30,24 @@ export function PrivacyPage() {
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="version" content={PRIVACY_POLICY_VERSION} />
-        <title>Superhabit privacy policy</title>
+        <title>RepRepGo privacy policy</title>
         <style>{STYLE}</style>
       </head>
       <body>
         <main>
-          <span class="mono">SUPERHABIT</span>
+          <span class="mono">REPREPGO</span>
           <h1>Privacy policy</h1>
           <p class="version">Last updated {LAST_UPDATED}</p>
           <p>
-            Superhabit counts your exercise reps using your phone’s camera. This policy explains
-            what information we collect, why we collect it, and the choices you have. We do not sell
-            your information and we do not use it for advertising.
+            RepRepGo counts your exercise reps using your phone’s camera. This policy explains what
+            information we collect, why we collect it, and the choices you have. We do not sell your
+            information and we do not use it for advertising.
           </p>
 
           <section>
             <h2>Who we are</h2>
             <p>
-              Superhabit is made by Superfeedback OÜ (registry code 17386133), Telliskivi tn 60a/5,
+              RepRepGo is made by Superfeedback OÜ (registry code 17386133), Telliskivi tn 60a/5,
               10412 Tallinn, Estonia. We are responsible for the information described here. For any
               question about your privacy, write to{' '}
               <a href="mailto:ceo@superfeedback.ai">ceo@superfeedback.ai</a>.

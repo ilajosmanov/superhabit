@@ -98,7 +98,7 @@ export async function trySignIn(token: string, ip: string) {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'expo-origin': 'superhabit://',
+      'expo-origin': 'reprepgo://',
       'cf-connecting-ip': ip,
     },
     body: JSON.stringify({ provider: 'google', idToken: { token } }),

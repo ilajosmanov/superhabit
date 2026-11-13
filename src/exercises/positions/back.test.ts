@@ -1,5 +1,5 @@
 import { assert, describe, expect, it } from 'vite-plus/test';
-import { Joint } from 'superhabit-pose/joints';
+import { Joint } from 'reprepgo-pose/joints';
 
 import { body, onBack } from '@/exercises/__fixtures__/body';
 import type { Pose } from '@/exercises/body/geometry';

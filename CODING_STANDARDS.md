@@ -1,6 +1,6 @@
 # Coding standards
 
-How Superhabit is laid out and why. `AGENTS.md` holds the tooling and React rules; this file holds the
+How RepRepGo is laid out and why. `AGENTS.md` holds the tooling and React rules; this file holds the
 architecture. Lint (`vite.config.mts`) enforces most of it, so `vp check` fails when the code drifts.
 
 ## Layers
@@ -43,7 +43,7 @@ modules/pose/       the native pose detector (a Nitro module)
   reads `workout/plan/results.ts`) but not its views; only a route composes two features' UI.
 - **`exercises/` is framework-free:** no React, React Native, Expo, Skia or XState. It takes pose data
   and returns numbers, so plain tests cover it. From the pose module it may import
-  only _types_ and the joint names (`superhabit-pose/joints`: plain constants, no native code).
+  only _types_ and the joint names (`reprepgo-pose/joints`: plain constants, no native code).
 - **`lib/` is the floor:** every layer may use it, it imports nothing of ours and no framework. One focus
   per file, named for it (`text.ts`, not `utils.ts`); its README lists what each holds.
 - **Storage knows how, a feature knows what.** `storage/` holds the tables and opens the database; it

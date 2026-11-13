@@ -14,18 +14,18 @@
 
 
 
-namespace margelo::nitro::superhabitpose {
+namespace margelo::nitro::reprepgopose {
 
   using namespace facebook;
 
   class JHybridPoseLandmarkerSpec: public virtual HybridPoseLandmarkerSpec, public virtual JHybridObject {
   public:
     struct JavaPart: public jni::JavaClass<JavaPart, JHybridObject::JavaPart> {
-      static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/superhabitpose/HybridPoseLandmarkerSpec;";
+      static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/reprepgopose/HybridPoseLandmarkerSpec;";
       std::shared_ptr<JHybridPoseLandmarkerSpec> getJHybridPoseLandmarkerSpec();
     };
     struct CxxPart: public jni::HybridClass<CxxPart, JHybridObject::CxxPart> {
-      static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/superhabitpose/HybridPoseLandmarkerSpec$CxxPart;";
+      static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/reprepgopose/HybridPoseLandmarkerSpec$CxxPart;";
       static jni::local_ref<jhybriddata> initHybrid(jni::alias_ref<jhybridobject> jThis);
       static void registerNatives();
       using HybridBase::HybridBase;
@@ -64,4 +64,4 @@ namespace margelo::nitro::superhabitpose {
     jni::global_ref<JHybridPoseLandmarkerSpec::JavaPart> _javaPart;
   };
 
-} // namespace margelo::nitro::superhabitpose
+} // namespace margelo::nitro::reprepgopose

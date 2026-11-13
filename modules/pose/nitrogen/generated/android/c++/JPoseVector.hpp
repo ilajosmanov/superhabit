@@ -12,7 +12,7 @@
 
 
 
-namespace margelo::nitro::superhabitpose {
+namespace margelo::nitro::reprepgopose {
 
   using namespace facebook;
 
@@ -21,7 +21,7 @@ namespace margelo::nitro::superhabitpose {
    */
   struct JPoseVector final: public jni::JavaClass<JPoseVector> {
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/superhabitpose/PoseVector;";
+    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/reprepgopose/PoseVector;";
 
   public:
     /**
@@ -62,4 +62,4 @@ namespace margelo::nitro::superhabitpose {
     }
   };
 
-} // namespace margelo::nitro::superhabitpose
+} // namespace margelo::nitro::reprepgopose

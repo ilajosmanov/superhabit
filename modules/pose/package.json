@@ -1,5 +1,5 @@
 {
-  "name": "superhabit-pose",
+  "name": "reprepgo-pose",
   "version": "0.1.0",
   "private": true,
   "description": "MediaPipe Pose Landmarker as a VisionCamera v5 frame processor plugin (Nitro).",

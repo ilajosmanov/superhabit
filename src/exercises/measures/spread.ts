@@ -1,4 +1,4 @@
-import { SIDE } from 'superhabit-pose/joints';
+import { SIDE } from 'reprepgo-pose/joints';
 
 import { distance, dot, gravity, length, reject, seen, sub } from '@/exercises/body/geometry';
 import type { Measure } from './measure';

@@ -18,7 +18,7 @@ export const challenges = sqliteTable(
   'challenges',
   {
     id: text('id').notNull(),
-    /** 'superhabit' for ours, else the user id. */
+    /** 'reprepgo' for ours, else the user id. */
     owner: text('owner').notNull(),
     visibility: text('visibility', { enum: ['private', 'public'] }).notNull(),
     // No foreign key: versions point at their challenge, so this one would make a cycle. The feature's

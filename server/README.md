@@ -47,7 +47,7 @@ location, and approximate.
 - `PUT /consent` `{ kind: 'traces' | 'video', policyVersion, granted }`. Withdrawing traces deletes the
   account's shared traces.
 - `PUT /traces/<set>`: a set's `.sht` file, at most 8 MB, 60 a minute per account, kept in R2
-  (`superhabit-traces`, eastern North America) at `traces/<user>/<set>.sht` with a `traces` row, written
+  (`reprepgo-traces`, eastern North America) at `traces/<user>/<set>.sht` with a `traces` row, written
   first so every file has one. Taken only while the account shares (else 403), for a set it has synced
   (else 409), from a whole gzip whose header names that set and a `traces@` consent at capture (else 422).
   Consent is checked again after the file lands; a withdrawal in between deletes it. A repeat writes the
@@ -105,7 +105,7 @@ Run these from `server/`.
   `BETTER_AUTH_URL=http://localhost:8787`, so the `/delete` forms work locally. Google's redirect sign-in
   there needs `GOOGLE_CLIENT_SECRET` and comes back only to a URL registered on the Web client.
 - Once, and after each new migration: apply the committed migrations to the local D1. For a fresh one, all
-  of them: `ls migrations/*/migration.sql | xargs -n1 vp exec wrangler d1 execute superhabit --local --file`
+  of them: `ls migrations/*/migration.sql | xargs -n1 vp exec wrangler d1 execute reprepgo --local --file`
   (bash or fish); later, only the new folder's file. `rm -rf .wrangler/state` starts over.
 - `vp run dev`: loads `../.env` and starts the Worker at http://localhost:8787, with the local D1 and R2
   (the Cron doesn't run).
@@ -115,14 +115,14 @@ Reaching Cloudflare needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` fro
 `.env`. Run such a command in bash with the file loaded, which works from fish too:
 `bash -ac '. ../.env && vp run deploy'`. This also supplies Sentry's upload token.
 
-- `vp run deploy`: to https://superhabit.cloudflare-putt001.workers.dev. It bundles to `dist/`, gives the
+- `vp run deploy`: to https://reprepgo.cloudflare-putt001.workers.dev. It bundles to `dist/`, gives the
   bundle and its source map a debug ID and uploads the map to Sentry (the `sentry` CLI's login: `vp exec
   sentry auth login` once), then deploys that same bundle, so Sentry's stack traces show our files.
 - `vp exec drizzle-kit generate` after a schema change (no credentials), then
   `bash -ac '. ../.env && vp exec drizzle-kit migrate'` for the D1 in Cloudflare.
 - Secrets (`vp exec wrangler secret put <name>`): `BETTER_AUTH_SECRET`; `GOOGLE_CLIENT_SECRET` (from
   the root `.env`), which `POST /delete/google` uses for the `/delete` page's Google sign-in; `SENTRY_DSN`
-  (project superhabit-server), without which errors and the Cron's check-ins aren't sent.
+  (project reprepgo-server), without which errors and the Cron's check-ins aren't sent.
   Production secrets remain stored in Cloudflare; editing `.env` does not upload or rotate them.
   Keep the local `BETTER_AUTH_SECRET` separate from production. Do not bulk-upload the whole `.env`:
   it also contains credentials for deployment tools.

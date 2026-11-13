@@ -1,5 +1,5 @@
 {
-  "name": "superhabit",
+  "name": "reprepgo",
   "version": "1.0.0",
   "private": true,
   "main": "expo-router/entry",
@@ -8,7 +8,7 @@
     "android": "adb shell svc power stayon true; expo run:android",
     "android:release": "ORG_GRADLE_PROJECT_reactNativeArchitectures=arm64-v8a expo run:android --variant release --no-bundler",
     "ios": "expo run:ios",
-    "typecheck": "tsc --noEmit && vp run superhabit-server#typecheck",
+    "typecheck": "tsc --noEmit && vp run reprepgo-server#typecheck",
     "lint:kt": "scripts/ktlint.sh",
     "fmt:kt": "scripts/ktlint.sh --format"
   },
@@ -58,9 +58,9 @@
     "react-native-vision-camera": "5.2.4",
     "react-native-vision-camera-worklets": "5.2.4",
     "react-native-worklets": "0.13.0",
-    "superhabit-display-corners": "link:./modules/display-corners",
-    "superhabit-gzip-file": "link:./modules/gzip-file",
-    "superhabit-pose": "link:./modules/pose",
+    "reprepgo-display-corners": "link:./modules/display-corners",
+    "reprepgo-gzip-file": "link:./modules/gzip-file",
+    "reprepgo-pose": "link:./modules/pose",
     "xstate": "5.33.3",
     "zod": "4.6.7"
   },

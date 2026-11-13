@@ -29,13 +29,13 @@
 #endif
 
 // Forward declaration of `PoseLandmark` to properly resolve imports.
-namespace margelo::nitro::superhabitpose { struct PoseLandmark; }
+namespace margelo::nitro::reprepgopose { struct PoseLandmark; }
 // Forward declaration of `PoseVector` to properly resolve imports.
-namespace margelo::nitro::superhabitpose { struct PoseVector; }
+namespace margelo::nitro::reprepgopose { struct PoseVector; }
 // Forward declaration of `PoseCameraPoint` to properly resolve imports.
-namespace margelo::nitro::superhabitpose { struct PoseCameraPoint; }
+namespace margelo::nitro::reprepgopose { struct PoseCameraPoint; }
 // Forward declaration of `PoseDelegate` to properly resolve imports.
-namespace margelo::nitro::superhabitpose { enum class PoseDelegate; }
+namespace margelo::nitro::reprepgopose { enum class PoseDelegate; }
 
 #include "PoseLandmark.hpp"
 #include <vector>
@@ -44,7 +44,7 @@ namespace margelo::nitro::superhabitpose { enum class PoseDelegate; }
 #include "PoseCameraPoint.hpp"
 #include "PoseDelegate.hpp"
 
-namespace margelo::nitro::superhabitpose {
+namespace margelo::nitro::reprepgopose {
 
   /**
    * A struct which can be represented as a JavaScript object (PoseDetection).
@@ -71,42 +71,42 @@ namespace margelo::nitro::superhabitpose {
     friend bool operator==(const PoseDetection& lhs, const PoseDetection& rhs) = default;
   };
 
-} // namespace margelo::nitro::superhabitpose
+} // namespace margelo::nitro::reprepgopose
 
 namespace margelo::nitro {
 
   // C++ PoseDetection <> JS PoseDetection (object)
   template <>
-  struct JSIConverter<margelo::nitro::superhabitpose::PoseDetection> final {
-    static inline margelo::nitro::superhabitpose::PoseDetection fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<margelo::nitro::reprepgopose::PoseDetection> final {
+    static inline margelo::nitro::reprepgopose::PoseDetection fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
-      return margelo::nitro::superhabitpose::PoseDetection(
+      return margelo::nitro::reprepgopose::PoseDetection(
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "timestampMs"))),
-        JSIConverter<std::vector<margelo::nitro::superhabitpose::PoseLandmark>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "landmarks"))),
-        JSIConverter<std::vector<margelo::nitro::superhabitpose::PoseLandmark>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "worldLandmarks"))),
-        JSIConverter<std::optional<margelo::nitro::superhabitpose::PoseVector>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "down"))),
-        JSIConverter<std::vector<margelo::nitro::superhabitpose::PoseCameraPoint>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "cameraLandmarks"))),
+        JSIConverter<std::vector<margelo::nitro::reprepgopose::PoseLandmark>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "landmarks"))),
+        JSIConverter<std::vector<margelo::nitro::reprepgopose::PoseLandmark>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "worldLandmarks"))),
+        JSIConverter<std::optional<margelo::nitro::reprepgopose::PoseVector>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "down"))),
+        JSIConverter<std::vector<margelo::nitro::reprepgopose::PoseCameraPoint>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "cameraLandmarks"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "brightness"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "inferenceMs"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "frameWidth"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "frameHeight"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "rotation"))),
-        JSIConverter<margelo::nitro::superhabitpose::PoseDelegate>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "delegate")))
+        JSIConverter<margelo::nitro::reprepgopose::PoseDelegate>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "delegate")))
       );
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::superhabitpose::PoseDetection& arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::reprepgopose::PoseDetection& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "timestampMs"), JSIConverter<double>::toJSI(runtime, arg.timestampMs));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "landmarks"), JSIConverter<std::vector<margelo::nitro::superhabitpose::PoseLandmark>>::toJSI(runtime, arg.landmarks));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "worldLandmarks"), JSIConverter<std::vector<margelo::nitro::superhabitpose::PoseLandmark>>::toJSI(runtime, arg.worldLandmarks));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "down"), JSIConverter<std::optional<margelo::nitro::superhabitpose::PoseVector>>::toJSI(runtime, arg.down));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "cameraLandmarks"), JSIConverter<std::vector<margelo::nitro::superhabitpose::PoseCameraPoint>>::toJSI(runtime, arg.cameraLandmarks));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "landmarks"), JSIConverter<std::vector<margelo::nitro::reprepgopose::PoseLandmark>>::toJSI(runtime, arg.landmarks));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "worldLandmarks"), JSIConverter<std::vector<margelo::nitro::reprepgopose::PoseLandmark>>::toJSI(runtime, arg.worldLandmarks));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "down"), JSIConverter<std::optional<margelo::nitro::reprepgopose::PoseVector>>::toJSI(runtime, arg.down));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "cameraLandmarks"), JSIConverter<std::vector<margelo::nitro::reprepgopose::PoseCameraPoint>>::toJSI(runtime, arg.cameraLandmarks));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "brightness"), JSIConverter<double>::toJSI(runtime, arg.brightness));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "inferenceMs"), JSIConverter<double>::toJSI(runtime, arg.inferenceMs));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "frameWidth"), JSIConverter<double>::toJSI(runtime, arg.frameWidth));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "frameHeight"), JSIConverter<double>::toJSI(runtime, arg.frameHeight));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "rotation"), JSIConverter<double>::toJSI(runtime, arg.rotation));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "delegate"), JSIConverter<margelo::nitro::superhabitpose::PoseDelegate>::toJSI(runtime, arg.delegate));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "delegate"), JSIConverter<margelo::nitro::reprepgopose::PoseDelegate>::toJSI(runtime, arg.delegate));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -118,16 +118,16 @@ namespace margelo::nitro {
         return false;
       }
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "timestampMs")))) return false;
-      if (!JSIConverter<std::vector<margelo::nitro::superhabitpose::PoseLandmark>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "landmarks")))) return false;
-      if (!JSIConverter<std::vector<margelo::nitro::superhabitpose::PoseLandmark>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "worldLandmarks")))) return false;
-      if (!JSIConverter<std::optional<margelo::nitro::superhabitpose::PoseVector>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "down")))) return false;
-      if (!JSIConverter<std::vector<margelo::nitro::superhabitpose::PoseCameraPoint>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "cameraLandmarks")))) return false;
+      if (!JSIConverter<std::vector<margelo::nitro::reprepgopose::PoseLandmark>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "landmarks")))) return false;
+      if (!JSIConverter<std::vector<margelo::nitro::reprepgopose::PoseLandmark>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "worldLandmarks")))) return false;
+      if (!JSIConverter<std::optional<margelo::nitro::reprepgopose::PoseVector>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "down")))) return false;
+      if (!JSIConverter<std::vector<margelo::nitro::reprepgopose::PoseCameraPoint>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "cameraLandmarks")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "brightness")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "inferenceMs")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "frameWidth")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "frameHeight")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "rotation")))) return false;
-      if (!JSIConverter<margelo::nitro::superhabitpose::PoseDelegate>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "delegate")))) return false;
+      if (!JSIConverter<margelo::nitro::reprepgopose::PoseDelegate>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "delegate")))) return false;
       return true;
     }
   };

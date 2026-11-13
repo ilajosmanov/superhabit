@@ -52,7 +52,7 @@ export const deletions = sqliteTable(
 const synced = { userId: text('user_id').notNull(), id: text('id').notNull() };
 const received = { receivedAt: integer('received_at').notNull() };
 
-/** Challenges you made. Ours (owner superhabit) live in the app; a run of one points at its fixed id. */
+/** Challenges you made. Ours (owner reprepgo) live in the app; a run of one points at its fixed id. */
 export const challenges = sqliteTable(
   'challenges',
   {

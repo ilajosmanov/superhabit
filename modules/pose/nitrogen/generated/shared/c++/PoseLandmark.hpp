@@ -32,7 +32,7 @@
 
 #include <optional>
 
-namespace margelo::nitro::superhabitpose {
+namespace margelo::nitro::reprepgopose {
 
   /**
    * A struct which can be represented as a JavaScript object (PoseLandmark).
@@ -53,16 +53,16 @@ namespace margelo::nitro::superhabitpose {
     friend bool operator==(const PoseLandmark& lhs, const PoseLandmark& rhs) = default;
   };
 
-} // namespace margelo::nitro::superhabitpose
+} // namespace margelo::nitro::reprepgopose
 
 namespace margelo::nitro {
 
   // C++ PoseLandmark <> JS PoseLandmark (object)
   template <>
-  struct JSIConverter<margelo::nitro::superhabitpose::PoseLandmark> final {
-    static inline margelo::nitro::superhabitpose::PoseLandmark fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<margelo::nitro::reprepgopose::PoseLandmark> final {
+    static inline margelo::nitro::reprepgopose::PoseLandmark fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
-      return margelo::nitro::superhabitpose::PoseLandmark(
+      return margelo::nitro::reprepgopose::PoseLandmark(
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "x"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "y"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "z"))),
@@ -70,7 +70,7 @@ namespace margelo::nitro {
         JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "presence")))
       );
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::superhabitpose::PoseLandmark& arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::reprepgopose::PoseLandmark& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "x"), JSIConverter<double>::toJSI(runtime, arg.x));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "y"), JSIConverter<double>::toJSI(runtime, arg.y));

@@ -1,4 +1,4 @@
-import { writeGzip } from 'superhabit-gzip-file';
+import { writeGzip } from 'reprepgo-gzip-file';
 
 import { coversTraces } from '@/storage/consent';
 import { sweepTraceTemps, traceFolder, traceTemp } from '@/storage/set-files';

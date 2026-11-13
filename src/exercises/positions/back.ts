@@ -1,6 +1,6 @@
 // On your back, judged side-on from the better-seen side by the phone's gravity: knees bent (sit-up,
 // glute bridge) or legs straight (leg raise).
-import { SIDE } from 'superhabit-pose/joints';
+import { SIDE } from 'reprepgo-pose/joints';
 
 import {
   angle,

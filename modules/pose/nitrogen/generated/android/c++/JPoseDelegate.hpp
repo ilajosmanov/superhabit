@@ -10,7 +10,7 @@
 #include <fbjni/fbjni.h>
 #include "PoseDelegate.hpp"
 
-namespace margelo::nitro::superhabitpose {
+namespace margelo::nitro::reprepgopose {
 
   using namespace facebook;
 
@@ -19,7 +19,7 @@ namespace margelo::nitro::superhabitpose {
    */
   struct JPoseDelegate final: public jni::JavaClass<JPoseDelegate> {
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/superhabitpose/PoseDelegate;";
+    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/reprepgopose/PoseDelegate;";
 
   public:
     /**
@@ -55,4 +55,4 @@ namespace margelo::nitro::superhabitpose {
     }
   };
 
-} // namespace margelo::nitro::superhabitpose
+} // namespace margelo::nitro::reprepgopose

@@ -17,7 +17,7 @@ export default function ChallengesScreen() {
   const running = useYourRuns();
   const filter = useCatalogFilter(catalog(library, running));
   return (
-    <Screen label="SUPERHABIT" title="Challenges" pin={1} scroll={filter.scroll}>
+    <Screen label="REPREPGO" title="Challenges" pin={1} scroll={filter.scroll}>
       <YourChallenges joined={running} />
       <CatalogFilters filter={filter} style={FILTERS_STYLE} />
       <Catalog filter={filter} />

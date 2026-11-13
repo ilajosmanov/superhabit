@@ -59,7 +59,7 @@ export function ConsentScreen({
     >
       <View className="px-6" style={{ paddingTop: top + 20 }}>
         <View className="h-11 flex-row items-center border-b border-line">
-          <Text className="font-mono text-xs tracking-widest text-muted">SUPERHABIT</Text>
+          <Text className="font-mono text-xs tracking-widest text-muted">REPREPGO</Text>
         </View>
       </View>
 
@@ -82,7 +82,7 @@ export function ConsentScreen({
             Train the coach with us
           </Text>
           <Text className="font-sans text-lg leading-normal text-soft">
-            Every rep you share helps Superhabit see form more clearly, for you and everyone who
+            Every rep you share helps RepRepGo see form more clearly, for you and everyone who
             trains with it.
           </Text>
         </View>

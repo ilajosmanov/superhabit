@@ -42,7 +42,7 @@ describe('sign-in', () => {
       call('/api/auth/sign-out', { method: 'POST', headers: { cookie, ...origin } });
     expect((await signOut({ origin: 'https://evil.example' })).status).toBe(403);
     expect(await me(cookie)).toMatchObject({ name: 'Dee Roy' });
-    expect((await signOut({ 'expo-origin': 'superhabit://' })).status).toBe(200);
+    expect((await signOut({ 'expo-origin': 'reprepgo://' })).status).toBe(200);
     expect(await me(cookie)).toBe(401);
   });
 
@@ -51,7 +51,7 @@ describe('sign-in', () => {
     const post = (path: string, body: object) =>
       call(`/api/auth/${path}`, {
         method: 'POST',
-        headers: { cookie, 'expo-origin': 'superhabit://', 'content-type': 'application/json' },
+        headers: { cookie, 'expo-origin': 'reprepgo://', 'content-type': 'application/json' },
         body: JSON.stringify(body),
       });
     expect(
@@ -106,7 +106,7 @@ describe('sign-in', () => {
     expect(fromMe.headers.getSetCookie()).toEqual([]);
     expect(await expiry()).toBe(before);
     const atLaunch = await call('/api/auth/get-session', {
-      headers: { cookie, 'expo-origin': 'superhabit://' },
+      headers: { cookie, 'expo-origin': 'reprepgo://' },
     });
     expect(atLaunch.headers.getSetCookie().join()).toMatch(/session_token=.*Max-Age=31536000/);
     expect(await expiry()).toBeGreaterThan(Date.now() + 364 * DAY);

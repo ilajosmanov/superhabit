@@ -19,7 +19,7 @@
 #include <NitroModules/ArrayBuffer.hpp>
 #include <string>
 
-namespace margelo::nitro::superhabitgzipfile {
+namespace margelo::nitro::reprepgogzipfile {
 
   using namespace margelo::nitro;
 
@@ -61,4 +61,4 @@ namespace margelo::nitro::superhabitgzipfile {
       static constexpr auto TAG = "GzipFile";
   };
 
-} // namespace margelo::nitro::superhabitgzipfile
+} // namespace margelo::nitro::reprepgogzipfile

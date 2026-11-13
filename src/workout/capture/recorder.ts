@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import type { PoseDetection, PoseLandmark } from 'superhabit-pose';
+import type { PoseDetection, PoseLandmark } from 'reprepgo-pose';
 import { fromCallback } from 'xstate';
 
 import { COUNTER_VERSIONS, type ExerciseId } from '@/exercises/registry';

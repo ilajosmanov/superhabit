@@ -46,7 +46,7 @@ export function ProfileScreen({
   const ended = state.matches('ended');
   const [theme, setTheme] = useState(themeChoice);
   return (
-    <Screen label="SUPERHABIT" title="Profile">
+    <Screen label="REPREPGO" title="Profile">
       <View className="flex-row items-center gap-4">
         <Avatar name={account.name} image={account.image} />
         <View className="flex-1 gap-1">

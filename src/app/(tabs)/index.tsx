@@ -37,7 +37,7 @@ export default function HomeScreen() {
   };
   return (
     <Screen
-      label="SUPERHABIT"
+      label="REPREPGO"
       title="Home"
       intro={
         !streak.trained

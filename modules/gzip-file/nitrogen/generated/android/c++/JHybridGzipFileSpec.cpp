@@ -16,7 +16,7 @@
 #include <NitroModules/JArrayBuffer.hpp>
 #include <string>
 
-namespace margelo::nitro::superhabitgzipfile {
+namespace margelo::nitro::reprepgogzipfile {
 
   std::shared_ptr<JHybridGzipFileSpec> JHybridGzipFileSpec::JavaPart::getJHybridGzipFileSpec() {
     auto hybridObject = JHybridObject::JavaPart::getJHybridObject();
@@ -65,4 +65,4 @@ namespace margelo::nitro::superhabitgzipfile {
     }();
   }
 
-} // namespace margelo::nitro::superhabitgzipfile
+} // namespace margelo::nitro::reprepgogzipfile

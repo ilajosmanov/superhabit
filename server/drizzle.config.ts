@@ -9,7 +9,7 @@ export default defineConfig({
   out: './migrations',
   dbCredentials: {
     accountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? '',
-    databaseId: 'd685360b-811c-4fbb-a26e-f3ba0277db58',
+    databaseId: 'f860f868-cf0c-4ebf-8eba-7c1569c09d2c',
     token: process.env.CLOUDFLARE_API_TOKEN ?? '',
   },
 });

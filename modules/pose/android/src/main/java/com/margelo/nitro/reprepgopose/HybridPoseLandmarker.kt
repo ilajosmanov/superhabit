@@ -1,4 +1,4 @@
-package com.margelo.nitro.superhabitpose
+package com.margelo.nitro.reprepgopose
 
 import android.content.Context
 import android.graphics.PixelFormat

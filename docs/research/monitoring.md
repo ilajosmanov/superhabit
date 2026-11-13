@@ -44,7 +44,7 @@ out of every event (see [Privacy](#5-privacy)).
 - `package.json`: Expo `~58.0.23`, React Native `0.88.1`, React `19.3.0`, expo-router `~58.0.30`,
   Reanimated `4.7.1`, react-native-worklets `0.13.0`, Skia `2.14.0`, VisionCamera `5.2.4`, Nitro modules
   `0.37.2`, better-auth `1.7.20`. Exact versions are pinned (AGENTS.md), so Sentry should be too.
-- `modules/pose/android/CMakeLists.txt`: a C++ shared library (`superhabitpose`) linked to VisionCamera;
+- `modules/pose/android/CMakeLists.txt`: a C++ shared library (`reprepgopose`) linked to VisionCamera;
   MediaPipe underneath. `modules/gzip-file` is also native C++. Native crashes here are real SIGSEGV/SIGABRT
   in `.so` files: they need an NDK handler and uploaded symbols to be readable.
 - R8 is on: the generated `android/gradle.properties` has `android.enableMinifyInReleaseBuilds=true`
@@ -134,7 +134,7 @@ Sentry answers "what new error appeared, how often, since which deploy", and ema
 ## 3. Uptime and alerting
 
 - **Health endpoint**: `GET /health` already exists and touches D1. Point an external pinger at
-  `https://superhabit.cloudflare-putt001.workers.dev/health` (or the custom domain once there is one). At one
+  `https://reprepgo.cloudflare-putt001.workers.dev/health` (or the custom domain once there is one). At one
   check a minute that is ~1,440 D1 row reads a day: negligible.
 - **External pinger options** (free tiers; both vendors' free plans have had "personal use" wording, so
   read the current terms before relying on one for a commercial app):
@@ -216,8 +216,8 @@ Not implemented. Paths follow `CODING_STANDARDS.md` (app start in `src/bootstrap
 
 **Accounts**
 
-1. Create a Sentry org (pick the data region once), two projects: `superhabit-android` (React Native) and
-   `superhabit-worker` (Cloudflare). Sign the DPA, enable IP scrubbing, set spike protection.
+1. Create a Sentry org (pick the data region once), two projects: `reprepgo-android` (React Native) and
+   `reprepgo-worker` (Cloudflare). Sign the DPA, enable IP scrubbing, set spike protection.
 2. Create an org auth token with release/project write scope; put it in `.env.local` as
    `SENTRY_AUTH_TOKEN` on the build machine (already git-ignored). Never in `app.json`.
 3. Move the Cloudflare account to Workers Paid (or accept the free-plan stop-the-day failure mode).
@@ -232,7 +232,7 @@ Not implemented. Paths follow `CODING_STANDARDS.md` (app start in `src/bootstrap
      "@sentry/react-native/expo",
      {
        "organization": "<org>",
-       "project": "superhabit-android",
+       "project": "reprepgo-android",
        "url": "https://sentry.io/",
        "experimental_android": { "enableAndroidGradlePlugin": true }
      }

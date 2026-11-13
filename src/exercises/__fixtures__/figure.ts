@@ -1,5 +1,5 @@
 // A pose drawn joint by joint, for tests whose angles should be checkable on paper.
-import type { PoseLandmark } from 'superhabit-pose';
+import type { PoseLandmark } from 'reprepgo-pose';
 
 import type { Pose } from '@/exercises/body/geometry';
 

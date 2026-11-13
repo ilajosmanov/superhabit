@@ -1,4 +1,4 @@
-# Superhabit
+# RepRepGo
 
 A sports challenge and habit-tracking app built with Expo and React Native: the phone's camera counts your reps. Android only for now (the two native modules in `modules/` have no iOS code yet).
 
@@ -41,7 +41,7 @@ adb reverse tcp:8081 tcp:8081
 If the app hangs on the splash screen after you switch networks, it is still looking for Metro at an old Wi-Fi address (logcat shows `failed to connect to /<ip> (port 8081)`). Point it back at `localhost:8081` and restart it. Do this from the dev menu (Settings → Debug server host), or from the laptop:
 
 ```bash
-adb shell "run-as com.ilajosmanov.superhabit sed -i 's/<old-ip>:8081/localhost:8081/' shared_prefs/com.ilajosmanov.superhabit_preferences.xml"
+adb shell "run-as app.reprepgo sed -i 's/<old-ip>:8081/localhost:8081/' shared_prefs/app.reprepgo_preferences.xml"
 ```
 
 If the USB connection keeps dropping, connect over Wi-Fi instead. Open the dev menu (shake the phone), go to Settings → Debug server host, and enter `<laptop-ip>:8081` (find the IP with `ip -br addr`). Phone and laptop must be on the same network, with port 8081 open in the firewall. Update the host whenever the laptop's IP changes.
@@ -103,7 +103,7 @@ migration commands are in `server/README.md`. Production Worker secrets stay in 
 Sign-in with Google needs two OAuth clients in one Google Cloud project:
 
 - a **Web** client, whose ID is in `src/account/server.ts` and `server/wrangler.jsonc`, with `https://<the Worker>/api/auth/callback/google` as an authorised redirect URI (the `/delete` page signs in through it);
-- an **Android** client for the package `com.ilajosmanov.superhabit` and the SHA-1 of the key the build is signed with. Builds are signed with the debug keystore for now, so one client covers everyone; a new signing key needs its SHA-1 added, or Google's sheet fails on that build.
+- an **Android** client for the package `app.reprepgo` and the SHA-1 of the key the build is signed with. Builds are signed with the debug keystore for now, so one client covers everyone; a new signing key needs its SHA-1 added, or Google's sheet fails on that build.
 
 ## Recorded traces for the counter tests
 

@@ -28,7 +28,7 @@ This top level holds only the exercises themselves (`plank.ts`, `pushup.ts`, …
 code reads the exercise list and shared contracts from `registry.ts`; its session, orientation,
 depth gauge and pose code also import focused helpers and types from `exercise.ts`, `body/` and `kinds/`.
 
-Every exercise is a short config on these primitives; the plan is in the "Superhabit primitives"
+Every exercise is a short config on these primitives; the plan is in the "RepRepGo primitives"
 doc.
 
 Tests replay recorded clips (`.sht`, the trace file in `storage/`) from `__fixtures__/traces/`, which

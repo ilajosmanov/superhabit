@@ -1,11 +1,11 @@
 {
-  "cxxNamespace": ["superhabitpose"],
+  "cxxNamespace": ["reprepgopose"],
   "ios": {
-    "iosModuleName": "SuperhabitPose"
+    "iosModuleName": "RepRepGoPose"
   },
   "android": {
-    "androidNamespace": ["superhabitpose"],
-    "androidCxxLibName": "superhabitpose"
+    "androidNamespace": ["reprepgopose"],
+    "androidCxxLibName": "reprepgopose"
   },
   "autolinking": {
     "PoseLandmarker": {

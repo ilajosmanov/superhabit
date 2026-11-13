@@ -7,7 +7,7 @@ import { relations } from './relations';
 
 function open() {
   // The change listener lets `useLiveQuery` re-run when a table changes.
-  const sqlite = openDatabaseSync('superhabit.db', { enableChangeListener: true });
+  const sqlite = openDatabaseSync('reprepgo.db', { enableChangeListener: true });
   try {
     // SQLite leaves foreign keys off on every new connection. Use `db().transaction` (same connection),
     // never `withExclusiveTransactionAsync`: it opens another connection without this pragma.

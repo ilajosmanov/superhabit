@@ -5,11 +5,11 @@ def reactNativeArchitectures() {
 
 apply plugin: "com.android.library"
 apply plugin: "kotlin-android"
-apply from: '../nitrogen/generated/android/superhabitgzipfile+autolinking.gradle'
+apply from: '../nitrogen/generated/android/reprepgogzipfile+autolinking.gradle'
 apply plugin: "com.facebook.react"
 
 android {
-  namespace = "com.margelo.nitro.superhabitgzipfile"
+  namespace = "com.margelo.nitro.reprepgogzipfile"
   compileSdkVersion 37
 
   defaultConfig {

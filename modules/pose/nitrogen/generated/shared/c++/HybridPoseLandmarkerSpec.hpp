@@ -14,7 +14,7 @@
 #endif
 
 // Forward declaration of `PoseDetection` to properly resolve imports.
-namespace margelo::nitro::superhabitpose { struct PoseDetection; }
+namespace margelo::nitro::reprepgopose { struct PoseDetection; }
 // Forward declaration of `HybridFrameSpec` to properly resolve imports.
 namespace margelo::nitro::camera { class HybridFrameSpec; }
 
@@ -25,7 +25,7 @@ namespace margelo::nitro::camera { class HybridFrameSpec; }
 #include <memory>
 #include <VisionCamera/HybridFrameSpec.hpp>
 
-namespace margelo::nitro::superhabitpose {
+namespace margelo::nitro::reprepgopose {
 
   using namespace margelo::nitro;
 
@@ -71,4 +71,4 @@ namespace margelo::nitro::superhabitpose {
       static constexpr auto TAG = "PoseLandmarker";
   };
 
-} // namespace margelo::nitro::superhabitpose
+} // namespace margelo::nitro::reprepgopose

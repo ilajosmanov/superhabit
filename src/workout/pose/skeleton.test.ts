@@ -1,6 +1,6 @@
 import { expect, test } from 'vite-plus/test';
 
-import { Joint } from 'superhabit-pose/joints';
+import { Joint } from 'reprepgo-pose/joints';
 
 import { JOINTS, skeleton } from './skeleton';
 

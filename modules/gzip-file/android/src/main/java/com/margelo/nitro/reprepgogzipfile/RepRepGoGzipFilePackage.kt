@@ -1,4 +1,4 @@
-package com.margelo.nitro.superhabitpose
+package com.margelo.nitro.reprepgogzipfile
 
 import com.facebook.react.BaseReactPackage
 import com.facebook.react.bridge.NativeModule
@@ -6,7 +6,7 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.module.model.ReactModuleInfoProvider
 
 // Only exists so RN autolinking loads the native library; the HybridObject is registered by Nitro.
-class SuperhabitPosePackage : BaseReactPackage() {
+class RepRepGoGzipFilePackage : BaseReactPackage() {
   override fun getModule(
     name: String,
     reactContext: ReactApplicationContext
@@ -16,7 +16,7 @@ class SuperhabitPosePackage : BaseReactPackage() {
 
   companion object {
     init {
-      superhabitposeOnLoad.initializeNative()
+      reprepgogzipfileOnLoad.initializeNative()
     }
   }
 }

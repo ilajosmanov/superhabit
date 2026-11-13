@@ -5,7 +5,7 @@
 /// Copyright © Marc Rousavy @ Margelo
 ///
 
-package com.margelo.nitro.superhabitpose
+package com.margelo.nitro.reprepgopose
 
 import androidx.annotation.Keep
 import com.facebook.jni.HybridData

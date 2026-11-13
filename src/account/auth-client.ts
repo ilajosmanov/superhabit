@@ -15,8 +15,8 @@ export const authClient = createAuthClient({
   fetchOptions: { timeout: TIMEOUT_MS },
   plugins: [
     expoClient({
-      scheme: 'superhabit',
-      storagePrefix: 'superhabit',
+      scheme: 'reprepgo',
+      storagePrefix: 'reprepgo',
       storage: SecureStore,
       // The session's data lives in the database (storage/account.ts); only the cookie goes to the store.
       disableCache: true,

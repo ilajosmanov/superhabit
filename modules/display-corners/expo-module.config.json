@@ -4,6 +4,6 @@
     "modules": ["DisplayCornersModule"]
   },
   "android": {
-    "modules": ["com.ilajosmanov.superhabit.displaycorners.DisplayCornersModule"]
+    "modules": ["app.reprepgo.displaycorners.DisplayCornersModule"]
   }
 }

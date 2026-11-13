@@ -5,7 +5,7 @@
 // from 0); after undoing the deltas, −32768 means missing. A column whose values outgrow its default
 // scale gets a smaller one for that file, recorded in the header; values are never clamped.
 import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
-import { Joint } from 'superhabit-pose/joints';
+import { Joint } from 'reprepgo-pose/joints';
 import { z } from 'zod';
 
 const MAGIC = 'SHT2';

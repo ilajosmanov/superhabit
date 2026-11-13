@@ -18,7 +18,7 @@ import { db, migrateDatabase } from '@/storage/__fixtures__/database';
 import * as schema from '@/storage/schema';
 
 vi.mock('expo-file-system', () => modules['expo-file-system']);
-vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
+vi.mock('reprepgo-gzip-file', () => modules['reprepgo-gzip-file']);
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 vi.mock('expo-constants', () => ({ default: { expoConfig: { version: '1.0.0' } } }));
 

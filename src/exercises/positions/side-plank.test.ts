@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { SIDE } from 'superhabit-pose/joints';
+import { SIDE } from 'reprepgo-pose/joints';
 
 import { figure } from '@/exercises/__fixtures__/figure';
 import type { Pose } from '@/exercises/body/geometry';

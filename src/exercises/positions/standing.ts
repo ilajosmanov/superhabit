@@ -1,5 +1,5 @@
 // Standing: on your feet, judged on the better-seen leg by the phone's gravity.
-import { SIDE } from 'superhabit-pose/joints';
+import { SIDE } from 'reprepgo-pose/joints';
 
 import {
   bestSide,

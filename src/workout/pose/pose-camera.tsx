@@ -20,7 +20,7 @@ import {
   type CameraRef,
   type CameraVideoOutput,
 } from 'react-native-vision-camera';
-import type { PoseLandmarker } from 'superhabit-pose';
+import type { PoseLandmarker } from 'reprepgo-pose';
 
 import { skeleton, type Dot, type Segment } from './skeleton';
 import { dark as colors } from '@/theme';

@@ -3,9 +3,9 @@ plugins {
   id 'expo-module-gradle-plugin'
 }
 
-group = 'com.ilajosmanov.superhabit'
+group = 'app.reprepgo'
 version = '0.1.0'
 
 android {
-  namespace "com.ilajosmanov.superhabit.displaycorners"
+  namespace "app.reprepgo.displaycorners"
 }

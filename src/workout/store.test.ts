@@ -8,7 +8,7 @@ import { outbox, workouts } from '@/storage/schema';
 import type { StepResult } from '@/workout/plan/results';
 
 vi.mock('expo-file-system', () => modules['expo-file-system']);
-vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
+vi.mock('reprepgo-gzip-file', () => modules['reprepgo-gzip-file']);
 vi.mock('expo-constants', () => modules['expo-constants']);
 vi.mock('@/storage/database', () => import('@/storage/__fixtures__/database'));
 

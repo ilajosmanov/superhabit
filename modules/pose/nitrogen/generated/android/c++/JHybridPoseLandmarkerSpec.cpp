@@ -8,15 +8,15 @@
 #include "JHybridPoseLandmarkerSpec.hpp"
 
 // Forward declaration of `PoseDetection` to properly resolve imports.
-namespace margelo::nitro::superhabitpose { struct PoseDetection; }
+namespace margelo::nitro::reprepgopose { struct PoseDetection; }
 // Forward declaration of `PoseLandmark` to properly resolve imports.
-namespace margelo::nitro::superhabitpose { struct PoseLandmark; }
+namespace margelo::nitro::reprepgopose { struct PoseLandmark; }
 // Forward declaration of `PoseVector` to properly resolve imports.
-namespace margelo::nitro::superhabitpose { struct PoseVector; }
+namespace margelo::nitro::reprepgopose { struct PoseVector; }
 // Forward declaration of `PoseCameraPoint` to properly resolve imports.
-namespace margelo::nitro::superhabitpose { struct PoseCameraPoint; }
+namespace margelo::nitro::reprepgopose { struct PoseCameraPoint; }
 // Forward declaration of `PoseDelegate` to properly resolve imports.
-namespace margelo::nitro::superhabitpose { enum class PoseDelegate; }
+namespace margelo::nitro::reprepgopose { enum class PoseDelegate; }
 // Forward declaration of `HybridFrameSpec` to properly resolve imports.
 namespace margelo::nitro::camera { class HybridFrameSpec; }
 
@@ -41,7 +41,7 @@ namespace margelo::nitro::camera { class HybridFrameSpec; }
 #include <VisionCamera/HybridFrameSpec.hpp>
 #include <VisionCamera/JHybridFrameSpec.hpp>
 
-namespace margelo::nitro::superhabitpose {
+namespace margelo::nitro::reprepgopose {
 
   std::shared_ptr<JHybridPoseLandmarkerSpec> JHybridPoseLandmarkerSpec::JavaPart::getJHybridPoseLandmarkerSpec() {
     auto hybridObject = JHybridObject::JavaPart::getJHybridObject();
@@ -116,4 +116,4 @@ namespace margelo::nitro::superhabitpose {
     method(_javaPart);
   }
 
-} // namespace margelo::nitro::superhabitpose
+} // namespace margelo::nitro::reprepgopose

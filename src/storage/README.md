@@ -6,7 +6,7 @@ What is kept on the phone and how. No UI and no feature rules: a feature says wh
 | ----------------- | --------------------------------------------------------------------------------------------------------- |
 | `schema.ts`       | the SQLite tables (Drizzle)                                                                               |
 | `relations.ts`    | how the tables join, for `db.query.<table>.findMany({ with })`                                            |
-| `database.ts`     | the one database (`superhabit.db`, foreign keys on): `migrateDatabase()`, `db()`                          |
+| `database.ts`     | the one database (`reprepgo.db`, foreign keys on): `migrateDatabase()`, `db()`                            |
 | `outbox.ts`       | `enqueue`: a change for the server, written in the caller's transaction                                   |
 | `account.ts`      | the kept account: read, write, `userId()` (whose data it is); its rules: `account/`                       |
 | `consent.ts`      | your answer to sharing traces, as kept here (`null` before it's asked)                                    |

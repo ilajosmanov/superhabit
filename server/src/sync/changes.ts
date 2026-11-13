@@ -6,7 +6,7 @@ import { MAX_DAYS, MAX_SETS, readChallengePlan } from '@/workout/plan/plan';
 // Fields the server doesn't know are dropped, so a newer phone's additions don't refuse its changes.
 
 const id = z.string().min(1).max(64);
-// No Superhabit day is older than this.
+// No RepRepGo day is older than this.
 const FIRST_DAY = '2026-01-01';
 // A real calendar date (`2026-02-30` is refused) the app could have lived: the leagues walk every day from
 // a run's start, so a run dated year 0100 would cost seconds per board read. Later days cost nothing.

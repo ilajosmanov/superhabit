@@ -30,7 +30,7 @@ export const createAuth = (env: Bindings, db: Db) => {
     },
     // A year, renewed once a day while the app is used: a phone offline for weeks stays signed in.
     session: { expiresIn: 365 * DAY, updateAge: DAY },
-    trustedOrigins: ['superhabit://'],
+    trustedOrigins: ['reprepgo://'],
     plugins: [expo()],
     // The default, said out loud: Better Auth turns origin checks off under test runners, and ours run them.
     advanced: { disableOriginCheck: false },

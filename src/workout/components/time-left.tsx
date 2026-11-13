@@ -2,7 +2,7 @@ import { Canvas, Path, Skia, useClock, type SkPath } from '@shopify/react-native
 import { Suspense, use, useState, type ReactNode } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { useDerivedValue } from 'react-native-reanimated';
-import { displayCorners, type Corners } from 'superhabit-display-corners';
+import { displayCorners, type Corners } from 'reprepgo-display-corners';
 
 import { dark as colors } from '@/theme';
 

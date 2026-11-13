@@ -1,5 +1,5 @@
 // The plank position: forearm or high, judged side-on from the better-seen side, by the phone's gravity.
-import { SIDE } from 'superhabit-pose/joints';
+import { SIDE } from 'reprepgo-pose/joints';
 
 import {
   add,

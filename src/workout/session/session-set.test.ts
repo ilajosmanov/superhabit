@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
-import { Joint } from 'superhabit-pose/joints';
+import { Joint } from 'reprepgo-pose/joints';
 import { createActor } from 'xstate';
 
 import { MAX, seconds } from '@/workout/plan/plan';
@@ -31,8 +31,8 @@ import { migrateDatabase } from '@/storage/__fixtures__/database';
 
 vi.mock('expo', () => ({ uuid: { v4: () => crypto.randomUUID() } }));
 vi.mock('react-native', () => modules['react-native']);
-vi.mock('superhabit-pose', () => modules['superhabit-pose']);
-vi.mock('superhabit-gzip-file', () => modules['superhabit-gzip-file']);
+vi.mock('reprepgo-pose', () => modules['reprepgo-pose']);
+vi.mock('reprepgo-gzip-file', () => modules['reprepgo-gzip-file']);
 vi.mock('expo-speech', () => modules['expo-speech']);
 vi.mock('expo-file-system', () => modules['expo-file-system']);
 vi.mock('expo-keep-awake', () => ({

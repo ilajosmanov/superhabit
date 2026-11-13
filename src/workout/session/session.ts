@@ -1,4 +1,4 @@
-import { createPoseLandmarker, type PoseDetection, type PoseLandmarker } from 'superhabit-pose';
+import { createPoseLandmarker, type PoseDetection, type PoseLandmarker } from 'reprepgo-pose';
 import { uuid } from 'expo';
 import {
   assign,

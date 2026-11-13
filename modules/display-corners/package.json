@@ -1,5 +1,5 @@
 {
-  "name": "superhabit-display-corners",
+  "name": "reprepgo-display-corners",
   "version": "0.1.0",
   "private": true,
   "description": "Reads the display's rounded-corner radii (Expo module).",

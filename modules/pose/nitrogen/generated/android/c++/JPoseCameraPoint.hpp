@@ -12,7 +12,7 @@
 
 
 
-namespace margelo::nitro::superhabitpose {
+namespace margelo::nitro::reprepgopose {
 
   using namespace facebook;
 
@@ -21,7 +21,7 @@ namespace margelo::nitro::superhabitpose {
    */
   struct JPoseCameraPoint final: public jni::JavaClass<JPoseCameraPoint> {
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/superhabitpose/PoseCameraPoint;";
+    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/reprepgopose/PoseCameraPoint;";
 
   public:
     /**
@@ -58,4 +58,4 @@ namespace margelo::nitro::superhabitpose {
     }
   };
 
-} // namespace margelo::nitro::superhabitpose
+} // namespace margelo::nitro::reprepgopose

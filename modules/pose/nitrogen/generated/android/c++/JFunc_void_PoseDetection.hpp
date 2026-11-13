@@ -25,7 +25,7 @@
 #include "PoseDelegate.hpp"
 #include "JPoseDelegate.hpp"
 
-namespace margelo::nitro::superhabitpose {
+namespace margelo::nitro::reprepgopose {
 
   using namespace facebook;
 
@@ -35,7 +35,7 @@ namespace margelo::nitro::superhabitpose {
    */
   struct JFunc_void_PoseDetection: public jni::JavaClass<JFunc_void_PoseDetection> {
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/superhabitpose/Func_void_PoseDetection;";
+    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/reprepgopose/Func_void_PoseDetection;";
 
   public:
     /**
@@ -71,7 +71,7 @@ namespace margelo::nitro::superhabitpose {
     }
 
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/superhabitpose/Func_void_PoseDetection_cxx;";
+    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/reprepgopose/Func_void_PoseDetection_cxx;";
     static void registerNatives() {
       registerHybrid({makeNativeMethod("invoke_cxx", JFunc_void_PoseDetection_cxx::invoke_cxx)});
     }
@@ -84,4 +84,4 @@ namespace margelo::nitro::superhabitpose {
     std::function<void(const PoseDetection& /* result */)> _func;
   };
 
-} // namespace margelo::nitro::superhabitpose
+} // namespace margelo::nitro::reprepgopose

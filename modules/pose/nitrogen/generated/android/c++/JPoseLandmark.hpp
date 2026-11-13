@@ -12,7 +12,7 @@
 
 #include <optional>
 
-namespace margelo::nitro::superhabitpose {
+namespace margelo::nitro::reprepgopose {
 
   using namespace facebook;
 
@@ -21,7 +21,7 @@ namespace margelo::nitro::superhabitpose {
    */
   struct JPoseLandmark final: public jni::JavaClass<JPoseLandmark> {
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/superhabitpose/PoseLandmark;";
+    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/reprepgopose/PoseLandmark;";
 
   public:
     /**
@@ -70,4 +70,4 @@ namespace margelo::nitro::superhabitpose {
     }
   };
 
-} // namespace margelo::nitro::superhabitpose
+} // namespace margelo::nitro::reprepgopose

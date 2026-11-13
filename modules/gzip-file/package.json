@@ -1,5 +1,5 @@
 {
-  "name": "superhabit-gzip-file",
+  "name": "reprepgo-gzip-file",
   "version": "0.1.0",
   "private": true,
   "description": "Gzips bytes into a file on a background thread (Nitro).",

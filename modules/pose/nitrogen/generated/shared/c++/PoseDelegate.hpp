@@ -23,7 +23,7 @@
 #error NitroModules cannot be found! Are you sure you installed NitroModules properly?
 #endif
 
-namespace margelo::nitro::superhabitpose {
+namespace margelo::nitro::reprepgopose {
 
   /**
    * An enum which can be represented as a JavaScript union (PoseDelegate).
@@ -33,26 +33,26 @@ namespace margelo::nitro::superhabitpose {
     CPU      SWIFT_NAME(cpu) = 1,
   } CLOSED_ENUM;
 
-} // namespace margelo::nitro::superhabitpose
+} // namespace margelo::nitro::reprepgopose
 
 namespace margelo::nitro {
 
   // C++ PoseDelegate <> JS PoseDelegate (union)
   template <>
-  struct JSIConverter<margelo::nitro::superhabitpose::PoseDelegate> final {
-    static inline margelo::nitro::superhabitpose::PoseDelegate fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<margelo::nitro::reprepgopose::PoseDelegate> final {
+    static inline margelo::nitro::reprepgopose::PoseDelegate fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       std::string unionValue = JSIConverter<std::string>::fromJSI(runtime, arg);
       switch (hashString(unionValue.c_str(), unionValue.size())) {
-        case hashString("gpu"): return margelo::nitro::superhabitpose::PoseDelegate::GPU;
-        case hashString("cpu"): return margelo::nitro::superhabitpose::PoseDelegate::CPU;
+        case hashString("gpu"): return margelo::nitro::reprepgopose::PoseDelegate::GPU;
+        case hashString("cpu"): return margelo::nitro::reprepgopose::PoseDelegate::CPU;
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert \"" + unionValue + "\" to enum PoseDelegate - invalid value!");
       }
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, margelo::nitro::superhabitpose::PoseDelegate arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, margelo::nitro::reprepgopose::PoseDelegate arg) {
       switch (arg) {
-        case margelo::nitro::superhabitpose::PoseDelegate::GPU: return JSIConverter<std::string>::toJSI(runtime, "gpu");
-        case margelo::nitro::superhabitpose::PoseDelegate::CPU: return JSIConverter<std::string>::toJSI(runtime, "cpu");
+        case margelo::nitro::reprepgopose::PoseDelegate::GPU: return JSIConverter<std::string>::toJSI(runtime, "gpu");
+        case margelo::nitro::reprepgopose::PoseDelegate::CPU: return JSIConverter<std::string>::toJSI(runtime, "cpu");
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert PoseDelegate to JS - invalid value: "
                                     + std::to_string(static_cast<int>(arg)) + "!");

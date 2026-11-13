@@ -1,6 +1,6 @@
 // Synthetic side-on push-up and plank poses for tests.
-import type { PoseLandmark } from 'superhabit-pose';
-import { SIDE } from 'superhabit-pose/joints';
+import type { PoseLandmark } from 'reprepgo-pose';
+import { SIDE } from 'reprepgo-pose/joints';
 
 import type { Pose } from '@/exercises/body/geometry';
 

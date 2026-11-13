@@ -1,4 +1,4 @@
-package com.margelo.nitro.superhabitgzipfile
+package com.margelo.nitro.reprepgogzipfile
 
 import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip

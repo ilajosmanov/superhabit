@@ -1,6 +1,6 @@
 // Joint geometry shared by every exercise counter (MediaPipe Pose Landmarker: 33 joints, MediaPipe order).
-import type { PoseDetection, PoseLandmark } from 'superhabit-pose';
-import { Joint, SIDE } from 'superhabit-pose/joints';
+import type { PoseDetection, PoseLandmark } from 'reprepgo-pose';
+import { Joint, SIDE } from 'reprepgo-pose/joints';
 
 /**
  * One frame's joints, as the detector gives them: `landmarks` in 0..1 frame coords (to check a

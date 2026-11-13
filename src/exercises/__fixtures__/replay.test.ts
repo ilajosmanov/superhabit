@@ -16,7 +16,7 @@ vi.mock('node:fs', async (importOriginal) => {
 });
 
 it('lists only .sht files in sorted absolute paths without parsing them', () => {
-  const root = mkdtempSync(join(tmpdir(), 'superhabit-trace-files-'));
+  const root = mkdtempSync(join(tmpdir(), 'reprepgo-trace-files-'));
   try {
     const directory = join(root, 'squat');
     mkdirSync(directory);
@@ -37,7 +37,7 @@ it('lists only .sht files in sorted absolute paths without parsing them', () => 
 });
 
 it('explains how to get recorded traces when clip data is missing, once per test module', () => {
-  const root = mkdtempSync(join(tmpdir(), 'superhabit-missing-traces-'));
+  const root = mkdtempSync(join(tmpdir(), 'reprepgo-missing-traces-'));
   const info = vi.spyOn(console, 'info').mockImplementation(() => {});
   try {
     expect(traceFiles('missing', root)).toEqual([]);

@@ -1,4 +1,4 @@
-package com.ilajosmanov.superhabit.displaycorners
+package app.reprepgo.displaycorners
 
 import android.os.Build
 import android.view.RoundedCorner

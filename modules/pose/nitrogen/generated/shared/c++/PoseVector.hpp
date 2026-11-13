@@ -32,7 +32,7 @@
 
 
 
-namespace margelo::nitro::superhabitpose {
+namespace margelo::nitro::reprepgopose {
 
   /**
    * A struct which can be represented as a JavaScript object (PoseVector).
@@ -51,22 +51,22 @@ namespace margelo::nitro::superhabitpose {
     friend bool operator==(const PoseVector& lhs, const PoseVector& rhs) = default;
   };
 
-} // namespace margelo::nitro::superhabitpose
+} // namespace margelo::nitro::reprepgopose
 
 namespace margelo::nitro {
 
   // C++ PoseVector <> JS PoseVector (object)
   template <>
-  struct JSIConverter<margelo::nitro::superhabitpose::PoseVector> final {
-    static inline margelo::nitro::superhabitpose::PoseVector fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<margelo::nitro::reprepgopose::PoseVector> final {
+    static inline margelo::nitro::reprepgopose::PoseVector fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
-      return margelo::nitro::superhabitpose::PoseVector(
+      return margelo::nitro::reprepgopose::PoseVector(
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "x"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "y"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "z")))
       );
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::superhabitpose::PoseVector& arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::reprepgopose::PoseVector& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "x"), JSIConverter<double>::toJSI(runtime, arg.x));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "y"), JSIConverter<double>::toJSI(runtime, arg.y));

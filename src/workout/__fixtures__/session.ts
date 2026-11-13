@@ -5,8 +5,8 @@
  * `./session` dynamically, and calls `reset` after each test.
  */
 import { gzipSync } from 'fflate';
-import type { PoseDetection } from 'superhabit-pose';
-import { Joint } from 'superhabit-pose/joints';
+import type { PoseDetection } from 'reprepgo-pose';
+import { Joint } from 'reprepgo-pose/joints';
 import { vi } from 'vite-plus/test';
 
 import type { Pose } from '@/exercises/registry';
@@ -86,9 +86,9 @@ const traceFile = (folder: string, name: string) => ({
 
 /** Module fakes, for `vi.mock(name, () => modules[name])` in each test file. */
 export const modules = {
-  'superhabit-pose': { createPoseLandmarker: () => native },
+  'reprepgo-pose': { createPoseLandmarker: () => native },
   // The native gzip writes into the fake trace folders; `written` keeps the gzipped bytes.
-  'superhabit-gzip-file': {
+  'reprepgo-gzip-file': {
     writeGzip: async (bytes: ArrayBuffer, uri: string) => {
       await writeFile(uri.slice(uri.lastIndexOf('/') + 1), gzipSync(new Uint8Array(bytes)));
       files.add(uri);

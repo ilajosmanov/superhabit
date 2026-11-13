@@ -10,7 +10,7 @@ index 7c099e6560d5805c7c159fa54c07d6e48b1ab549..41eab7c9be531cfb78d6e3eaed173bcf
  
    // Resolved descriptors may be cached and shared by another styled component.
 -  const args = [...resolved];
-+  // patched (superhabit): the compiler leaves a trailing null after the last colour, which failed every runtime color-mix.
++  // patched (reprepgo): the compiler leaves a trailing null after the last colour, which failed every runtime color-mix.
 +  const args = resolved.filter(arg => arg != null);
    try {
      const space = args.shift();
@@ -24,7 +24,7 @@ index 4cdd49dc3d602ea98b70e6079d111b9cc5d5ed37..d23412334f0d23d684abed38f62a3c3b
  
    // Resolved descriptors may be cached and shared by another styled component.
 -  const args = [...resolved];
-+  // patched (superhabit): the compiler leaves a trailing null after the last colour, which failed every runtime color-mix.
++  // patched (reprepgo): the compiler leaves a trailing null after the last colour, which failed every runtime color-mix.
 +  const args = resolved.filter(arg => arg != null);
    try {
      const space = args.shift();

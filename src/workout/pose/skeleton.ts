@@ -1,6 +1,6 @@
 import type { SkPoint } from '@shopify/react-native-skia';
 
-import { Joint } from 'superhabit-pose/joints';
+import { Joint } from 'reprepgo-pose/joints';
 
 /** Landmarks per detection, in MediaPipe order. */
 export const JOINTS = Object.keys(Joint).length;

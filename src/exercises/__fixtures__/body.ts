@@ -1,6 +1,6 @@
 // Synthetic MediaPipe poses for tests.
-import type { PoseDetection, PoseLandmark } from 'superhabit-pose';
-import { SIDE } from 'superhabit-pose/joints';
+import type { PoseDetection, PoseLandmark } from 'reprepgo-pose';
+import { SIDE } from 'reprepgo-pose/joints';
 
 import type { Pose } from '@/exercises/body/geometry';
 

@@ -1,4 +1,4 @@
-import { SIDE } from 'superhabit-pose/joints';
+import { SIDE } from 'reprepgo-pose/joints';
 
 import { angle, seen, STRAIGHT, type Joints } from '@/exercises/body/geometry';
 import type { Measure } from './measure';

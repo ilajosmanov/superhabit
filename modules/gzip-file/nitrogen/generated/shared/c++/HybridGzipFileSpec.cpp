@@ -7,7 +7,7 @@
 
 #include "HybridGzipFileSpec.hpp"
 
-namespace margelo::nitro::superhabitgzipfile {
+namespace margelo::nitro::reprepgogzipfile {
 
   void HybridGzipFileSpec::loadHybridMethods() {
     // load base methods/properties
@@ -18,4 +18,4 @@ namespace margelo::nitro::superhabitgzipfile {
     });
   }
 
-} // namespace margelo::nitro::superhabitgzipfile
+} // namespace margelo::nitro::reprepgogzipfile

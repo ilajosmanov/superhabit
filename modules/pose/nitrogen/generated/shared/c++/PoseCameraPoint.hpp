@@ -32,7 +32,7 @@
 
 
 
-namespace margelo::nitro::superhabitpose {
+namespace margelo::nitro::reprepgopose {
 
   /**
    * A struct which can be represented as a JavaScript object (PoseCameraPoint).
@@ -50,21 +50,21 @@ namespace margelo::nitro::superhabitpose {
     friend bool operator==(const PoseCameraPoint& lhs, const PoseCameraPoint& rhs) = default;
   };
 
-} // namespace margelo::nitro::superhabitpose
+} // namespace margelo::nitro::reprepgopose
 
 namespace margelo::nitro {
 
   // C++ PoseCameraPoint <> JS PoseCameraPoint (object)
   template <>
-  struct JSIConverter<margelo::nitro::superhabitpose::PoseCameraPoint> final {
-    static inline margelo::nitro::superhabitpose::PoseCameraPoint fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<margelo::nitro::reprepgopose::PoseCameraPoint> final {
+    static inline margelo::nitro::reprepgopose::PoseCameraPoint fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
-      return margelo::nitro::superhabitpose::PoseCameraPoint(
+      return margelo::nitro::reprepgopose::PoseCameraPoint(
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "x"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "y")))
       );
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::superhabitpose::PoseCameraPoint& arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::reprepgopose::PoseCameraPoint& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "x"), JSIConverter<double>::toJSI(runtime, arg.x));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "y"), JSIConverter<double>::toJSI(runtime, arg.y));

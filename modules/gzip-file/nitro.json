@@ -1,11 +1,11 @@
 {
-  "cxxNamespace": ["superhabitgzipfile"],
+  "cxxNamespace": ["reprepgogzipfile"],
   "ios": {
-    "iosModuleName": "SuperhabitGzipFile"
+    "iosModuleName": "RepRepGoGzipFile"
   },
   "android": {
-    "androidNamespace": ["superhabitgzipfile"],
-    "androidCxxLibName": "superhabitgzipfile"
+    "androidNamespace": ["reprepgogzipfile"],
+    "androidCxxLibName": "reprepgogzipfile"
   },
   "autolinking": {
     "GzipFile": {

@@ -2,7 +2,7 @@ import { EARLIER_SUGGESTIONS, PREVIOUS_SUGGESTIONS } from './suggested-history';
 import { defineChallenge, type Challenge } from '@/workout/plan/plan';
 import { circuit, exerciseSet, ladder } from '@/workout/plan/structures';
 
-export const OURS = 'superhabit';
+export const OURS = 'reprepgo';
 
 /** Fixed identities shared by the app and server. Keep replaced prescriptions in history. */
 type Suggested = { id: string; versionId: string; challenge: Challenge };

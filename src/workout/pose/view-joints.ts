@@ -1,6 +1,6 @@
 import type { SkPoint } from '@shopify/react-native-skia';
 import type { CameraRef } from 'react-native-vision-camera';
-import type { PoseDetection } from 'superhabit-pose';
+import type { PoseDetection } from 'reprepgo-pose';
 
 import { JOINTS } from './skeleton';
 import { MIN_VISIBILITY } from '@/exercises/body/geometry';

@@ -167,7 +167,7 @@ function DroppedBar({ retry }: ErrorBoundaryProps) {
   return (
     <>
       <Screen
-        label="SUPERHABIT"
+        label="REPREPGO"
         footer={
           <View className="gap-2">
             <PrimaryButton label="Try again" onPress={() => void retry()} />

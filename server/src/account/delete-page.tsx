@@ -22,9 +22,9 @@ export type DeletePageState =
 
 const TEXT = {
   signedOut:
-    'Sign in with the Google account you use in Superhabit, then delete it here. No app needed.',
+    'Sign in with the Google account you use in RepRepGo, then delete it here. No app needed.',
   signedIn:
-    "This deletes your Superhabit account and everything we hold about you. It can't be undone.",
+    "This deletes your RepRepGo account and everything we hold about you. It can't be undone.",
   deleted: 'Thanks for training with us. Signing in again starts a new account.',
 };
 
@@ -35,12 +35,12 @@ export function DeletePage({ state }: { state: DeletePageState }) {
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="robots" content="noindex" />
-        <title>Delete your Superhabit account</title>
+        <title>Delete your RepRepGo account</title>
         <style>{STYLE}</style>
       </head>
       <body>
         <main>
-          <span class="mono">SUPERHABIT</span>
+          <span class="mono">REPREPGO</span>
           <h1>{state.step === 'deleted' ? 'Your account is deleted' : 'Delete your account'}</h1>
           <p>{TEXT[state.step]}</p>
           {state.step !== 'deleted' && state.problem && (

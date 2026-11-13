@@ -4,7 +4,7 @@
 -keep class com.google.protobuf.** { *; }
 -keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite { <fields>; }
 -dontwarn com.google.mediapipe.**
--keep class com.margelo.nitro.superhabitpose.** { *; }
+-keep class com.margelo.nitro.reprepgopose.** { *; }
 # MediaPipe's Graph logs through Flogger, which finds its caller on the stack; inlining breaks it.
 -keep class com.google.common.flogger.** { *; }
 -dontwarn com.google.common.flogger.**

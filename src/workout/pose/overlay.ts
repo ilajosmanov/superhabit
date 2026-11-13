@@ -5,7 +5,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import type { CameraRef } from 'react-native-vision-camera';
 
 import type { Live } from '@/workout/session/counting';
-import type { PoseDetection } from 'superhabit-pose';
+import type { PoseDetection } from 'reprepgo-pose';
 
 import { filterJoints, type JointFilter } from './joint-filter';
 import { toViewJoints } from './view-joints';

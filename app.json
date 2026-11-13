@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "superhabit",
-    "slug": "superhabit",
+    "name": "RepRepGo",
+    "slug": "reprepgo",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "superhabit",
+    "scheme": "reprepgo",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#0d0e0b",
     "ios": {
       "icon": "./assets/expo.icon",
       "infoPlist": {
-        "NSCameraUsageDescription": "Superhabit uses the camera to count your reps and check your form."
+        "NSCameraUsageDescription": "RepRepGo uses the camera to count your reps and check your form."
       },
-      "bundleIdentifier": "com.ilajosmanov.superhabit"
+      "bundleIdentifier": "app.reprepgo"
     },
     "android": {
       "versionCode": 2,
@@ -24,7 +24,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.ilajosmanov.superhabit",
+      "package": "app.reprepgo",
       "permissions": ["android.permission.CAMERA"],
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
@@ -112,8 +112,8 @@
         "@sentry/react-native/expo",
         {
           "url": "https://sentry.io/",
-          "organization": "superhabit",
-          "project": "superhabit-app",
+          "organization": "reprepgo",
+          "project": "reprepgo-app",
           "experimental_android": {
             "enableAndroidGradlePlugin": true
           }

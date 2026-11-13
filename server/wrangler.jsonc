@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "superhabit",
+  "name": "reprepgo",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   // Better Auth needs AsyncLocalStorage.
@@ -8,7 +8,7 @@
   // Secrets, set with `wrangler secret put`: BETTER_AUTH_SECRET, GOOGLE_CLIENT_SECRET, SENTRY_DSN.
   // Local development: `vp run dev` from server/ loads the root .env.
   "vars": {
-    "BETTER_AUTH_URL": "https://superhabit.cloudflare-putt001.workers.dev",
+    "BETTER_AUTH_URL": "https://reprepgo.cloudflare-putt001.workers.dev",
     // The Web client in Google Cloud: the audience of the ID tokens Google's sign-in gives the phone.
     "GOOGLE_CLIENT_ID": "408762936395-b66qcgf9a751gcv04p1jiorrier10amd.apps.googleusercontent.com",
   },
@@ -33,11 +33,11 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "superhabit",
+      "database_name": "reprepgo",
       // Created with --location enam: eastern North America, near both the US and the UK.
-      "database_id": "d685360b-811c-4fbb-a26e-f3ba0277db58",
+      "database_id": "f860f868-cf0c-4ebf-8eba-7c1569c09d2c",
     },
   ],
   // Shared traces (piece 6). Created with --location enam, like the database.
-  "r2_buckets": [{ "binding": "TRACES", "bucket_name": "superhabit-traces" }],
+  "r2_buckets": [{ "binding": "TRACES", "bucket_name": "reprepgo-traces" }],
 }
