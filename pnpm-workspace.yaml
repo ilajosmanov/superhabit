@@ -36,4 +36,5 @@ minimumReleaseAgeExclude:
   - auth@1.7.20
   - better-auth@1.7.20
 patchedDependencies:
+  expo-symbols@58.0.4: patches/expo-symbols@58.0.4.patch
   react-native-css@3.1.0-rc.0: patches/react-native-css@3.1.0-rc.0.patch
