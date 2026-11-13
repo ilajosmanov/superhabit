@@ -134,7 +134,7 @@ Sentry answers "what new error appeared, how often, since which deploy", and ema
 ## 3. Uptime and alerting
 
 - **Health endpoint**: `GET /health` already exists and touches D1. Point an external pinger at
-  `https://reprepgo.cloudflare-putt001.workers.dev/health` (or the custom domain once there is one). At one
+  `https://reprepgo.app/health`. At one
   check a minute that is ~1,440 D1 row reads a day: negligible.
 - **External pinger options** (free tiers; both vendors' free plans have had "personal use" wording, so
   read the current terms before relying on one for a commercial app):

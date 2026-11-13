@@ -7,6 +7,7 @@ import { fromAnotherSite, signedIn } from '../auth/signed-in';
 import { open } from '../db/db';
 import type { Route, SignedInRoute } from '../env';
 import { DELETE_PAGE_POLICY, DeletePage, type DeletePageState } from './delete-page';
+import { HomePage } from './home-page';
 import { PRIVACY_PAGE_POLICY, PrivacyPage } from './privacy-page';
 import { deleteAccount, me } from './store';
 
@@ -106,8 +107,13 @@ export const deletePageRoutes = new Hono<Route>()
     return c.redirect('/delete', 303);
   });
 
-/** The privacy policy (`privacy-page.tsx`). */
-export const privacyRoutes = new Hono<Route>().get('/privacy', (c) => {
-  c.header('content-security-policy', PRIVACY_PAGE_POLICY);
-  return c.html(PrivacyPage());
-});
+/** The privacy policy (`privacy-page.tsx`) and the home page that links it (`home-page.tsx`). */
+export const privacyRoutes = new Hono<Route>()
+  .get('/privacy', (c) => {
+    c.header('content-security-policy', PRIVACY_PAGE_POLICY);
+    return c.html(PrivacyPage());
+  })
+  .get('/', (c) => {
+    c.header('content-security-policy', PRIVACY_PAGE_POLICY);
+    return c.html(HomePage());
+  });

@@ -21,7 +21,7 @@ are already stored as local dates. Closed league standings remain frozen by the 
 | `src/index.ts`      | the Worker: mounts the routes, runs the hourly Cron, reports both to Sentry                                               |
 | `src/env.ts`        | the bindings, vars and secrets the Worker gets; Hono route types                                                          |
 | `src/auth/`         | Better Auth (Google ID tokens, year-long sessions), its routes, `signedIn`, `signInLimit`, `accountLimit`                 |
-| `src/account/`      | `GET /me`, `DELETE /account`, the `/delete` and `/privacy` web pages, the purge of deleted accounts                       |
+| `src/account/`      | `GET /me`, `DELETE /account`, the `/`, `/delete` and `/privacy` web pages, the purge of deleted accounts                  |
 | `src/sync/`         | `POST /sync`: the phones' outbox rows (`changes.ts` is their shape), kept once by id; the changes log; `GET /sync`: pulls |
 | `src/consents/`     | `PUT /consent`: one consent in force per kind, every grant kept as proof                                                  |
 | `src/traces/`       | `PUT /traces/<set>`: shared traces into R2 (`header.ts` reads a file's header); their deletion and the daily sweep        |
@@ -53,6 +53,8 @@ location, and approximate.
   Consent is checked again after the file lands; a withdrawal in between deletes it. A repeat writes the
   same file.
 - `DELETE /account`: signs every phone out at once; the same Google account comes back as a new user.
+- `GET /`: the home page (`account/home-page.tsx`) Google's sign-in branding asks for: what the app does,
+  why it signs people in, links to `/privacy` and `/delete`.
 - `GET /privacy`: the privacy policy (`account/privacy-page.tsx`), plain HTML like `/delete`; its version
   is the app's `POLICY_VERSION` (`src/account/consent.ts`), which consents are given against.
 - `GET /delete`: the same deletion from a browser (Google Play asks for one), rendered on the server
@@ -115,7 +117,7 @@ Reaching Cloudflare needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` fro
 `.env`. Run such a command in bash with the file loaded, which works from fish too:
 `bash -ac '. ../.env && vp run deploy'`. This also supplies Sentry's upload token.
 
-- `vp run deploy`: to https://reprepgo.cloudflare-putt001.workers.dev. It bundles to `dist/`, gives the
+- `vp run deploy`: to https://reprepgo.app. It bundles to `dist/`, gives the
   bundle and its source map a debug ID and uploads the map to Sentry (the `sentry` CLI's login: `vp exec
   sentry auth login` once), then deploys that same bundle, so Sentry's stack traces show our files.
 - `vp exec drizzle-kit generate` after a schema change (no credentials), then

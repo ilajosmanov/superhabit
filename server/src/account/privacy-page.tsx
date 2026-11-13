@@ -246,7 +246,7 @@ export function PrivacyPage() {
   );
 }
 
-const STYLE = `
+export const STYLE = `
 :root{color-scheme:dark}
 body{margin:0;background:#0d0e0b;color:#f2f0e8;font:17px/1.45 system-ui,sans-serif}
 main{max-width:560px;margin:0 auto;padding:48px 24px;display:flex;flex-direction:column;gap:24px}
