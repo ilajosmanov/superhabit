@@ -1,6 +1,6 @@
 # RepRepGo
 
-A sports challenge and habit-tracking app built with Expo and React Native: the phone's camera counts your reps. Android only for now (the two native modules in `modules/` have no iOS code yet).
+A sports challenge and habit-tracking app built with Expo and React Native: the phone's camera counts your reps. Android first; iOS runs too (see `modules/pose/README.md` for what is still unmeasured there).
 
 - `src/`: the app. `CODING_STANDARDS.md` says how it is laid out (layers, where a file goes, what a useful test is) and `AGENTS.md` holds the tooling and React rules; each folder has a short `README.md`.
 - `server/`: the Cloudflare Worker the app signs in to and syncs with. See [`server/README.md`](server/README.md).

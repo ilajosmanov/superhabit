@@ -1,4 +1,5 @@
 import * as ScreenOrientation from 'expo-screen-orientation';
+import { Platform } from 'react-native';
 import { fromCallback } from 'xstate';
 
 import type { Orientation } from '@/exercises/exercise';
@@ -12,7 +13,12 @@ export const orientationLock = fromCallback<LockEvent, Orientation>(({ input, re
   const lock = (o: Orientation) =>
     void lockAsync(
       // PORTRAIT, not PORTRAIT_UP: the phone may stand on either short edge (a cable below needs the flip).
-      o === 'landscape' ? OrientationLock.LANDSCAPE : OrientationLock.PORTRAIT,
+      // iPhones without a home button have no upside-down portrait, and locking to it fails there.
+      o === 'landscape'
+        ? OrientationLock.LANDSCAPE
+        : Platform.OS === 'ios'
+          ? OrientationLock.PORTRAIT_UP
+          : OrientationLock.PORTRAIT,
     ).catch((error) => console.warn('[orientation] could not lock', error));
   lock(input);
   receive((event) => lock(event.orientation));

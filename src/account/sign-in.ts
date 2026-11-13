@@ -8,7 +8,7 @@ import { assign, fromPromise, setup } from 'xstate';
 
 import { authClient } from './auth-client';
 import { cookieTurn, endSession } from './session';
-import { GOOGLE_WEB_CLIENT_ID } from './server';
+import { GOOGLE_IOS_CLIENT_ID, GOOGLE_WEB_CLIENT_ID } from './server';
 import { keepSignIn, replacing } from './store';
 import type { Account } from '@/storage/account';
 
@@ -23,7 +23,10 @@ type Signed = { account: Account; replacing: string | null };
  * `cancelled` when you closed the sheet.
  */
 async function signInWithGoogle(): Promise<Signed | 'cancelled'> {
-  GoogleOneTapSignIn.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
+  GoogleOneTapSignIn.configure({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+  });
   let picked = await GoogleOneTapSignIn.signIn();
   if (isNoSavedCredentialFoundResponse(picked)) picked = await GoogleOneTapSignIn.createAccount();
   if (isNoSavedCredentialFoundResponse(picked)) {

@@ -48,7 +48,7 @@ export interface PoseDetection {
 }
 
 /** MediaPipe Pose Landmarker (BlazePose GHUM, 33 joints in MediaPipe order). */
-export interface PoseLandmarker extends HybridObject<{ android: 'kotlin' }> {
+export interface PoseLandmarker extends HybridObject<{ android: 'kotlin'; ios: 'swift' }> {
   /**
    * Run on a camera frame from a VisionCamera frame-processor worklet (pixelFormat 'rgb'). `front`:
    * the frame is from the front camera, which flips gravity's x; z is the same for both cameras.

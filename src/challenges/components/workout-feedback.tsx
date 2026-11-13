@@ -1,10 +1,8 @@
-import { FlowRow, Host } from '@expo/ui/jetpack-compose';
-import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { countAnswers, pickAccuracy } from '@/challenges/workout-feedback';
-import { Chip } from '@/components/chip';
+import { Chip, ChipRow } from '@/components/chip';
 import { useColors } from '@/components/colors';
 import { REACTIONS, type Reaction } from '@/components/feedback';
 import { FeedbackSheet } from '@/components/feedback-sheet';
@@ -112,25 +110,19 @@ export function WorkoutFeedback({
             <Text className="font-mono text-xs tracking-widest text-muted">
               DID IT COUNT RIGHT?
             </Text>
-            <Host matchContents={{ vertical: true }}>
-              <FlowRow
-                horizontalArrangement={{ spacedBy: 8 }}
-                verticalArrangement={{ spacedBy: 0 }}
-                modifiers={[fillMaxWidth()]}
-              >
-                {answers.map((answer) => (
-                  <Chip
-                    key={answer}
-                    label={answer}
-                    selected={accuracy.includes(answer)}
-                    onPress={() => {
-                      tick();
-                      setAccuracy(pickAccuracy(answers, accuracy, answer));
-                    }}
-                  />
-                ))}
-              </FlowRow>
-            </Host>
+            <ChipRow>
+              {answers.map((answer) => (
+                <Chip
+                  key={answer}
+                  label={answer}
+                  selected={accuracy.includes(answer)}
+                  onPress={() => {
+                    tick();
+                    setAccuracy(pickAccuracy(answers, accuracy, answer));
+                  }}
+                />
+              ))}
+            </ChipRow>
           </View>
         )}
       </FeedbackSheet>

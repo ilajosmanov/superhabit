@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { useColors } from './colors';
 
 /**
- * Material's sheet (Android only, like every Compose control here), opened at its content height, with scrolling only when it outgrows the window.
+ * Material's sheet (the iOS file holds iOS's), opened at its content height, with scrolling only when it outgrows the window.
  * The `footer` ends the scroll; `pinFooter` lifts it out, so the content scrolls under it and the
  * keyboard can't cover it.
  */

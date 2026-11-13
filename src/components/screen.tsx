@@ -1,11 +1,24 @@
 import type { ReactNode, RefObject } from 'react';
-import { RefreshControl, ScrollView, Text, View, type ScrollViewInstance } from 'react-native';
+import {
+  Platform,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+  type ScrollViewInstance,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from './colors';
 
 /** The side padding of every screen (`px-6`): content is the window's width less two of these. */
 export const GUTTER = 24;
+
+/**
+ * How far the floating iOS tab bar reaches above the bottom safe area, in points: measured on an iPhone 13
+ * (iOS 27), the bar's top sits 82 pt above the screen's bottom edge, 34 of them the safe area.
+ */
+const TAB_BAR = 48;
 
 /**
  * Every screen's skeleton: 48px title, 32px between sections.
@@ -46,6 +59,9 @@ export function Screen({
 }) {
   const colors = useColors();
   const { top, bottom } = useSafeAreaInsets();
+  // iOS's tab bar floats over the screen (Android's sits below it). The scroll clears it by itself (the tab
+  // insets its content automatically); a pinned footer doesn't, so it clears the bar here.
+  const overTabs = label && Platform.OS === 'ios' ? bottom + TAB_BAR : 0;
   return (
     // Under a label it is a tab: the hairline is the tab bar's top edge (Material's bar draws none).
     <View className={`flex-1 bg-ground ${label ? 'border-b border-line' : ''}`}>
@@ -62,6 +78,8 @@ export function Screen({
         ref={scroll}
         className="flex-1"
         showsVerticalScrollIndicator={false}
+        // iOS: let UIKit inset the content by the floating tab bar (and nothing on screens without one).
+        contentInsetAdjustmentBehavior="automatic"
         // The title, when there is one, is the scroll's first child.
         stickyHeaderIndices={pin === undefined ? undefined : [(title ? 1 : 0) + pin]}
         contentContainerClassName="gap-8 px-6 pb-8"
@@ -93,7 +111,7 @@ export function Screen({
       </ScrollView>
 
       {footer && (
-        <View className="px-6 pt-4" style={{ paddingBottom: (label ? 0 : bottom) + 16 }}>
+        <View className="px-6 pt-4" style={{ paddingBottom: (label ? overTabs : bottom) + 16 }}>
           {footer}
         </View>
       )}
