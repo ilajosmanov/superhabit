@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import type { ReactNode, RefObject } from 'react';
+import { RefreshControl, ScrollView, Text, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from './colors';
@@ -19,6 +19,8 @@ export function Screen({
   intro,
   footer,
   refresh,
+  pin,
+  scroll,
   children,
 }: {
   label?: string;
@@ -32,6 +34,20 @@ export function Screen({
   footer?: ReactNode;
   /** Pull down to read again: the platform's spinner shows while `refreshing`. */
   refresh?: { refreshing: boolean; onRefresh: () => void };
+  /**
+   * Which of `children` pins under the label row once scrolled to it. Counted as the ScrollView counts:
+   * pass children as separate elements, and keep any `cond && <X />` before it always rendering an
+   * element, or the index lands on the wrong child.
+   */
+  pin?: number;
+  /**
+   * For a screen that scrolls itself (back to a list's start): the scroll view, its offset as it moves
+   * (keep it in a ref, never React state).
+   */
+  scroll?: {
+    ref: RefObject<ScrollViewInstance | null>;
+    onY: (y: number) => void;
+  };
   children?: ReactNode;
 }) {
   const colors = useColors();
@@ -49,8 +65,13 @@ export function Screen({
       )}
 
       <ScrollView
+        ref={scroll?.ref}
+        scrollEventThrottle={scroll && 16}
+        onScroll={scroll && ((event) => scroll.onY(event.nativeEvent.contentOffset.y))}
         className="flex-1"
         showsVerticalScrollIndicator={false}
+        // The title, when there is one, is the scroll's first child.
+        stickyHeaderIndices={pin === undefined ? undefined : [(title ? 1 : 0) + pin]}
         contentContainerClassName="gap-8 px-6 pb-8"
         contentContainerStyle={{ paddingTop: label ? 32 : 8 }}
         refreshControl={

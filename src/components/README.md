@@ -6,7 +6,7 @@ own only for what Material has no form of.
 
 | File                 | What it is                                                                                                                  | When to use it                                                            |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `screen.tsx`         | `Screen`: the page shell (label row, title, scroll, footer, pull to refresh); `GUTTER`                                      | every screen; `GUTTER` for widths that fill the content column            |
+| `screen.tsx`         | `Screen`: the page shell (label row, title, scroll, a pinned child, footer, refresh); `GUTTER`                              | every screen; `GUTTER` for widths that fill the content column            |
 | `feedback-sheet.tsx` | `FeedbackButton`: dismissible workout check-in, Profile feedback and crash feedback using the shared controls               | collecting optional feedback                                              |
 | `feedback.ts`        | validates and submits explicit feedback to Sentry; only crash feedback attaches to an error                                 | the feedback sheet                                                        |
 | `snackbar.tsx`       | a capsule toast (ours: Material's snackbar takes no Geist); `useSnackbar()` shows a message                                 | in-app confirmations without changing controls                            |

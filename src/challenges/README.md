@@ -16,7 +16,7 @@ The challenge catalog, the challenges and runs kept on the phone, progress rules
 | `one-go.ts`            | `ONE_GO`, the exercises offered on their own, and `oneGo`: one go at one, as many as you can                               |
 | `hold.ts`              | `isHold`: an exercise timed in seconds, not counted in reps                                                                |
 | `plan-view.ts`         | how a challenge's plan reads on its page: parts and rows (`planView`), sets and tracking line (`trackedSets`), `restLabel` |
-| `catalog.ts`           | a challenge as its card shows it                                                                                           |
+| `catalog.ts`           | a challenge as its card shows it; the catalog's filter chips (`filterCatalog`)                                             |
 | `draft.ts`             | what the builder edits; shared `Amount` and slider ranges                                                                  |
 | `tune.ts`              | a suggested challenge's editable numbers, slider ranges, and tuned plan for joining                                        |
 | `reel.ts`              | sets with video as one reel: the session just done (`reelOf`), or a day's (`dayReel`)                                      |
@@ -32,7 +32,7 @@ their history. Archiving syncs through the outbox like other library changes.
 
 | File                                                             | What it is                                                                           |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `catalog.tsx`                                                    | the catalog: ours, then yours not running, a card each, and Create a challenge       |
+| `catalog.tsx`                                                    | the catalog: Create and a filter chip per kind (pinned), then a card each            |
 | `your-challenges.tsx`, `joined-card.tsx`, `unavailable-card.tsx` | the swipe row of your runs and their cards                                           |
 | `surprise-card.tsx`, `surprise-button.tsx`, `surprise-sheet.tsx` | a random one go: the card, Home's die, the sheet before the camera                   |
 | `challenge-preview.tsx`                                          | a challenge's page before you join: its plan and how it counts                       |
