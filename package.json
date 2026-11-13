@@ -6,7 +6,6 @@
   "scripts": {
     "start": "expo start",
     "android": "adb shell svc power stayon true; expo run:android",
-    "android:release": "ORG_GRADLE_PROJECT_reactNativeArchitectures=arm64-v8a expo run:android --variant release --no-bundler",
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit && vp run reprepgo-server#typecheck",
     "lint:kt": "scripts/ktlint.sh",
