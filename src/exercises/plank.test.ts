@@ -32,28 +32,6 @@ describe('plank', () => {
     });
   });
 
-  it('judges by gravity, however the world is turned', () => {
-    // World and gravity turned together: (x, y, z) → (−y, z, x).
-    const turn = ({ x, y, z }: { x: number; y: number; z: number }) => ({ x: -y, y: z, z: x });
-    const rotate = (body: Pose): Pose => ({
-      ...body,
-      worldLandmarks: body.worldLandmarks.map((p) => ({ ...turn(p), visibility: p.visibility })),
-      down: body.down && turn(body.down),
-    });
-    const held = play(rotate(pose({})), 0, 4950);
-    expect(held).toMatchObject({ phase: 'active', heldMs: 4950 });
-    expect(play(rotate(pose({ kneeling: true })), 0, 5000)).toMatchObject({
-      phase: 'waiting',
-      heldMs: 0,
-    });
-    expect(play(rotate(pose({ sag: 40 })), 5016, 6006, held)).toMatchObject({
-      phase: 'active',
-      heldMs: 4950,
-      noReps: 1,
-      lastRep: { cues: ['Keep your body straight'] },
-    });
-  });
-
   it('never enters while kneeling', () => {
     expect(play(pose({ kneeling: true }), 0, 5000)).toMatchObject({
       phase: 'waiting',
@@ -81,8 +59,8 @@ describe('plank', () => {
   });
 
   it.each<[Partial<PlankSample>, string]>([
-    [{ reach: 160, knee: 0.1, drop: 0.9 }, 'Get into a plank'],
-    [{ knee: 0.1, drop: 0.9 }, 'Knees off the floor'],
+    [{ reach: 160, knee: 0.3, kneeHeight: 0, drop: 0.9 }, 'Get into a plank'],
+    [{ knee: 0.3, kneeHeight: 0, drop: 0.9 }, 'Knees off the floor'],
     [{ drop: 0.9 }, 'Keep your body straight'],
     [{ drop: -0.9 }, 'Keep your body straight'],
   ])('says the first failing check: %o → %s', (change, cue) => {
@@ -112,15 +90,16 @@ describe('plank', () => {
 });
 
 // Device clips with gravity (front camera), labelled from their video in clip seconds. 'plank' must
-// earn the clock; the rest must not. A sag or pike pauses (the hold stays active), kneeling breaks it.
-type Moment = 'plank' | 'sag' | 'pike' | 'kneel' | 'lying';
+// earn the clock; the rest must not. A sag or pike pauses (the hold stays active), kneeling breaks it,
+// and a slump (a sag entered straight from standing) never starts it.
+type Moment = 'plank' | 'sag' | 'pike' | 'kneel' | 'lying' | 'slump';
 const LABELS: Record<string, [Moment, from: number, to: number][]> = {
   'plank-1794160423565.sht': [
     ['plank', 7.6, 11.5],
     ['sag', 12.3, 18.9],
   ],
   'plank-1794160461086.sht': [
-    ['sag', 14, 17.9],
+    ['slump', 14, 17.9],
     ['kneel', 18.4, 26.6],
   ],
   // Facing the other way.
@@ -159,6 +138,17 @@ const LABELS: Record<string, [Moment, from: number, to: number][]> = {
     ['kneel', 12.2, 15],
     ['kneel', 15.4, 17.4],
   ],
+  // Pikes of three sizes between planks: the middle one read −0.10 in the picture, and passed as a
+  // plank while the body line was the detector's world guess.
+  'plank-1794609300000.sht': [
+    ['plank', 11.6, 13.2],
+    ['pike', 14.4, 16.4],
+    ['pike', 16.9, 18.6],
+    ['pike', 19.2, 22.8],
+    ['plank', 28.4, 30.6],
+    ['plank', 34.6, 36.4],
+    ['pike', 37, 39.9],
+  ],
   // Hips on the floor on straight arms, then sitting and lying on a side.
   'plank-1794169524975.sht': [
     ['lying', 4.5, 9.8],
@@ -174,8 +164,9 @@ describe.skipIf(labelled.some((path) => !path))('plank on device clips with grav
   /** The hold at each frame time, in ms. */
   const states = (path: string) => {
     let state = plank.initial;
-    return loadTrace(path).frames.map((frame) => {
-      state = plank.step(state, plank.measure(toPose(frame)), frame.t);
+    const { frames, header } = loadTrace(path);
+    return frames.map((frame) => {
+      state = plank.step(state, plank.measure(toPose(frame, header)), frame.t);
       return [frame.t, state] as const;
     });
   };
@@ -191,8 +182,10 @@ describe.skipIf(labelled.some((path) => !path))('plank on device clips with grav
       const { phase } = at(run, to);
       // A plank earns most of its span; anything else at most the grace before a slip counts.
       const clock = moment === 'plank' ? earned >= 0.7 * (to - from) * 1000 : earned <= 1000;
+      // A sag or a pike pauses the hold, it never breaks it.
       const paused = moment === 'sag' || moment === 'pike';
-      const ok = clock && (paused ? phase === 'active' : moment !== 'kneel' || phase === 'waiting');
+      const out = moment === 'kneel' || moment === 'slump';
+      const ok = clock && (paused ? phase === 'active' : !out || phase === 'waiting');
       return { moment, from, earned, ok };
     });
     expect(

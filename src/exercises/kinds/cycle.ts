@@ -17,6 +17,8 @@ export type CycleConfig<M, A, R extends Rep> = {
   turn?(m: M): boolean;
   /** Back at the top, the attempt ends only once this holds too. */
   top?(m: M): boolean;
+  /** The cue for a bad position at the top, between reps; null when it is good. */
+  rest?(m: M): string | null;
   fresh: A;
   add(a: A, m: M): A;
   clean?(a: A, m: M): boolean;
@@ -43,9 +45,13 @@ export type CycleState<A, R extends Rep> = Progress & {
   filter?: Smooth;
   prev?: number;
   attempt: A & Timing;
+  /** What `rest` reads at the top, and since when. */
+  resting?: { cue: string | null; since: number };
 };
 
 const TRACKING_TIMEOUT_MS = 1000;
+// A hold's grace: a position at the top is told once it has lasted this long, good or bad.
+const REST_MS = 800;
 
 /** Detector-clock boundaries and down/up durations of a completed attempt. */
 function timing(a: Timing, nowMs: number) {
@@ -90,6 +96,8 @@ export function engine<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<Cy
       filter: undefined,
       prev: undefined,
       attempt: fresh(),
+      resting: undefined,
+      told: null,
     };
   }
 
@@ -101,7 +109,22 @@ export function engine<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<Cy
       (s.phase === 'waiting' && !s.filter)
     )
       return s;
-    return { ...s, phase: 'waiting', min: hi, filter: undefined, prev: undefined };
+    return {
+      ...s,
+      phase: 'waiting',
+      min: hi,
+      filter: undefined,
+      prev: undefined,
+      resting: undefined,
+      told: null,
+    };
+  }
+
+  /** Between reps at the top: `told` follows what the position has read for REST_MS. */
+  function rest(s: State, sample: M, nowMs: number): Pick<State, 'resting' | 'told'> {
+    const cue = c.rest?.(sample) ?? null;
+    const resting = s.resting?.cue === cue ? s.resting : { cue, since: nowMs };
+    return { resting, told: nowMs - resting.since >= REST_MS ? cue : s.told };
   }
 
   /** A threshold needs two consecutive smoothed samples beyond it. */
@@ -135,25 +158,31 @@ export function engine<M, A, R extends Rep>(c: CycleConfig<M, A, R>): Counter<Cy
     };
     const min = Math.min(s.min, low);
     if (high >= up && (c.top?.(sample) ?? true)) {
-      const done: State = { ...s, phase: 'up', min: hi, attempt: fresh(nowMs) };
+      const done: State = { ...s, phase: 'up', min: hi, attempt: fresh(nowMs), resting: undefined };
       const turned = s.phase === 'down';
       if (turned || (min < shallow && (c.tried?.(attempt, sample) ?? true))) {
         const counted = turned && (c.clean?.(attempt, sample) ?? true);
+        const lastRep = c.report(attempt, sample, {
+          counted,
+          depth: mirror(min),
+          ...timing(attempt, nowMs),
+        });
+        const cue = c.rest?.(sample) ?? null;
         return {
           ...done,
+          // A failed rep's first cue is said; the same position at the top is not told again.
+          told: cue === null || (!counted && lastRep.cues[0] === cue) ? cue : s.told,
           reps: s.reps + Number(counted),
           noReps: s.noReps + Number(!counted),
-          lastRep: c.report(attempt, sample, {
-            counted,
-            depth: mirror(min),
-            ...timing(attempt, nowMs),
-          }),
+          lastRep,
         };
       }
-      return { ...s, min: hi, attempt: fresh(nowMs) };
+      return { ...s, min: hi, attempt: fresh(nowMs), ...rest(s, sample, nowMs) };
     }
-    if (low <= down && (c.turn?.(sample) ?? true)) return { ...s, phase: 'down', min, attempt };
-    return { ...s, min, attempt };
+    // Moving: what the top read before no longer counts towards REST_MS.
+    if (low <= down && (c.turn?.(sample) ?? true))
+      return { ...s, phase: 'down', min, attempt, resting: undefined };
+    return { ...s, min, attempt, resting: undefined };
   }
 
   return {
@@ -228,6 +257,7 @@ export function cycle<P extends { side: Side }>(
     tried: (a, s) => placed(s) && past(a.also, 'shallow'),
     top: home,
     clean: (a, s) => a.cue === null && placed(s),
+    rest: (s) => p.setup(s.at) ?? p.form(s.at),
     fresh: { cue: null, also: Infinity },
     add: (a, s) => ({ cue: a.cue ?? p.form(s.at), also: Math.min(a.also, s.also) }),
     report: (a, s, r) => {

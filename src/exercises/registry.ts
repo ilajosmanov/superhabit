@@ -38,17 +38,17 @@ export type ExerciseId = keyof List;
 /** Hand-bump when an exercise's counting rules change. */
 export const COUNTER_VERSIONS = {
   squat: '1.1.0',
-  pushup: '1.0.0',
-  plank: '1.0.0',
+  pushup: '1.1.0',
+  plank: '1.1.0',
   situp: '1.0.0',
-  'glute-bridge': '1.0.0',
+  'glute-bridge': '1.1.0',
   'jumping-jack': '1.1.0',
   lunge: '1.0.0',
   'side-squat': '1.1.0',
   'wall-sit': '1.0.0',
   'side-plank': '1.0.0',
   'leg-raise': '1.0.0',
-  burpee: '1.0.0',
+  burpee: '1.1.0',
 } satisfies Record<ExerciseId, `${number}.${number}.${number}`>;
 
 /** Each exercise's counter state and sample, by id. */

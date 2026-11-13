@@ -144,13 +144,32 @@ describe('pushup.step', () => {
   });
 });
 
-// Device clips with gravity, and what the phone counted, except pushup-1794163715160: 7, from its
-// video, where the phone said 0 under a broken hip rule. pushup-1794164288747 counts 5 of 6, as the
-// phone did: two reps behind a table leg read 111–119° and the 4th bottomed at 101°, just above `down`.
+// Device clips with gravity, the newest three checked against their video. The phone counted fewer in
+// most: it read the elbow from the world landmarks then.
+// pushup-1794163715160: 7, from its video. pushup-1794164288747: 8, two of them behind a table leg.
+// pushup-1794169596587: 5, as the phone counted.
+// pushup-1794607860000: all 13 in its video, under long shorts that hide the knees; its press with
+// the hips and knees down is not counted.
+// pushup-1794609240000: its 9 clean ones and one lowered from the knees, none of its other cheats
+// (lying at the bottom, a leg up, a knee push-up, from a sag).
+// pushup-1794611100000: all 8 deep ones, two with the elbows wide; its two half reps read 110° and
+// are refused.
+// Other setups, each with its deep reps counted and its half reps (95–105°) refused:
+// pushup-1794612060000 the phone upright, pushup-1794612120000 leaning as usual (its first two reps
+// 0.6 s apart, the arms reaching 148° between them), pushup-1794612180000 the body turned about 35°
+// to the lens.
+// pushup-1794614760000: two, then three 0.8 s apart, a pike held 4 s, a knee push-up (refused), one more.
 const REPS = {
   'pushup-1794163715160.sht': 7,
-  'pushup-1794164288747.sht': 5,
+  'pushup-1794164288747.sht': 8,
   'pushup-1794169596587.sht': 5,
+  'pushup-1794607860000.sht': 13,
+  'pushup-1794609240000.sht': 10,
+  'pushup-1794611100000.sht': 8,
+  'pushup-1794612060000.sht': 4,
+  'pushup-1794612120000.sht': 4,
+  'pushup-1794612180000.sht': 2,
+  'pushup-1794614760000.sht': 6,
 };
 const device = traceFiles('device').filter((path) => path.includes('/pushup-'));
 describe.skipIf(device.length === 0)('pushup on device traces', () => {

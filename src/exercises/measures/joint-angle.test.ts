@@ -17,6 +17,13 @@ describe('jointAngle', () => {
     expect(elbow.read(plank({ elbow: 170, visible: 'right' }), 'right')?.value).toBeCloseTo(170);
   });
 
+  it('reads the bend the camera saw when asked for the picture, whatever the world guess says', () => {
+    const pose = plank({ elbow: 80 });
+    pose.worldLandmarks[Joint.LEFT_ELBOW].z += 0.3;
+    expect(elbow.read(pose, 'left')?.value).not.toBeCloseTo(80, 0);
+    expect(jointAngle('elbow', 'picture').read(pose, 'left')?.value).toBeCloseTo(80);
+  });
+
   it('reads the knee: 180 standing straight, 180 − thigh − shin when bent', () => {
     expect(knee.read(body({}), 'right')).toEqual({
       value: expect.closeTo(180),

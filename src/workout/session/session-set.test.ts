@@ -227,6 +227,40 @@ describe('workoutSession inside a set: frames, reps, pause, coaching, framing, c
     actor.stop();
   });
 
+  it('says the cue once when a bad position is held between reps, without a failed rep', () => {
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: plan({ exercise: 'pushup', goal: MAX }) },
+    }).start();
+    hold(1000, plank({ elbow: 170 }));
+    hold(500, plank({ elbow: 170, kneeling: true })); // Passing through it says nothing.
+    hold(1000, plank({ elbow: 170 }));
+    expect(spoken()).toEqual(['Go']);
+    hold(3000, plank({ elbow: 170, kneeling: true }));
+    hold(1500, plank({ elbow: 170 }));
+    expect(spoken()).toEqual(['Go', 'Knees off the floor']);
+    expect(sessionView(actor.getSnapshot())).toMatchObject({ reps: 0, attempts: [] });
+    expect(actor.getSnapshot().context.pushup.noReps).toBe(0);
+    actor.stop();
+  });
+
+  it('says a failed rep cue once while that position is held, and again after a pause', () => {
+    const actor = createActor(workoutSession, {
+      input: { ...LOG, challenge: plan({ exercise: 'pushup', goal: MAX }) },
+    }).start();
+    hold(1000, plank({ elbow: 170 }));
+    hold(600, plank({ elbow: 80, kneeling: true })); // a push-up on the knees
+    hold(2000, plank({ elbow: 170, kneeling: true }));
+    expect(spoken()).toEqual(['Go', 'Knees off the floor']);
+    expect(actor.getSnapshot().context.pushup.noReps).toBe(1);
+    actor.send({ type: 'pause' });
+    actor.send({ type: 'resume' });
+    hold(300, plank({ elbow: 170 })); // back up only briefly
+    hold(2000, plank({ elbow: 170, kneeling: true }));
+    expect(spoken()).toEqual(['Go', 'Knees off the floor', 'Knees off the floor']);
+    expect(actor.getSnapshot().context.pushup.noReps).toBe(1);
+    actor.stop();
+  });
+
   it('captions every phrase but speaks none while muted', () => {
     vi.useFakeTimers({ now: NOW });
     const actor = createActor(workoutSession, { input: { ...LOG, challenge: squatTest } }).start();

@@ -18,8 +18,10 @@ Three consecutive detection exceptions on GPU recreate the detector on CPU once.
 exceptions on CPU, failed CPU creation, unsupported frames or missing gravity sensors call `onFailed`
 once and stop detection. A successful detection resets the failure count.
 Image landmarks carry `presence` when MediaPipe fills it; world landmarks never do.
-The detector keeps a track only while its presence score is 0.7 or more (MediaPipe's default is 0.5):
-under that it searches for the person again, instead of following a track that went wrong.
+A track that went wrong (an arm over the lens, then a step back) shows as a body standing on its
+head, and MediaPipe follows it for seconds. Three such frames in a row, judged by gravity, restart the
+search. A higher presence limit did the same job but dropped a deep pike on the phone, so that stays
+at MediaPipe's 0.5.
 Each frame is turned upright before MediaPipe sees it: given the sensor's sideways frame with a rotation
 option it loses a standing person far more often, worst on the back camera.
 

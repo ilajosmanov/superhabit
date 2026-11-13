@@ -131,6 +131,13 @@ const device = traceFiles('device').filter((path) => path.includes('/squat-'));
 // Plank and push-up clips with gravity: knees bend there (kneeling), but no squat is done. A dip while
 // standing at a clip's edge may still read as a failed rep.
 const floor = traceFiles('device').filter((path) => /\/(plank|pushup)-/.test(path));
+// Only while the set counts: getting down to the floor before it can read as a squat (off the video:
+// plank-1794614940000 at 4 s, pushup-1794614760000 at 12 s).
+const whileCounting = (path: string) => {
+  const trace = loadTrace(path);
+  const stretches = trace.header.stretches?.filter((stretch) => stretch.kind === 'counting');
+  return { ...trace, header: { ...trace.header, stretches } };
+};
 describe.skipIf(device.length === 0)('squat on device clips with gravity', () => {
   // Squat and side squat share one counter: testing one tests both.
   it('counts every rep on the video', () => {
@@ -142,7 +149,7 @@ describe.skipIf(device.length === 0)('squat on device clips with gravity', () =>
   });
 
   it('counts nothing on plank and push-up clips', () => {
-    const reps = floor.map((path) => replay(squat, loadTrace(path)).reps);
+    const reps = floor.map((path) => replay(squat, whileCounting(path)).reps);
     expect(reps.filter((n) => n > 0)).toEqual([]);
   });
 });

@@ -6,12 +6,12 @@ import type { Vec } from '@/exercises/body/geometry';
 import { measurePlank, plankPosition } from './plank';
 
 describe('measurePlank', () => {
-  it('reads heights above the wrists along gravity, in forearm lengths', () => {
+  it('reads the hips above the wrists along gravity, and a straight body and leg in the picture', () => {
     // Fixture: shoulders 0.58 m up, hips halfway to the ankles, knees halfway again; forearm 0.28 m.
     const sample = measurePlank(pose({}));
     assert(sample);
     expect(sample.hip).toBeCloseTo(0.29 / 0.28, 1);
-    expect(sample.knee).toBeCloseTo(0.145 / 0.28, 1);
+    expect(sample.knee).toBeCloseTo(0);
     expect(sample.drop).toBeCloseTo(0);
     expect(sample.rise).toBeCloseTo(22.6, 0);
     expect(sample.reach).toBeGreaterThanOrEqual(50);
@@ -19,10 +19,19 @@ describe('measurePlank', () => {
   });
 
   it('reads a sag as the hip below the body line, and a pike above it', () => {
-    expect(measurePlank(pose({ sag: 40 }))?.drop).toBeGreaterThan(0.4);
+    // In the picture, as a share of the shoulder–ankle line: a 40° bend puts the hip 0.18 off it.
+    expect(measurePlank(pose({ sag: 40 }))?.drop).toBeCloseTo(0.18, 2);
     const piked = pose({});
-    for (const hip of [Joint.LEFT_HIP, Joint.RIGHT_HIP]) piked.worldLandmarks[hip].y -= 0.3;
-    expect(measurePlank(piked)?.drop).toBeLessThan(-0.6);
+    for (const hip of [Joint.LEFT_HIP, Joint.RIGHT_HIP]) piked.landmarks[hip].y -= 0.12;
+    expect(measurePlank(piked)?.drop).toBeLessThan(-0.15);
+  });
+
+  it('reads nothing when the body is turned far from side-on', () => {
+    // Turned 60° to the lens: the picture's line shortens to half and a bend reads twice as big.
+    const turned = pose({});
+    for (const p of turned.worldLandmarks) [p.x, p.z] = [p.x * 0.5, p.z + p.x * 0.87];
+    for (const p of turned.landmarks) p.x = 0.2 + (p.x - 0.2) * 0.5;
+    expect(measurePlank(turned)).toBeNull();
   });
 
   it('reads nothing without gravity: shape alone is the same turned on end', () => {
@@ -49,10 +58,10 @@ describe('measurePlank', () => {
 
   it('reads the far knee down on the floor only when it is clearly seen', () => {
     const body = pose({});
-    body.worldLandmarks[Joint.RIGHT_KNEE].y = 0;
-    expect(measurePlank(body)?.knee).toBeCloseTo(0.145 / 0.28, 1);
-    body.landmarks[Joint.RIGHT_KNEE].visibility = 0.7;
+    body.landmarks[Joint.RIGHT_KNEE].y = 0.8; // the floor in the fixture's picture
     expect(measurePlank(body)?.knee).toBeCloseTo(0);
+    body.landmarks[Joint.RIGHT_KNEE].visibility = 0.7;
+    expect(measurePlank(body)?.knee).toBeGreaterThan(0.13);
   });
 
   it('prefers the clear far side over a barely visible near ankle', () => {
@@ -122,7 +131,7 @@ describe('plankPosition.setup', () => {
   it('tells lying (hips down, body straight) from a sag (hips down, bent)', () => {
     const lying = measurePlank(pose({}));
     assert(lying);
-    expect(plankPosition.setup({ ...lying, hip: 0.2, drop: 0.2 })).toBe('Get into a plank');
-    expect(plankPosition.setup({ ...lying, hip: 0.2, drop: 0.9 })).toBeNull();
+    expect(plankPosition.setup({ ...lying, hip: 0.2, drop: 0.05 })).toBe('Get into a plank');
+    expect(plankPosition.setup({ ...lying, hip: 0.2, drop: 0.2 })).toBeNull();
   });
 });

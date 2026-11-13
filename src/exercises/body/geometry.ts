@@ -7,7 +7,8 @@ import { Joint, SIDE } from 'reprepgo-pose/joints';
  * joint is really in view), `worldLandmarks` in metres (for angles). Index both with `Joint`.
  * `down` is gravity in the world axes, when the phone gave it; recorded clips mostly lack it.
  */
-export type Pose = Pick<PoseDetection, 'landmarks' | 'worldLandmarks' | 'down'>;
+export type Pose = Pick<PoseDetection, 'landmarks' | 'worldLandmarks' | 'down'> &
+  Partial<Pick<PoseDetection, 'frameWidth' | 'frameHeight'>>;
 
 /** MediaPipe indices [a, vertex, c] of a measured angle. */
 export type Joints = readonly [number, number, number];
@@ -42,6 +43,17 @@ export const angle = (a: Vec, b: Vec, c: Vec) => between(sub(a, b), sub(c, b));
 const DOWN: Vec = { x: 0, y: 1, z: 0 };
 /** How far a downward vector (a hip minus a shoulder) tilts from vertical, degrees. */
 export const tilt = (v: Vec) => between(v, DOWN);
+
+/**
+ * Joint `i` as the camera saw it, in frame heights on both axes, so a shape keeps its proportions.
+ * A bend read here is the one drawn on the skeleton: the detector's world guess of the same bend
+ * shifts from clip to clip with how the body is turned. Null without the frame's size.
+ */
+export const pictured = (pose: Pose, i: number): Vec | null => {
+  const point = pose.landmarks[i];
+  if (!point || !pose.frameWidth || !pose.frameHeight) return null;
+  return { x: (point.x * pose.frameWidth) / pose.frameHeight, y: point.y, z: 0 };
+};
 
 /** The phone's gravity, unit length, or null when it gave none or a broken one. */
 export const gravity = ({ down }: Pose): Vec | null =>

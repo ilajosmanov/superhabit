@@ -14,9 +14,13 @@ on that side too. When the position's side can't be measured, the kind tries the
 
 | Measure          | Reads                                                  | Example                                       |
 | ---------------- | ------------------------------------------------------ | --------------------------------------------- |
-| `joint-angle.ts` | the angle at the elbow, knee, hip or shoulder          | push-up (elbow), jumping jack (shoulder)      |
+| `joint-angle.ts` | the angle at the elbow, knee, hip or shoulder          | push-up (elbow), glute bridge (hip)           |
 | `elevation.ts`   | how far a segment rises over level by gravity, degrees | squat's thighs, sit-up's torso, bridge's hips |
 | `spread.ts`      | the feet apart, forward or sideways, in leg lengths    | lunge's stride, jumping jack's legs           |
+
+`jointAngle(bend, 'picture')` reads the angle as the camera saw it instead of from the world landmarks:
+for a limb that bends side-on to the lens (a push-up's elbow, a bridge's hip line), where the world
+guess of the same bend read 65–115° at the floor, clip to clip.
 
 `bothSides(measure, gap, read)` (in `measure.ts`) reads both limbs when both are seen: `read` is
 `'higher'` (the default) or `'lower'`. It returns the chosen value, or

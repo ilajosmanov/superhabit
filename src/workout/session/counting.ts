@@ -122,6 +122,7 @@ export function countFrame(c: Counting, result: PoseDetection) {
     (!done(goal, next) ? repPhrase(prev, next, rep?.cues) : null) ??
     (started(c) ? null : startPhrase(prev.phase, next.phase));
   if (text) say.push(text);
+  else if (next.told && next.told !== prev.told) say.push(next.told);
 
   const parts = next.phase === 'waiting' ? outOfFrame(result.landmarks, EXERCISES[id].parts) : null;
   const framing = settle(c, parts, t);

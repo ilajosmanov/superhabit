@@ -30,6 +30,8 @@ export type Progress = {
   /** Hold only: a break past the grace since the last entry or reset. */
   broken: boolean;
   lastRep: Rep | null;
+  /** Cycle only: the cue for a bad position held at the top between reps; said when it changes. */
+  told?: string | null;
 };
 
 /** A kind filled in with an exercise's rules. Pure; never mutates `s`. */

@@ -89,8 +89,15 @@ export const plank = ({
       const [x, y] = joints[j];
       const visibility = seen ? 0.9 : 0.1;
       world[i] = { x, y, z, visibility };
-      image[i] = { x: 0.2 + x * 0.5, y: 0.8 + y * 0.4, z: 0, visibility };
+      // The same scale on both axes of the 4:3 frame, so the picture shows the body's true shape.
+      image[i] = { x: 0.2 + x * 0.3, y: 0.8 + y * 0.4, z: 0, visibility };
     });
   // World y is down, so the phone's gravity is too.
-  return { landmarks: image, worldLandmarks: world, down: { x: 0, y: 1, z: 0 } };
+  return {
+    landmarks: image,
+    worldLandmarks: world,
+    down: { x: 0, y: 1, z: 0 },
+    frameWidth: 640,
+    frameHeight: 480,
+  };
 };

@@ -48,18 +48,26 @@ export const onBack = (shape: Body, hands: 'head' | 'floor' = 'head'): Pose => {
     const s = world[shoulder];
     world[wrist] = hands === 'head' ? { ...s, y: 1.3 * s.y, z: 1.3 * s.z } : { ...world[hip] };
   }
-  return { ...pose, down: { x: 0, y: 0, z: 1 } };
+  // Side-on, the camera sees the body's length across the frame and its depth down it, at one scale.
+  const landmarks = world.map(({ y, z, visibility }) => ({
+    x: 0.5 + y * 0.3,
+    y: 0.5 + z * 0.4,
+    z: 0,
+    visibility,
+  }));
+  return { ...pose, landmarks, down: { x: 0, y: 0, z: 1 }, frameWidth: 640, frameHeight: 480 };
 };
 
 /** `pose` as the detector reports it at `timestampMs`, with plausible camera and timing fields. */
 export const detection = (pose: Pose, timestampMs: number): PoseDetection => ({
+  // A floor pose brings its own landscape frame.
+  frameWidth: 480,
+  frameHeight: 640,
   ...pose,
   timestampMs,
   cameraLandmarks: [],
   brightness: 120,
   inferenceMs: 25,
-  frameWidth: 480,
-  frameHeight: 640,
   rotation: 90,
   delegate: 'gpu',
 });

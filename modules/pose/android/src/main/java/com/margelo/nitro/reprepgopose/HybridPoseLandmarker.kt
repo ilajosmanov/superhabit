@@ -19,6 +19,7 @@ import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
+import com.google.mediapipe.tasks.components.containers.Landmark
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import com.margelo.nitro.NitroModules
 import com.margelo.nitro.camera.HybridFrameSpec
@@ -51,16 +52,35 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
       // VIDEO mode tracks the body between frames (smoother, fewer jumps) and stays synchronous.
       .setRunningMode(RunningMode.VIDEO)
       .setNumPoses(1)
-      // While it tracks, MediaPipe looks for the person again only when this score drops under the
-      // limit. At its default 0.5 a track that went wrong (an arm over the lens, then a step back)
-      // survived for seconds as an upside-down skeleton. Replaying a device video: 0.7 cut those
-      // frames from 149 to 23 and lost none of the real ones; 0.8 began losing a body close to the lens.
-      .setMinPosePresenceConfidence(0.7f)
+      // The presence limit stays at MediaPipe's 0.5: at 0.7 the phone dropped a deep pike (hips high,
+      // head down) for 5 s of a set, searching again on every frame. `onItsHead` handles the track
+      // that 0.7 was for.
       .build()
     return PoseLandmarker.createFromOptions(context, options)
   }
 
   private var lastRotation = -1
+
+  /**
+   * By gravity, the ankles 0.2 m over the hips and the nose 0.2 m under them: a body standing on its
+   * head. No exercise does, but a track that went wrong does (an arm over the lens, then a step
+   * back), and MediaPipe follows it for seconds. Replaying a device video, restarting the search
+   * after three such frames cut the wrong frames from 149 to 32 and never fired on push-ups, planks
+   * or pikes.
+   */
+  private fun onItsHead(
+    world: List<Landmark>,
+    down: PoseVector?
+  ): Boolean {
+    if (down == null || world.size < 29) return false
+
+    fun drop(i: Int) = world[i].x() * down.x + world[i].y() * down.y + world[i].z() * down.z
+    val hips = (drop(23) + drop(24)) / 2
+    return (drop(27) + drop(28)) / 2 - hips < -0.2 && drop(0) - hips > 0.2
+  }
+
+  private var headDownFrames = 0
+  private var searchedAfresh = false
 
   /** A normalized point of the upright picture, back in the sensor's buffer that needs `degrees` clockwise to be upright. */
   private fun inBuffer(
@@ -227,6 +247,24 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
       detectFailures = 0
       val pose = detected.landmarks().firstOrNull()
       val world = detected.worldLandmarks().firstOrNull()
+      val down = down(front)
+      if (world == null || !onItsHead(world, down)) {
+        headDownFrames = 0
+        // A body seen the right way up ends the episode; no body at all does not.
+        if (world != null) searchedAfresh = false
+      } else if (!searchedAfresh && ++headDownFrames >= HEAD_DOWN_FRAMES) {
+        // Once per episode: a fresh search that finds the same body is believed.
+        searchedAfresh = true
+        headDownFrames = 0
+        Log.i(TAG, "body on its head, searching afresh")
+        landmarker = null
+        try {
+          detector.close()
+          landmarker = create(delegate)
+        } catch (e: Exception) {
+          return reportFailure(e.message ?: e.javaClass.simpleName)
+        }
+      }
 
       // NormalizedLandmark and Landmark share no supertype, so both map through their fields.
       fun landmark(
@@ -274,7 +312,7 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
           timestampMs = ts.toDouble(),
           landmarks = landmarks,
           worldLandmarks = worldLandmarks,
-          down = down(front).also { lastDown = it },
+          down = down.also { lastDown = it },
           cameraLandmarks = cameraLandmarks,
           brightness = brightness,
           inferenceMs = inferenceNs / 1e6,
@@ -398,5 +436,6 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
     private const val TAG = "PoseLandmarker"
     private const val GRID = 32
     private const val MAX_DETECT_FAILURES = 3
+    private const val HEAD_DOWN_FRAMES = 3
   }
 }

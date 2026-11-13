@@ -73,7 +73,7 @@ describe('workoutSession filming', () => {
     actor.send({ type: 'next' });
     play(plank({ elbow: 170 }));
     await flush();
-    play(plank({ elbow: 95 }), plank({ elbow: 170 }));
+    play(plank({ elbow: 80 }), plank({ elbow: 170 }));
     expect(view()).toMatchObject({ stage: 'finished', final: false }); // files not final yet
     expect([...files].filter((file) => file.endsWith('.mp4')).length).toBe(2);
     await flush();
@@ -107,7 +107,7 @@ describe('workoutSession filming', () => {
     actor.send({ type: 'next' });
     play(plank({ elbow: 170 }));
     await flush();
-    play(plank({ elbow: 95 }), plank({ elbow: 170 }));
+    play(plank({ elbow: 80 }), plank({ elbow: 170 }));
     await flush();
     expect(view().results[1].takes).toHaveLength(1);
     actor.stop();

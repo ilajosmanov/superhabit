@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 import { credible, type Pose } from '@/exercises/body/geometry';
 import type { Progress } from '@/exercises/kinds/progress';
+import type { Placement } from '@/exercises/exercise';
+import { EXERCISES, orientation } from '@/exercises/registry';
 import {
   decodeTrace,
   type RecordedFrame,
@@ -20,12 +22,23 @@ type ReplayExercise<S extends Progress, M> = {
   measure(pose: Pose): M | null;
 };
 
-/** A recorded frame's dots as the counters read them. */
-export function toPose(frame: TraceFrame): Pose {
+type Filmed = Partial<Pick<TraceHeader, 'camera' | 'exercise'>>;
+
+/**
+ * A recorded frame's dots as the counters read them. Clips from before the camera was noted lack the
+ * frame's size: the phone stood the way their exercise asks, so 480×640 upright, 640×480 on its
+ * long edge.
+ */
+export function toPose(frame: TraceFrame, filmed?: Filmed): Pose {
   const landmark = ([x, y, z, visibility]: TracePoint) => ({ x, y, z, visibility });
+  const placements: Partial<Record<string, { placement: Placement }>> = EXERCISES;
+  const placement = placements[filmed?.exercise ?? '']?.placement;
+  const upright = placement !== undefined && orientation(placement) === 'portrait';
   return {
     landmarks: frame.landmarks.map(landmark),
     worldLandmarks: frame.world.map(landmark),
+    frameWidth: filmed?.camera?.width ?? (upright ? 480 : 640),
+    frameHeight: filmed?.camera?.height ?? (upright ? 640 : 480),
     ...(frame.down && { down: { x: frame.down[0], y: frame.down[1], z: frame.down[2] } }),
   };
 }
@@ -63,7 +76,7 @@ export function loadTrace(path: string) {
 
 type ReplayTrace = {
   frames: readonly (TraceFrame & Partial<Pick<RecordedFrame, 'waiting'>>)[];
-  header?: Pick<TraceHeader, 'stretches'>;
+  header?: Pick<TraceHeader, 'stretches'> & Filmed;
 };
 
 /** The same frame walk drives both totals and the clip suite's rep timestamps. */
@@ -91,7 +104,7 @@ function* replaySteps<S extends Progress, M>(ex: ReplayExercise<S, M>, trace: Re
     }
     const previous = state;
     // As the session does: dots that can't be a body are no body (older clips still hold them).
-    const pose = toPose(frame);
+    const pose = toPose(frame, trace.header);
     state = ex.step(state, credible(pose) ? ex.measure(pose) : null, frame.t);
     yield { frame, previous, state };
   }

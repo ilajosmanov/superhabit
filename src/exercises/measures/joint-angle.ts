@@ -1,6 +1,6 @@
 import { SIDE } from 'reprepgo-pose/joints';
 
-import { angle, seen, STRAIGHT, type Joints } from '@/exercises/body/geometry';
+import { angle, pictured, seen, STRAIGHT, type Joints } from '@/exercises/body/geometry';
 import type { Measure } from './measure';
 
 /** Each joint that bends, between its two neighbours, and the body parts those sit in. */
@@ -14,8 +14,12 @@ const BENDS = {
 
 export type Bend = keyof typeof BENDS;
 
-/** The angle at a joint, in degrees, in world space: 180 = straight. */
-export function jointAngle(bend: Bend): Measure {
+/**
+ * The angle at a joint, in degrees: 180 = straight. In world space, or as the camera saw it
+ * (`'picture'`): right for a limb bending side-on to the lens, where the world guess of the same
+ * bend shifts with how the body is turned.
+ */
+export function jointAngle(bend: Bend, space: 'world' | 'picture' = 'world'): Measure {
   const { ends, parts } = BENDS[bend];
   return {
     parts,
@@ -24,8 +28,10 @@ export function jointAngle(bend: Bend): Measure {
       const j = SIDE[side];
       const joints: Joints = [j[ends[0]], j[ends[1]], j[ends[2]]];
       if (!joints.every((i) => seen(pose, i))) return null;
-      const [a, b, c] = joints.map((i) => pose.worldLandmarks[i]);
-      const value = angle(a, b, c);
+      const [a, b, c] = joints.map((i) =>
+        space === 'picture' ? pictured(pose, i) : pose.worldLandmarks[i],
+      );
+      const value = a && b && c ? angle(a, b, c) : NaN;
       return Number.isFinite(value) ? { value, joints } : null;
     },
   };
