@@ -91,7 +91,7 @@ export function AmountInput({
             // One line's height (text-9xl × leading-none), pinned, so a larger system font would clip: empty,
             // Android measures by the font's taller metrics and the field would grow.
             maxFontSizeMultiplier={1}
-            className="-ml-1.5 h-32 flex-1 p-0 font-sans text-9xl font-extralight leading-none tracking-tighter text-chalk"
+            className="-ml-1.5 h-32 flex-1 p-0 font-sans text-9xl font-extralight leading-none tracking-tighter text-chalk ios:h-37 ios:leading-[1.15]"
           />
           <View className="items-end gap-1 pb-4">
             {labels.map((words) => (

@@ -147,7 +147,7 @@ export function YourPlace({
         <View accessible className="flex-row items-end gap-4">
           <Text
             maxFontSizeMultiplier={1}
-            className="font-sans text-9xl font-thin leading-none tracking-tighter"
+            className="font-sans text-9xl font-thin leading-none tracking-tighter ios:leading-[1.15]"
             style={{ color: counted ? colors.chalk : colors.faint }}
           >
             {counted ? you.rank : 0}

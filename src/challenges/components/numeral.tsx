@@ -29,7 +29,7 @@ export function Numeral({
         <Text
           // Already giant: a larger system font would only push it off the screen.
           maxFontSizeMultiplier={1}
-          className="font-sans text-9xl font-extralight leading-none tracking-tighter"
+          className="font-sans text-9xl font-extralight leading-none tracking-tighter ios:leading-[1.15]"
           style={{ color: met ? colors.mark : colors.chalk }}
         >
           {n}

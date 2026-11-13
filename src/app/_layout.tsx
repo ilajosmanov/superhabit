@@ -59,6 +59,8 @@ function RootLayout() {
     headerTintColor: colors.chalk,
     headerStyle: { backgroundColor: colors.ground },
     headerShadowVisible: false,
+    // iOS: the chevron alone, not the previous route's name ("(tabs)").
+    headerBackButtonDisplayMode: 'minimal',
   } as const;
   return (
     // Gesture handler's gestures (the day strip's drag) only run under this root.
