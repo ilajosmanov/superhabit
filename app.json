@@ -123,6 +123,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a6015c0c-7058-4747-9e95-59a6bbc0693b"
+      }
+    },
+    "owner": "ilajosmanov"
   }
 }
