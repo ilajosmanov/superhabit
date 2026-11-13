@@ -54,7 +54,7 @@ location, and approximate.
   same file.
 - `DELETE /account`: signs every phone out at once; the same Google account comes back as a new user.
 - `GET /`: the home page (`account/home-page.tsx`) Google's sign-in branding asks for: what the app does,
-  why it signs people in, links to `/privacy` and `/delete`.
+  why it signs people in, links to `/privacy`.
 - `GET /privacy`: the privacy policy (`account/privacy-page.tsx`), plain HTML like `/delete`; its version
   is the app's `POLICY_VERSION` (`src/account/consent.ts`), which consents are given against.
 - `GET /delete`: the same deletion from a browser (Google Play asks for one), rendered on the server

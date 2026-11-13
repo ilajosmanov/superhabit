@@ -29,7 +29,7 @@ export function HomePage() {
             account and follow you to a new phone.
           </p>
           <p>
-            <a href="/privacy">Privacy policy</a> · <a href="/delete">Delete your account</a>
+            <a href="/privacy">Privacy policy</a>
           </p>
         </main>
       </body>
