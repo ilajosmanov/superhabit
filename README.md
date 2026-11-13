@@ -109,6 +109,16 @@ Sign-in with Google needs two OAuth clients in one Google Cloud project:
 
 The counters are tested against real recorded sets in `src/exercises/__fixtures__/traces/`. That folder is git-ignored (the clips' licences vary), and without it those tests skip and the suite still shows green. Ask the owner for the folder and copy it in before trusting a green run of a counter change.
 
-## Handing out a build
+## Two apps: dev and store
 
-`vp run android:release` makes the APK. Before each build you hand out, raise `version` in `app.json` and set a higher `android.versionCode`, then prebuild: every workout is stamped with the app version, which is how a report is tied to a build. Release builds are signed with the debug keystore for now; moving to a real key later means everyone uninstalls first, which deletes the videos on their phone.
+`app.config.ts` builds two apps that install side by side. By default every build is **RepRepGo Dev** (`app.reprepgo.dev`, cyan icon, debug key, no Sentry): `vp run android` and `vp run android:release` never touch the store app. `APP_VARIANT=production` builds **RepRepGo** (`app.reprepgo`, amber icon, reports to Sentry; built by EAS). Both use the production server and the same `reprepgo://` link scheme, so open a deep link with `adb shell am start -p app.reprepgo.dev ...`.
+
+## Publishing to Google Play
+
+```bash
+eas build --platform android --profile production
+```
+
+EAS Build (`eas.json`) builds the store app's `.aab` from a clean prebuild, signs it with the upload key it keeps on Expo's servers (`eas credentials` to back it up) and raises `versionCode` itself. Raise `version` in `app.json` for a release people should tell apart: every workout is stamped with it. Sentry's source-map upload needs `SENTRY_AUTH_TOKEN` as an EAS environment variable.
+
+Google sign-in needs one Android OAuth client per package and signing key: `app.reprepgo.dev` with the debug key's SHA-1, and `app.reprepgo` with the SHA-1 Play Console shows under App signing.

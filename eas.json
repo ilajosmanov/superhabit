@@ -1,0 +1,9 @@
+{
+  "build": {
+    "production": {
+      "env": { "APP_VARIANT": "production" },
+      "autoIncrement": true
+    }
+  },
+  "cli": { "appVersionSource": "remote" }
+}
