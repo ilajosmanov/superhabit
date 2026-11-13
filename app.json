@@ -2,7 +2,7 @@
   "expo": {
     "name": "RepRepGo",
     "slug": "reprepgo",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "reprepgo",
@@ -16,7 +16,6 @@
       "bundleIdentifier": "app.reprepgo"
     },
     "android": {
-      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#0d0e0b",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
