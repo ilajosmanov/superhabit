@@ -137,3 +137,8 @@ it('says slipped after missing the training day following scheduled recovery', (
   expect(result).toMatchObject({ current: 0, best: 1, status: 'slipped' });
   expect([result.kind(ago(2)), result.kind(ago(1))]).toEqual(['rest', 'missed']);
 });
+
+it('does not say slipped when the streak broke before the recovery day', () => {
+  // Trained, missed (broken), rest, missed yesterday: nothing was left to slip.
+  expect(streak([ago(4)], TODAY, false, [ago(2)])).toMatchObject({ current: 0, status: 'start' });
+});

@@ -67,6 +67,7 @@ export function streak(
   let held = 0;
   // Alive days since the last break, frozen day or earned freeze.
   let count = 0;
+  let slipped = false;
 
   // A day after today (the phone's clock went back) waits until it comes.
   const first = [...done].filter((day) => day <= today).sort()[0];
@@ -95,6 +96,8 @@ export function streak(
       record('used', day);
     } else {
       kinds.set(day, 'missed');
+      // Rest bridges a streak of 0 too, so only the count says whether yesterday broke one.
+      if (day === addDays(today, -1)) slipped = current > 0;
       current = 0;
       count = 0;
     }
@@ -105,7 +108,6 @@ export function streak(
     day > today
       ? 'future'
       : (kinds.get(day) ?? (recovery.has(day) ? 'rest' : day === today ? 'open' : 'before'));
-  const kept = (day: Day) => ['alive', 'frozen', 'rest'].includes(kind(day));
   const status =
     kind(today) === 'alive'
       ? 'done'
@@ -113,7 +115,7 @@ export function streak(
         ? 'rest'
         : current > 0
           ? 'atRisk'
-          : kind(addDays(today, -1)) === 'missed' && kept(addDays(today, -2))
+          : slipped
             ? 'slipped'
             : 'start';
   return {
