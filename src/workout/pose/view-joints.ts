@@ -3,10 +3,11 @@ import type { CameraRef } from 'react-native-vision-camera';
 import type { PoseDetection } from 'reprepgo-pose';
 
 import { JOINTS } from './skeleton';
-import { MIN_VISIBILITY } from '@/exercises/body/geometry';
+import { inFrame } from '@/exercises/body/geometry';
 
 /**
- * 33 entries in MediaPipe order, view coordinates; null where not visible enough or not finite.
+ * 33 entries in MediaPipe order, view coordinates; null where the counters wouldn't trust the joint
+ * either (not visible enough, or guessed outside the picture: those leap about) or it is not finite.
  * The native transform includes the preview's cover scaling and, on the front camera, its mirroring.
  */
 export function toViewJoints(
@@ -20,7 +21,7 @@ export function toViewJoints(
   try {
     return Array.from({ length: JOINTS }, (_, i) => {
       const point = result.cameraLandmarks[i];
-      if (!point || (result.landmarks[i]?.visibility ?? 0) < MIN_VISIBILITY) return null;
+      if (!point || !inFrame(result.landmarks[i])) return null;
       const view = preview.convertCameraPointToViewPoint(point);
       return Number.isFinite(view.x) && Number.isFinite(view.y) ? view : null;
     });

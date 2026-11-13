@@ -32,31 +32,40 @@ it('follows a steady move within a few frames', () => {
   expect(400 - y(out[9])).toBeLessThan(4);
 });
 
-it('holds a brief dropout, then drops the joint and restarts it unfiltered', () => {
-  const p = { x: 100, y: 200 };
-  const out = run([p, p, null, null, null, null, null, { x: 300, y: 400 }]);
-  expect(out[2]).toEqual(p); // 33 ms gap: held
-  expect(out[4]).toEqual(p); // 100 ms: held
-  expect(out[6]).toBeNull(); // 167 ms: dropped
-  expect(out[7]).toEqual({ x: 300, y: 400 }); // a fresh filter starts at the sample
+/** Long enough at HZ for a joint's track to be drawn. */
+const settled = (p: SkPoint) => Array.from({ length: 6 }, () => p);
+
+it('draws a joint only once it has been seen for 150 ms', () => {
+  const out = run(settled({ x: 100, y: 200 }));
+  expect(out.slice(0, 5)).toEqual([null, null, null, null, null]); // 0–133 ms
+  expect(out[5]).toEqual({ x: 100, y: 200 }); // 167 ms
 });
 
-it('snaps to a point that jumps past a quarter of the diagonal', () => {
-  const out = run([
-    { x: 100, y: 100 },
-    { x: 100, y: 100 },
-    { x: 400, y: 100 },
-  ]);
-  expect(out[2]).toEqual({ x: 400, y: 100 });
+it('never draws joints that flash for a frame or two while the detector searches', () => {
+  const blank = Array.from({ length: 6 }, () => null);
+  const out = run([{ x: 100, y: 200 }, { x: 104, y: 198 }, ...blank, { x: 600, y: 90 }, ...blank]);
+  expect(out.every((p) => p === null)).toBe(true);
+});
+
+it('holds a brief dropout, then drops the joint', () => {
+  const p = { x: 100, y: 200 };
+  const out = run([...settled(p), null, null, null, null, null]);
+  expect(out[6]).toEqual(p); // 33 ms gap: held
+  expect(out[8]).toEqual(p); // 100 ms: held
+  expect(out[10]).toBeNull(); // 167 ms: dropped
+});
+
+it('hides a joint that jumps past a quarter of the diagonal until it has settled there', () => {
+  const out = run([...settled({ x: 100, y: 100 }), ...settled({ x: 400, y: 100 })]);
+  expect(out[5]).toEqual({ x: 100, y: 100 });
+  expect(out[6]).toBeNull(); // a new track, not a fast move
+  expect(out[11]).toEqual({ x: 400, y: 100 }); // unfiltered: it never slid over from the old place
 });
 
 it('smooths a jump under the threshold', () => {
-  const out = run([
-    { x: 100, y: 100 },
-    { x: 100, y: 100 },
-    { x: 300, y: 100 },
-  ]);
-  expect(x(out[2])).toBeLessThan(300);
+  const out = run([...settled({ x: 100, y: 100 }), { x: 300, y: 100 }]);
+  expect(x(out[6])).toBeGreaterThan(100);
+  expect(x(out[6])).toBeLessThan(300);
 });
 
 it('never mutates the previous state', () => {

@@ -15,7 +15,7 @@ import { wallSit } from './wall-sit';
 export type { BodyPart, Pose } from '@/exercises/body/geometry';
 export type { Kind, Phase, Progress } from '@/exercises/kinds/progress';
 export type { Placement } from './exercise';
-export { outOfFrame } from '@/exercises/body/geometry';
+export { credible, outOfFrame } from '@/exercises/body/geometry';
 export { orientation } from './exercise';
 
 /** The single list of exercises. Add an entry here, and to `initialCounters`, to add an exercise. */

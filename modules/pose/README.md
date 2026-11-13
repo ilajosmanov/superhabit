@@ -18,6 +18,10 @@ Three consecutive detection exceptions on GPU recreate the detector on CPU once.
 exceptions on CPU, failed CPU creation, unsupported frames or missing gravity sensors call `onFailed`
 once and stop detection. A successful detection resets the failure count.
 Image landmarks carry `presence` when MediaPipe fills it; world landmarks never do.
+The detector keeps a track only while its presence score is 0.7 or more (MediaPipe's default is 0.5):
+under that it searches for the person again, instead of following a track that went wrong.
+Each frame is turned upright before MediaPipe sees it: given the sensor's sideways frame with a rotation
+option it loses a standing person far more often, worst on the back camera.
 
 After changing the contract, regenerate from this folder with the same Nitrogen as
 `react-native-nitro-modules` (0.37.2): `vp dlx nitrogen@0.37.2`. Nitrogen rejects inline unions, so name

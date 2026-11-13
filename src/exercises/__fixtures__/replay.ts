@@ -3,7 +3,7 @@ import { assert, describe, expect, it } from 'vite-plus/test';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { Pose } from '@/exercises/body/geometry';
+import { credible, type Pose } from '@/exercises/body/geometry';
 import type { Progress } from '@/exercises/kinds/progress';
 import {
   decodeTrace,
@@ -90,11 +90,9 @@ function* replaySteps<S extends Progress, M>(ex: ReplayExercise<S, M>, trace: Re
       if (!live || frame.waiting === 'counter suspended') continue;
     }
     const previous = state;
-    state = ex.step(
-      state,
-      frame.landmarks.length === 0 ? null : ex.measure(toPose(frame)),
-      frame.t,
-    );
+    // As the session does: dots that can't be a body are no body (older clips still hold them).
+    const pose = toPose(frame);
+    state = ex.step(state, credible(pose) ? ex.measure(pose) : null, frame.t);
     yield { frame, previous, state };
   }
 }

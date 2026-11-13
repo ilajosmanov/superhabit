@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vite-plus/test';
 import { Joint } from 'reprepgo-pose/joints';
 
 import { body } from '@/exercises/__fixtures__/body';
-import { angle, bestSide, seen, tilt } from './geometry';
+import { loadTrace, toPose, traceFiles } from '@/exercises/__fixtures__/replay';
+import { angle, bestSide, credible, seen, tilt } from './geometry';
 
 const at = (x: number, y: number, z = 0) => ({ x, y, z });
 
@@ -34,5 +35,33 @@ describe('bestSide', () => {
     pose.landmarks[Joint.RIGHT_ANKLE].x = 1.2;
     expect(seen(pose, Joint.RIGHT_ANKLE)).toBe(false);
     expect(bestSide(pose, (j) => [j.hip, j.knee, j.ankle])).toBe('left');
+  });
+});
+
+// Device clips, read against their numbers: the burpee one starts with the phone still being set down,
+// and from 26 to 32 s the detector reports thumb-sized skeletons with shoulders and hips it calls visible
+// (trunks of 3–29 cm). The plank is 17 s of one clean hold, lying down.
+describe('credible', () => {
+  const clip = (name: string) => traceFiles('device').find((path) => path.endsWith(name));
+  const burpee = clip('burpee-1794183187017.sht');
+  const plank = clip('plank-1794169490623.sht');
+
+  it.skipIf(!burpee || !plank)(
+    'drops most collapsed skeletons of a search, keeps a real body',
+    () => {
+      const searching = loadTrace(burpee ?? '').frames.filter(
+        (frame) => frame.landmarks.length > 0 && frame.t >= 29_000 && frame.t <= 31_000,
+      );
+      expect(searching.length).toBeGreaterThan(10);
+      const kept = searching.filter((frame) => credible(toPose(frame)));
+      expect(kept.length / searching.length).toBeLessThan(0.5);
+
+      const holding = loadTrace(plank ?? '').frames.filter((frame) => frame.landmarks.length > 0);
+      expect(holding.every((frame) => credible(toPose(frame)))).toBe(true);
+    },
+  );
+
+  it('is false with nobody there', () => {
+    expect(credible({ landmarks: [], worldLandmarks: [] })).toBe(false);
   });
 });

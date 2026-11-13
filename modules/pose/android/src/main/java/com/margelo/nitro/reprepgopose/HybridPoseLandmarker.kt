@@ -1,6 +1,8 @@
 package com.margelo.nitro.reprepgopose
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.graphics.PixelFormat
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -14,11 +16,8 @@ import androidx.annotation.Keep
 import androidx.camera.core.ImageProxy
 import com.facebook.proguard.annotations.DoNotStrip
 import com.google.mediapipe.framework.image.BitmapImageBuilder
-import com.google.mediapipe.framework.image.ByteBufferImageBuilder
-import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.core.Delegate
-import com.google.mediapipe.tasks.vision.core.ImageProcessingOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import com.margelo.nitro.NitroModules
@@ -52,23 +51,27 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
       // VIDEO mode tracks the body between frames (smoother, fewer jumps) and stays synchronous.
       .setRunningMode(RunningMode.VIDEO)
       .setNumPoses(1)
+      // While it tracks, MediaPipe looks for the person again only when this score drops under the
+      // limit. At its default 0.5 a track that went wrong (an arm over the lens, then a step back)
+      // survived for seconds as an upside-down skeleton. Replaying a device video: 0.7 cut those
+      // frames from 149 to 23 and lost none of the real ones; 0.8 began losing a body close to the lens.
+      .setMinPosePresenceConfidence(0.7f)
       .build()
     return PoseLandmarker.createFromOptions(context, options)
   }
 
   private var lastRotation = -1
 
-  /** Rotates a buffer point clockwise by `degrees` into the upright frame; `one` is 1 for normalized points, 0 for metres. */
-  private fun upright(
+  /** A normalized point of the upright picture, back in the sensor's buffer that needs `degrees` clockwise to be upright. */
+  private fun inBuffer(
     x: Float,
     y: Float,
-    degrees: Int,
-    one: Float
+    degrees: Int
   ): Pair<Float, Float> =
     when (degrees) {
-      90 -> Pair(one - y, x)
-      180 -> Pair(one - x, one - y)
-      270 -> Pair(y, one - x)
+      90 -> Pair(y, 1f - x)
+      180 -> Pair(1f - x, 1f - y)
+      270 -> Pair(1f - y, x)
       else -> Pair(x, y)
     }
 
@@ -149,14 +152,18 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
     return ts
   }
 
-  private fun buildImage(proxy: ImageProxy): MPImage {
-    val plane = proxy.planes[0]
-    if (plane.rowStride != proxy.width * 4) {
-      return BitmapImageBuilder(proxy.toBitmap()).build()
-    }
-    val buffer = plane.buffer.duplicate()
-    buffer.rewind()
-    return ByteBufferImageBuilder(buffer, proxy.width, proxy.height, MPImage.IMAGE_FORMAT_RGBA).build()
+  /**
+   * The frame as a bitmap turned upright. MediaPipe also takes the sensor's sideways frame with a
+   * rotation option, but then it keeps losing a standing person and takes seconds to find them again.
+   * Replaying a device video, 2101 frames: upright it found them in 1618, sideways in 1149 at 270°
+   * (front camera) and 660 at 90° (back camera).
+   */
+  private fun uprightBitmap(proxy: ImageProxy): Bitmap {
+    val raw = proxy.toBitmap()
+    val rotation = proxy.imageInfo.rotationDegrees
+    if (rotation == 0) return raw
+    val turn = Matrix().apply { postRotate(rotation.toFloat()) }
+    return Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, turn, false).also { raw.recycle() }
   }
 
   /** Mean luma (BT.601), 0..255, of a GRID×GRID grid of pixels: 1024 reads instead of every pixel. */
@@ -208,10 +215,14 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
       if (failed) return
       val brightness = brightness(proxy)
       var inferenceNs = 0L
-      val detected = buildImage(proxy).use { image ->
-        val options = ImageProcessingOptions.builder().setRotationDegrees(proxy.imageInfo.rotationDegrees).build()
-        val inferenceStart = System.nanoTime()
-        detector.detectForVideo(image, options, ts).also { inferenceNs = System.nanoTime() - inferenceStart }
+      val bitmap = uprightBitmap(proxy)
+      val detected = try {
+        BitmapImageBuilder(bitmap).build().use { image ->
+          val inferenceStart = System.nanoTime()
+          detector.detectForVideo(image, ts).also { inferenceNs = System.nanoTime() - inferenceStart }
+        }
+      } finally {
+        bitmap.recycle()
       }
       detectFailures = 0
       val pose = detected.landmarks().firstOrNull()
@@ -232,29 +243,25 @@ class HybridPoseLandmarker : HybridPoseLandmarkerSpec() {
         if (presence.isPresent) presence.get().toDouble() else null
       )
 
-      // MediaPipe returns points in the unrotated buffer; the exercises expect the screen's frame
-      // (y down, x right). The preview gets sensor coordinates below and rotates on its own.
+      // The points come in the upright picture, the screen's frame the exercises expect (y down,
+      // x right). The preview gets sensor coordinates below and rotates on its own.
       val rotation = proxy.imageInfo.rotationDegrees
       if (rotation != lastRotation) {
         Log.i(TAG, "rotation: $rotation")
         lastRotation = rotation
       }
       val landmarks = pose
-        ?.map {
-          val (x, y) = upright(it.x(), it.y(), rotation, 1f)
-          landmark(x, y, it.z(), it.visibility(), it.presence())
-        }?.toTypedArray() ?: emptyArray()
+        ?.map { landmark(it.x(), it.y(), it.z(), it.visibility(), it.presence()) }
+        ?.toTypedArray() ?: emptyArray()
+      // The contract keeps presence on image landmarks only.
       val worldLandmarks = world
-        ?.map {
-          val (x, y) = upright(it.x(), it.y(), rotation, 0f)
-          // The contract keeps presence on image landmarks only.
-          landmark(x, y, it.z(), it.visibility(), Optional.empty())
-        }?.toTypedArray() ?: emptyArray()
-      // Rotation options affect inference, but MediaPipe projects results back to the raw image.
+        ?.map { landmark(it.x(), it.y(), it.z(), it.visibility(), Optional.empty()) }
+        ?.toTypedArray() ?: emptyArray()
       // Sensor coordinates let the preview apply its own rotation, mirroring, crop and letterboxing.
       val cameraLandmarks = (pose ?: emptyList())
         .map {
-          val point = frame.convertFramePointToCameraPoint(Point(it.x().toDouble() * proxy.width, it.y().toDouble() * proxy.height))
+          val (x, y) = inBuffer(it.x(), it.y(), rotation)
+          val point = frame.convertFramePointToCameraPoint(Point(x.toDouble() * proxy.width, y.toDouble() * proxy.height))
           PoseCameraPoint(point.x, point.y)
         }.toTypedArray()
       val sideways = rotation == 90 || rotation == 270

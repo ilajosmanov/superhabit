@@ -29,7 +29,7 @@ import { keepAwake } from './keep-awake';
 import { orientationLock } from './orientation-lock';
 import { NONE } from './framing';
 
-import { EXERCISES, initialCounters, orientation } from '@/exercises/registry';
+import { credible, EXERCISES, initialCounters, orientation } from '@/exercises/registry';
 
 import { finishSet, type StepResult } from '@/workout/plan/results';
 import { camcorder, type VideoOutput } from '@/workout/capture/camcorder';
@@ -160,7 +160,14 @@ const freshSet = () =>
 /** Owns the native detector for as long as the session runs; native pushes each result to JS. */
 const landmarker = fromCallback<Events>(({ sendBack }) => {
   const instance = createPoseLandmarker();
-  instance.onResult = (result) => sendBack({ type: 'pose', result });
+  // Dots that can't be a body are no body, for the counters, the skeleton and the trace alike.
+  instance.onResult = (result) =>
+    sendBack({
+      type: 'pose',
+      result: credible(result)
+        ? result
+        : { ...result, landmarks: [], worldLandmarks: [], cameraLandmarks: [] },
+    });
   instance.onFailed = (message) => {
     console.error('[pose] the detector could not start', message);
     sendBack({ type: 'trackingFailed' });

@@ -64,6 +64,27 @@ export const rise = (pose: Pose, from: Vec, to: Vec) => {
   return up === null ? null : Math.abs(up);
 };
 
+// The shortest trunk a body has, in the detector's metres. A real one reads 0.40–0.55 on 38 device
+// clips and never under 0.28 on a replayed set, close to the lens and at the bottom of a squat included.
+// Shoulders are no test: side-on they read near zero.
+// shortcut: measured on one adult; lower it if a child's or a small adult's clips fall under.
+const MIN_TRUNK = 0.25;
+
+/**
+ * Whether the dots can be a body at all. While it searches for someone the detector also reports
+ * collapsed skeletons, with joints it calls well visible: only their size gives them away.
+ */
+export function credible({ worldLandmarks: world }: Pose) {
+  const [ls, rs, lh, rh] = [
+    Joint.LEFT_SHOULDER,
+    Joint.RIGHT_SHOULDER,
+    Joint.LEFT_HIP,
+    Joint.RIGHT_HIP,
+  ].map((i) => world[i]);
+  if (!ls || !rs || !lh || !rh) return false;
+  return distance(mid(ls, rs), mid(lh, rh)) >= MIN_TRUNK;
+}
+
 // Joints outside the frame are extrapolated by the model; don't trust them.
 export const inFrameWithVisibility = (p: PoseLandmark | undefined, minVisibility: number) =>
   !!p && p.visibility >= minVisibility && p.x > 0 && p.x < 1 && p.y > 0 && p.y < 1;
